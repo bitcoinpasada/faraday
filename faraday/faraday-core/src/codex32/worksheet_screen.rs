@@ -233,12 +233,6 @@ pub(crate) fn fit_cell(sh: Paper<'_>, room: (f32, f32)) -> Option<f32> {
     None
 }
 
-/// The sheet's size at its least fitting cell, `CODEX32_CELL_FIT_MIN`:
-/// across and down. Arithmetic.
-pub(crate) fn least_size(sh: Paper<'_>) -> (f32, f32) {
-    Geom::at(t::CODEX32_CELL_FIT_MIN).size(sh)
-}
-
 /// The final row's number: after the first row, the residue's row and a
 /// pair of rows per step.
 fn final_row(sh: Paper<'_>) -> usize {
@@ -504,7 +498,7 @@ pub(crate) fn draw(
     s: Sheet<'_>,
     pan: SheetPan,
     (x, y, w): (f32, f32, f32),
-    (cls, fit): (WindowClass, Option<f32>),
+    (cls, fit, cap): (WindowClass, Option<f32>, Option<f32>),
 ) -> f32 {
     let ink = Role::OnSurface;
     // The final row alone is always in its view.
@@ -527,7 +521,7 @@ pub(crate) fn draw(
     let (vw, vh) = if fit.is_some() {
         (w.min(cw), ch)
     } else {
-        (w, ch.min(t::codex32_sheet_view(cls)))
+        (w, ch.min(cap.unwrap_or_else(|| t::codex32_sheet_view(cls))))
     };
     let max = ((cw - sx - vw).max(0.0), (ch - vh).max(0.0));
     let (px, py) = (pan.x.clamp(0.0, max.0), pan.y.clamp(0.0, max.1));
@@ -729,6 +723,7 @@ pub(crate) fn entry_sheet(
     front: Option<usize>,
     ui: &mut Ui,
     (x, y, w, cls, hide): (f32, f32, f32, WindowClass, bool),
+    bottom: Option<f32>,
 ) -> f32 {
     let Some(sh) = work.worksheet(share, Reveal::PaperForm) else {
         return 0.0;
@@ -743,7 +738,17 @@ pub(crate) fn entry_sheet(
         press: true,
         only_final: false,
     };
-    let fit = (cls, m.sheet_cell());
+    // Where the dice sheet's column stands, the view is the height left
+    // to the line `bottom`, under the head and over the gaps that close
+    // the card.
+    let room = bottom.map(|b| b - (y + hh) - 2.0 * t::GAP);
+    // Fewer rows than the least left: the class's view and the page
+    // scrolls, as where no column stands.
+    let short = m.sheet_cell().is_none()
+        && room.is_some_and(|r| r < t::CODEX32_VIEW_MIN_ROWS * t::codex32_cell(cls));
+    m.note_sheet_room(room, short);
+    let cap = room.filter(|_| !short);
+    let fit = (cls, m.sheet_cell(), cap);
     let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), fit));
     hh + h + t::GAP
 }
@@ -783,7 +788,7 @@ pub(crate) fn review_sheet(
         press: true,
         only_final: false,
     };
-    let fit = (cls, m.sheet_cell());
+    let fit = (cls, m.sheet_cell(), None);
     let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), fit));
     hh + h + t::GAP
 }
@@ -811,7 +816,7 @@ pub(crate) fn check_sheet(
         only_final: !whole,
     };
     let cls = app.window().class();
-    let mut h = paper!(sh, |p| draw(ui, s(p), pan, (x, y, w), (cls, None))) + t::GAP;
+    let mut h = paper!(sh, |p| draw(ui, s(p), pan, (x, y, w), (cls, None, None))) + t::GAP;
     if let Some(i) = sh.first_difference() {
         let b = sh.sum_box(sh.steps()) + i;
         let line = fill(EN.c32r_final_differs, &[&b.to_string()]);

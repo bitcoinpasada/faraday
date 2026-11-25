@@ -26,35 +26,18 @@ pub(crate) fn side_room(column: bool) -> f32 {
 }
 
 /// Whether the dice sheet stands in a column at the right for the entry
-/// in a page area `cw` wide in a window `h` tall, on a window of `class`
-/// with one-column pages or not (`compact`): only where the checksum
-/// worksheet still draws whole beside it and the column fits the
-/// window's height, over the input panel at the foot, at the text factor
-/// `k`. Elsewhere both sheets stand in the page. Arithmetic.
-pub(crate) fn column_now(
-    m: &Codex32Make,
-    cw: f32,
-    h: f32,
-    (win, compact, k): (faraday_draw::geom::Window, bool, f32),
-) -> bool {
+/// in a page area `cw` wide, on a window with one-column pages or not
+/// (`compact`): wherever the page keeps its least width beside it (the
+/// worksheet beside it draws whole or panning in its view). The column
+/// scrolls within itself where it is taller than the window. Elsewhere
+/// both sheets stand in the page. Arithmetic.
+pub(crate) fn column_now(m: &Codex32Make, cw: f32, compact: bool) -> bool {
     let entering = m.open() == Some(Card::Enter)
         && m.dice_sheet_shown()
         && m.dice_sheet_open()
         && m.front().is_some();
     let side = crate::screens::hub_layout::guide_room();
-    if compact || !entering || cw - side - t::MARGIN_WIDE < t::CODEX32_MAIN_MIN {
-        return false;
-    }
-    let Some((sheet_w, sheet_h)) = m.sheet_least() else {
-        return false;
-    };
-    let panel = super::input_panel::place_in(m, (cw, h), (win, k), side);
-    let work = crate::keygen::screen::codex32_work_w(cw, side) - panel.lead();
-    let tall = h - 2.0 * t::MARGIN_WIDE - panel.foot_h();
-    sheet_w <= work
-        && sheet_h <= tall
-        && t::CODEX32_DICE_COLUMN_H
-            <= h - crate::screens::hub_layout::guide_top() - t::MARGIN_WIDE - panel.foot_h()
+    !compact && entering && cw - side - t::MARGIN_WIDE >= t::CODEX32_MAIN_MIN
 }
 
 /// Draws the dice sheet's column at the right of the container's `room`,
@@ -73,11 +56,15 @@ pub(crate) fn draw(
     let (x, y, w, view) =
         crate::screens::hub_layout::guide_place_at(room.area_x + room.area_w + t::SPACER, h);
     let clip = ui.rect(x, y, w, view);
-    let off = m.pane_offset();
+    // Kept within the reach the column had at its last drawing, as the
+    // input panel's is: a smaller column or a taller window brings it back.
+    let off = m.pane_offset().clamp(0.0, (m.pane_all() - view).max(0.0));
     let open = ui.region_open(Region::beside(Slot::DemoPane, clip, off));
     let mark = ui.presses_mark();
-    let all = super::dice_screen::dice_sheet(m, ui, (x, y - off, w), false, false);
+    let scale = super::dice_screen::column_scale(m.dice_choice().faces, w, view);
+    let all = super::dice_screen::dice_sheet(m, ui, (x, y - off, w), false, false, scale);
     // What is scrolled out of the pane takes no press.
     ui.clip_presses_since(mark, clip);
+    m.note_pane_all(all);
     ui.region_close(open, (all - view).max(0.0));
 }

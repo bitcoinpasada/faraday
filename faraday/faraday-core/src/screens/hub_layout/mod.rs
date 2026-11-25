@@ -172,11 +172,6 @@ pub(crate) fn guide_place_at(x: f32, h: f32) -> (f32, f32, f32, f32) {
     )
 }
 
-/// The supporting pane's top, below the top-right strip.
-pub(crate) fn guide_top() -> f32 {
-    SUPPORT_PANE_TOP
-}
-
 /// The widest side panel a page's column can have beside it (a quick
 /// paper backup's pair is centred by it).
 pub(crate) fn side_panel_widest() -> f32 {

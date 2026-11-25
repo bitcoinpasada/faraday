@@ -2425,6 +2425,15 @@ impl crate::Faraday {
             if m.open() != before && m.open() == Some(Card::Enter) {
                 m.page_due_set();
             }
+            // The dice sheet opening or closing brings the column or takes it
+            // away: the page follows once it is drawn so, from the regions
+            // drawn with it (the old ones forgotten) and once the sheet's
+            // glide has ended.
+            if matches!(press, C32::DiceSheet) {
+                self.scroll.forget_drawn();
+                m.page_due_set();
+                follow = crate::codex32::Follow::Still;
+            }
             // On a small panel the entry stays scrolled to its foot at every
             // press, so the worksheet tabs, the panel and the pad are all in view
             // (`docs/CODEX32.md` §6.4.7).
@@ -2542,7 +2551,14 @@ impl crate::Faraday {
         // Once the cards have settled: the page is brought clear from
         // where the Enter card will stand, not where it stands while the
         // card before it still closes.
-        let settling = self.disclosed.as_ref().is_some_and(|d| d.moving);
+        let settling = self.disclosed.as_ref().is_some_and(|d| d.moving)
+            || (!reduce
+                && self
+                    .keygen
+                    .state
+                    .as_ref()
+                    .and_then(|k| k.codex32.as_ref())
+                    .is_some_and(crate::codex32::Codex32Make::dice_moving));
         if due && !settling && self.worksheet_due() {
             redraw = true;
         }
@@ -2581,9 +2597,11 @@ impl crate::Faraday {
 
     /// Keeps Make codex32 shares' fitted worksheet cell in step with the
     /// window as it is now (`docs/LAYOUT.md` §16.1): the work width of the
-    /// open card, beside the dice sheet's column where it stands, and the
-    /// window's height less the input panel's room and the margins above
-    /// and below. One-column pages fit no sheet. Arithmetic.
+    /// open card and the window's height less the input panel's room and
+    /// the margins above and below; where the dice sheet's column stands, the
+    /// height its last drawing left. On one-column pages no sheet is fitted:
+    /// it pans in its view.
+    /// Arithmetic.
     pub(crate) fn codex32_refit(&mut self) {
         let compact = self.compact;
         let win = self.window();
@@ -2593,22 +2611,33 @@ impl crate::Faraday {
         let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) else {
             return;
         };
-        m.note_sheet();
-        let room = (!compact).then(|| {
-            let shell = (win, compact, k);
-            let column = crate::codex32::pane_screen::column_now(m, page_w, h, shell);
-            let side = crate::codex32::pane_screen::side_room(column);
-            // The page's room under the top app bar (`docs/LAYOUT.md` §3).
-            let tall =
-                h - faraday_draw::tokens::APP_BAR_H - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
-            // The input panel's room: at the foot its height; beside the
-            // sheets its width, from the column's start (`docs/LAYOUT.md` §16.3).
-            let panel = crate::codex32::input_panel::place_now(m, page_w, h, shell);
-            (
-                screen::codex32_work_w(page_w, side) - panel.lead(),
+        let shell = (win, compact, k);
+        let column = crate::codex32::pane_screen::column_now(m, page_w, compact);
+        // The page's room under the top app bar (`docs/LAYOUT.md` §3).
+        let tall = h - faraday_draw::tokens::APP_BAR_H - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
+        // The input panel's room: at the foot its height; beside the
+        // sheets its width, from the column's start (`docs/LAYOUT.md` §16.3).
+        let panel = crate::codex32::input_panel::place_now(m, page_w, h, shell);
+        // Fitted whole where it can be: in the page's room, or where the
+        // dice sheet's column stands in the width it leaves and the height
+        // the last drawing found left above the panel (the characters'
+        // boxes and tabs taken off); else it pans in its view.
+        let room = if compact {
+            None
+        } else if column {
+            m.sheet_room().map(|r| {
+                (
+                    screen::codex32_work_w(page_w, crate::codex32::pane_screen::side_room(true))
+                        - panel.lead(),
+                    r,
+                )
+            })
+        } else {
+            Some((
+                screen::codex32_work_w(page_w, 0.0) - panel.lead(),
                 tall - panel.foot_h(),
-            )
-        });
+            ))
+        };
         m.refit(room);
     }
 

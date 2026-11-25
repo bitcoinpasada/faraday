@@ -1464,12 +1464,23 @@ pub const INPUT_ROLLS_LINE: f32 = 16.0;
 /// The struck pairs the rolls across the input panel keep room for,
 /// the latest.
 pub const INPUT_ROLLS_STRUCK: usize = 1;
-/// The dice sheet in a column at the right, as tall as it draws there
-/// (the tree over the five tracks): with the Demo only card's
-/// `CODEX32_COLUMN_CARD_H` under it, where the window holds both, the
-/// column stands beside the page (`docs/LAYOUT.md` §16.1). Measured;
-/// the column scrolls within itself where text drawn larger passes it.
-pub const CODEX32_DICE_COLUMN_H: f32 = 720.0;
+/// What in the column's height does not scale with the tree's width or
+/// the tracks' unit: the head row, the tree's two lines under its leaves,
+/// the tracks' title, rule and heads, and the gaps: 158 dp, measured as
+/// the column's drawn height less the tree's and the tracks' own.
+pub const CODEX32_COLUMN_FIXED_H: f32 = 158.0;
+/// The room a flow's page keeps under its last row before it scrolls.
+pub const FLOW_END_PAD: f32 = 24.0;
+/// The least unit the tracks are drawn at to fit a window's height, for
+/// dice of six faces or fewer (the full unit is `CODEX32_TRACK_UNIT`);
+/// at it the ring's name "Free space" still fits its room.
+pub const CODEX32_TRACK_UNIT_MIN: f32 = 16.0;
+/// The fewest rows of cells the worksheet's view beside the dice column
+/// keeps: where the height left holds fewer (of the class's cell), the
+/// view is the class's `codex32_sheet_view` and the page scrolls to it
+/// as where no column stands (`docs/LAYOUT.md` §16.1). Zero turns this
+/// off.
+pub const CODEX32_VIEW_MIN_ROWS: f32 = 6.0;
 /// "Your dice" at the start of the pad's first row in the input panel,
 /// with the face waiting or "0 is 10" under it: the room it keeps, the
 /// label cut to it where text is drawn larger.

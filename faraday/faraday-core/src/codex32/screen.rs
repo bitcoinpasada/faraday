@@ -106,6 +106,10 @@ struct At {
     /// The dice sheet stands in a column at the right, not in the page
     /// (`docs/LAYOUT.md` §16.1).
     column: bool,
+    /// Where the dice sheet's column stands, the content line the left
+    /// side may reach so that the page does not scroll: the worksheet's
+    /// view takes the height left to it (`docs/LAYOUT.md` §16.1).
+    bottom: Option<f32>,
 }
 
 /// What a masked character is drawn as.
@@ -321,7 +325,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
 pub(crate) fn body(
     app: &View,
     m: &Codex32Make,
-    (card, wide, panel, column): (Card, f32, super::input_panel::PanelAt, bool),
+    (card, wide, panel, column): (Card, f32, super::input_panel::PanelAt, Option<f32>),
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -337,7 +341,8 @@ pub(crate) fn body(
         press: true,
         // One-column pages lay a step out in the page's own width.
         wide: if app.is_compact() { w } else { wide.max(w) },
-        column,
+        column: column.is_some(),
+        bottom: column,
     };
     let h = match card {
         Card::Scheme => scheme(m, ui, x, y, w),
@@ -660,7 +665,7 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             cy += panel_tiles(m, ui, x, cy, w);
             cy += match m.panel() {
                 0 if m.way() == Way::Dice => dice_rows(m, ui, x, cy, w, true),
-                1 => sheet::entry_sheet(m, work, share, front, ui, (x, cy, w, cls, at.hide)),
+                1 => sheet::entry_sheet(m, work, share, front, ui, (x, cy, w, cls, at.hide), None),
                 _ => string_boxes(work, share, front, ui, at.to(x, cy, w)),
             };
             cy += pad(m, ui, at.to(x, cy, w));
@@ -685,7 +690,11 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     } else {
         cy += note(m, ui, x, cy, w);
     }
-    cy += at.panel.foot_h();
+    // Where the column stands the left side is fitted to the page and
+    // leaves no room under it.
+    if at.bottom.is_none() || m.sheet_short() {
+        cy += at.panel.foot_h();
+    }
     cy - y
 }
 
@@ -759,20 +768,31 @@ fn panels(
     let dice = |ui: &mut Ui, y: f32| {
         if m.dice_sheet_shown() && !at.column {
             let rolls = !at.panel.out_of_page();
-            dice_sheet(m, ui, (x, y, w), cls < WindowClass::Expanded, rolls)
+            dice_sheet(m, ui, (x, y, w), cls < WindowClass::Expanded, rolls, None)
         } else {
             0.0
         }
     };
     let sheet = |ui: &mut Ui, y: f32| match m.view() {
-        0 => sheet::entry_sheet(m, work, share, front, ui, (x, y, w, cls, at.hide)),
-        v => translation(
+        0 => sheet::entry_sheet(
+            m,
             work,
-            usize::from(v) - 1,
-            front.map(|f| (share, f)),
+            share,
+            front,
             ui,
-            at.to(x, y, w),
+            (x, y, w, cls, at.hide),
+            at.bottom,
         ),
+        v => {
+            m.note_sheet_room(None, false);
+            translation(
+                work,
+                usize::from(v) - 1,
+                front.map(|f| (share, f)),
+                ui,
+                at.to(x, y, w),
+            )
+        }
     };
     // The dice sheet first, so the page scrolls the least to the work in
     // hand while a character is rolled.

@@ -1403,7 +1403,8 @@ keep the rounded corners the rest of Faraday uses.
 
 **In a view that pans both ways** (owner, 2026-10-24). The checksum
 worksheet is drawn in a view as wide as its column and at most
-`codex32_sheet_view` tall; where the sheet is larger it pans, across
+`codex32_sheet_view` tall (beside the dice sheet's column, the height left
+above the input panel, `docs/LAYOUT.md` §16.1); where the sheet is larger it pans, across
 and down, through the scroll machinery every region uses (MOTION §3.3;
 a region of its own, `Slot::Worksheet`, whose content also pans
 sideways). A click and hold of the mouse, or a touch and hold, drags

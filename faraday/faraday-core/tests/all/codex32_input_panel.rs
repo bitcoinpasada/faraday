@@ -14,7 +14,7 @@ use faraday_core::keygen::Start;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{
-    App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
+    App, BootState, Command, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
 };
 use faraday_ui::keyboard::OskPress;
 
@@ -27,7 +27,12 @@ fn on_entry(width: u16, height: u16, dpi: u16) -> Faraday {
 /// The same on a shell that offers the computer's dice roller, or not
 /// (the stick and the Pi), by `way`.
 fn on_shell(width: u16, height: u16, dpi: u16, roller: bool, way: Way) -> Faraday {
-    let mut app = on_entropy(width, height, dpi, roller);
+    on_shell_len(width, height, dpi, (roller, way), 0)
+}
+
+/// The same with the length `len` chosen (0: 48 characters, 1: 74).
+fn on_shell_len(width: u16, height: u16, dpi: u16, (roller, way): (bool, Way), len: u8) -> Faraday {
+    let mut app = on_entropy_len(width, height, dpi, roller, len);
     let w = WAYS.iter().position(|w| *w == way).unwrap();
     c32(&mut app, C32::Way(w as u8));
     c32(&mut app, C32::Next);
@@ -72,7 +77,13 @@ fn on_scheme(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
 /// Make codex32 shares on such a shell, 2 of 3 named `name`, on its
 /// Entropy card.
 fn on_entropy(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
+    on_entropy_len(width, height, dpi, roller, 0)
+}
+
+/// The same with the length `len` chosen (0: 48 characters, 1: 74).
+fn on_entropy_len(width: u16, height: u16, dpi: u16, roller: bool, len: u8) -> Faraday {
     let mut app = on_scheme(width, height, dpi, roller);
+    c32(&mut app, C32::Length(len));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(&mut app, C32::Split(split as u8));
     c32(&mut app, C32::Next);
@@ -179,6 +190,10 @@ fn pad_and_rolls_in_view(app: &mut Faraday, w: u16, h: u16) {
 fn the_pad_and_the_rolls_are_on_screen_together_and_stay_as_the_page_scrolls() {
     for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 800)] {
         let mut app = on_entry(w, h, 160);
+        pad_and_rolls_in_view(&mut app, w, h);
+        // The dice sheet closed (a share's end): no column, the page is
+        // the step's and scrolls, the pad staying in view as it does.
+        close_dice_sheet(&mut app);
         pad_and_rolls_in_view(&mut app, w, h);
         let key = app.hit_box(face(3));
         let page = |app: &Faraday| app.keygen().unwrap().scroll.y;
@@ -657,4 +672,400 @@ fn the_input_panel_and_the_dice_column_stand_clear_of_the_card_head() {
     if let Some(col) = text_at(&mut app, "Dice de-biasing") {
         assert!(rolls.0 + rolls.2 <= col.0, "{rolls:?} over {col:?}");
     }
+}
+
+/// The cell press of the worksheet's given box `b` (share A), as a
+/// finger finds it.
+fn given(b: u8) -> Action {
+    Action::Codex32(C32::Cell(faraday_core::codex32::Cell::Given {
+        sheet: 0,
+        b,
+    }))
+}
+
+/// Where the character boxes' number `n` is drawn, left of `col`, above
+/// the worksheet's head `sheet`, and at or right of `left` (the sheet's own
+/// left edge, not the pad's keys beside it).
+fn char_box(
+    app: &mut Faraday,
+    n: usize,
+    (left, col, sheet): (i32, i32, i32),
+) -> Option<(i32, i32, i32, i32)> {
+    let name = n.to_string();
+    app.drawn_text_boxes()
+        .plain()
+        .into_iter()
+        .find(|(t, b)| *t == name && b.1 < sheet && b.0 >= left && b.0 < col)
+        .map(|(_, b)| b)
+}
+
+/// The whole of the dice step on one window (owner, 2026-11-24): the
+/// worksheet at the left, the dice sheet in a right column with its tree
+/// over the die tracks, and the input panel's pad and rolls, every part
+/// in the window at once, with a worksheet that pans in its view as well
+/// as one drawn whole.
+#[test]
+fn the_dice_step_shows_the_worksheet_the_tree_the_tracks_and_the_pad_at_once() {
+    let sizes = [
+        (1366u16, 768u16, 0u8),
+        (1440, 900, 0),
+        (1536, 864, 0),
+        (1920, 1080, 0),
+        (2560, 1440, 0),
+        (1920, 1080, 1),
+        (2560, 1440, 1),
+    ];
+    for (w, h, len) in sizes {
+        let chars = if len == 0 { 48 } else { 74 };
+        let mut app = on_shell_len(w, h, 160, (true, Way::Dice), len);
+        for f in THREE {
+            c32(&mut app, C32::Face(f));
+        }
+        frames(&mut app, 40);
+        let sheet = text_at(&mut app, "Checksum of Share A").expect("the worksheet is drawn");
+        let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet is drawn");
+        let tracks = text_at(&mut app, "Die tracks").expect("the tracks are drawn");
+        let at = format!("{w}x{h} {chars}");
+        assert!(in_window(sheet, w, h), "{at}: the worksheet in view");
+        assert!(in_window(head, w, h), "{at}: the dice sheet in view");
+        // On a window this low the column scrolls to reach its tracks.
+        assert!(
+            h < 800 || in_window(tracks, w, h),
+            "{at}: the tracks in view"
+        );
+        assert!(
+            head.0 > sheet.0 + sheet.2,
+            "{at}: the dice sheet at the right"
+        );
+        assert!(tracks.1 > head.1, "{at}: the tree is over the tracks");
+        // The characters' first and last box above the worksheet, and the
+        // worksheet's first box under it, above the panel and left of the
+        // column, in the same frame.
+        for n in [1, chars] {
+            let b = char_box(&mut app, n, (sheet.0, head.0, sheet.1))
+                .unwrap_or_else(|| panic!("{at}: character box {n} is drawn"));
+            assert!(in_window(b, w, h), "{at}: box {n} in view: {b:?}");
+        }
+        let pad = app.hit_box(face(3)).expect("the pad");
+        let panel = i32::from(pad.1);
+        let first = app.hit_box(given(10)).expect("the worksheet's box 10");
+        let first = (
+            i32::from(first.0),
+            i32::from(first.1),
+            i32::from(first.2),
+            i32::from(first.3),
+        );
+        assert!(
+            in_window(first, w, h)
+                // Over the panel at the foot; beside it, the box is right of it.
+                && (first.1 + first.3 <= panel || i32::from(pad.0 + pad.2) <= first.0)
+                && first.0 + first.2 <= head.0,
+            "{at}: the worksheet's first box in view over the panel: {first:?}"
+        );
+        // Where the room holds the whole sheet at a fitted cell (2560x1440,
+        // 48 characters) it is drawn whole: a drag across it pans nothing.
+        if (w, h, len) == (2560, 1440, 0) {
+            let hrp = Action::Codex32(C32::Cell(faraday_core::codex32::Cell::Hrp {
+                sheet: 0,
+                i: 0,
+            }));
+            let (x, y, bw, bh) = app.hit_box(hrp).expect("the residue's first cell");
+            let (x, y) = (x + bw / 2, y + bh / 2);
+            for (px, py, phase) in [
+                (x, y, TouchPhase::Down),
+                (x - 60, y - 20, TouchPhase::Move),
+                (x - 120, y - 40, TouchPhase::Move),
+                (x - 120, y - 40, TouchPhase::Up),
+            ] {
+                app.event(Event::Touch {
+                    x: px,
+                    y: py,
+                    phase,
+                });
+            }
+            let _ = app.frame();
+            let pan = make(&app).pan();
+            assert_eq!(
+                (pan.x, pan.y),
+                (0.0, 0.0),
+                "{at}: drawn whole, nothing pans"
+            );
+        }
+        // The left side holds the window where the worksheet has room for
+        // its rows; where under six rows are left, the page scrolls to the
+        // view as before.
+        let before = app.keygen().unwrap().scroll.y;
+        scroll_page(&mut app, w / 2 - 100, h / 3, 400);
+        let scrolled = app.keygen().unwrap().scroll.y > before;
+        let short = len == 1 && h < 800;
+        assert_eq!(scrolled, short, "{at}: the page scrolls only where short");
+        if !scrolled {
+            assert_eq!(
+                text_at(&mut app, "Checksum of Share A"),
+                Some(sheet),
+                "{at}: the step stayed where it was"
+            );
+        }
+        pad_and_rolls_in_view(&mut app, w, h);
+    }
+}
+
+/// Where the worksheet has under six rows left beside the column, its
+/// view is the class's and the page scrolls to it, the pad staying in
+/// view.
+#[test]
+fn a_low_window_with_a_long_set_scrolls_the_page_to_the_class_view() {
+    for (w, h) in [(1366u16, 768u16), (1280, 720)] {
+        let mut app = on_shell_len(w, h, 160, (true, Way::Dice), 1);
+        frames(&mut app, 3);
+        assert!(
+            text_at(&mut app, "Dice de-biasing").is_some(),
+            "{w}x{h}: the column stands beside the worksheet"
+        );
+        let before = app.keygen().unwrap().scroll.y;
+        scroll_page(&mut app, w / 2 - 100, h / 3, 600);
+        assert!(
+            app.keygen().unwrap().scroll.y > before,
+            "{w}x{h}: the page scrolled to the sheet"
+        );
+        pad_and_rolls_in_view(&mut app, w, h);
+    }
+}
+
+/// Where the column is lower than the window it scrolls within itself:
+/// the tracks come into view above the panel, the page and the
+/// worksheet staying where they are.
+#[test]
+fn the_column_scrolls_within_itself_to_its_tracks_and_the_page_stays() {
+    let (w, h) = (1366u16, 768u16);
+    let mut app = on_entry(w, h, 160);
+    frames(&mut app, 3);
+    let head = text_at(&mut app, "Dice de-biasing").expect("the column's head");
+    let panel = i32::from(app.hit_box(face(3)).expect("the pad").1);
+    let tracks_in_view = |app: &mut Faraday| {
+        app.drawn_text_boxes()
+            .plain()
+            .into_iter()
+            .filter(|(t, b)| t == "Die 5" && b.0 >= head.0 && b.1 + b.3 <= panel && b.1 >= 0)
+            .count()
+    };
+    let (page, pan) = (app.keygen().unwrap().scroll.y, make(&app).pan());
+    let was = tracks_in_view(&mut app);
+    let (x, y) = (u16::try_from(head.0 + 20).unwrap(), h / 3);
+    scroll_page(&mut app, x, y, 800);
+    assert!(make(&app).pane_offset() > 0.0, "the column scrolled");
+    assert!(
+        tracks_in_view(&mut app) > was,
+        "the fifth die's track came into view"
+    );
+    assert_eq!(app.keygen().unwrap().scroll.y, page, "the page stayed");
+    assert_eq!(make(&app).pan(), pan, "the worksheet stayed");
+}
+
+/// The column's offset is kept within what it reaches now: scrolled to
+/// its end on a low window, then the window made taller, its head row is
+/// in view again. A regression check of the whole route (the resize's own
+/// events also bring the page back); the clamp in drawing alone is not
+/// isolated by it.
+#[test]
+fn the_columns_scroll_is_brought_back_where_its_reach_falls() {
+    let (w, h) = (1366u16, 768u16);
+    let mut app = on_entry(w, h, 160);
+    choose_size(&mut app, 20);
+    frames(&mut app, 3);
+    let head = text_at(&mut app, "Dice de-biasing").expect("the column's head");
+    let (x, y) = (u16::try_from(head.0 + 20).unwrap(), h / 3);
+    scroll_page(&mut app, x, y, 4000);
+    assert!(make(&app).pane_offset() > 0.0, "the column scrolled");
+    // The window made taller: the column reaches nowhere now.
+    let tall = 1600u16;
+    app.event(Event::Display(DisplayInfo {
+        width: w,
+        height: tall,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    frames(&mut app, 3);
+    let now = text_at(&mut app, "Dice de-biasing").expect("the column's head is drawn");
+    assert!(
+        now.1 >= 0 && in_window(now, w, tall),
+        "the head row is in view again: {now:?}"
+    );
+}
+
+/// Whether the worksheet's first box ("1") is in the window, left of the
+/// dice column's head.
+fn first_box_in_view(app: &mut Faraday, (w, h): (u16, u16)) -> bool {
+    let col = text_at(app, "Dice de-biasing").map_or(i32::from(w), |b| b.0);
+    let Some(sheet) = app
+        .drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t.starts_with("Checksum of Share"))
+        .map(|b| b.1)
+    else {
+        return false;
+    };
+    eprintln!(
+        "DBG sheet {sheet:?} col {col} box {:?}",
+        char_box(app, 1, (sheet.0, col, sheet.1))
+    );
+    char_box(app, 1, (sheet.0, col, sheet.1)).is_some_and(|b| in_window(b, w, h))
+}
+
+/// At the window where 48 characters stand on one screen (owner,
+/// 2026-11-24), the page is at its start and stays there once the column
+/// is back, however the page stood before.
+fn assert_one_screen(app: &mut Faraday, (w, h): (u16, u16), why: &str) {
+    app.settle();
+    frames(app, 30);
+    assert_eq!(app.keygen().unwrap().scroll.y, 0.0, "{why}: at the start");
+    scroll_page(app, w / 2 - 100, h / 3, 600);
+    assert_eq!(
+        app.keygen().unwrap().scroll.y,
+        0.0,
+        "{why}: a wheel moves nothing"
+    );
+    assert!(first_box_in_view(app, (w, h)), "{why}: box 1 in view");
+}
+
+/// A share done and the finished sheet scrolled to its end, the next
+/// share's first face brings the column back: the page is at its start,
+/// nothing left to scroll, box 1 in view.
+#[test]
+fn a_share_done_and_scrolled_then_one_face_leaves_48_characters_on_one_screen() {
+    let (w, h) = (1366u16, 768u16);
+    let mut app = on_entry(w, h, 160);
+    close_dice_sheet(&mut app);
+    frames(&mut app, 30);
+    scroll_page(&mut app, w / 2 - 100, h / 3, 4000);
+    c32(&mut app, C32::Face(1));
+    assert_one_screen(&mut app, (w, h), "a face after a scroll");
+}
+
+/// The dice sheet's head row pressed twice leaves the page where it was:
+/// the page does not stay short from a follow of the regions drawn before.
+#[test]
+fn the_head_row_pressed_twice_leaves_48_characters_on_one_screen() {
+    let (w, h) = (1366u16, 768u16);
+    let mut app = on_entry(w, h, 160);
+    frames(&mut app, 3);
+    c32(&mut app, C32::DiceSheet);
+    frames(&mut app, 30);
+    c32(&mut app, C32::DiceSheet);
+    assert_one_screen(&mut app, (w, h), "the head row twice");
+}
+
+/// The window `display` event at `w` x `h`, 160 dpi.
+fn display(w: u16, h: u16) -> Event {
+    Event::Display(DisplayInfo {
+        width: w,
+        height: h,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    })
+}
+
+/// A tick, as the shell sends one, without a drawing.
+fn tick(app: &mut Faraday) {
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+}
+
+/// The head row closing the dice sheet and opening it again, Reduce motion
+/// off, the device's order (tick, then frame): the page never goes past
+/// where it rested while the sheet was closed, and ends at the start
+/// (1366 x 768, 48 characters). Seen to fail only with both the glide wait
+/// and `forget_drawn` of the head row removed; either alone leaves it
+/// passing, so it holds the two together, not each.
+#[test]
+fn the_head_row_opening_the_sheet_again_never_sends_the_page_past_where_it_stood() {
+    let mut app = on_entry(1366, 768, 160);
+    app.press(Action::ReduceMotion(false));
+    frames(&mut app, 3);
+    c32(&mut app, C32::DiceSheet);
+    frames(&mut app, 40);
+    let closed = app.keygen().unwrap().scroll.y;
+    c32(&mut app, C32::DiceSheet);
+    for i in 0..30 {
+        tick(&mut app);
+        let y = app.keygen().unwrap().scroll.y;
+        assert!(y <= closed, "tick {i}: {y} past where it stood, {closed}");
+        let _ = app.frame();
+        let y = app.keygen().unwrap().scroll.y;
+        assert!(y <= closed, "frame {i}: {y} past where it stood, {closed}");
+    }
+    assert_eq!(app.keygen().unwrap().scroll.y, 0.0, "it ends at the start");
+}
+
+/// The page's scroll at its highest and at its end over 40 ticks after the
+/// head row closes the sheet, with a frame drawn before the first tick or
+/// not (Faraday Demo can draw one; the stick does not), Reduce motion off.
+fn closing_by_the_head_row(h: u16, frame_first: bool) -> (f32, f32) {
+    let mut app = on_entry(1366, h, 160);
+    app.press(Action::ReduceMotion(false));
+    frames(&mut app, 40);
+    c32(&mut app, C32::DiceSheet);
+    if frame_first {
+        let _ = app.frame();
+    }
+    let mut most = 0f32;
+    for _ in 0..40 {
+        tick(&mut app);
+        let _ = app.frame();
+        most = most.max(app.keygen().unwrap().scroll.y);
+    }
+    (most, app.keygen().unwrap().scroll.y)
+}
+
+/// Closing the sheet with a frame drawn before the first tick (as Faraday
+/// Demo can), Reduce motion off, ends where the stick's order ends and
+/// never goes past it on the way: the page does not follow the worksheet
+/// as it stands while the sheet is still whole. Fails without the wait for
+/// the sheet's glide (1366 x 720 and 768).
+#[test]
+fn the_head_row_closing_the_sheet_ends_in_view_when_a_frame_comes_before_the_tick() {
+    for h in [720u16, 768] {
+        let (_, rest) = closing_by_the_head_row(h, false);
+        let (most, end) = closing_by_the_head_row(h, true);
+        assert_eq!(end, rest, "{h}: ends where the other order ends");
+        assert!(most <= rest, "{h}: went to {most}, past {rest}");
+    }
+}
+
+/// The fitted cell is the new window's after one drawing of the Display
+/// event: the room moved, so a second drawing is asked for, and the
+/// worksheet's boxes stand where a fresh window puts them.
+#[test]
+fn the_cell_is_the_new_windows_after_one_frame_of_a_resize() {
+    let w = 2560u16;
+    let mut app = on_entry(w, 1440, 160);
+    frames(&mut app, 30);
+    app.event(display(w, 1300));
+    while app.poll_command().is_some() {}
+    let _ = app.frame();
+    let mut drawn_again = false;
+    while let Some(c) = app.poll_command() {
+        drawn_again |= matches!(c, Command::Draw);
+    }
+    assert!(drawn_again, "a second drawing is queued");
+    let _ = app.frame();
+    let mut fresh = on_entry(w, 1300, 160);
+    frames(&mut fresh, 30);
+    assert_eq!(
+        app.hit_box(given(10)),
+        fresh.hit_box(given(10)),
+        "the worksheet's box 10 where a fresh window puts it"
+    );
 }

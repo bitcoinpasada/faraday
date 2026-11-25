@@ -146,6 +146,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let body_top = std::cell::Cell::new(None);
+    // The room noted by the last drawing: a fit read at the next frame is
+    // one drawing old when this drawing found another.
+    let room_was = k.codex32.as_ref().and_then(|m| m.sheet_room());
     let (next, again, room) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, s: u8, x: f32, y: f32, w: f32| -> f32 {
@@ -169,7 +172,21 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     body_top.set(Some(y));
                 }
                 let wide = ui.flow_work.map_or(w, |end| end - x);
-                crate::codex32::screen::body(app_ref, m, (*card, wide, panel, column), ui, x, y, w)
+                crate::codex32::screen::body(
+                    app_ref,
+                    m,
+                    (
+                        *card,
+                        wide,
+                        panel,
+                        // In the page's own lines, which the offset does not move.
+                        column.then_some(h - foot - faraday_draw::tokens::FLOW_END_PAD),
+                    ),
+                    ui,
+                    x,
+                    y,
+                    w,
+                )
             })
         };
         // Nothing under Your choices' rows.
@@ -178,7 +195,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui, app_ref, contained, &page, k.scroll, &mut body, &mut under,
         )
     };
-    app.scroll(Scrolled::KeyGen, next, again);
+    let room_moved = k
+        .codex32
+        .as_ref()
+        .is_some_and(|m| m.sheet_room() != room_was);
+    app.scroll(Scrolled::KeyGen, next, again || room_moved);
     super::words_so_far::overlays(app, k, ui, (x0, cw, h));
     // The dice sheet's column stands above the input panel at the foot.
     if let Some(m) = k.codex32.as_ref() {
@@ -193,8 +214,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// Where Make codex32 shares' entry puts what stands out of its page, in
 /// a page area `cw` wide in a window `h` tall: whether the dice sheet
-/// stands in a column at the right, where the window holds it beside a
-/// whole worksheet (`docs/LAYOUT.md` §16.1); and the input panel, beside
+/// stands in a column at the right, where the page keeps its least width
+/// beside it (`docs/LAYOUT.md` §16.1); and the input panel, beside
 /// the sheets at the page's start, at the window's foot, or in the page
 /// (§16.3). Arithmetic.
 /// The result card of a key made from Tools: what was made, then Make a
@@ -235,7 +256,7 @@ fn codex32_places(app: &View, k: &KeyGen, (cw, h): (f32, f32)) -> (bool, PanelAt
         return (false, PanelAt::Page);
     };
     let shell = (app.window(), app.is_compact(), app.text_size().factor());
-    let column = crate::codex32::pane_screen::column_now(m, cw, h, shell);
+    let column = crate::codex32::pane_screen::column_now(m, cw, shell.1);
     let panel = crate::codex32::input_panel::place(app, m, cw, h);
     (column, panel)
 }

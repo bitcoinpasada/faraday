@@ -244,11 +244,12 @@ pub(super) fn dice_sheet(
     (x, y, w): (f32, f32, f32),
     rows_only: bool,
     rolls: bool,
+    scale: Option<Scale>,
 ) -> f32 {
     let head = head_row(m, ui, (x, y, w.min(t::COLUMN_MAX)));
     let shown = ui.dice_shown.clamp(0.0, 1.0);
     if shown >= 1.0 {
-        let whole = dice_body(m, ui, (x, y + head, w), rows_only, rolls);
+        let whole = dice_body(m, ui, (x, y + head, w), rows_only, rolls, scale);
         m.note_dice_body_h(whole);
         return head + whole;
     }
@@ -260,10 +261,59 @@ pub(super) fn dice_sheet(
     let room = shown * m.dice_body_h();
     let clip = ui.rect(x - t::GAP, y + head, w + 2.0 * t::GAP, room);
     ui.c.push_clip(clip);
-    let whole = dice_body(m, ui, (x, y + head, w), rows_only, rolls);
+    let whole = dice_body(m, ui, (x, y + head, w), rows_only, rolls, scale);
     ui.c.pop_clip();
     m.note_dice_body_h(whole);
     head + shown * whole
+}
+
+/// How the dice sheet's column is sized to its height: the tree's width
+/// and the tracks' unit (`docs/LAYOUT.md` §16.1).
+#[derive(Clone, Copy)]
+pub(super) struct Scale {
+    pub tree: f32,
+    pub unit: f32,
+}
+
+/// The sizes at which the column's tree over its tracks fits `room`, the
+/// height under the page's top for the sheet: the full ones where they
+/// fit, else the tree down to its least width and then the tracks down to
+/// their least unit (the dice of six faces or fewer; larger dice keep
+/// the full unit, their pad numbers need it). Never none: the
+/// least where even it does not fit. Arithmetic.
+pub(super) fn column_scale(faces: u8, w: f32, room: f32) -> Option<Scale> {
+    let tracks = |u: f32| 5.0 * ((t::CODEX32_TRACK_TOP + 1.0) * u + t::CODEX32_TRACK_SPACE);
+    let tree = |tw: f32| t::CODEX32_TREE_LEVEL * 5.0 / 32.0 * tw;
+    let rest = room - t::CODEX32_COLUMN_FIXED_H;
+    let unit_min = if faces > 6 {
+        t::CODEX32_TRACK_UNIT
+    } else {
+        t::CODEX32_TRACK_UNIT_MIN
+    };
+    let tw_max = w.min(t::CODEX32_TREE_MAX_W);
+    let full = Scale {
+        tree: tw_max,
+        unit: t::CODEX32_TRACK_UNIT,
+    };
+    if tree(full.tree) + tracks(full.unit) <= rest {
+        return Some(full);
+    }
+    let tw_min = t::CODEX32_TREE_MIN_W.min(tw_max);
+    let tw = ((rest - tracks(t::CODEX32_TRACK_UNIT)) / (t::CODEX32_TREE_LEVEL * 5.0 / 32.0))
+        .clamp(tw_min, tw_max);
+    if tree(tw) + tracks(t::CODEX32_TRACK_UNIT) <= rest {
+        return Some(Scale {
+            tree: tw,
+            unit: t::CODEX32_TRACK_UNIT,
+        });
+    }
+    let u = ((rest - tree(tw_min)) / 5.0 - t::CODEX32_TRACK_SPACE) / (t::CODEX32_TRACK_TOP + 1.0);
+    // Where even the least does not fit, the column keeps the least and
+    // scrolls within itself.
+    Some(Scale {
+        tree: tw_min,
+        unit: u.clamp(unit_min, t::CODEX32_TRACK_UNIT),
+    })
 }
 
 /// The dice sheet's body under its head row, drawn whole at `(x, y)`;
@@ -274,8 +324,15 @@ fn dice_body(
     (x, y, w): (f32, f32, f32),
     rows_only: bool,
     rolls: bool,
+    scale: Option<Scale>,
 ) -> f32 {
     let mut cy = y;
+    if let Some(sc) = scale {
+        // The column's tree over the tracks, sized to the window's height.
+        cy += tree(m, ui, x, cy, sc.tree.min(w), true);
+        cy += tracks(m, ui, x, cy, w, sc.unit);
+        return cy - y + t::GAP;
+    }
     if rows_only {
         if rolls {
             cy += dice_rows(m, ui, x, cy, w, false);
@@ -299,12 +356,12 @@ fn dice_body(
         if rolls {
             ly += pairs(ui, (x, cy, pw), &pairs_of(m), None);
         }
-        ly += tracks(m, ui, x, ly, lw);
+        ly += tracks(m, ui, x, ly, lw, t::CODEX32_TRACK_UNIT);
         return ly.max(cy + th) - y + t::GAP;
     }
     if !rolls {
         cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W), true);
-        cy += tracks(m, ui, x, cy, w);
+        cy += tracks(m, ui, x, cy, w, t::CODEX32_TRACK_UNIT);
         return cy - y + t::GAP;
     }
     let ph = pairs(ui, (x, cy, pw), &pairs_of(m), None);
@@ -317,7 +374,7 @@ fn dice_body(
         cy += ph + t::GAP;
         cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W), true);
     }
-    cy += tracks(m, ui, x, cy, w);
+    cy += tracks(m, ui, x, cy, w, t::CODEX32_TRACK_UNIT);
     cy - y + t::GAP
 }
 
@@ -559,10 +616,10 @@ pub(super) fn tracks_w(m: &Codex32Make) -> f32 {
 /// rule, "Die pads" over the diamonds and "Die pads (d7+)" over the
 /// hexagons; each track the die's name and colour ([`track`]) and the
 /// bit after it. The struck pairs are under each die's two rolls.
-fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, unit: f32) -> f32 {
     let lw = t::CODEX32_TRACK_LABEL_W;
     let span = track_units(m.dice_choice().faces);
-    let u = ((w - lw - t::CODEX32_PANEL_GAP) / span).min(t::CODEX32_TRACK_UNIT);
+    let u = ((w - lw - t::CODEX32_PANEL_GAP) / span).min(unit);
     let tx = x + lw;
     let mut cy = y + t::GAP;
     ui.text_as(x, cy, TITLE_S, Role::OnSurface, EN.codex32_die_tracks);

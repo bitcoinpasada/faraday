@@ -248,7 +248,8 @@ pane or none, and Guide is the sheet there.
 
 - **Make codex32 shares**, while its dice rolls, tracks and tree are on
   screen (the input panel, the sheets, and the dice sheet's column, LAYOUT
-  §16).
+  §16); where the column stands the step's left side holds the window
+  without scrolling, the worksheet's view taking the height left.
 - **The backup board** (Back up's plan, a wallet's backup flow).
 
 On these Your choices' pane is hidden and the step takes the whole room

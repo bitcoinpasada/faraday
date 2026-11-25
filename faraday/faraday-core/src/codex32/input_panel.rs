@@ -92,7 +92,7 @@ pub(crate) fn place(app: &View, m: &Codex32Make, cw: f32, h: f32) -> PanelAt {
 /// it is short), one-column pages or not, and the text factor.
 /// Arithmetic.
 pub(crate) fn place_now(m: &Codex32Make, cw: f32, h: f32, shell: (Window, bool, f32)) -> PanelAt {
-    let column = super::pane_screen::column_now(m, cw, h, shell);
+    let column = super::pane_screen::column_now(m, cw, shell.1);
     place_in(m, (cw, h), (shell.0, shell.2), side_room(column))
 }
 

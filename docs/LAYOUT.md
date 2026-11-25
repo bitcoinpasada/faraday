@@ -643,14 +643,17 @@ A worksheet's cell is chosen from the room: the largest size between
 `CODEX32_CELL_FIT_MAX` (32 dp) at which the whole sheet fits the work
 width (beside the input panel where it stands beside, §16.3) and the
 view's height, the window's height less the input panel at the foot and
-`MARGIN_WIDE` above and below. The characters scale with the cell (16 at
+`MARGIN_WIDE` above and below; where the dice sheet's column stands (below),
+the width it leaves and the height left above the input panel under the
+heading, the characters' boxes and the tabs. The characters scale with the cell (16 at
 28 dp, as today: four sevenths of the cell). Where it fits, the sheet is
 drawn whole: no view, no pan, a drag on it does nothing, and the page
 scrolls to it (§16.4). Where it does not, the worksheet is as today: the
 class's cell (`codex32_cell`), a view as wide as the work width and at
 most `codex32_sheet_view` tall (on extra-large, as tall as the view's
 height above, up to the sheet's), panning both ways by drag, wheel and
-keys (`docs/CODEX32.md` §7.5).
+keys (`docs/CODEX32.md` §7.5); where the dice sheet's column stands, the
+view is the height left (below).
 
 A 48-character sheet at cell c is 48c + 48 dp wide and 35c + 72 tall
 (35 rows, 48 columns, the booklet's gaps). With the Demo only card
@@ -658,10 +661,9 @@ beside the page and d6 dice:
 
 | Window (dp) | The input panel | The worksheet |
 |---|---|---|
-| 1280 × 800 | at the foot, 132 dp | does not fit: as today, cell 28 in a 400 dp view, panning |
-| 1920 × 1080 | beside, 424 dp | whole at cell 23: 1152 × 877 |
-| 2000 × 1090 | beside, 424 dp | whole at cell 25: 1248 × 947 |
-| 2560 × 1440 | beside, 424 dp | whole at cell 32: 1584 × 1192 |
+| 1280 × 800 | at the foot, 132 dp | beside the dice column, a view of the height left, panning |
+| 1920 × 1080 | at the foot, the column beside the page | the largest cell the room left holds, else the view |
+| 2560 × 1440 | beside, 424 dp | whole at the largest cell the room left holds (27 dp for 48 characters) |
 
 The work width runs from the card column's edge (after the input panel
 where it stands beside) to the room's margin at its end (F296), so the
@@ -669,10 +671,12 @@ cells are the largest the room and the view's height allow, not the
 sizes of an older, narrower column.
 
 A 74-character sheet (61 rows, 74 columns: 74c + 76 by 61c + 124)
-fits from about 3840 × 2160 at one dp a pixel; below that it pans as
-today. The cell is a function of the window's size in dp and the
+fits from about 3840 × 2160 at one dp a pixel; below that it pans in
+its view. The cell is a function of the window's size in dp and the
 sheet's shape alone, so drawing and the follow (§16.4) take the same
-one; it is arithmetic, worked out where the sheet is laid out. The
+one; it is arithmetic, worked out where the sheet is laid out (beside
+the dice column it also takes the height the last drawing found left
+above the panel, after the boxes' rows and the chip). The
 translation worksheets and the review's tabs (`docs/CODEX32.md` §6.5)
 take the same rule; a tab's sheet that fits shows no scroll of its own.
 
@@ -692,17 +696,33 @@ de-biasing" with Material's expand chevron, is one 48 dp press that
 opens it to its tracks and tree or closes it; it closes by itself when
 a share's rolling is done, keeping the last tracks for a look, and
 each roll opens it again. **The dice sheet's column** (owner,
-2026-10-24): where the checksum worksheet still draws whole beside it
-and the column fits the window's height above the input panel, the
-dice sheet stands in a column at the right, in the supporting pane's
-place, the tree over the tracks, with the Demo only card under it; the
-column scrolls within itself where text drawn larger passes it. Its
-height is measured, `CODEX32_DICE_COLUMN_H` (720 dp) and the card's
-`CODEX32_COLUMN_CARD_H` (480 dp): in Testnet the column stands from
-1920 × 1080, in Practice from 2560 × 1440. Below that both sheets stand in
-the page, the sheet of the work in hand first so the page scrolls the
-least to it: the dice sheet while a character is rolled, the worksheet
-otherwise. The
+2026-10-24, 2026-11-24): wherever the page keeps `CODEX32_MAIN_MIN` beside
+it (any height; owner, 2026-11-24), the dice
+sheet stands in a column at the right, in the supporting pane's place, the
+tree over the tracks, with the Demo only card under it, and the checksum
+worksheet at the left, whole at the cell the room left holds (the width
+the column leaves, the height under the characters' boxes and tabs down to the
+input panel) or panning in its view; the page does not scroll there: the
+heading, the characters' boxes and the tabs stay at the top and the
+worksheet's view takes the height left above the input panel (the sheet's own
+pan moves within it). Where fewer than `CODEX32_VIEW_MIN_ROWS` (6) rows of the
+class's cell are left for that view (a 74-character set on 1366 × 768 or
+1280 × 720), the view is the class's `codex32_sheet_view` and the page scrolls
+to it as where no column stands; the column stays at the right. The one
+constant turns this off (0). The column is drawn
+at the size that fits: the tree at up to `CODEX32_TREE_MAX_W` and the
+tracks at `CODEX32_TRACK_UNIT`, the tree then down to `CODEX32_TREE_MIN_W`
+and the tracks down to `CODEX32_TRACK_UNIT_MIN` (dice of six faces or
+fewer; larger dice keep the full unit) where the window is lower, the
+rest of its height `CODEX32_COLUMN_FIXED_H`; the column scrolls within
+itself where the window is lower than the least that fits (on a window
+768 dp tall the tree is on screen and the tracks are reached by scrolling the
+column) or text is drawn larger. Its offset is kept within what the column
+reaches now, as the input panel's is, so smaller dice or a taller window bring
+it back. Where the page keeps no `CODEX32_MAIN_MIN`
+beside it (compact windows, whose pages are one column) both sheets stand in the page, the sheet of
+the work in hand first: the dice sheet while a character is rolled, the
+worksheet otherwise. The
 Codex32QR copy grid (`copy_grid`,
 `faraday/faraday-core/src/screens/parts.rs`) already sizes its cells
 from its width up to `C32_GRID_MAX` (more where a block of five cells

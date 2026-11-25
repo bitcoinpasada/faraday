@@ -53,7 +53,7 @@ page that does not stack is measured as a pair.
   most `most`.
 - `lines` and `limits`: the pair's divider and outline, and the top and foot
   that the panes scroll between.
-- `guide_place((x0, cw, h))`: where Guide's pane stands at the right edge (and `guide_place_at`, `guide_room`, `guide_top`); the glide and the dice sheet's column read it, no page works it out.
+- `guide_place((x0, cw, h))`: where Guide's pane stands at the right edge (and `guide_place_at`, `guide_room`); the glide and the dice sheet's column read it, no page works it out.
 - `holds_guide(room)`: whether the room holds a flow's pair at its narrowest
   with Guide's pane beside it.
 - `home_area(room)`: the area Home's column has, where a page stands that has

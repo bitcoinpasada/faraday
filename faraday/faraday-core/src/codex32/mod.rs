@@ -507,6 +507,14 @@ pub struct Codex32Make {
     /// room its reveal is clipped to while it moves. Written by drawing
     /// as a measurement only; nothing decides from it.
     dice_body_h: std::cell::Cell<f32>,
+    /// The dice column's whole height as last drawn (head row and body),
+    /// the reach its scroll offset is kept within. Written by drawing.
+    pane_all: std::cell::Cell<f32>,
+    /// The height the worksheet's view may take beside the dice column,
+    /// as last drawn, and whether it was too short to keep (the page
+    /// scrolls then). Written by drawing; read by the next fit.
+    sheet_room: std::cell::Cell<Option<f32>>,
+    sheet_short: std::cell::Cell<bool>,
     made: Vec<Vec<Made>>,
     rolled: bool,
     typed: bool,
@@ -597,6 +605,9 @@ impl Codex32Make {
             dice_open: true,
             dice_move: None,
             dice_body_h: std::cell::Cell::new(0.0),
+            pane_all: std::cell::Cell::new(0.0),
+            sheet_room: std::cell::Cell::new(None),
+            sheet_short: std::cell::Cell::new(false),
             made: Vec::new(),
             rolled: false,
             typed: false,
@@ -1180,6 +1191,11 @@ impl Codex32Make {
         }
     }
 
+    /// Whether the dice sheet's glide is begun or running. A lookup.
+    pub(crate) fn dice_moving(&self) -> bool {
+        self.dice_move.is_some()
+    }
+
     /// One tick of the dice sheet's glide: starts it on its first tick
     /// and ends it once its time is up. Returns whether it still moves,
     /// so a frame is asked for. A lookup.
@@ -1211,6 +1227,33 @@ impl Codex32Make {
     /// Notes the dice sheet's body height as drawn whole.
     pub(crate) fn note_dice_body_h(&self, h: f32) {
         self.dice_body_h.set(h);
+    }
+
+    /// The dice column's whole height as last drawn. A lookup.
+    pub(crate) fn pane_all(&self) -> f32 {
+        self.pane_all.get()
+    }
+
+    /// Notes the dice column's whole height as drawn.
+    pub(crate) fn note_pane_all(&self, h: f32) {
+        self.pane_all.set(h);
+    }
+
+    /// The height beside the dice column the worksheet could take, as
+    /// last drawn, and whether it was too short to keep. Lookups.
+    pub(crate) fn sheet_room(&self) -> Option<f32> {
+        self.sheet_room.get()
+    }
+
+    pub(crate) fn sheet_short(&self) -> bool {
+        self.sheet_short.get()
+    }
+
+    /// Notes the worksheet's room beside the column and whether the page
+    /// scrolls to its short view.
+    pub(crate) fn note_sheet_room(&self, room: Option<f32>, short: bool) {
+        self.sheet_room.set(room);
+        self.sheet_short.set(short);
     }
 
     /// Whether the dice sheet is open under its head row. A lookup.
@@ -1293,36 +1336,7 @@ impl Codex32Make {
             }
             _ => None,
         };
-        self.fit = SheetFit {
-            room,
-            chars,
-            cell,
-            ..self.fit
-        };
-    }
-
-    /// Costs a worksheet's headers, once a length. Keeps the checksum
-    /// worksheet's size at its least fitting cell in step with the
-    /// sheet's length (`docs/LAYOUT.md` §16.1), for the dice sheet's
-    /// column to read.
-    pub(crate) fn note_sheet(&mut self) {
-        let chars = self.length.chars();
-        if self.fit.least.is_some() && self.fit.least_for == chars {
-            return;
-        }
-        let sheet = self
-            .work
-            .as_ref()
-            .and_then(|w| w.worksheet(0, Reveal::PaperForm));
-        self.fit.least =
-            sheet.map(|sh| worksheet_screen::paper!(sh, |p| worksheet_screen::least_size(p)));
-        self.fit.least_for = chars;
-    }
-
-    /// The checksum worksheet's size at its least fitting cell, across
-    /// and down, once worked out ([`Self::note_sheet`]). A lookup.
-    pub(crate) fn sheet_least(&self) -> Option<(f32, f32)> {
-        self.fit.least
+        self.fit = SheetFit { room, chars, cell };
     }
 
     /// The checksum worksheet's fitted cell, where it is drawn whole
