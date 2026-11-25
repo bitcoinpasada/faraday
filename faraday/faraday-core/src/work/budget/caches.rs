@@ -211,3 +211,58 @@ fn ten_silent_records_with_keys_loaded_are_each_checked_once_and_read_back_after
     }
     assert_eq!(kept(&app), Some(10));
 }
+
+#[test]
+fn a_vault_items_silent_record_of_a_tenth_wallet_is_read_and_checked_once() {
+    use crate::drawing::View;
+    use crate::wallet::Wallet;
+    use crate::work::{KINDS, since, snapshot};
+    let c = testkit::compute();
+    let (mut app, _) = walk(&c, &mut |_, _| {});
+    let record = |account: u32| {
+        let r = app
+            .session
+            .keys
+            .silent_receiver(&c, 0, account)
+            .expect("the key gives its points");
+        faraday_bip::silent_wallet::SilentWallet {
+            network: app.session.network(),
+            fingerprint: app.session.keys[0].fingerprint,
+            account,
+            scan: r.scan_public_key(),
+            spend: r.spend_public_key(),
+            labels: 0,
+        }
+    };
+    // A full set of session silent wallets, and the vault item's record
+    // beyond them.
+    let records: Vec<_> = (0..10).map(record).collect();
+    // The session's wallets are the nine silent ones alone, so their
+    // checks fill the list to its cap.
+    app.session.wallets.clear();
+    for (account, w) in records.iter().take(9).enumerate() {
+        let w = w.clone();
+        let name = format!("Silent {account}");
+        app.session.wallets.push(Wallet::new(
+            &name,
+            faraday_bip::policy::WalletPolicy::of_silent(w),
+            "test",
+            Origin::Vault,
+        ));
+    }
+    let text = records[9].to_text();
+    let frame = |app: &Faraday| {
+        let v = View::new(app);
+        for i in 0..app.session.wallets.len() {
+            let _ = app.silent_wallet_card(&c, i);
+        }
+        let _ = v.silent_record_differs(&text);
+    };
+    frame(&app);
+    let before = snapshot();
+    frame(&app);
+    let again = since(&before);
+    for k in KINDS {
+        assert_eq!(again.of(k), 0, "the second frame did {k:?} {}", again.of(k));
+    }
+}

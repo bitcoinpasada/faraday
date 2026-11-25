@@ -2341,3 +2341,59 @@ pub fn make_plan_vault(app: &mut Faraday, v: usize, phrase: &str) {
     }
     assert_eq!(app.screen, Screen::Backup, "the vault is made");
 }
+
+/// A plain vault made and opened from the Vaults page, entropy and speed
+/// set so it opens at once.
+pub fn open_plain_vault(app: &mut Faraday) {
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
+    }
+    faraday_core::testkit::vault_speed(app, Some(180));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(app, "test phrase");
+    }
+    app.press(Action::Vault(V::CGo));
+    for t in 1..60u64 {
+        if app.screen == Screen::Unlock {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    type_text(app, "test phrase");
+    app.press(Action::Vault(V::Unlock));
+    for t in 60..120u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
+}
+
+/// What the vault's wallet item draws: the first item of the first
+/// category that shows a descriptor; empty when the vault keeps none.
+pub fn vault_wallet_item_text(app: &mut Faraday) -> String {
+    app.press(Action::Nav(Screen::VaultContents));
+    for category in 0..8usize {
+        app.press(Action::Vault(V::Category(category)));
+        app.press(Action::Vault(V::Item(0)));
+        let shown = app.drawn_texts().join(" ");
+        if shown.contains("Descriptor") {
+            return shown;
+        }
+    }
+    String::new()
+}
+
+/// Opens Tools' Krux code.
+pub fn open_kef_tool(app: &mut Faraday) {
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = TILES.iter().position(|t| t.name == "Krux code").unwrap();
+    app.press(Action::Catalog(tile as u8));
+    assert_eq!(app.screen, Screen::KefTool);
+}

@@ -3094,7 +3094,10 @@ fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
     let text = r.public_text(field::WALLET).unwrap_or("");
     // A silent payments record ends in the wallet's address: while its key
     // made here waits for its backup, the warning stands in its place.
-    if app.silent_record_held(text) {
+    let differs = app.silent_record_differs(text);
+    if let Some(line) = &differs {
+        rows.field(ui, EN.vault_descriptor, line, true);
+    } else if app.silent_record_held(text) {
         rows.field(ui, EN.vault_descriptor, EN.glance_back_up_before, true);
     } else {
         rows.field(ui, EN.vault_descriptor, text, true);
@@ -3121,7 +3124,7 @@ fn wallet_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
         },
         va(V::ToggleLoad),
     ));
-    if !app.silent_record_held(text) {
+    if differs.is_none() && !app.silent_record_held(text) {
         rows.actions.push((EN.show_as_qr, va(V::WalletQr)));
     }
     rows.actions

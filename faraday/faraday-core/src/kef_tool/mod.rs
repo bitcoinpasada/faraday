@@ -6,8 +6,10 @@
 
 use crate::dice_entry::Press;
 use crate::kef_form::{KefAct, KefForm, Source, Stage};
+use crate::strings::EN;
 use crate::vault::TextBox;
 use crate::{Action, Faraday, Screen, Sheet, flow};
+use faraday_crypto::work::Compute;
 use faraday_keys::kef::COMPRESS_MAX;
 use faraday_shell_api::Key;
 use faraday_text::Text;
@@ -184,14 +186,26 @@ fn st(app: &mut Faraday) -> Option<&mut KefToolState> {
 
 /// The text the wallet at `i` makes: its checksummed public descriptor,
 /// and the fingerprint offered as the id when it has one key.
-fn wallet_text(app: &Faraday, i: usize) -> Option<(Text, Option<[u8; 4]>)> {
-    let w = app.session.wallets.get(i)?;
+fn wallet_text(app: &Faraday, c: &Compute, i: usize) -> Result<(Text, Option<[u8; 4]>), Text> {
+    let w = app
+        .session
+        .wallets
+        .get(i)
+        .ok_or_else(|| Text::of(EN.code_view_that_wallet))?;
+    // A silent payments wallet's text is its address: none while its key
+    // waits for its backup or a loaded key contradicts the record.
+    if w.policy().silent().is_some() {
+        if app.receive_held(c, w) {
+            return Err(Text::of(EN.code_view_no_address));
+        }
+        app.silent_marks(c, i, Vec::new())?;
+    }
     let keys = w.policy().keys();
     let fp = match keys {
         [k] => k.fingerprint().map(|f| f.0),
         _ => None,
     };
-    Some((Text::of(&w.policy().to_descriptor_checksummed()), fp))
+    Ok((Text::of(&w.policy().to_descriptor_checksummed()), fp))
 }
 
 /// The loaded keys a code can be made of (12 or 24 English words), by
@@ -297,10 +311,14 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
             }
         }
         KefToolAction::Wallet(i) => {
-            if let Some((text, fp)) = wallet_text(app, i) {
-                // A row of the pane picks without the choice's button.
-                picked(app, Pick::Wallet);
-                begin(app, text, fp, Some(i));
+            let c = app.compute();
+            match wallet_text(app, &c, i) {
+                Ok((text, fp)) => {
+                    // A row of the pane picks without the choice's button.
+                    picked(app, Pick::Wallet);
+                    begin(app, text, fp, Some(i));
+                }
+                Err(line) => app.toast(&line),
             }
         }
         KefToolAction::Key(i) => {

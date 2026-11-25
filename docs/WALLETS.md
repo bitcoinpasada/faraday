@@ -1447,8 +1447,9 @@ never held.
   Create's and Restore's Check, the card, the Key card, the chart's wallet
   node, the Spend tab's family pages or the message address, and in a
   silent payments wallet's card, its item in an open vault, the Silent
-  payments page with its Your choices row, and the Vanity tool's found
-  address (the address, the codes of it and its DNS record, and the
+  payments page with its Your choices row, the Krux code tool (which
+  refuses a held address, and a record that does not match its key), and
+  the Vanity tool's found address (the address, the codes of it and its DNS record, and the
   wallet's descriptor, which is its address, as a code and as a picture
   among its public files; the record's own code carries the line first, as
   a descriptor's does): "Back up before you receive" stands in its place,

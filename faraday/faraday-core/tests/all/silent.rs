@@ -1474,3 +1474,90 @@ fn two_records_over_one_wallets_points_are_two_rows_and_each_opens_its_own() {
         );
     }
 }
+
+/// A record whose scan key is another's, loaded with no key, then the key.
+fn differing_wallet_then_key() -> (Faraday, SilentWallet) {
+    let bad = record_of(0, 0, Some(another_scan_key()));
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("silent-1.txt", bad.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    add_key(&mut app);
+    (app, bad)
+}
+
+#[test]
+fn the_krux_code_tool_refuses_a_record_that_differs_and_takes_one_that_matches() {
+    use faraday_core::kef_tool::{self, KefToolAction as K};
+    let (mut app, bad) = differing_wallet_then_key();
+    let fp = faraday_core::wallet::fp_text(bad.fingerprint).to_string();
+    crate::common::open_kef_tool(&mut app);
+    app.press(Action::KefTool(K::Wallet(0)));
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(
+        toast.contains(&format!("does not match key {fp}")),
+        "{toast}"
+    );
+    assert!(kef_tool::state(&app).unwrap().form().is_none());
+    // A record the key gives is taken.
+    let good = record_of(0, 0, None);
+    let mut app = with_key();
+    files(&mut app, &[("silent-1.txt", good.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    crate::common::open_kef_tool(&mut app);
+    app.press(Action::KefTool(K::Wallet(0)));
+    assert!(kef_tool::state(&app).unwrap().form().is_some());
+}
+
+#[test]
+fn saving_a_record_that_differs_to_a_vault_is_refused_and_one_that_matches_is_saved() {
+    let (mut app, bad) = differing_wallet_then_key();
+    let fp = faraday_core::wallet::fp_text(bad.fingerprint).to_string();
+    crate::common::open_plain_vault(&mut app);
+    app.press(Action::Vault(faraday_core::vault::VaultAction::SaveWallet(
+        0,
+    )));
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(
+        toast.contains(&format!("does not match key {fp}")),
+        "{toast}"
+    );
+    let shown = crate::common::vault_wallet_item_text(&mut app);
+    assert!(shown.is_empty(), "{shown}");
+    // A record the key gives is saved and its item shows the address.
+    let good = record_of(0, 0, None);
+    let mut app = with_key();
+    files(&mut app, &[("silent-1.txt", good.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    crate::common::open_plain_vault(&mut app);
+    app.press(Action::Vault(faraday_core::vault::VaultAction::SaveWallet(
+        0,
+    )));
+    let shown = crate::common::vault_wallet_item_text(&mut app);
+    assert!(shown.contains(&good.address()[..24]), "{shown}");
+    assert!(!shown.contains("does not match"), "{shown}");
+}
+
+#[test]
+fn a_vault_item_whose_record_differs_from_the_loaded_key_says_so_and_shows_no_address() {
+    let bad = record_of(0, 0, Some(another_scan_key()));
+    let fp = faraday_core::wallet::fp_text(bad.fingerprint).to_string();
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("silent-1.txt", bad.to_text().into_bytes())]);
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    crate::common::open_plain_vault(&mut app);
+    // Without its key the record is saved, not checked.
+    app.press(Action::Vault(faraday_core::vault::VaultAction::SaveWallet(
+        0,
+    )));
+    let shown = crate::common::vault_wallet_item_text(&mut app);
+    assert!(shown.contains(&bad.address()[..24]), "{shown}");
+    add_key(&mut app);
+    let shown = crate::common::vault_wallet_item_text(&mut app);
+    assert!(
+        shown.contains(&format!("does not match key {fp}")),
+        "{shown}"
+    );
+    assert!(!shown.contains(&bad.address()[..24]), "{shown}");
+    assert!(!shown.contains("Show as QR"), "{shown}");
+}

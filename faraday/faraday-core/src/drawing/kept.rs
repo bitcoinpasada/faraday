@@ -156,6 +156,11 @@ pub(crate) struct Kept {
     /// Silent payments records checked against the loaded keys, each by
     /// the record and the ids of the loaded keys.
     silent_checks: RefCell<Vec<KeptSilentCheck>>,
+    /// The last silent payments record read ([`Kept::silent_parse`]), with
+    /// its text: one slot, so the vault item page's record is parsed once
+    /// and not on each frame. A text that is not a record is not kept (it
+    /// may hold a private scan key). Public; emptied with the lock.
+    silent_parsed: RefCell<Option<(Text, faraday_bip::silent_wallet::SilentWallet)>>,
     /// How many silent checks are kept now: the most of
     /// [`SILENT_CHECKS_KEPT`] and the session's wallets at the last one.
     silent_cap: Cell<usize>,
@@ -546,6 +551,24 @@ impl Kept {
         }
         kept.push((Text::of(d), net, a.clone()));
         a
+    }
+
+    /// Costs a parse (two point decodes) the first time. `text` read as a
+    /// silent payments record, kept by its text (the last one read), a
+    /// lookup after. A text that is not one is read again each time, and
+    /// nothing of it is kept.
+    pub(crate) fn silent_parse(
+        &self,
+        text: &str,
+    ) -> Option<faraday_bip::silent_wallet::SilentWallet> {
+        if let Some((t, w)) = &*self.silent_parsed.borrow()
+            && t.as_str() == text
+        {
+            return Some(w.clone());
+        }
+        let w = faraday_bip::silent_wallet::SilentWallet::parse(text)?;
+        *self.silent_parsed.borrow_mut() = Some((Text::of(text), w.clone()));
+        Some(w)
     }
 
     /// Costs what [`crate::silent::check_record`] costs the first time
@@ -1032,6 +1055,29 @@ impl View<'_> {
         self.silent_wallet_check(i) == Some(crate::silent::RecordCheck::Differs)
     }
 
+    /// The line saying silent payments record `text` (a vault item's) does
+    /// not match its key, where a loaded key contradicts it; `None` for a
+    /// record that matches, is not checked, or is not a record. The record
+    /// is read once and kept by its text ([`Kept::silent_parse`]). The
+    /// check is kept with the session wallets' own, whose cap is their
+    /// count: this one passes one more, so a record beyond them does not
+    /// push a session wallet's check out and make each frame derive it
+    /// again. Costs what [`crate::silent::check_record`] costs the first
+    /// time, and a parse.
+    pub(crate) fn silent_record_differs(&self, text: &str) -> Option<faraday_text::Text> {
+        let w = self.app.kept.silent_parse(text)?;
+        let check = self.kept(|c| {
+            self.app.kept.silent_check(
+                c,
+                &self.app.session.keys,
+                &w,
+                self.app.session.wallets.len().saturating_add(1),
+            )
+        });
+        (check == crate::silent::RecordCheck::Differs)
+            .then(|| crate::silent::differs_line(&self.app.session.keys, w.fingerprint.0))
+    }
+
     /// How far the keys here go to sign for session wallet `i`, as
     /// [`crate::screens::sign_readiness`] says, with none for a silent
     /// payments wallet whose record its loaded key contradicts
@@ -1196,5 +1242,6 @@ impl crate::at_lock::AtLock for Kept {
     fn lock(&mut self) {
         self.charts_drop();
         *self.restore_pooled.borrow_mut() = None;
+        *self.silent_parsed.borrow_mut() = None;
     }
 }

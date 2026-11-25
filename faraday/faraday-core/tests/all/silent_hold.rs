@@ -280,47 +280,9 @@ fn a_label_is_not_stepped_to_while_the_address_waits_for_its_backup() {
 fn the_vault_item_of_a_held_silent_wallet_shows_the_warning_for_its_record() {
     let (mut app, address) = made_here();
     app.press(Action::SAddWallet);
-    for i in 0..8u8 {
-        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
-            [0x40 + i; 32],
-        )));
-    }
-    testkit::vault_speed(&mut app, Some(180));
-    app.press(Action::Nav(Screen::Vaults));
-    app.press(Action::Vault(V::Create));
-    for second in [false, true] {
-        app.press(Action::Vault(V::CFocus(0, second)));
-        crate::common::type_text(&mut app, "test phrase");
-    }
-    app.press(Action::Vault(V::CGo));
-    for t in 1..60u64 {
-        if app.screen == Screen::Unlock {
-            break;
-        }
-        let _ = app.frame();
-        app.event(Event::Tick { now_ms: t * 1000 });
-    }
-    crate::common::type_text(&mut app, "test phrase");
-    app.press(Action::Vault(V::Unlock));
-    for t in 60..120u64 {
-        if !app.vaults().open.is_empty() {
-            break;
-        }
-        let _ = app.frame();
-        app.event(Event::Tick { now_ms: t * 1000 });
-    }
-    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
+    crate::common::open_plain_vault(&mut app);
     app.press(Action::Vault(V::SaveWallet(0)));
-    app.press(Action::Nav(Screen::VaultContents));
-    let mut shown = String::new();
-    for category in 0..8usize {
-        app.press(Action::Vault(V::Category(category)));
-        app.press(Action::Vault(V::Item(0)));
-        shown = drawn(&mut app);
-        if shown.contains("Descriptor") {
-            break;
-        }
-    }
+    let shown = crate::common::vault_wallet_item_text(&mut app);
     assert!(shown.contains(WARNING), "{shown}");
     assert!(!shown.contains(&address[..24]), "{shown}");
 }
@@ -810,4 +772,48 @@ fn the_board_of_the_flow_after_the_lock_marks_the_text_file_not_the_picture() {
     let t = app.drawn_texts();
     assert!(t.iter().any(|x| x.contains("Text file")), "{t:?}");
     assert!(!t.iter().any(|x| x.contains("QR picture")), "{t:?}");
+}
+
+#[test]
+fn the_krux_code_tool_refuses_a_held_silent_wallet_and_takes_it_once_the_backup_is_done() {
+    let (mut app, _) = made_here();
+    app.press(Action::SAddWallet);
+    crate::common::open_kef_tool(&mut app);
+    app.press(Action::KefTool(
+        faraday_core::kef_tool::KefToolAction::Wallet(0),
+    ));
+    assert!(app.toast_text().is_some_and(|t| t.contains("No address")));
+    assert!(
+        faraday_core::kef_tool::state(&app)
+            .unwrap()
+            .form()
+            .is_none()
+    );
+    let fp = app.session.keys[0].fingerprint;
+    testkit::release_made(&mut app, fp);
+    app.press(Action::KefTool(
+        faraday_core::kef_tool::KefToolAction::Wallet(0),
+    ));
+    assert!(
+        faraday_core::kef_tool::state(&app)
+            .unwrap()
+            .form()
+            .is_some()
+    );
+}
+
+#[test]
+fn saving_a_held_silent_wallet_to_a_vault_stays_allowed_and_its_item_shows_the_address_once_released()
+ {
+    let (mut app, address) = made_here();
+    app.press(Action::SAddWallet);
+    crate::common::open_plain_vault(&mut app);
+    app.press(Action::Vault(V::SaveWallet(0)));
+    let shown = crate::common::vault_wallet_item_text(&mut app);
+    assert!(shown.contains(WARNING), "{shown}");
+    let fp = app.session.keys[0].fingerprint;
+    testkit::release_made(&mut app, fp);
+    let shown = crate::common::vault_wallet_item_text(&mut app);
+    assert!(shown.contains(&address[..24]), "{shown}");
+    assert!(!shown.contains("does not match"), "{shown}");
 }

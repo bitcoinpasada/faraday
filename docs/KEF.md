@@ -731,7 +731,7 @@ and a toast names the file.
 | §6's contents | Where the text comes from | Offered |
 |---|---|---|
 | A passphrase, a codex32 share, a note | **Type it**: one field, masked behind its eye (DESIGN §4.10), UTF-8 up to the codec's limit | Yes; no kind is asked, the bytes are the text |
-| A wallet's descriptor | **A loaded wallet**: its row; the checksummed descriptor, public, needing no reveal; Krux's wallet loader reads it | Yes |
+| A wallet's descriptor | **A loaded wallet**: its row; the checksummed descriptor, public, needing no reveal; Krux's wallet loader reads it; a silent payments wallet's is its address, refused while the address is held and for a record that does not match its key | Yes |
 | A held key's words | **This key's words**: a key's row by name and fingerprint, the only offered key chosen at once; the seed's entropy of §6 through `Reveal::KefCode`, sealed by the same call as the seed's item, so no new way out of `faraday-keys`; the Code card says the code holds the words only when the key has a passphrase | Yes |
 | A held key's BIP-39 passphrase | A key's row; it would need a reveal of its own, since `Reveal::KefCode` lends no stored text | No |
 | A vault's note or password | The item's action in Vault contents, under `Reveal::VaultEntry` | No |

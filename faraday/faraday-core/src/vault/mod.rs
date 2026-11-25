@@ -2345,6 +2345,15 @@ impl Faraday {
         if crate::vault::screen::vault_has_wallet(&c, self, self.vaults.current, w) {
             return;
         }
+        // A silent payments record a loaded key contradicts is not kept
+        // as the wallet's address; a held one is (it shows no address).
+        if let Some(r) = w.policy().silent()
+            && self.silent_wallet_check_now(&c, k) == Some(crate::silent::RecordCheck::Differs)
+        {
+            let line = crate::silent::differs_line(&self.session.keys, r.fingerprint.0);
+            self.toast(&line);
+            return;
+        }
         // A silent payments wallet is its record: it has no descriptor
         // that reads back as it.
         let text = match w.policy().silent() {
