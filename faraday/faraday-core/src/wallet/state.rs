@@ -478,7 +478,7 @@ impl WalletsArea {
     pub(crate) fn row_open_set(
         &mut self,
         page: crate::row_open::Page,
-        item: crate::row_open::Item,
+        item: crate::row_open::RowItem,
         scrolled: f32,
     ) {
         self.row_open.set(page, item, scrolled);

@@ -43,7 +43,7 @@ pub enum Row {
 
 /// The item as kept.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Item {
+pub(crate) enum RowItem {
     Key([u8; 4]),
     Wallet(WalletId),
     File { name: String, len: usize },
@@ -60,7 +60,7 @@ pub(crate) enum Opened {
 /// What is open and where the page was scrolled before it opened.
 #[derive(Default)]
 pub(crate) struct RowOpenArea {
-    open: Option<(Page, Item)>,
+    open: Option<(Page, RowItem)>,
     tile_offset: f32,
 }
 
@@ -73,7 +73,7 @@ impl RowOpenArea {
 
     /// Opens `item` on `page`; where none was open, `scrolled` is what
     /// the page was scrolled by.
-    pub(crate) fn set(&mut self, page: Page, item: Item, scrolled: f32) {
+    pub(crate) fn set(&mut self, page: Page, item: RowItem, scrolled: f32) {
         if self.open.is_none() {
             self.tile_offset = scrolled;
         }
@@ -100,19 +100,19 @@ pub(crate) fn opened(app: &Faraday) -> Option<Opened> {
         return None;
     }
     match item {
-        Item::Key(fp) => app
+        RowItem::Key(fp) => app
             .session
             .keys
             .all()
             .any(|k| k.fingerprint.0 == *fp)
             .then_some(Opened::Key(*fp)),
-        Item::Wallet(id) => app
+        RowItem::Wallet(id) => app
             .session
             .wallets
             .iter()
             .position(|w| w.id() == *id)
             .map(Opened::Wallet),
-        Item::File { name, len } => app
+        RowItem::File { name, len } => app
             .inbox
             .iter()
             .position(|it| it.name.as_str() == name && it.bytes.len() == *len)
@@ -126,9 +126,9 @@ pub(crate) fn act(app: &mut Faraday, row: Row) {
         return;
     };
     let item = match row {
-        Row::Key(fp) => Some(Item::Key(fp)),
-        Row::Wallet(i) => app.session.wallets.get(i).map(|w| Item::Wallet(w.id())),
-        Row::File(k) => app.inbox.get(k).map(|it| Item::File {
+        Row::Key(fp) => Some(RowItem::Key(fp)),
+        Row::Wallet(i) => app.session.wallets.get(i).map(|w| RowItem::Wallet(w.id())),
+        Row::File(k) => app.inbox.get(k).map(|it| RowItem::File {
             name: it.name.to_string(),
             len: it.bytes.len(),
         }),
