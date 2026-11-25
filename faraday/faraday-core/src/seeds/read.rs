@@ -600,6 +600,10 @@ impl Faraday {
         };
         let back = Some(self.screen);
         self.seeds_took(fp, back);
+        // The ticked key was taken, here as itself or with its passphrase.
+        if let Some(s) = self.seeds_mut() {
+            s.untick(plain.0);
+        }
         if self.screen == Screen::SpendBackup {
             self.spend_backup_key_added();
         }

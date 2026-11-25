@@ -69,7 +69,10 @@ pub(crate) fn loaded_keys(
     }
     let mut cy =
         y + crate::pick::draw_groups(ui, x, y, w, &groups) + faraday_draw::tokens::GAP_SMALL;
-    let any = ticked.iter().any(|f| !here.contains(f));
+    // A tick left on a key since removed or taken in counts for nothing.
+    let any = ticked
+        .iter()
+        .any(|f| !here.contains(f) && app.session.keys.position_of(*f).is_some());
     ui.button(
         x,
         cy,
