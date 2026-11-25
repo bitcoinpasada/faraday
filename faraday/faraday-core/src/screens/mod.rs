@@ -101,7 +101,8 @@ pub(crate) use spend::{
     STEPS as SPEND_TITLES, row_verdict, signers_count, single_key_unloaded, step_body, step_summary,
 };
 pub(crate) use wallets::{
-    backup_line, loose_card, missing_keys_line, silent_address_lines, slot_marks, spend_paths_rows,
+    backup_line, loose_card, missing_keys_line, open_vault_holds_missing, silent_address_lines,
+    slot_marks, spend_paths_rows,
 };
 
 pub(crate) const SIDEBAR_W: f32 = 240.0;
