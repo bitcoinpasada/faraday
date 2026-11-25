@@ -655,6 +655,43 @@ fn a_stick_that_comes_while_the_seal_runs_leaves_the_agreed_mode() {
 }
 
 #[test]
+fn a_cancel_after_a_stick_came_and_went_during_the_seal_leaves_the_agreed_mode() {
+    let mut app = with_sealable_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Lock);
+    assert!(!app.restart_requested(), "the seal is under way");
+    app.storage(a_stick());
+    let _ = app.frame();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    app.press(Action::Cancel);
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Mainnet);
+}
+
+#[test]
+fn a_seal_that_fails_under_the_sticks_sheet_leaves_no_mode_pending() {
+    let mut app = with_sealable_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    testkit::hold_worker();
+    testkit::fail_next_seal_other();
+    testkit::press_on_worker(&mut app, Action::Lock);
+    app.storage(a_stick());
+    let _ = app.frame();
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(!app.restart_requested());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Testnet);
+}
+
+#[test]
 fn a_stick_that_comes_after_the_lock_is_agreed_leaves_the_agreed_mode() {
     let mut app = with_sealable_change();
     app.press(Action::Mode(Mode::Mainnet));

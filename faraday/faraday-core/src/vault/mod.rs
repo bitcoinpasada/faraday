@@ -52,7 +52,7 @@ pub use area::*;
 pub(crate) use load_job::{LoadKeysDone, LoadKeysWork, LoadWallet};
 pub(crate) use seal::{SealDone, SealRun, SealWork};
 #[cfg(feature = "testkit")]
-pub(crate) use seal::{fail_next_step_seal, fail_next_step_seal_and_retry};
+pub(crate) use seal::{fail_next_seal_other, fail_next_step_seal, fail_next_step_seal_and_retry};
 pub use seals::{OpenHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
 pub use search::{SearchAct, SearchIn};
 pub(crate) use stretch::{KdbxDone, KdbxWork, MeasureDone, MeasureWork, StretchDone, StretchWork};

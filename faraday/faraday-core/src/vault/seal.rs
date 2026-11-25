@@ -721,8 +721,17 @@ static FAIL_STEP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool:
 /// A test's wish that the seal retried without the step fails as well.
 #[cfg(feature = "testkit")]
 static FAIL_RETRY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// A test's wish that the next seal fails with an error other than memory.
+#[cfg(feature = "testkit")]
+static FAIL_OTHER: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 #[cfg(feature = "testkit")]
 use std::sync::atomic::Ordering;
+
+/// Makes the next seal fail with an error that is not about memory.
+#[cfg(feature = "testkit")]
+pub(crate) fn fail_next_seal_other() {
+    FAIL_OTHER.store(true, Ordering::SeqCst);
+}
 
 /// Makes the next seal of a vault with a new memory step pending fail as
 /// if this computer could not allocate it.
@@ -784,7 +793,9 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
     };
     let result = sealed.into_file();
     #[cfg(feature = "testkit")]
-    let result = if if app.vaults.store().has_step(id) {
+    let result = if FAIL_OTHER.swap(false, Ordering::SeqCst) {
+        Err(faraday_vault::file::Error::ReadOnly)
+    } else if if app.vaults.store().has_step(id) {
         FAIL_STEP.swap(false, Ordering::SeqCst)
     } else {
         FAIL_RETRY.swap(false, Ordering::SeqCst)

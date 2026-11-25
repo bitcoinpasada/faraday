@@ -2450,6 +2450,11 @@ pub fn fail_next_step_seal_and_retry() {
     crate::vault::fail_next_step_seal_and_retry();
 }
 
+/// The next seal fails with an error that is not about memory.
+pub fn fail_next_seal_other() {
+    crate::vault::fail_next_seal_other();
+}
+
 /// How long one Argon2id pass over 64 MiB takes here, ms, set as if
 /// measured: the costs and waits shown are worked out from it.
 pub fn vault_speed(app: &mut crate::Faraday, ms: Option<u64>) {

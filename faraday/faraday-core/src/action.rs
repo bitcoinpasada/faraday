@@ -1304,7 +1304,9 @@ impl Faraday {
                 self.seed_read.clear();
                 self.stick.clear_delete_ask();
                 self.visit.taken_clear();
-                self.next_mode.clear();
+                if !self.restart && !self.sealing() {
+                    self.next_mode.clear();
+                }
                 self.secret_cancel();
                 self.wordlist.clear();
                 self.inbox.clear_potential();
