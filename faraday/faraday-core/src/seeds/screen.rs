@@ -20,13 +20,8 @@ fn sa(a: S) -> Action {
 
 /// The other ways a seed comes in, after typing and scanning: a seed an
 /// open vault holds, Unlock for a vault in Files (`unlock`, and back to
-/// this step), a key already loaded and not in `here`.
-pub(crate) fn more_ways(
-    app: &View,
-    here: &[[u8; 4]],
-    unlock: bool,
-    labels: &mut Vec<(String, Style, Action)>,
-) {
+/// this step). The loaded keys are [`loaded_keys`].
+pub(crate) fn more_ways(app: &View, unlock: bool, labels: &mut Vec<(String, Style, Action)>) {
     for (v, r, fp) in app.vault_seeds() {
         let name = &app.vaults.open[v].name;
         labels.push((
@@ -42,16 +37,50 @@ pub(crate) fn more_ways(
     {
         labels.push((String::from(label.as_str()), Style::Secondary, a));
     }
-    for k in &app.session.keys {
-        let f = k.fingerprint;
-        if !here.contains(&f.0) {
-            labels.push((
-                fill(EN.seeds_use, &[&crate::wallet::key_line(f, &k.label)]),
-                Style::Secondary,
-                sa(S::UseLoaded(f.0)),
-            ));
-        }
+}
+
+/// The loaded keys as the pane's checkbox rows, ticked as the set's state
+/// has them: one already in the set (`here`) dimmed with its reason. Then
+/// one button to use the ticked keys. Returns the height used.
+pub(crate) fn loaded_keys(
+    app: &View,
+    ui: &mut Ui,
+    s: Option<&SeedsState>,
+    here: &[[u8; 4]],
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    use crate::pick::{Decl, Take};
+    let ticked: &[[u8; 4]] = s.map_or(&[], |s| &s.ticked);
+    let groups = Decl::new("")
+        .keys(app, |_, k| {
+            let f = k.fingerprint.0;
+            let t = Take::of(ticked.contains(&f), sa(S::Tick(f))).several();
+            Some(if here.contains(&f) {
+                t.refused(EN.seeds_in_set)
+            } else {
+                t
+            })
+        })
+        .groups();
+    if groups.is_empty() {
+        return 0.0;
     }
+    let mut cy =
+        y + crate::pick::draw_groups(ui, x, y, w, &groups) + faraday_draw::tokens::GAP_SMALL;
+    let any = ticked.iter().any(|f| !here.contains(f));
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.seeds_use_ticked,
+        Style::Primary.when(any),
+        sa(S::UseTicked),
+    );
+    cy += BUTTON_H + faraday_draw::tokens::GAP_SMALL;
+    cy - y
 }
 
 /// M of N, large, and its two sliders (one for MuSig2, where every key

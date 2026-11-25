@@ -81,6 +81,11 @@ pub enum SeedsAction {
     UseFile(usize),
     /// A seed already loaded, by fingerprint.
     UseLoaded([u8; 4]),
+    /// Ticks or unticks a loaded key among those to use.
+    Tick([u8; 4]),
+    /// Uses the ticked loaded keys, in the order ticked, as far as the
+    /// slots and the passphrase question go.
+    UseTicked,
     /// A seed held in an open vault: the vault, the record.
     FromVault(usize, usize),
     /// Use a sample in this cosigner's box: the account key of the next
@@ -95,6 +100,8 @@ pub enum SeedsAction {
 pub struct SeedsState {
     /// The seeds typed in this flow, by fingerprint, in order.
     pub keys: Vec<[u8; 4]>,
+    /// The loaded keys ticked to be used, in the order ticked.
+    pub ticked: Vec<[u8; 4]>,
     /// The wallet's shape is shown, after the seeds.
     pub shaping: bool,
     /// Signatures needed.
@@ -718,13 +725,26 @@ impl Faraday {
             return;
         }
         if let S::UseLoaded(fp) = a {
-            // With words and no passphrase, asked whether it has one.
-            if self.seed_read_loaded(faraday_bip::keys::Fingerprint(fp)) {
-                return;
-            }
-            self.seeds_took(faraday_bip::keys::Fingerprint(fp), Some(self.screen));
-            if self.screen == Screen::SpendBackup {
-                self.spend_backup_key_added();
+            self.seeds_use_loaded(fp);
+            return;
+        }
+        if let S::UseTicked = a {
+            let ticked = self.seeds().map(|s| s.ticked.clone()).unwrap_or_default();
+            for fp in ticked {
+                // A slot-full refusal stops here; the rest stay ticked.
+                if self
+                    .restore_refusal(faraday_bip::keys::Fingerprint(fp), None)
+                    .is_some()
+                {
+                    break;
+                }
+                if let Some(s) = self.seeds_mut() {
+                    s.ticked.retain(|f| *f != fp);
+                }
+                // A key that asks for its passphrase waits on the sheet.
+                if self.seeds_use_loaded(fp) {
+                    break;
+                }
             }
             return;
         }
@@ -783,8 +803,35 @@ impl Faraday {
                     s.focus = Some(Focus::Cosigner(k));
                 }
             }
-            S::Make | S::Sample(_) | S::UseLoaded(_) | S::FromVault(..) | S::UseFile(_) => {}
+            S::Tick(fp) => {
+                if let Some(at) = s.ticked.iter().position(|f| *f == fp) {
+                    s.ticked.remove(at);
+                } else {
+                    s.ticked.push(fp);
+                }
+            }
+            S::Make
+            | S::Sample(_)
+            | S::UseLoaded(_)
+            | S::UseTicked
+            | S::FromVault(..)
+            | S::UseFile(_) => {}
         }
+    }
+
+    /// Takes loaded key `fp` into the flow's slot. Returns whether it asked
+    /// first for the key's passphrase (the sheet is open, the key not yet
+    /// taken).
+    fn seeds_use_loaded(&mut self, fp: [u8; 4]) -> bool {
+        // With words and no passphrase, asked whether it has one.
+        if self.seed_read_loaded(faraday_bip::keys::Fingerprint(fp)) {
+            return true;
+        }
+        self.seeds_took(faraday_bip::keys::Fingerprint(fp), Some(self.screen));
+        if self.screen == Screen::SpendBackup {
+            self.spend_backup_key_added();
+        }
+        false
     }
 
     /// Loads a seed from an open vault into the flow.
