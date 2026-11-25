@@ -163,7 +163,7 @@ fn part(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
 
 /// [`part`] with the card filled `fill`.
 fn part_on(app: &View, ui: &mut Ui, p: Part, (x, y, w): (f32, f32, f32), fill: Role) -> f32 {
-    if p == Part::Mode {
+    if p == Part::Mode && ui.compact {
         return mode_card(app, ui, (x, y, w), fill) + SECTION_GAP;
     }
     section_on(ui, (x, y, w), fill, part_title(p), &|ui, x, y0, w| {
@@ -183,7 +183,7 @@ pub(crate) fn card(app: &View, ui: &mut Ui, i: u8, at: (f32, f32, f32)) -> f32 {
 /// What section `p` holds, from (x, y) `w` wide. Returns its height.
 fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
     match p {
-        Part::Mode => 0.0,
+        Part::Mode => crate::modes::screen::settings_row(app, ui, at.0, at.1, at.2),
         Part::Session => session_body(app, ui, at),
         Part::Time => time_body(app, ui, at),
         Part::Randomness => randomness_body(app, ui, at),
@@ -665,8 +665,8 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
     rows
 }
 
-/// The card holding the Mode row, which opens the mode sheet. Returns its
-/// height.
+/// The small panel's card holding the Mode row, which opens the mode
+/// sheet. Returns its height.
 fn mode_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), fill: Role) -> f32 {
     use faraday_draw::tokens::MODE_ROW;
     let pad = 22.0;

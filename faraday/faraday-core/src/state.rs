@@ -2128,7 +2128,9 @@ impl Faraday {
             self.idle.set_locking(Some(idle));
             // No one is there to ask: the lock goes ahead, and an open
             // vault's changes with no seed to seal them are lost, as the
-            // warning before it said.
+            // warning before it said. It is no mode change: the sheet that
+            // asked for one ends with it.
+            self.next_mode.clear();
             self.lock_now(true);
             return true;
         }

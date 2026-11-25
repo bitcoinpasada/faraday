@@ -97,9 +97,15 @@ fn pill_within(app: &View, ui: &mut Ui, px: f32, py: f32, bar_h: Option<f32>) ->
     mw
 }
 
-/// Settings' Mode row: "Mode" and the mode's name, a chevron; it opens
-/// the sheet. Returns its height.
+/// Settings' Mode row. On the small panel and in a search's card: "Mode"
+/// and the mode's name, a chevron; it opens the sheet. Otherwise, under the
+/// card's title, the modes the app offers as a segmented button, the one in use
+/// chosen: a press on another asks first (`Action::Mode`). Returns its
+/// height.
 pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    if !ui.compact {
+        return segmented_row(app, ui, x, y, w);
+    }
     ui.text_mid_as((x, y, MODE_ROW), LABEL_L, Role::OnSurface, EN.settings_mode);
     ui.icon(
         x + w - MODE_ROW / 2.0 - GAP,
@@ -119,6 +125,21 @@ pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     );
     ui.press_box(x, y, w, MODE_ROW, Action::ModeSheet);
     MODE_ROW
+}
+
+/// The wide Mode card's body: one segment per mode the app offers, in the
+/// sheet's order, under the card's title; where the column is too narrow
+/// for them side by side they wrap into buttons. Returns its height.
+fn segmented_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let modes = app.modes();
+    let items: Vec<(&str, Action)> = modes.iter().map(|&m| (m.name(), Action::Mode(m))).collect();
+    let on = modes.iter().position(|&m| m == app.mode());
+    ui.choices(
+        (x, y, w, faraday_draw::tokens::SEGMENTED_H),
+        LABEL_L.size,
+        &items,
+        on,
+    )
 }
 
 /// The sheet: a row per mode the app offers, the one in use marked, Not

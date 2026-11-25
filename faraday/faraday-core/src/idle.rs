@@ -207,7 +207,8 @@ impl Faraday {
     /// a backup flow. Asks first when a vault is open with something
     /// not in it, a seal waits, the lock would end Make a new wallet, or it
     /// is a mode change and a file waits in From or For the stick (the
-    /// change empties both); else locks.
+    /// change empties both), or it is a mode change (the sheet is the
+    /// question, with nothing listed when nothing is held); else locks.
     pub(crate) fn lock_ask(&mut self, for_flow: bool) {
         let c = self.compute();
         self.idle.set_lock_for_flow(for_flow);
@@ -219,6 +220,7 @@ impl Faraday {
             || self.lock_would_lose(&c)
             || files_go
             || !self.vaults.open.is_empty() && (sealed || !keys.is_empty() || !wallets.is_empty())
+            || self.mode_changing()
         {
             self.vaults.name_lock(&c);
             self.sheet = Some(Sheet::LockAsk);

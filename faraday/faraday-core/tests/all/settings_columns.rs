@@ -7,6 +7,9 @@ use faraday_core::ui::TextSize;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
+/// A card's edge at 160 dpi: what its ink stands in from its box.
+const CARD_EDGE: i32 = 12;
+
 /// Settings on a `width` × `height` window at 160 dpi.
 fn settings_at(width: u16, height: u16) -> Faraday {
     let mut app = Faraday::new();
@@ -102,7 +105,7 @@ fn settings_columns_come_out_about_equal_and_keep_the_order() {
                     let next = cards[i + 1..]
                         .iter()
                         .find(|c| col(c) == col(&cards[i]))
-                        .map_or(col_foot, |c| c.2);
+                        .map_or(col_foot + 2 * CARD_EDGE, |c| c.2);
                     next - tops[i]
                 })
                 .max()

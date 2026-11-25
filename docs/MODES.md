@@ -66,12 +66,15 @@ and `docs/DEMO.md` differ, this holds.
 6. **A mode change is a lock.** `Action::Mode(Mode)`:
    - the mode in use, or one not in `self.modes`: closes the sheet,
      nothing else;
-   - otherwise `self.next_mode = Some(m)` and `self.lock()`: the same
-     LockAsk, the same refusal when the state cannot be kept
-     (`not_kept`, which also clears `next_mode`), the same sheet the Lock
-     action shows when a stick is attached. With a file in From the stick
-     or For the stick the sheet shows too, whatever else is open: it lists
-     the files as going, and Cancel keeps them and the mode.
+   - otherwise `self.next_mode = Some(m)` and the lock's ask, which for a
+     mode change always shows its sheet (F333): LockAsk titled "Change to
+     X?", **Not now** and **Lock and use X**, with nothing listed when the
+     session holds nothing. A mode chosen on the pill's sheet closes that
+     sheet first, so the question is asked once. The same
+     refusal when the state cannot be kept (`not_kept`, which also clears
+     `next_mode`); a file in From the stick or For the stick, an unsaved
+     key or a changed vault is listed in that same sheet, never a second
+     one, and Not now keeps them and the mode.
    `Faraday::mode_after_restart()` is `next_mode.unwrap_or(self.mode())`:
    a lock keeps the mode the person was in; a mode change takes the one
    chosen. The shell reads it before it drops the app.
@@ -116,17 +119,19 @@ and `docs/DEMO.md` differ, this holds.
   in Faraday Demo's host strip after the sticks, outside the app
   (F118, `docs/DESKTOP-HOST.md` §3); it opens the Load samples sheet.
   The app's bar holds the mode pill alone.
-- **Settings**: the Network row (`network_row_items`) is replaced by one
-  row, **Mode**, the mode's name muted at its right, a chevron; it
-  opens the same sheet. On Mainnet, where no pill shows, it is the only
-  door.
+- **Settings**: the Network row (`network_row_items`) is replaced by
+  **Mode** (F333). On a wide window its card holds the modes as a
+  segmented button of the modes the app offers, the one in use chosen; a press on another asks (point 6), on the one in use does
+  nothing. On the small panel it is a row, **Mode**, the mode's name muted
+  at its right, a chevron; it opens the sheet below. On Mainnet, where no
+  pill shows, it is a door to it.
 - **The sheet** (`Sheet::Mode`, modes/screen.rs): title "Mode"; one row
   per mode in `self.modes`, in that order, divided by rules; the mode in
   use marked by a tick in the accent at the row's right; the Practice row
   carries "Testnet" muted before the tick's place; a press on another row is
   `Action::Mode(m)`; **Not now** at the foot. No line says a
-  change locks: the Lock sheet or LockAsk, where the lock needs one,
-  says what it keeps.
+  change locks: LockAsk, which always asks (point 6), says what it
+  keeps.
 - Wide: a sheet centred, at most the Load sheet's width (F62,
   `faraday/faraday-core/src/vault/load_screen.rs`). Compact:
   `compact::scroll_sheet` with `sheet_head`, as the Load sheet.

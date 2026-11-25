@@ -652,6 +652,21 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         EN.lock_ask_cancel
     };
+    // A mode change is asked in this one sheet: titled by the mode
+    // pressed, Not now and Lock and use it, the list as for any lock.
+    let to = app.mode_chosen().map(|m| m.name());
+    let title = to.map(|n| Text::fill(EN.mode_change_title, &[n]));
+    let head = (
+        head.0,
+        head.1,
+        title.as_ref().map_or(head.2, |t| t.as_str()),
+    );
+    let use_it = to.map(|n| Text::fill(EN.mode_lock_and_use, &[n]));
+    let lock = match (&use_it, lock.1) {
+        (Some(t), Action::Lock) => (t.as_str(), lock.1),
+        _ => lock,
+    };
+    let back = if to.is_some() { EN.mode_not_now } else { back };
     kept_sheet(
         app,
         ui,

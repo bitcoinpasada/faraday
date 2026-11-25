@@ -1232,6 +1232,10 @@ macro_rules! words_common {
     mode_sheet_title: "Mode",
     /// Button in the mode sheet.
     mode_not_now: "Not now",
+    /// Title of the sheet that asks before a mode change; the mode pressed.
+    mode_change_title: "Change to {}?",
+    /// The button of that sheet that locks into the mode pressed.
+    mode_lock_and_use: "Lock and use {}",
     /// The line under every field where a seed or a secret is typed, on an
     /// online shell.
     never_real_seed: "Never type a seed that holds real bitcoin here.",

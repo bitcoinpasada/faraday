@@ -100,9 +100,12 @@ fn a_mode_change_with_files_asks_first_and_cancel_keeps_them() {
 }
 
 #[test]
-fn a_mode_change_with_no_files_locks_at_once() {
+fn a_mode_change_with_no_files_still_asks_and_lock_and_use_locks() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::Settings));
     app.press(Action::Mode(Mode::Signet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    assert!(!app.restart_requested());
+    app.press(Action::Lock);
     assert!(app.restart_requested());
 }

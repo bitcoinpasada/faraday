@@ -602,6 +602,10 @@ impl Faraday {
         self.import.set_tile(true);
         if !matches!(self.sheet, Some(Sheet::NewInput)) {
             self.sheet = None;
+            // The list took the change sheet down: no mode stays pending.
+            if !self.restart {
+                self.next_mode.clear();
+            }
         }
     }
 

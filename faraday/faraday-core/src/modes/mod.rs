@@ -94,6 +94,11 @@ impl ModesArea {
     pub(crate) fn changing(&self) -> bool {
         self.next_mode.is_some()
     }
+
+    /// The mode the change asked for, if one is.
+    pub(crate) fn chosen(&self) -> Option<Mode> {
+        self.next_mode
+    }
 }
 
 impl Faraday {
@@ -159,10 +164,18 @@ impl Faraday {
         self.sheet = Some(crate::Sheet::Mode);
     }
 
+    /// The mode a change now asked for goes to, while its sheet is up.
+    pub(crate) fn mode_chosen(&self) -> Option<Mode> {
+        self.next_mode.chosen()
+    }
+
     /// Handles `Action::Mode`: a mode change is a lock. The mode in use,
     /// or one this app does not offer closes
-    /// the sheet and does nothing else. Otherwise the same ask as
-    /// Lock, and a fresh session in the mode; no warning comes first.
+    /// the sheet and does nothing else. Otherwise the lock's own sheet
+    /// asks, once, "Change to X?", whether or not the session holds
+    /// anything (the pill's sheet closes first, so it is never a second
+    /// question); Lock and use X is then the lock, and a fresh session
+    /// starts in the mode.
     pub(crate) fn mode_act(&mut self, m: Mode) {
         if m == self.mode() || !self.modes().contains(&m) {
             self.next_mode.clear();

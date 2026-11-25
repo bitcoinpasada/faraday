@@ -655,6 +655,17 @@ impl Faraday {
         self.devices.after = None;
         // What the device hid is not given back after a lock.
         self.vaults.tidy_shown(false);
+        // This sheet names no mode: a lock from it changes none.
+        // Not once the lock is agreed (sealing or restarting): the mode
+        // the person agreed to stays.
+        if !self.restart && !self.sealing() {
+            if self.next_mode.changing() {
+                // A Lock that waits for randomness answered the change
+                // sheet this one replaces: it is dropped.
+                self.fresh.wait_cancel();
+            }
+            self.next_mode.clear();
+        }
         self.sheet = Some(Sheet::Lock);
     }
 

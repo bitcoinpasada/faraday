@@ -894,6 +894,10 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
                 .sealing
                 .take()
                 .and_then(|run| run.lock_after);
+            // A sheet that names no mode (the stick's) leaves none pending.
+            if app.sheet != Some(crate::Sheet::LockAsk) {
+                app.next_mode.clear();
+            }
             app.out.command(Command::Draw);
             app.toast(&errors::stopped_text(
                 &why,

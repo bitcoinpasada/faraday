@@ -1195,6 +1195,16 @@ impl Faraday {
         {
             self.visit.set_lock_to_write(None);
         }
+        // A mode change waits only on the sheet that asks for it: any
+        // other way past (Add randomness, the Keep sheet closing) gives
+        // it up. Not once the lock is agreed: restarting or sealing.
+        if self.next_mode.changing()
+            && !self.restart
+            && !self.sealing()
+            && self.sheet != Some(Sheet::LockAsk)
+        {
+            self.next_mode.clear();
+        }
     }
 
     fn act_dealt(&mut self, action: Action) {

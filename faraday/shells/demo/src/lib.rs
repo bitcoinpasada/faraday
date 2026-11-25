@@ -553,6 +553,10 @@ mod tests {
         let public = faraday_core::testkit::test_words("zebra");
         assert!(app.session.keys.add_words(&c, &public, "", None).is_ok());
         app.press(faraday_core::Action::Mode(faraday_core::Mode::Signet));
+        // The change asks once; Lock and use is the lock.
+        assert_eq!(app.sheet, Some(faraday_core::Sheet::LockAsk));
+        assert!(!app.restart_requested());
+        app.press(faraday_core::Action::Lock);
         assert_eq!(app.mode_after_restart(), faraday_core::Mode::Signet);
         assert!(app.restart_requested());
     }
@@ -571,6 +575,8 @@ mod tests {
     fn leaving_demo_for_testnet_starts_a_fresh_testnet_session() {
         let mut app = desktop_app_in(faraday_core::Mode::Demo);
         app.press(faraday_core::Action::Mode(faraday_core::Mode::Testnet));
+        app.press(faraday_core::Action::Lock);
+        assert!(app.restart_requested());
         let fresh = desktop_app_in(app.mode_after_restart());
         assert!(fresh.sheet.is_none());
         assert_eq!(fresh.mode(), faraday_core::Mode::Testnet);

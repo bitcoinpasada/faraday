@@ -9,7 +9,7 @@ use faraday_core::create::NewKind;
 use faraday_core::testkit::KindText;
 use faraday_core::wallet::Session;
 use faraday_core::{
-    Action, DESKTOP_MODES, Faraday, Mode, StickInfo, StorageCommand, StorageEvent, testkit,
+    Action, DESKTOP_MODES, Faraday, Mode, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
 };
 use faraday_shell_api::App;
 
@@ -54,13 +54,14 @@ fn load_wallet(app: &mut Faraday, text: &str) {
 }
 
 #[test]
-fn a_mode_change_on_the_desktop_shows_no_warning() {
+fn a_mode_change_on_the_desktop_asks_once_and_lock_and_use_ends_in_the_mode() {
     for mode in [Mode::Testnet, Mode::Signet, Mode::Regtest] {
         let mut app = desktop();
         app.press(Action::Mode(mode));
-        assert_eq!(app.sheet, None, "{mode:?}");
+        assert_eq!(app.sheet, Some(Sheet::LockAsk), "{mode:?}");
+        assert!(!app.restart_requested());
         let _ = app.frame();
-        assert_eq!(app.sheet, None, "{mode:?}");
+        app.press(Action::Lock);
         assert!(app.restart_requested());
         assert_eq!(app.mode_after_restart(), mode);
     }
@@ -131,7 +132,7 @@ fn the_device_changes_mode_without_the_warning() {
     let mut app = testkit::started();
     app.press(Action::Mode(Mode::Signet));
     let _ = app.frame();
-    assert_eq!(app.sheet, None);
+    app.press(Action::Lock);
     assert_eq!(app.mode_after_restart(), Mode::Signet);
     assert!(app.session.keys.add_words(&c, OTHER, "", None).is_ok());
 }

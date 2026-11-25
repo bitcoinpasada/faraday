@@ -97,7 +97,7 @@ Read this table, then only the decision you need.
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Amended by F160, F192, F197 | crypto |
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128, F174, F182 | stick |
-| [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143, F247, F292 | design |
+| [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143, F247, F292, F333 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Amended by F257 | design |
 | [F83](history/decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Superseded by F126 | release |
 | [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |
@@ -341,4 +341,5 @@ Read this table, then only the decision you need.
 | [F329](decisions/F329.md) | The Starter's Appearance and About are rows of Home's Settings, not of the menu | 2026-11-24 | Active | Starter |
 | [F331](decisions/F331.md) | Everything raised rests at one level; in a flow the flow's card alone is raised, and the search and the pills stay | 2026-11-24 | Active | design |
 | [F332](decisions/F332.md) | What can be pressed shows it: a chevron opens, a radio or a box chooses, an icon and a verb act, and a fact looks like none of them | 2026-11-24 | Active | design |
+| [F333](decisions/F333.md) | Settings' Mode is a segmented button in its card, and a press on another asks first in one sheet | 2026-11-24 | Active | design |
 | [F334](decisions/F334.md) | A flow in progress is a number on its sidebar tab, with no row under it | 2026-11-24 | Active | design |

@@ -12,7 +12,7 @@ Settings holds the session's settings and how the app looks, in sections: Mode, 
 
 **Key:** settings.mode
 
-Mode is the network that keys, wallets and addresses are made for. The row shows the mode in use and opens a sheet with a row per mode the app offers; **Not now** closes the sheet.
+Mode is the network that keys, wallets and addresses are made for. On a wide window the modes sit in the card as one button, the mode in use chosen; on a small panel the row shows the mode in use and opens a sheet with a row per mode the app offers. Pressing another mode asks first: **Change to** the mode, with **Not now** and **Lock and use** the mode. Changing the mode locks, and the new session starts in it.
 
 The device offers **Mainnet**, **Testnet**, **Signet** and **Regtest**. Faraday Demo offers **Practice** in place of Mainnet.
 

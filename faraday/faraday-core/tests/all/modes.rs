@@ -45,11 +45,16 @@ fn choosing_a_mode_with_keys_and_wallets_loaded_leaves_a_fresh_session_in_it() {
         .unwrap();
     app.press(Action::Nav(Screen::Settings));
     app.press(Action::Mode(Mode::Signet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk), "the one sheet asks");
+    assert!(
+        !app.restart_requested(),
+        "nothing is wiped before the answer"
+    );
+    app.press(Action::Lock);
     assert!(app.restart_requested());
     assert!(app.session.keys.is_empty(), "the keys are gone");
     assert!(app.session.wallets.is_empty(), "the wallets are gone");
     assert_eq!(app.mode_after_restart(), Mode::Signet);
-    assert_eq!(app.sheet, None);
 }
 
 #[test]
@@ -345,7 +350,7 @@ fn the_pill_names_the_mode_and_in_demo_its_network() {
 }
 
 #[test]
-fn on_mainnet_no_pill_shows_and_settings_mode_row_opens_the_sheet() {
+fn on_mainnet_no_pill_shows_and_settings_mode_row_opens_the_sheet_on_the_small_panel() {
     for compact in [false, true] {
         let mut app = testkit::started();
         testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
@@ -358,12 +363,18 @@ fn on_mainnet_no_pill_shows_and_settings_mode_row_opens_the_sheet() {
             );
         }
         app.press(Action::Nav(Screen::Settings));
-        assert!(
-            crate::common::offered(&mut app, Action::ModeSheet),
-            "compact {compact}"
-        );
-        app.press(Action::ModeSheet);
-        assert_eq!(app.sheet, Some(Sheet::Mode));
+        if compact {
+            assert!(crate::common::offered(&mut app, Action::ModeSheet));
+            app.press(Action::ModeSheet);
+            assert_eq!(app.sheet, Some(Sheet::Mode));
+        } else {
+            // A wide window shows the modes in the card itself.
+            assert!(!crate::common::offered(&mut app, Action::ModeSheet));
+            assert!(crate::common::offered(
+                &mut app,
+                Action::Mode(Mode::Testnet)
+            ));
+        }
     }
 }
 
@@ -403,6 +414,315 @@ fn escape_closes_the_sheet_and_choosing_a_row_locks_into_its_mode() {
     assert_eq!(app.sheet, None);
     app.press(Action::ModeSheet);
     app.press(Action::Mode(Mode::Regtest));
+    // The sheet closed for the one question, which is asked once.
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    assert!(!app.restart_requested());
+    app.press(Action::Lock);
     assert!(app.restart_requested());
     assert_eq!(app.mode_after_restart(), Mode::Regtest);
+}
+
+#[test]
+fn settings_mode_card_on_a_wide_window_shows_every_mode_and_presses_the_ones_offered() {
+    let mut app = demo_app();
+    shown_on(&mut app, false);
+    app.press(Action::Nav(Screen::Settings));
+    let names = crate::common::texts(&mut app);
+    for want in ["Mode", "Practice", "Testnet", "Signet", "Regtest"] {
+        assert!(names.iter().any(|t| t == want), "{want}: {names:?}");
+    }
+    // The desktop has no Mainnet, as the sheet lists none.
+    assert!(!names.iter().any(|t| t == "Mainnet"), "{names:?}");
+    for m in [Mode::Testnet, Mode::Signet, Mode::Regtest] {
+        assert!(crate::common::offered(&mut app, Action::Mode(m)), "{m:?}");
+    }
+    assert!(!crate::common::offered(
+        &mut app,
+        Action::Mode(Mode::Mainnet)
+    ));
+}
+
+#[test]
+fn pressing_another_mode_in_settings_asks_in_one_sheet_and_not_now_changes_nothing() {
+    let mut app = demo_app();
+    shown_on(&mut app, false);
+    app.press(Action::Nav(Screen::Settings));
+    // The mode in use asks nothing.
+    app.press(Action::Mode(Mode::Demo));
+    assert_eq!(app.sheet, None);
+    app.press(Action::Mode(Mode::Testnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    assert!(crate::common::has(&mut app, "Change to Testnet?"));
+    assert!(crate::common::has(&mut app, "Not now"));
+    assert!(crate::common::has(&mut app, "Lock and use Testnet"));
+    assert!(crate::common::offered(&mut app, Action::Cancel));
+    assert!(crate::common::offered(&mut app, Action::Lock));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert!(!app.restart_requested());
+    assert_eq!(app.mode(), Mode::Demo);
+    assert_eq!(app.mode_after_restart(), Mode::Demo);
+}
+
+#[test]
+fn lock_and_use_from_settings_ends_in_the_mode_with_the_session_a_lock_leaves() {
+    let c = testkit::compute();
+    let mut app = testkit::started();
+    shown_on(&mut app, false);
+    app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Mode(Mode::Regtest));
+    assert!(crate::common::has(&mut app, "Change to Regtest?"));
+    app.press(Action::Lock);
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Regtest);
+    assert!(app.session.keys.is_empty());
+}
+
+#[test]
+fn a_session_holding_something_unkept_asks_in_the_same_sheet_titled_by_the_mode() {
+    let mut app = with_unsealed_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    assert!(crate::common::has(&mut app, "Change to Mainnet?"));
+    assert!(crate::common::has(&mut app, "Not now"));
+    assert!(!app.restart_requested());
+}
+
+/// Nothing is pending after the change sheet ended some way other than
+/// Lock and use: a later plain Lock keeps the mode in use and asks
+/// nothing about a change.
+fn no_change_is_pending(app: &mut Faraday, in_use: Mode) {
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.mode_after_restart(), in_use);
+    app.press(Action::LockAsk);
+    assert!(!crate::common::has_part(app, "Change to"));
+    assert!(!crate::common::has_part(app, "Lock and use"));
+    app.press(Action::Lock);
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), in_use);
+}
+
+#[test]
+fn escape_on_the_change_sheet_leaves_no_mode_pending() {
+    let mut app = demo_app();
+    app.press(Action::Mode(Mode::Testnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    no_change_is_pending(&mut app, Mode::Demo);
+}
+
+fn a_stick() -> StorageEvent {
+    StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("stick"),
+        label: faraday_text::Text::of("STICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }])
+}
+
+/// No change is pending, with a session that holds something: the mode a
+/// restart would start in is the one in use, and a plain Lock asks no
+/// question about a change.
+fn nothing_pending_while_holding(app: &mut Faraday, in_use: Mode) {
+    assert_eq!(app.mode_after_restart(), in_use);
+    app.press(Action::LockAsk);
+    assert!(!crate::common::has_part(app, "Change to"));
+    assert!(!crate::common::has_part(app, "Lock and use Testnet"));
+    assert_eq!(app.mode_after_restart(), in_use);
+}
+
+#[test]
+fn a_stick_pulled_under_the_change_sheet_leaves_no_mode_pending() {
+    let mut app = with_unsealed_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    app.storage(a_stick());
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Lock), "the stick's Lock sheet");
+    assert_eq!(app.mode_after_restart(), Mode::Testnet, "no change named");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    nothing_pending_while_holding(&mut app, Mode::Testnet);
+}
+
+/// A device with a vault open and a change in it that can be sealed.
+fn with_sealable_change() -> Faraday {
+    let mut app = with_unsealed_change();
+    app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+        [0x21; 32],
+    )));
+    crate::common::top_up(&mut app);
+    app
+}
+
+#[test]
+fn lock_and_use_the_stick_after_a_stick_arrived_under_the_change_sheet_keeps_the_mode() {
+    let mut app = with_sealable_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    app.storage(a_stick());
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Testnet);
+}
+
+#[test]
+fn add_randomness_then_home_leaves_no_mode_pending() {
+    let mut app = with_unsealed_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    app.press(Action::Own(faraday_core::fresh::page::Act::Open));
+    assert_eq!(app.screen, Screen::Randomness);
+    app.press(Action::Nav(Screen::Home));
+    assert_eq!(app.sheet, None);
+    nothing_pending_while_holding(&mut app, Mode::Testnet);
+}
+
+#[test]
+fn save_then_cancel_in_the_change_sheets_list_leaves_no_mode_pending() {
+    for save in [false, true] {
+        let mut app = with_unsealed_change();
+        app.press(Action::Entry(None));
+        crate::common::type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[2].0));
+        app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(&mut app);
+        let k = app.session.keys.len() - 1;
+        let of = faraday_vault::child::ChildOf {
+            parent: [1, 2, 3, 4],
+            language: 0,
+            words: 24,
+            index: 7,
+        };
+        assert!(app.session.keys.set_child_of(k, Some(of)));
+        app.press(Action::Mode(Mode::Mainnet));
+        assert_eq!(app.sheet, Some(Sheet::LockAsk));
+        app.press(Action::Vault(V::SaveKey(k)));
+        assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+        app.press(Action::Vault(if save {
+            V::KeepSave
+        } else {
+            V::KeepCancel
+        }));
+        assert_eq!(app.sheet, None);
+        nothing_pending_while_holding(&mut app, Mode::Testnet);
+    }
+}
+
+#[test]
+fn a_lock_agreed_on_the_change_sheet_ends_in_the_mode_even_over_many_frames() {
+    let mut app = with_sealable_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Lock);
+    assert!(!app.restart_requested(), "the seal is under way");
+    // Presses while the seal runs do not undo the change.
+    testkit::press_on_worker(&mut app, Action::Nav(Screen::Settings));
+    let _ = app.frame();
+    testkit::press_on_worker(&mut app, Action::Nav(Screen::Home));
+    // A stick that comes meanwhile does not undo it.
+    app.storage(a_stick());
+    let _ = app.frame();
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Mainnet);
+}
+
+#[test]
+fn a_stick_that_comes_while_the_seal_runs_leaves_the_agreed_mode() {
+    let mut app = with_sealable_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Lock);
+    assert!(!app.restart_requested(), "the seal is under way");
+    app.storage(a_stick());
+    let _ = app.frame();
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Mainnet);
+}
+
+#[test]
+fn a_stick_that_comes_after_the_lock_is_agreed_leaves_the_agreed_mode() {
+    let mut app = with_sealable_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert!(app.restart_requested());
+    app.storage(a_stick());
+    let _ = app.frame();
+    assert_eq!(app.mode_after_restart(), Mode::Mainnet);
+}
+
+#[test]
+fn a_waiting_lock_is_dropped_when_a_stick_comes() {
+    let mut app = with_unsealed_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    app.press(Action::Lock);
+    assert!(!app.restart_requested(), "the lock waits for randomness");
+    app.storage(a_stick());
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+        [0x21; 32],
+    )));
+    crate::common::top_up(&mut app);
+    testkit::settle(&mut app);
+    assert!(!app.restart_requested(), "the stick's sheet is unanswered");
+}
+
+#[test]
+fn the_boot_sticks_list_over_the_change_sheet_leaves_no_mode_pending() {
+    let mut app = demo_app();
+    app.storage(a_stick());
+    app.press(Action::Mode(Mode::Testnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    let mut boot = match a_stick() {
+        StorageEvent::Sticks(mut v) => v.remove(0),
+        _ => unreachable!(),
+    };
+    boot.boot = true;
+    boot.id = faraday_text::Text::of("boot");
+    boot.files = vec![(faraday_text::Text::of("vault.kdbx"), 4)];
+    app.storage(StorageEvent::Sticks(vec![boot]));
+    let _ = app.frame();
+    assert_ne!(app.sheet, Some(Sheet::LockAsk), "the list took the sheet");
+    assert!(!crate::common::has_part(&mut app, "Change to"));
+    app.press(Action::LockAsk);
+    assert!(!crate::common::has_part(&mut app, "Change to"));
+    assert!(!crate::common::has_part(&mut app, "Lock and use Testnet"));
+}
+
+#[test]
+fn the_idle_lock_under_the_change_sheet_keeps_the_mode_in_use() {
+    let mut app = with_unsealed_change();
+    app.press(Action::Mode(Mode::Mainnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    app.event(Event::Tick {
+        now_ms: 120_000 + 31 * 60_000,
+    });
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Testnet);
+}
+
+#[test]
+fn with_a_stick_attached_a_press_on_a_mode_shows_the_one_change_sheet() {
+    let mut app = demo_app();
+    app.storage(a_stick());
+    app.press(Action::Mode(Mode::Testnet));
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    assert!(crate::common::has(&mut app, "Change to Testnet?"));
+    assert!(crate::common::has(&mut app, "Lock and use Testnet"));
 }
