@@ -20,7 +20,7 @@ An open vault offers **View contents** and **Lock**; **Lock** seals it and every
 
 **Key:** vaults.marks
 
-On a wide screen the keys and wallets this session holds stand beside the list. While exactly one vault is open each is marked **In a vault** or **Not saved**; a key with a BIP-39 passphrase is **In a vault** only where the vault holds it with that passphrase, and reads **Words in a vault** where the vault holds its words alone. A row that is not saved has a **Save** button that puts it into that vault: a key without its BIP-39 passphrase (**Save with passphrase** is on the key's page in the vault). With no vault open or two open there is no mark and no **Save**; a vault open to read only marks but takes no **Save**.
+On a wide screen the keys and wallets this session holds stand beside the list. While exactly one vault is open each is marked **In a vault** or **Not saved**; a key with a BIP-39 passphrase is **In a vault** only where the vault holds it with that passphrase, and a key without one only where the vault holds its words with none; where the vault holds its words otherwise it reads **Words in a vault**. A row that is not saved has a **Save** button that puts it into that vault: a key without its BIP-39 passphrase (**Save with passphrase** is on the key's page in the vault). With no vault open or two open there is no mark and no **Save**; a vault open to read only marks but takes no **Save**.
 
 ## Seal count
 
