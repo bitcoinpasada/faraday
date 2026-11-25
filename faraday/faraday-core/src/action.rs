@@ -1177,6 +1177,24 @@ impl Faraday {
     }
 
     fn act_noted(&mut self, action: Action) {
+        // A press on a page of the sidebar or on a pill leaves the search:
+        // what was typed goes (a result's press keeps it for the way back).
+        if matches!(
+            action,
+            Action::Nav(_) | Action::CreateWallet | Action::RestoreWallet
+        ) {
+            self.tools.clear_home_find();
+        }
+        // A press on anything but the search itself takes its caret off in
+        // a flow, so typing goes to the step's field again.
+        if crate::screens::in_flow(self)
+            && !matches!(
+                action,
+                Action::TypeHere(crate::edit::Here::HomeFind) | Action::HomeSearchClear
+            )
+        {
+            self.tools.unfocus_home_find();
+        }
         let on_entry = self.screen == Screen::Entry;
         let in_pane = crate::address_check::pane::scanning(self);
         // Files' tab with a file's details open only closes them: the
@@ -1510,10 +1528,6 @@ impl Faraday {
             | Action::LVault
             | Action::LOut
             | Action::LAnother => self.lightning_act(action),
-            Action::HomeSearchClear if self.screen == Screen::Catalog => {
-                self.tools.clear_catalog_find();
-                self.tools.focus_catalog_find();
-            }
             Action::HomeSearchClear => {
                 self.tools.clear_home_find();
                 self.tools.focus_home_find();

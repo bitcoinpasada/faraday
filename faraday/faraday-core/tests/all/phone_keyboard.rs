@@ -47,7 +47,7 @@ fn a_press_on_a_bar_or_field_that_takes_typing_brings_the_keyboard_up_and_again_
         app.press(Action::Nav(Screen::Catalog));
         let _ = app.frame();
         assert!(app.keyboard_top().is_none(), "{w:?}: down first");
-        tap(&mut app, Action::TypeHere(Here::Find));
+        tap(&mut app, Action::TypeHere(Here::HomeFind));
         assert!(app.keyboard_top().is_some(), "{w:?}: Find a tool");
 
         // BIP-85's index, a field already typed into: put away, a press

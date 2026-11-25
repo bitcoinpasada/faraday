@@ -147,16 +147,16 @@ fn find_a_tool_takes_typing_where_the_caret_is() {
     app.event(Event::Key(Key::Left));
     app.event(Event::Key(Key::Left));
     app.event(Event::Key(Key::Char('x')));
-    assert_eq!(testkit::catalog_find(&app), "asxlp");
+    assert_eq!(testkit::home_find(&app), "asxlp");
     let _ = app.frame();
-    let here = Action::TypeHere(faraday_core::edit::Here::Find);
+    let here = Action::TypeHere(faraday_core::edit::Here::HomeFind);
     let (x, y) = app.where_typed(here, 1).expect("the find drawn");
     for phase in [TouchPhase::Down, TouchPhase::Up] {
         app.event(Event::Touch { x, y, phase });
     }
     app.event(Event::Key(Key::Delete));
     app.event(Event::Key(Key::Char('i')));
-    assert_eq!(testkit::catalog_find(&app), "aixlp");
+    assert_eq!(testkit::home_find(&app), "aixlp");
 }
 
 /// Sign a message with `text` typed as its message.
@@ -389,9 +389,9 @@ fn typing_inside_a_full_field_keeps_its_old_text() {
         app.event(Event::Key(Key::Char(c)));
     }
     let _ = app.frame();
-    assert_eq!(testkit::catalog_find(&app), full);
+    assert_eq!(testkit::home_find(&app), full);
     let (x, y) = app
-        .where_typed(Action::TypeHere(faraday_core::edit::Here::Find), 3)
+        .where_typed(Action::TypeHere(faraday_core::edit::Here::HomeFind), 37)
         .unwrap();
     for phase in [TouchPhase::Down, TouchPhase::Up] {
         app.event(Event::Touch { x, y, phase });
@@ -399,7 +399,7 @@ fn typing_inside_a_full_field_keeps_its_old_text() {
     let _ = app.frame();
     app.event(Event::Key(Key::Char('x')));
     assert_eq!(
-        testkit::catalog_find(&app),
+        testkit::home_find(&app),
         full,
         "the field keeps its text, not a shortened one"
     );

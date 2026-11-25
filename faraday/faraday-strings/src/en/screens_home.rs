@@ -103,6 +103,8 @@ macro_rules! words_screens_home {
     home_ways_restore_short: "Restore",
     /// Home's top row button: `home_ways_spend_backup`.
     home_ways_spend_short: "Spend from backup",
+    /// The reason a way is off in the Start menu while its flow is on screen.
+    home_ways_open_here: "Open here",
     /// Text in `home_ways`.
     home_ways_a_stick_attached: "A stick attached",
     /// Text in `home_ways`.

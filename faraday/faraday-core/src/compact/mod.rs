@@ -1535,11 +1535,10 @@ impl Faraday {
         }
         self.sheet.is_none()
             && match self.screen {
-                Screen::Explore
-                | Screen::Bip85
-                | Screen::Catalog
-                | Screen::Tools
-                | Screen::Lightning => true,
+                // The menu page of Tools types in the one search, as Home's
+                // page does: no keyboard to offer on the wide layout.
+                Screen::Catalog => !self.search_in_bar(),
+                Screen::Explore | Screen::Bip85 | Screen::Tools | Screen::Lightning => true,
                 Screen::Home
                 | Screen::Check
                 | Screen::WalletsStart

@@ -811,8 +811,19 @@ fn home_and_empty_wallets_name_the_two_flows() {
         !joined.contains("Load or restore a wallet"),
         "the old name is gone: {joined}"
     );
+    // Where the three pills stand, the Wallets tab leaves out the three
+    // rows they repeat; where the one Start button stands, it keeps all.
     tap(&mut app, Action::Nav(Screen::WalletsStart));
+    let _ = app.frame();
     let joined = app.drawn_texts().join(" ");
+    assert!(
+        !joined.contains("Make a new wallet") && !joined.contains("Restore an existing wallet"),
+        "the pills stand: {joined}"
+    );
+    let mut narrow = sized(720, 900, 160);
+    tap(&mut narrow, Action::Nav(Screen::WalletsStart));
+    let _ = narrow.frame();
+    let joined = narrow.drawn_texts().join(" ");
     assert!(
         joined.contains("Make a new wallet"),
         "the empty Wallets tab: {joined}"

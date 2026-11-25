@@ -133,28 +133,16 @@ pub(crate) fn home_search_bar(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     page_top: Option<f32>,
-    on: Bar,
 ) -> f32 {
     use faraday_draw::tokens::{
         BODY_L, GAP, GAP_SMALL, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET, TITLE_M,
         TOUCH,
     };
-    let (typed, here, focused) = match on {
-        Bar::Home => (
-            app.tools.home_find(),
-            Action::TypeHere(crate::edit::Here::HomeFind),
-            app.tools.home_focused(),
-        ),
-        Bar::Tools => (
-            app.tools.find(),
-            Action::TypeHere(crate::edit::Here::Find),
-            app.tools.catalog_focused(),
-        ),
-    };
+    let typed = app.tools.home_find();
+    let here = Action::TypeHere(crate::edit::Here::HomeFind);
+    let focused = app.tools.home_focused();
     let h = SEARCH_BAR_H;
-    if on == Bar::Home {
-        app.tools.note_home_bar(page_top.map_or(0.0, |top| y - top));
-    }
+    app.tools.note_home_bar(page_top.map_or(0.0, |top| y - top));
     ui.fill(x, y, w, h, h / 2.0, Role::SurfaceContainerHigh);
     // The state layer takes the pill's own shape, not the default corner.
     ui.press(
@@ -214,19 +202,10 @@ pub(crate) fn home_search_bar(
 /// search bar: the matching tiles as buttons, then the cards of Settings, drawn as on Settings, from (`x`, `y`), `width`
 /// wide, each opening as the Tools tile does, or a line saying none
 /// matches. Returns the height it takes.
-pub(crate) fn home_results(
-    app: &View,
-    ui: &mut Ui,
-    (x, y): (f32, f32),
-    width: f32,
-    on: Bar,
-) -> f32 {
+pub(crate) fn home_results(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32) -> f32 {
     use crate::catalog::TILES;
     use crate::tools::search::{Hit, hits};
-    let found = hits(match on {
-        Bar::Home => app.tools.home_find(),
-        Bar::Tools => app.tools.find(),
-    });
+    let found = hits(app.tools.home_find());
     if found.is_empty() {
         ui.text_as(
             x,

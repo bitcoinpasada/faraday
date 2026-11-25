@@ -207,7 +207,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let page = Page {
         name: EN.start_wallets,
         back: false,
-        search: None,
+        search: super::page_search(app),
         most_columns: usize::MAX,
         fixed_columns: None,
         above: None,
