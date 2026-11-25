@@ -180,9 +180,12 @@ Find, the one-column layouts and a room too narrow for the pair keep today's
 row of keys. Changing the key hides what its eyes show (`prune`).
 A flow whose open step is a pick says so (`Contained::pick`: the question, then groups of `pick.rs` rows). Where the pair stands the pane draws those rows in place of Your choices, headed by the question and each group by its own heading, and the card keeps its title, Next (off until a pick) and the way back on the top bar; the pane then scrolls within itself like Your choices (the pair grows to the window before the list scrolls). After the pick, Your choices are in place again. On every other size the step's card draws the rows (`flow::pair_left` tells the screen which). The rows are labels and fingerprints only. Child seeds and passwords use it, as do Convert a seed's From step (the loaded keys, the aezeed held and the ways in; the open vaults' keys, the set's entry and Next stay in the card) the Krux code tool's Contents step (wallets, then keys, then typing; the typed text and Next stay in the card) and Sign a message's wallet step (every wallet, one that is not single-key or whose key is not loaded dimmed with its reason; the address and its number stay in the card), and My seed makes my wallet's Seed card, whose rows are the loaded keys, then the ways in (Type the words, Scan a SeedQR, codex32 and Other forms, which opens the rest in the pane) while the card lists its ways in; the card then draws none of them (on every other size the card keeps its ways and the keys under Other forms); the other flows' picks (Sign a transaction's wallet, the signers, the seed set and the rest of WORKSPACE §10's list) are not built.
 A flow may list rows under a step's own (Sign a transaction lists its keys
-under Signers, each marked "Signs here" or "Signed" where it is one of these); they open that step,
-and take no press while it is the open one. A row's answer may end in a mark
-that is drawn whole while the text before it is cut to fit (the row's `mark`); a Signers row leaves out a name that could read as a mark.
+under Signers, or, where there is no Signers step (one key, or no wallet known and one key
+here), under Sign once it is reached, each marked "Signs here" or "Signed" where it is one
+of these); they open that step, and take no press while it is the open one. A
+key row draws its fingerprint in the mono face, whole, then the name in the
+body face, which is what is cut to fit, then the mark whole in the `Primary`
+role (the row's `mark`); a key row leaves out a name that could read as a mark.
 The Lightning node key page stands as the same pair on the wide layout with
 a key loaded: each loaded key's two sources (ldk-node and Core Lightning) are
 the pick's rows, pressing what the buttons press, and the aezeed and

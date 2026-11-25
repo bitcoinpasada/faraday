@@ -184,6 +184,11 @@ fn a_seed_with_no_wallet_spends_as_a_single_key_wallet() {
 /// The Spending wallet's spend in the signing review, with its first
 /// output stating, or not, an origin under a key that is not loaded.
 fn spending_review(claimed: bool) -> Faraday {
+    spending_with(claimed, true)
+}
+
+/// The single-key wallet's spend, with its key loaded or not.
+fn spending_with(claimed: bool, key_loaded: bool) -> Faraday {
     let kit = kit("spending");
     let mut psbt = testkit::unsigned(&kit).unwrap().inner().clone();
     if claimed {
@@ -216,7 +221,9 @@ fn spending_review(claimed: bool) -> Faraday {
         kept: Vec::new(),
     });
     testkit::load_wallet(&mut app, 1);
-    add_key(&mut app, 0);
+    if key_loaded {
+        add_key(&mut app, 0);
+    }
     app.press(Action::StartSpend(0));
     app
 }
@@ -502,25 +509,43 @@ fn key_rows(app: &mut Faraday) -> Vec<String> {
 }
 
 fn key_rows_at(app: &mut Faraday, size: (u16, u16)) -> Vec<String> {
+    key_runs_at(app, size)
+        .into_iter()
+        .map(|r| r.concat())
+        .collect()
+}
+
+/// The key rows of the pane, each as the runs drawn on its line: the
+/// fingerprint, then the name and the mark where there are any.
+fn key_runs_at(app: &mut Faraday, size: (u16, u16)) -> Vec<Vec<String>> {
     window(app, size);
-    let boxes = app.drawn_text_boxes();
+    let ink = app.drawn_ink();
+    let mut runs: Vec<(i32, i32, String)> = Vec::new();
+    for i in ink {
+        if let faraday_draw::canvas::InkKind::Text { text, .. } = i.kind {
+            runs.push((i.rect.x, i.rect.y, text.as_str().to_string()));
+        }
+    }
     // The pane's rows stand at its heading's left edge, under it.
-    let Some((_, (hx, hy, ..))) = boxes.iter().find(|(t, _)| t.as_str() == "Your choices") else {
+    let Some(&(hx, hy, _)) = runs.iter().find(|(.., r)| r == "Your choices") else {
         return Vec::new();
     };
-    boxes
-        .iter()
-        .filter(|(t, (x, y, ..))| {
-            let t = t.as_str();
-            x == hx
-                && y > hy
-                && t.len() >= 8
-                && t.is_char_boundary(8)
-                && t[..8].chars().all(|c| c.is_ascii_hexdigit())
-                && (t.len() == 8 || t[8..].starts_with(" · "))
-        })
-        .map(|(t, _)| t.as_str().to_string())
-        .collect()
+    let fp = |t: &str| t.len() == 8 && t.chars().all(|c| c.is_ascii_hexdigit());
+    let mut rows = Vec::new();
+    for (x, y, r) in &runs {
+        if (x - hx).abs() > 4 || *y <= hy || !fp(r) {
+            continue;
+        }
+        let mut line: Vec<(i32, String)> = runs
+            .iter()
+            .filter(|(x2, y2, _)| (y2 - y).abs() <= 3 && x2 + 4 >= *x)
+            .filter(|(x2, _, r2)| x2 == x || r2.starts_with(" · "))
+            .map(|(x2, _, r2)| (*x2, r2.clone()))
+            .collect();
+        line.sort_by_key(|a| a.0);
+        rows.push(line.into_iter().map(|(_, r)| r).collect());
+    }
+    rows
 }
 
 /// The row of the one key that signs here, among the wallet's three.
@@ -606,12 +631,19 @@ fn a_key_reads_signed_only_while_its_signature_is_in_the_file() {
     );
 }
 
-/// The centre of the drawn key row whose answer reads `value`.
+/// The centre of the drawn key row whose answer reads `value`. The card
+/// may draw the same fingerprint: the pane's row stands at the left edge
+/// of its "Your choices" heading, under it.
 fn key_row_at(app: &mut Faraday, value: &str) -> (u16, u16) {
     let boxes = app.drawn_text_boxes();
+    let (hx, hy) = boxes
+        .iter()
+        .find(|(t, _)| t.as_str() == "Your choices")
+        .map(|(_, (x, y, ..))| (*x, *y))
+        .expect("the pane's heading");
     let (_, (x, y, w, h)) = boxes
         .iter()
-        .find(|(t, _)| t.as_str() == value)
+        .find(|(t, (x, y, ..))| t.as_str() == &value[..8] && (x - hx).abs() <= 4 && *y > hy)
         .unwrap_or_else(|| panic!("no key row {value:?} in {boxes:?}"));
     ((x + w / 2) as u16, (y + h / 2) as u16)
 }
@@ -1132,4 +1164,68 @@ fn a_key_that_signed_here_does_not_read_signs_here_for_an_input_the_signer_skips
     app.press(Action::Step(step::SIGNERS));
     // No row says Signs here or Signed.
     assert_eq!(marks(&mut app), (0, 0), "{:?}", key_rows(&mut app));
+}
+
+/// A single-key wallet has no Signers step: once Sign is reached its key
+/// stands under Sign's row, marked as a multisig's key is; before that, and
+/// in the review, there is no row.
+#[test]
+fn a_single_key_wallet_lists_its_key_under_sign_marked_signs_here() {
+    let mut app = spending_review(false);
+    assert!(
+        !app.spend().unwrap().steps.contains(&step::SIGNERS),
+        "a single-key wallet has no Signers step"
+    );
+    assert!(
+        key_rows(&mut app).is_empty(),
+        "no row before Sign: the review"
+    );
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    let rows = key_rows(&mut app);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert!(rows[0].ends_with(" · Signs here"), "{rows:?}");
+}
+
+/// A single-key wallet whose key is not loaded here has a row with no mark.
+#[test]
+fn a_single_key_wallet_whose_key_is_not_loaded_has_no_mark() {
+    let mut app = spending_with(false, false);
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    let rows = key_rows(&mut app);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert!(
+        !rows[0].contains("Signs here") && !rows[0].contains("Signed"),
+        "{rows:?}"
+    );
+}
+
+/// After the key signs, its row reads Signed, and the row stays.
+#[test]
+fn a_single_key_wallet_reads_signed_after_it_signs() {
+    let mut app = spending_review(false);
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    app.press(Action::SignHere);
+    let rows = key_rows(&mut app);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert!(rows[0].ends_with(" · Signed"), "{rows:?}");
+}
+
+/// Every key row draws its fingerprint whole, and a marked row its mark.
+#[test]
+fn a_key_row_draws_its_fingerprint_and_its_mark_whole() {
+    let mut app = spending_review(false);
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(step::SIGN));
+    let rows = key_rows(&mut app);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert!(rows[0].ends_with(" · Signs here"), "{rows:?}");
+    // A multisig's rows are drawn the same way.
+    let mut app = savings_spend();
+    app.press(Action::Step(step::SIGNERS));
+    let rows = key_rows(&mut app);
+    assert_eq!(rows.len(), 3, "{rows:?}");
+    signing_row(&rows);
 }

@@ -304,7 +304,7 @@ impl SpendState {
             && !keys.iter().any(|k| waiting.iter().any(|w| w.0 == k.0))
     }
 
-    /// The rows of Your choices for the keys at Signers: one per
+    /// The rows of Your choices for the keys, under Signers or Sign: one per
     /// fingerprint of the wallet's keys, or, where no wallet is known, one
     /// per loaded key the PSBT names (`participating_keys` holds only
     /// those; a cosigner this device does not hold is not listed). A key
@@ -360,15 +360,13 @@ impl SpendState {
                 .map(|r| crate::wallet::fp_label(faraday_bip::keys::Fingerprint(r)))
                 .unwrap_or_default();
             // A name that could be read as a mark is left out.
-            let name = name.filter(|n| !name_reads_as_mark(n.as_str()));
-            let head = match name
-                .as_ref()
-                .map(|n| n.trim())
-                .filter(|n| !n.is_empty() && !n.eq_ignore_ascii_case(fp.as_str()))
-            {
-                Some(n) => text!("{} · {}", fp.as_str(), n),
-                None => fp.clone(),
-            };
+            let name = name
+                .filter(|n| !name_reads_as_mark(n.as_str()))
+                .filter(|n| {
+                    let t = n.trim();
+                    !t.is_empty() && !t.eq_ignore_ascii_case(fp.as_str())
+                })
+                .map(|n| text!("{}", n.trim()));
             let mark = match raw {
                 Some(r) if self.key_signed(r) => Some(EN.step_choice_signed),
                 Some(r) if here && self.signs_here(app, r) => Some(EN.step_signs_here),
@@ -376,11 +374,11 @@ impl SpendState {
             };
             rows.push(crate::flow::Row {
                 label: Text::of(EN.step_choice_key),
-                value: Some(head),
+                value: Some(fp.clone()),
                 mono: false,
                 opens,
                 current: false,
-                mark,
+                mark: Some(crate::flow::KeyMark { fp, name, mark }),
             });
         }
         rows
@@ -1232,8 +1230,12 @@ impl crate::flow::Contained for SpendSteps {
                 current: shown == Some(k),
                 mark: None,
             });
-            // The keys stay listed under Signers once chosen.
-            if k == step::SIGNERS && reached {
+            // The keys stay listed under Signers once chosen; a wallet with
+            // no Signers step (one key, or no wallet known and one key
+            // here) lists its key under Sign.
+            let lists =
+                k == step::SIGNERS || (k == step::SIGN && !s.steps.contains(&step::SIGNERS));
+            if lists && reached {
                 rows.extend(s.key_rows(app, k));
             }
         }

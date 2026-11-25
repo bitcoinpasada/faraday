@@ -32,8 +32,20 @@ pub(crate) struct Row {
     pub(crate) opens: u8,
     /// The row stands for the step now open.
     pub(crate) current: bool,
-    /// A mark drawn whole after the answer, which is fitted to what the
-    /// mark leaves; set only where the flow says it.
+    /// A key's row: its fingerprint, name and mark, set only where the flow
+    /// says it; the row's `value` is not drawn then.
+    pub(crate) mark: Option<KeyMark>,
+}
+
+/// What a key's row draws: the fingerprint in the mono face, the name
+/// fitted to what the others leave, and the mark whole in the primary role.
+#[derive(Debug, Clone)]
+pub(crate) struct KeyMark {
+    /// The key's fingerprint, drawn whole.
+    pub(crate) fp: Text,
+    /// Its name, if it has one that may be shown; the part that is cut.
+    pub(crate) name: Option<Text>,
+    /// The mark, drawn whole after them; none for a key with no mark.
     pub(crate) mark: Option<&'static str>,
 }
 
@@ -90,15 +102,32 @@ pub(crate) fn rows(
         } else {
             BODY_S
         };
-        let value = match row.mark {
-            Some(mark) => {
-                let tail = text!(" · {}", mark);
-                let room = (w - ui.measure_as(role, tail.as_str())).max(0.0);
-                text!("{}{}", ui.fit_as(role, value, room).as_str(), tail.as_str())
+        if let Some(k) = &row.mark {
+            // Fingerprint (mono), then the name (cut to fit), then the mark.
+            let sep = " · ";
+            let fp_w = ui.measure_as(BODY_S.mono(), k.fp.as_str());
+            ui.text_as(x, top + lh, BODY_S.mono(), value_ink, k.fp.as_str());
+            let mut at = x + fp_w;
+            let tail_w = k.mark.map_or(0.0, |m| {
+                ui.measure_as(BODY_S, sep) + ui.measure_as(BODY_S, m)
+            });
+            if let Some(n) = &k.name {
+                let lead = ui.measure_as(BODY_S, sep);
+                let room = (x + w - at - tail_w - lead).max(0.0);
+                let n = ui.fit_as(BODY_S, n.as_str(), room);
+                if !n.as_str().is_empty() {
+                    let full = text!("{}{}", sep, n.as_str());
+                    at += ui.text_as(at, top + lh, BODY_S, value_ink, full.as_str());
+                }
             }
-            None => ui.fit_as(role, value, w),
-        };
-        ui.text_as(x, top + lh, role, value_ink, &value);
+            if let Some(m) = k.mark {
+                let full = text!("{}{}", sep, m);
+                ui.text_as(at, top + lh, BODY_S, Role::Primary.paint(), full.as_str());
+            }
+        } else {
+            let value = ui.fit_as(role, value, w);
+            ui.text_as(x, top + lh, role, value_ink, &value);
+        }
         if let Some(action) = press {
             ui.press_box(x - BLEED, cy, w + 2.0 * BLEED, CHOICES_ROW, *action);
         }

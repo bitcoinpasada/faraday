@@ -11,7 +11,7 @@ mod choices;
 mod container;
 mod take_away;
 
-pub(crate) use choices::{Row, Title};
+pub(crate) use choices::{KeyMark, Row, Title};
 pub(crate) use container::{Page, contained, pair_left};
 
 use faraday_draw::widgets::Icon;
