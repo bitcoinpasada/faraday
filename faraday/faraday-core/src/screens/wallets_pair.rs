@@ -38,7 +38,7 @@ pub(super) fn pane(app: &View, ui: &mut Ui, x0: f32, p: &Place, (top, h): (f32, 
     draw_page_pane(
         ui,
         (x0 + p.pane_x, top, p.pane_w, h),
-        app.scroll.home_box_offset(),
+        (app.scroll.home_box_offset(), app.scroll.home_band_offset()),
         &groups,
     );
 }

@@ -59,6 +59,10 @@ pub enum Slot {
     /// the page's fixed part (`docs/HOME.md` §3; `Scroll::home_box_offset`,
     /// `faraday-core`).
     HomeBox,
+    /// The session pane's Waiting band at the pane's foot, which scrolls
+    /// within itself beyond a third of the pane (`docs/SESSION-PANE.md`;
+    /// `Scroll::home_band_offset`, `faraday-core`).
+    HomeBand,
     /// Where the codex32 dice sheet's work is while the step-through
     /// rolls: the marked die's track, or the tree on the character's
     /// step; and, in the tour of the shares made, the marked cells of a

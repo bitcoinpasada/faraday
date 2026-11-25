@@ -1258,6 +1258,13 @@ pub const SPACER: f32 = 24.0;
 /// (`docs/WORKSPACE.md`); no code reads it yet.
 pub const SESSION_COL_MIN: f32 = 336.0;
 
+/// The most of the session pane's height the Waiting band takes: a third
+/// (`docs/WORKSPACE.md` §1); it scrolls within itself beyond.
+pub const SESSION_BAND_SHARE: f32 = 1.0 / 3.0;
+
+/// The padding under a wallet's card's content, dp.
+pub const WALLET_CARD_FOOT: f32 = 22.0;
+
 /// A list pane's width in list and detail (`docs/LAYOUT.md` §5):
 /// Material's default pane width.
 pub const LIST_PANE: f32 = 360.0;

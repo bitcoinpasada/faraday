@@ -4,6 +4,7 @@
 //! data (`rows`), the geometry is here; no file outside this folder draws a
 //! row of the session (`lint-components`).
 
+mod band;
 mod page_mode;
 mod rows;
 
@@ -36,9 +37,17 @@ pub(crate) fn stacked_card(app: &View, ui: &mut Ui, (x, y): (f32, f32), w: f32) 
         ui,
         (x, y),
         w,
-        (None, 0.0),
+        (None, 0.0, app.scroll.home_band_offset()),
         &groups(app),
     )
+}
+
+/// The height [`stacked_card`] takes, with its gap, read from the groups
+/// without drawing them.
+pub(crate) fn stacked_card_h(app: &View, ui: &Ui, w: f32) -> f32 {
+    let groups = groups(app);
+    let c = card_layout(app.search_in_bar(), ui, (0.0, w), None, &groups);
+    c.gap + c.card_h
 }
 
 /// The pane's groups beside a tile: `mode`'s, or Home's own for `None`.
@@ -116,8 +125,8 @@ fn row_h(ui: &Ui, w: f32, r: &SessionRow) -> f32 {
 }
 
 /// The height of a list of `rows`, each `w` wide.
-fn rows_h(ui: &Ui, w: f32, rows: &[SessionRow]) -> f32 {
-    rows.iter().map(|r| row_h(ui, w, r)).sum::<f32>() + 2.0 * GAP_SMALL
+fn rows_h<'a>(ui: &Ui, w: f32, rows: impl IntoIterator<Item = &'a SessionRow>) -> f32 {
+    rows.into_iter().map(|r| row_h(ui, w, r)).sum::<f32>() + 2.0 * GAP_SMALL
 }
 
 /// `rows` as one tinted, rounded box (the surface of the Pi's box of what
@@ -138,7 +147,12 @@ fn keys_fitting(avail: f32, rest_h: f32, keys: usize, cap: usize) -> usize {
 }
 
 /// `rows` from the top of a list at `(x, y)`, `w` wide: the rows alone.
-fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[SessionRow]) {
+fn list_rows<'a>(
+    ui: &mut Ui,
+    (x, y): (f32, f32),
+    w: f32,
+    rows: impl IntoIterator<Item = &'a SessionRow>,
+) {
     let mut cy = y + GAP_SMALL;
     let text_x = x + text_dx();
     let chevron_x = x + w - LIST_PAD - ICON_SMALL;
@@ -281,14 +295,24 @@ fn card_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
 }
 
+/// How many columns of at least `SESSION_COL_MIN` fit across `inner`, at
+/// least one.
+fn column_count(inner: f32) -> usize {
+    (((inner + SPACER) / (SESSION_COL_MIN + SPACER)).floor() as usize).max(1)
+}
+
+/// The width of each of `n` columns `SPACER` apart across `inner`.
+fn column_w(inner: f32, n: usize) -> f32 {
+    (inner - (n - 1) as f32 * SPACER) / n as f32
+}
+
 /// How the groups stand in the card: the groups of each column, in their
 /// order, `n` columns of at least `SESSION_COL_MIN` across `inner`, `SPACER`
 /// apart, each group whole and the next into the shortest column. Returns
 /// the columns' groups, their width and their heights.
 fn columns(ui: &Ui, inner: f32, groups: &[Group]) -> (Vec<Vec<usize>>, f32, Vec<f32>) {
-    let fit = ((inner + SPACER) / (SESSION_COL_MIN + SPACER)).floor() as usize;
-    let n = fit.clamp(1, groups.len().max(1));
-    let col_w = (inner - (n - 1) as f32 * SPACER) / n as f32;
+    let n = column_count(inner).min(groups.len().max(1));
+    let col_w = column_w(inner, n);
     let label_h = ui.line_as(TITLE_S) + GRID;
     let mut cols: Vec<Vec<usize>> = vec![Vec::new(); n];
     let mut heights = vec![0.0_f32; n];
@@ -305,42 +329,101 @@ fn columns(ui: &Ui, inner: f32, groups: &[Group]) -> (Vec<Vec<usize>>, f32, Vec<
     (cols, col_w, heights)
 }
 
+/// Home's card as measured: where its parts stand, read once for the
+/// height and for the drawing alike.
+struct Card<'g> {
+    /// Under what is above it: the gap, or none where the search is in the bar.
+    gap: f32,
+    /// The groups above the band, their columns and width.
+    rest: &'g [Group],
+    cols: Vec<Vec<usize>>,
+    col_w: f32,
+    /// The band at the foot, its layout and the height it shows.
+    band: Option<(&'g Group, band::Layout, f32)>,
+    /// The card's top to where its groups start: padding, heading, gap.
+    head: f32,
+    /// The height of the part that scrolls, or of the groups where it does not.
+    body: f32,
+    /// The groups' height whole.
+    tallest: f32,
+    /// Whether the groups scroll within the card.
+    scrolls: bool,
+    /// The card's whole height.
+    card_h: f32,
+    /// The width of the card.
+    cw: f32,
+}
+
+/// Measures Home's card in the window `w` wide, `y` from the top of a
+/// window `window` tall (none: the card is as tall as its groups): its
+/// heading, the groups in as many columns as fit, the band at its foot.
+fn card_layout<'g>(
+    in_bar: bool,
+    ui: &Ui,
+    (y, w): (f32, f32),
+    window: Option<f32>,
+    groups: &'g [Group],
+) -> Card<'g> {
+    let cw = w.min(MENU_PAGE_W);
+    // Under the search row on the one-column layouts; on the wide layout
+    // the search is in the top bar and the card starts where a page's content does.
+    let gap = if in_bar { 0.0 } else { HOME_CARD_GAP };
+    let head = PAD + ui.line_as(HOME_CARD_HEAD) + GRID;
+    let (rest, band_group) = band::split(groups);
+    let (cols, col_w, heights) = columns(ui, cw - 2.0 * PAD, rest);
+    let tallest = heights.iter().copied().fold(0.0, f32::max);
+    let tail = if band_group.is_some() { 0.0 } else { GRID };
+    let band_lay = band_group.map(|g| band::layout(ui, cw, g));
+    let need = band_lay.as_ref().map_or(0.0, band::Layout::need);
+    let none_h = ui.line_as(BODY_L) + PAD;
+    let content = if groups.is_empty() { none_h } else { tallest };
+    let natural = head + content + need + tail;
+    let room = window.map(|h| (h - (y + gap) - MARGIN_WIDE).floor());
+    let pane_h = room.map_or(natural, |r| r.min(natural));
+    // The band is held to its share only where the card does not stand whole.
+    let shown = match room {
+        Some(r) if natural > r => band::shown_h(ui, need, r),
+        _ => need,
+    };
+    let avail = pane_h - head - shown - tail;
+    let scrolls = !rest.is_empty() && tallest > avail && avail >= HOME_BOX_MIN_ROWS * LIST_2;
+    let body = if scrolls { avail } else { content };
+    Card {
+        gap,
+        rest,
+        cols,
+        col_w,
+        band: band_group
+            .zip(band_lay)
+            .map(|(g, lay)| (g, lay, shown.min(need))),
+        head,
+        body,
+        tallest,
+        scrolls,
+        card_h: head + body + shown.min(need) + tail,
+        cw,
+    }
+}
+
 /// Home's card in the window `w` wide from `x`, `HOME_CARD_GAP` under what
-/// is above it: its heading, then the groups in as many columns as fit. It
-/// is at most `MENU_PAGE_W` wide and centred, as tall as its groups, and
-/// scrolls within itself, as one, when the window is short. Nothing loaded:
+/// is above it: its heading, then the groups in as many columns as fit, the
+/// Waiting band across its foot. It is at most `MENU_PAGE_W` wide and
+/// centred, as tall as its groups, and scrolls within itself, as one, the
+/// band and the heading staying, when the window is short. Nothing loaded:
 /// one line. Returns its height with the gap.
 fn pane_card(
     in_bar: bool,
     ui: &mut Ui,
     (x, y): (f32, f32),
     w: f32,
-    (window, offset): (Option<f32>, f32),
+    (window, offset, band_offset): (Option<f32>, f32, f32),
     groups: &[Group],
 ) -> f32 {
-    let cw = w.min(MENU_PAGE_W);
-    let cx = x + (w - cw) / 2.0;
-    // Under the search row on the one-column layouts; on the wide layout
-    // the search is in the top bar and the card starts where a page's content does.
-    let gap = if in_bar { 0.0 } else { HOME_CARD_GAP };
-    let top = y + gap;
-    let head_h = ui.line_as(HOME_CARD_HEAD);
-    let inner = cw - 2.0 * PAD;
-    let rows_y = top + PAD + head_h + GRID;
-    let (cols, col_w, heights) = columns(ui, inner, groups);
-    let tallest = heights.iter().copied().fold(0.0, f32::max);
-    let avail = window.map_or(f32::INFINITY, |h| (h - rows_y - MARGIN_WIDE).floor());
-    let scrolls = tallest > avail && avail >= HOME_BOX_MIN_ROWS * LIST_2;
-    let none_h = ui.line_as(BODY_L) + PAD;
-    let body = if groups.is_empty() {
-        none_h
-    } else if scrolls {
-        avail
-    } else {
-        tallest
-    };
-    let card_h = rows_y - top + body + GRID;
-    card_surface(ui, (cx, top, cw, card_h));
+    let c = card_layout(in_bar, ui, (y, w), window, groups);
+    let cx = x + (w - c.cw) / 2.0;
+    let top = y + c.gap;
+    let rows_y = top + c.head;
+    card_surface(ui, (cx, top, c.cw, c.card_h));
     ui.text_as(
         cx + PAD + LIST_PAD,
         top + PAD,
@@ -356,33 +439,36 @@ fn pane_card(
             Role::OnSurfaceVariant,
             EN.session_nothing_loaded,
         );
-        return gap + card_h;
+        return c.gap + c.card_h;
     }
     let draw_cols = |ui: &mut Ui| {
         let mut colx = cx + PAD;
-        for c in &cols {
+        for col in &c.cols {
             let mut cy = rows_y;
-            for &gi in c {
-                let g = &groups[gi];
+            for &gi in col {
+                let g = &c.rest[gi];
                 section_label(ui, colx + LIST_PAD, cy, g.label);
                 cy += ui.line_as(TITLE_S) + GRID;
-                list_rows(ui, (colx, cy), col_w, &g.rows);
-                cy += rows_h(ui, col_w, &g.rows) + SPACER;
+                list_rows(ui, (colx, cy), c.col_w, &g.rows);
+                cy += rows_h(ui, c.col_w, &g.rows) + SPACER;
             }
-            colx += col_w + SPACER;
+            colx += c.col_w + SPACER;
         }
     };
-    if scrolls {
-        let clip = ui.rect(cx, rows_y, cw, avail);
+    if c.scrolls {
+        let clip = ui.rect(cx, rows_y, c.cw, c.body);
         let mark = ui.presses_mark();
         let open = ui.region_open(Region::scrolled(Slot::HomeBox, clip, offset));
         draw_cols(ui);
         ui.clip_presses_since(mark, clip);
-        ui.region_close(open, (tallest - avail).max(0.0));
+        ui.region_close(open, (c.tallest - c.body).max(0.0));
     } else {
         draw_cols(ui);
     }
-    gap + card_h
+    if let Some((g, lay, shown)) = &c.band {
+        band::draw(ui, (cx, rows_y + c.body, c.cw, *shown), band_offset, g, lay);
+    }
+    c.gap + c.card_h
 }
 
 /// What is loaded as one section of the menu page (`docs/HOME.md` §3): on a
@@ -399,8 +485,16 @@ pub(crate) fn loaded_sections(
     if !app.compact {
         let groups = groups(app);
         let in_bar = app.search_in_bar();
+        let band_offset = app.scroll.home_band_offset();
         return vec![Section::block(None, move |ui, (x, y), w| {
-            pane_card(in_bar, ui, (x, y), w, (window, offset), &groups)
+            pane_card(
+                in_bar,
+                ui,
+                (x, y),
+                w,
+                (window, offset, band_offset),
+                &groups,
+            )
         })];
     }
     let (mut rest, keys, all_keys) = compact_rows(app, lead.as_ref());

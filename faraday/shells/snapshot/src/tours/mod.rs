@@ -6,6 +6,7 @@ use faraday_crypto::work::Compute;
 
 pub(crate) mod add_key;
 pub(crate) mod again;
+pub(crate) mod band;
 pub(crate) mod board;
 pub(crate) mod boot;
 pub(crate) mod boot_place;
@@ -105,6 +106,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
     ),
     ("open-tools", TourFn::Plain(open_tools::open_tools_tour)),
     ("rowdetails", TourFn::Plain(row_details::row_details_tour)),
+    ("band", TourFn::Plain(band::band_tour)),
     ("convert", TourFn::Plain(convert::convert_tour)),
     ("seed-pick", TourFn::Plain(seed_pick::seed_pick_tour)),
     ("invoice", TourFn::Plain(invoice::invoice_tour)),
