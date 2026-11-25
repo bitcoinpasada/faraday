@@ -722,6 +722,10 @@ impl Faraday {
             SLIDE_N => s.set_n(usize::from(value)),
             _ => {}
         }
+        // A refusal of a key was about the slots there were.
+        if id == SLIDE_N && self.screen == Screen::Restore {
+            self.restore.clear_error();
+        }
     }
 
     /// Runs one of the piece's actions.

@@ -483,6 +483,12 @@ fn a_key_left_over_says_why_and_a_fresh_set_has_no_ticks() {
         keys[3..]
     );
     assert!(has(&mut app, "Every slot is filled"));
+    // A fourth slot: the refusal is no longer true, and goes.
+    app.press(Action::RStep(QUORUM));
+    app.press(Action::Slide(SLIDE_N, 4));
+    assert!(!has(&mut app, "Every slot is filled"));
+    app.press(Action::RStep(SEEDS));
+    assert!(!has(&mut app, "Every slot is filled"));
     app.press(Action::RKind(MULTI));
     assert!(
         app.restore()
