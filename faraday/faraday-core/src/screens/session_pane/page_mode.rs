@@ -38,6 +38,9 @@ fn psbt_rows(app: &View) -> Vec<SessionRow> {
             if !c.button.is_empty() {
                 r.button = Some((c.button, c.enabled));
             }
+            if let Action::StartSpend(k) = c.action {
+                r.open = Some(Action::RowOpen(crate::row_open::Row::File(k)));
+            }
             r
         })
         .collect()
@@ -75,13 +78,14 @@ fn file_rows(app: &View, keep: impl Fn(&crate::Item) -> bool) -> Vec<SessionRow>
                 Some((label, action)) => {
                     let mut r = row(Icon::File, it.name.to_string(), String::new(), action);
                     r.button = Some((label, true));
+                    r.open = Some(Action::RowOpen(crate::row_open::Row::File(k)));
                     r
                 }
                 None => row(
                     Icon::File,
                     it.name.to_string(),
                     String::new(),
-                    Action::Nav(Screen::Files),
+                    Action::RowOpen(crate::row_open::Row::File(k)),
                 ),
             }
         })
@@ -91,6 +95,34 @@ fn file_rows(app: &View, keep: impl Fn(&crate::Item) -> bool) -> Vec<SessionRow>
 /// The pane's groups for `mode`, in the page's order (WORKSPACE.md §2's
 /// table); a group with no rows is left out.
 pub(crate) fn groups(app: &View, mode: Mode) -> Vec<Group> {
+    let mut groups = built_groups(app, mode);
+    opening(app, &mut groups);
+    groups
+}
+
+/// A press on a key's, a wallet's or a held file's row opens it in the
+/// page's second pane (`docs/WORKSPACE.md` §7), the open one marked.
+fn opening(app: &View, groups: &mut [Group]) {
+    use crate::row_open::{Opened, Row};
+    let opened = crate::row_open::opened(app);
+    for r in groups.iter_mut().flat_map(|g| g.rows.iter_mut()) {
+        // A row with a button opens its details on a press beyond it.
+        if let Some(Action::RowOpen(crate::row_open::Row::File(k))) = r.open {
+            r.selected = opened == Some(Opened::File(k));
+            continue;
+        }
+        let (row, now) = match r.action {
+            Action::ExploreKey(fp) => (Row::Key(fp), Opened::Key(fp)),
+            Action::OpenWallet(i) => (Row::Wallet(i), Opened::Wallet(i)),
+            Action::RowOpen(Row::File(k)) => (Row::File(k), Opened::File(k)),
+            _ => continue,
+        };
+        r.action = Action::RowOpen(row);
+        r.selected = opened == Some(now);
+    }
+}
+
+fn built_groups(app: &View, mode: Mode) -> Vec<Group> {
     if mode == Mode::Wallets {
         return wallets_groups(app);
     }

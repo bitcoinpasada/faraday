@@ -258,6 +258,10 @@ pub(crate) fn is_tool(s: Screen) -> bool {
 /// Vaults' list (not one made from another flow), Settings' list and
 /// Transfer. The top app bar has no way back there. A lookup.
 pub(crate) fn top_destination(app: &crate::View) -> bool {
+    // A row open in the page's second pane has its way back (`row_open`).
+    if crate::row_open::opened(app).is_some() {
+        return false;
+    }
     match app.screen {
         Screen::Home | Screen::Check | Screen::WalletsStart | Screen::Files | Screen::Catalog => {
             true

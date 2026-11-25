@@ -43,6 +43,25 @@ pub(super) fn pane(app: &View, ui: &mut Ui, x0: f32, p: &Place, (top, h): (f32, 
     );
 }
 
+/// A row's details as the pair: the pane with the open row marked, and the
+/// details in the tile's place, at the pair's place. False, drawing
+/// nothing, where no row is open or the room holds no pair.
+pub(super) fn draw_details(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> bool {
+    let Some(p) = place(cw) else {
+        return false;
+    };
+    if crate::row_open::opened(app).is_none() {
+        return false;
+    }
+    let (top, foot) = span(h);
+    pane(app, ui, x0, &p, (top, (foot - top).max(0.0)));
+    super::row_details::draw(
+        app,
+        ui,
+        (x0 + p.card_x, top, p.card_w, (foot - top).max(0.0)),
+    )
+}
+
 /// The tile's rows: the wallets as Wallets lists them, each opening its
 /// page. Returns their height, whole.
 fn rows_h(app: &View, ui: &mut Ui, w: f32) -> f32 {

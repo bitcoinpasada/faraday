@@ -177,7 +177,9 @@ pub(crate) fn draw(
 ) {
     let compact = ui.compact;
     if !compact {
-        if page.back {
+        if crate::row_open::opened(app).is_some() {
+            super::row_details::bar(app, ui, page.name);
+        } else if page.back {
             super::bar_head_back(app, ui, page.name);
         } else {
             super::bar_head(ui, None, page.name);

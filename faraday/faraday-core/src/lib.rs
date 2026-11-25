@@ -48,7 +48,7 @@
 //! - Screens and drawing: `screens` (the frame, the sidebar, the sheets and
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
-//!   glance), `address_find` (what Explore's Find an address and the address check's Look further share), `scan_key`, `scan_read`
+//!   glance), `row_open` (the row opened in a menu page's second pane), `address_find` (what Explore's Find an address and the address check's Look further share), `scan_key`, `scan_read`
 //!   (what a code read is), `text_check` (the secrets a text holds, refused by Transfer's Send text and by Compare with the wallet app's), `picture` (a QR code to keep), `demo` (what Practice refuses),
 //!   `devices` (what else captures the screen or the keys).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
@@ -134,6 +134,7 @@ mod address_find;
 mod at_lock;
 mod qr_view;
 mod receipt;
+mod row_open;
 mod state;
 mod storage_api;
 mod version;
@@ -287,6 +288,7 @@ pub(crate) use qr_view::{UrFed, send_error, transfer_name, ur_feed, ur_note};
 pub(crate) use receipt::sha256_of;
 pub use receipt::{Receipt, ReceiptFile};
 pub use restore::RestoreState;
+pub use row_open::Row;
 pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
 pub use state::{EntryState, MessageState};

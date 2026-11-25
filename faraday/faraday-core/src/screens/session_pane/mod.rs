@@ -24,6 +24,7 @@ use faraday_ui::parts::section_label;
 pub(crate) use page_mode::{
     Mode, content_h as page_content_h, draw as draw_page_pane, groups as page_groups,
 };
+pub(crate) use rows::key_facts;
 use rows::{Group, compact_rows, groups};
 
 /// Home's card for the stacked pages: Home's rows at Home's width, `w`
@@ -61,6 +62,19 @@ pub(crate) struct SessionRow {
     pub action: Action,
     pub button: Option<(&'static str, bool)>,
     pub wrap: bool,
+    /// The row whose details stand open in the page's second pane.
+    pub selected: bool,
+    /// What a press on the row beyond its button opens, where it has
+    /// one: its details (the button stays its own press).
+    pub open: Option<Action>,
+}
+
+impl SessionRow {
+    /// The row ends in a chevron: a press of it opens something (F332), a
+    /// button's row too where its press beyond the button opens details.
+    fn chevron(&self) -> bool {
+        self.button.is_none() || self.open.is_some()
+    }
 }
 
 /// Where a row's text starts, from the row's left edge.
@@ -72,7 +86,7 @@ fn text_dx() -> f32 {
 /// small text at its end taken off.
 fn text_room(ui: &Ui, w: f32, r: &SessionRow) -> f32 {
     let mut right = w - LIST_PAD;
-    if r.button.is_none() {
+    if r.chevron() {
         right -= ICON_SMALL + GRID;
     }
     if !r.trailing.is_empty() {
@@ -130,12 +144,29 @@ fn list_rows(ui: &mut Ui, (x, y): (f32, f32), w: f32, rows: &[SessionRow]) {
     let chevron_x = x + w - LIST_PAD - ICON_SMALL;
     for r in rows {
         let rh = row_h(ui, w, r);
-        // A row with a button is not a press: the button is.
-        if r.button.is_none() {
+        if r.selected {
+            // Material 3's selected list row.
+            ui.fill(
+                x + GAP_SMALL,
+                cy,
+                w - 2.0 * GAP_SMALL,
+                rh,
+                SHAPE_M,
+                Role::SecondaryContainer,
+            );
+        }
+        // A row with a button is not a press, but for what opens its
+        // details: the button is, drawn after it and so on top.
+        let pressed = if r.button.is_none() {
+            Some(r.action)
+        } else {
+            r.open
+        };
+        if let Some(action) = pressed {
             ui.press(
                 Shape::new(x + GAP_SMALL, cy, w - 2.0 * GAP_SMALL, rh, SHAPE_M),
                 Role::OnSurface.paint(),
-                r.action,
+                action,
             );
         }
         draw_row(ui, (x, cy, w, rh), (text_x, chevron_x), r);
@@ -180,7 +211,7 @@ fn draw_row(
         tone,
     );
     let mut right = x + w - LIST_PAD;
-    if r.button.is_none() {
+    if r.chevron() {
         ui.icon(
             chevron_x,
             cy + (rh - ICON_SMALL) / 2.0,

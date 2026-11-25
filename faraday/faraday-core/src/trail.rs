@@ -416,6 +416,7 @@ pub(crate) fn stays(a: Action) -> bool {
     matches!(
         a,
         Action::Glance(false)
+            | Action::RowClose
             | Action::SpendPaths(false)
             | Action::Vault(VaultAction::ItemBack)
             | Action::SettingsSection(None)

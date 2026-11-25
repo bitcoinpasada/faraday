@@ -17,13 +17,23 @@ pub(crate) struct Offer {
     pub label: String,
     pub icon: Option<Icon>,
     pub action: Action,
+    /// The press opens a page or a flow: the row ends in a chevron. One
+    /// that acts at once has none.
+    pub opens: bool,
 }
 
-fn offer(label: &str, icon: Option<Icon>, action: Action) -> Offer {
+/// Whether a press of `action` acts where it stands, with no page or flow
+/// opening (F332).
+fn acts_at_once(action: Action) -> bool {
+    matches!(action, Action::RemoveWallet(_))
+}
+
+pub(crate) fn offer(label: &str, icon: Option<Icon>, action: Action) -> Offer {
     Offer {
         label: label.to_string(),
         icon,
         action,
+        opens: !acts_at_once(action),
     }
 }
 
@@ -61,11 +71,7 @@ pub(crate) fn offers(app: &View, w: usize, new_from: bool) -> Vec<Offer> {
     } else {
         Icon::Sign
     };
-    let mut list = vec![Offer {
-        label,
-        icon: Some(first_icon),
-        action,
-    }];
+    let mut list = vec![offer(&label, Some(first_icon), action)];
     // A backup left part way is offered as such.
     let back_up = if app.wallet_backup_unfinished(w) {
         EN.backup_flow_continue
@@ -125,7 +131,7 @@ pub(crate) fn draw(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &[Offer]) -> f
     faraday_ui::parts::section_label(ui, x, y, EN.wallets_what_you_can_do);
     let mut cy = y + ui.line_as(TITLE_S) + tokens::GRID;
     let lead = 2.0 * LIST_PAD + ICON_SMALL;
-    let room = w - lead - LIST_PAD;
+    let room = w - lead - LIST_PAD - ICON_SMALL - tokens::GRID;
     for (i, o) in list.iter().enumerate() {
         let ink = Role::OnSurface;
         if let Some(icon) = o.icon {
@@ -151,6 +157,16 @@ pub(crate) fn draw(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &[Offer]) -> f
             ink,
             &label,
         );
+        if o.opens {
+            ui.icon(
+                x + w - LIST_PAD - ICON_SMALL,
+                cy + (LIST_1 - ICON_SMALL) / 2.0,
+                ICON_SMALL,
+                Icon::ChevronRight,
+                ICON_SMALL,
+                Role::OnSurfaceVariant,
+            );
+        }
         ui.press(Shape::new(x, cy, w, LIST_1, SHAPE_L), ink.paint(), o.action);
         cy += LIST_1;
     }

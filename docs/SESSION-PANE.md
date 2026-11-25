@@ -32,7 +32,8 @@ with no rows is not drawn:
    wallet's row has no button.
 3. **Keys.** Every key of `session.keys.all()`, no cap: its fingerprint, then its
    name in full (wrapping), its passphrase mark, and the wallet that uses it
-   ("Used by {wallet}", else "No wallet uses it"). A press opens the key. There
+   ("Used by {wallet}", else "No wallet uses it"). A press opens the key (on Tools, Check and Wallets in the page's second
+   pane: `row_open`, `screens/row_details.rs`). There
    is no All keys row and no Make a wallet button.
 
 **Wallets' mode** (wide layout): two groups, Waiting (a waiting PSBT with Sign,
@@ -40,9 +41,12 @@ the wallet files held, the flows in progress) then Keys; the wallets are the
 page's tile, so the pane has no Wallets group, and a key in no wallet stands
 in its Keys group (`screens/session_pane/page_mode.rs`, `Mode::Wallets`).
 
-A row with a button carries no chevron: the button stands under the row's
-lines at the text's start, as the PSBT's Sign does; the button is the press, and
-the row has none of its own. Every lead's button stands so (Carry on, Finish, Unlock, Write,
+A row with a button stands so: the button under the row's lines at the text's
+start, as the PSBT's Sign does, its own press. Where the page has the pane's
+details (Tools, Check, Wallets on a window that is not compact) a held file's
+row, a PSBT's included, opens its details on a press anywhere else of the row
+and ends in the chevron too; a flow in progress's row has none of its own
+press. On Home and the phone the button is the row's only press. Every lead's button stands so (Carry on, Finish, Unlock, Write,
 Open, Sign), in the Waiting group, one column, never across the card.
 
 ## 2. Home's card

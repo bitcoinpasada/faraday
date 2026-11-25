@@ -620,6 +620,10 @@ pub enum Action {
     Explore,
     /// Open Explore on this loaded seed, by fingerprint.
     ExploreKey([u8; 4]),
+    /// A press on a key's, wallet's or file's row of a menu page's pane: its details open in the page's second pane.
+    RowOpen(crate::row_open::Row),
+    /// Back from a row's details to the page.
+    RowClose,
     /// Open the Lightning node key.
     Lightning,
     /// Open Tools.
@@ -1177,6 +1181,7 @@ impl Faraday {
         if in_pane {
             crate::address_check::pane::left(self);
         }
+        crate::row_open::after(self, action);
         self.entry_left(on_entry);
         crate::pass_field::left(self);
         // "Lock and write" waits only while its lock is: on the sheet
@@ -1493,6 +1498,8 @@ impl Faraday {
             | Action::TScan
             | Action::TFile(_)
             | Action::TTake => self.tools_act(action),
+            Action::RowOpen(row) => crate::row_open::act(self, row),
+            Action::RowClose => crate::row_open::close(self),
             Action::ExploreKey(fp) => {
                 self.explore_act(Action::Explore);
                 self.explore_act(Action::XKey(fp));

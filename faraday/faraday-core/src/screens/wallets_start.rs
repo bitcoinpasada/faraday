@@ -144,7 +144,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
     // On the wide layout: the pane and the tile of the wallets.
     if !compact {
-        super::bar_head(ui, None, EN.start_wallets);
+        super::row_details::bar(app, ui, EN.start_wallets);
+        if super::wallets_pair::draw_details(app, ui, (x0, cw, h)) {
+            return;
+        }
         if super::wallets_pair::draw_start(app, ui, (x0, cw, h)) {
             return;
         }

@@ -81,6 +81,10 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
         let clip = ui.rect(x0, 0.0, cw, h);
         let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
         stacked_card(app, ui, (x0 + hx, top), hw);
+        let rest = (h - MARGIN_WIDE - under).max(tile_h);
+        if crate::screens::row_details::draw(app, ui, (x0 + hx, under, hw, rest)) {
+            return true;
+        }
         tile_surface(ui, (x0 + hx, under, hw, tile_h));
         tile_content(ui, (x0 + hx, under, hw), body);
         let content = under + tile_h + MARGIN_WIDE;
@@ -98,13 +102,26 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
     let tile_need =
         crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, p.card_w), body));
     let both = level(pane_need, tile_need, (h - top - MARGIN_WIDE).max(0.0));
+    let tx = x0 + p.card_x;
+    // A row's details stand in the tile's place, both panes the window's
+    // height.
+    let room = (h - top - MARGIN_WIDE).max(0.0);
+    if crate::row_open::opened(app).is_some() {
+        draw_page_pane(
+            ui,
+            (x0 + p.pane_x, top, p.pane_w, room),
+            app.scroll.home_box_offset(),
+            &groups,
+        );
+        crate::screens::row_details::draw(app, ui, (tx, top, p.card_w, room));
+        return true;
+    }
     draw_page_pane(
         ui,
         (x0 + p.pane_x, top, p.pane_w, both),
         app.scroll.home_box_offset(),
         &groups,
     );
-    let tx = x0 + p.card_x;
     tile_surface(ui, (tx, top, p.card_w, both));
     let clip = ui.rect(tx, top, p.card_w, both);
     let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));

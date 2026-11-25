@@ -42,6 +42,8 @@ pub(super) fn row(icon: impl Into<Glyph>, head: String, sub: String, action: Act
         action,
         button: None,
         wrap: true,
+        selected: false,
+        open: None,
     }
 }
 
@@ -123,6 +125,14 @@ pub(super) fn wallet_rows(app: &View) -> Vec<SessionRow> {
         ));
     }
     rows
+}
+
+/// The facts of key `fp` as its row says them, whole: its name or
+/// fingerprint, then the line under it.
+pub(crate) fn key_facts(app: &View, fp: [u8; 4]) -> Option<(String, String)> {
+    key_rows(app)
+        .into_iter()
+        .find_map(|r| (r.action == Action::ExploreKey(fp)).then_some((r.head, r.sub)))
 }
 
 /// Keys: every key held, its name in full, the wallet that uses it named in

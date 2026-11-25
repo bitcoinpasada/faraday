@@ -26,7 +26,7 @@ With no wallet loaded the card reads **No wallet loaded**. **Add a key** opens a
 
 **Key:** wallets.keys
 
-Loaded keys that no wallet uses are listed by fingerprint. With one wallet or more, **Make a wallet from this key** stands under each. With no wallet, the card offers the same, along with **Add another key** and **Restore an existing wallet**; with no loose key either, **Restore an existing wallet** stands in the list.
+Loaded keys that no wallet uses are listed by fingerprint. With one wallet or more, **Make a wallet from this key** stands under each. With no wallet, the card offers the same, along with **Add another key** and **Restore an existing wallet**; with no loose key either, **Restore an existing wallet** stands in the list. On a wide window a press on a key's row opens its details beside the list, with **Explore** and the same ways on; Back, Escape or the page's tab returns the list.
 
 ## The card
 

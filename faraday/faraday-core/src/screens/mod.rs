@@ -24,6 +24,7 @@ mod nonce_check;
 pub(crate) mod parts;
 pub(crate) mod randomness;
 mod restore;
+mod row_details;
 pub(crate) mod scan_frame;
 mod session_pane;
 mod set_time;

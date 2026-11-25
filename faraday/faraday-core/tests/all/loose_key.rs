@@ -75,10 +75,12 @@ fn a_key_with_no_wallet_makes_the_bip84_wallet() {
     assert_eq!(app.screen, Screen::Wallets);
     assert!(app.session.wallets.is_empty());
     assert!(
-        app.offers(Action::ExploreKey(fp)),
+        app.offers(Action::RowOpen(faraday_core::Row::Key(fp))),
         "the pane's key row opens no key"
     );
 
+    app.press(Action::RowOpen(faraday_core::Row::Key(fp)));
+    let _ = app.frame();
     app.press(Action::ExploreKey(fp));
     let _ = app.frame();
     assert!(
@@ -131,7 +133,7 @@ fn back_from_the_seeds_card_returns_to_wallets_with_the_key() {
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Wallets);
     assert!(app.session.wallets.is_empty());
-    assert!(app.offers(Action::ExploreKey(fp)));
+    assert!(app.offers(Action::RowOpen(faraday_core::Row::Key(fp))));
 }
 
 #[test]
@@ -153,8 +155,8 @@ fn with_a_wallet_loaded_a_loose_key_is_a_row_of_the_pane() {
     let second = add_key(&mut app, &faraday_core::testkit::test_words("zebra"));
     assert_eq!(app.screen, Screen::Wallets);
     // Both keys are rows of the pane; the second says no wallet uses it.
-    assert!(app.offers(Action::ExploreKey(second)));
-    assert!(app.offers(Action::ExploreKey(first)));
+    assert!(app.offers(Action::RowOpen(faraday_core::Row::Key(second))));
+    assert!(app.offers(Action::RowOpen(faraday_core::Row::Key(first))));
     assert!(crate::common::has_part(&mut app, "No wallet uses it"));
 }
 
@@ -164,8 +166,10 @@ fn several_loose_keys_are_each_a_row_that_opens_it() {
     let mut app = desktop();
     let a = add_key(&mut app, ABANDON);
     let b = add_key(&mut app, &faraday_core::testkit::test_words("zebra"));
-    assert!(app.offers(Action::ExploreKey(a)));
-    assert!(app.offers(Action::ExploreKey(b)));
+    assert!(app.offers(Action::RowOpen(faraday_core::Row::Key(a))));
+    assert!(app.offers(Action::RowOpen(faraday_core::Row::Key(b))));
+    app.press(Action::RowOpen(faraday_core::Row::Key(b)));
+    let _ = app.frame();
     app.press(Action::ExploreKey(b));
     let _ = app.frame();
     assert!(app.offers(Action::X(XAction::Make)));

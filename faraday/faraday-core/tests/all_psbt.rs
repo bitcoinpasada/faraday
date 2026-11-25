@@ -107,6 +107,8 @@ mod review_address;
 mod review_locks;
 #[path = "all/review_stops.rs"]
 mod review_stops;
+#[path = "all/row_details.rs"]
+mod row_details;
 #[path = "all/scan.rs"]
 mod scan;
 #[path = "all/scan_kinds.rs"]

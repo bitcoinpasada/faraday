@@ -15,7 +15,7 @@ use faraday_draw::widgets::Icon;
 use faraday_ui::Status;
 use faraday_ui::parts::{section_label, wrap_buttons};
 
-mod actions;
+pub(super) mod actions;
 
 /// The line beside key `fp`'s fingerprint where the codex32 strings it
 /// was loaded from went in by a correction (`docs/CODEX32.md` §8.4):
@@ -471,6 +471,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + MARGIN_WIDE;
     let width = cw - 2.0 * MARGIN_WIDE;
     let mut y = bar_head(app, ui, cw);
+    if crate::row_open::opened(app).is_some() {
+        super::row_details::bar(app, ui, EN.wallets_wallets);
+        if super::wallets_pair::draw_details(app, ui, (x0, cw, h)) {
+            return;
+        }
+    }
 
     // With no wallet loaded the pair's tile is Wallets' start page: the
     // keys are in the pane, and the ways in (Add a key among them) stand
@@ -550,10 +556,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::panes::screen::alone(x0, cw)
     };
 
+    wallet_page(app, ui, p.detail, (y, bottom - y), card_offers);
+}
+
+/// The wallet's page: its card at `(cx, y)`, `cwid` wide and `ch` tall.
+/// Wallets' page and a wallet's details on Tools and Check draw it. With
+/// no wallet it offers the loose keys' next steps where `card_offers`.
+pub(super) fn wallet_page(
+    app: &View,
+    ui: &mut Ui,
+    (cx, cwid): (f32, f32),
+    (y, ch): (f32, f32),
+    card_offers: bool,
+) {
     // The wallet card: its reading parts at most `COLUMN_MAX`, the
     // chart the card's width.
-    let (cx, cwid) = p.detail;
-    let ch = bottom - y;
     ui.card(cx, y, cwid, ch, Role::OutlineVariant);
     let Some(wlt) = app.session.wallets.get(app.wallets.wallet()) else {
         if card_offers {

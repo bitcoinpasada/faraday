@@ -67,6 +67,7 @@ pub(crate) mod randomness;
 pub(crate) mod register;
 pub(crate) mod restore;
 pub(crate) mod roller;
+pub(crate) mod row_details;
 pub(crate) mod seed_pick;
 pub(crate) mod seedfile;
 pub(crate) mod seeds;
@@ -103,6 +104,7 @@ pub(crate) const TOURS: &[(&str, TourFn)] = &[
         TourFn::Plain(check_address::check_address_tour),
     ),
     ("open-tools", TourFn::Plain(open_tools::open_tools_tour)),
+    ("rowdetails", TourFn::Plain(row_details::row_details_tour)),
     ("convert", TourFn::Plain(convert::convert_tour)),
     ("seed-pick", TourFn::Plain(seed_pick::seed_pick_tour)),
     ("invoice", TourFn::Plain(invoice::invoice_tour)),

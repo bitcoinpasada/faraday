@@ -464,9 +464,36 @@ pub(crate) struct WalletsArea {
     card_offset: f32,
     /// The transaction being signed.
     spend: Option<SpendState>,
+    /// The row opened on a menu page, in its second pane (`row_open`).
+    row_open: crate::row_open::RowOpenArea,
 }
 
 impl WalletsArea {
+    /// The row opened on a menu page.
+    pub(crate) fn row_open(&self) -> &crate::row_open::RowOpenArea {
+        &self.row_open
+    }
+
+    /// Opens a row of a menu page (`row_open::act`).
+    pub(crate) fn row_open_set(
+        &mut self,
+        page: crate::row_open::Page,
+        item: crate::row_open::Item,
+        scrolled: f32,
+    ) {
+        self.row_open.set(page, item, scrolled);
+    }
+
+    /// Closes it, giving the scroll the page had where one was open.
+    pub(crate) fn row_open_take(&mut self) -> Option<f32> {
+        self.row_open.take()
+    }
+
+    /// Clears it.
+    pub(crate) fn row_open_lock(&mut self) {
+        self.row_open.lock();
+    }
+
     /// The wallet chosen on the Wallets tab.
     pub(crate) fn wallet(&self) -> usize {
         self.wallet
@@ -1236,6 +1263,7 @@ impl crate::at_lock::AtLock for WalletsArea {
     }
     fn lock(&mut self) {
         self.clear_spend();
+        self.row_open.lock();
     }
 }
 
