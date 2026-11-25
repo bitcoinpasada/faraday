@@ -2075,13 +2075,13 @@ fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Paint) -> f
     y + 26.0
 }
 
-/// A stat row whose value is a pill, such as
+/// A stat row whose value is a neutral tag, such as
 /// the locked Key card's Passphrase: "Set" or "Not set", never bare
 /// text, since bare text reads as the passphrase itself.
 fn stat_pill(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str) -> f32 {
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
     let vx = if ui.compact { 110.0 } else { 140.0 };
-    ui.pill(x + vx, y - 3.0, 22.0, value);
+    ui.tag(x + vx, y - 3.0, value, faraday_ui::Status::Neutral);
     y + 26.0
 }
 

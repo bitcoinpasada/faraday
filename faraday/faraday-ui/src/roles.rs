@@ -18,7 +18,6 @@ use faraday_draw::tokens::{
     LABEL_S, LIST_1, LIST_2, LIST_3, LIST_3_TOP, LIST_PAD, LIST_PAD_V, SHAPE_L, TEXT_FIT_STEP_PCT,
     TypeFace, TypeRole,
 };
-use faraday_draw::widgets::Icon;
 use faraday_text::Text;
 
 impl From<TypeFace> for W {
@@ -1079,9 +1078,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.text_mid_as((tx, top + head + sup, sup), BODY_M, muted, &rest);
         }
         if chevron {
-            let size = ICON_SMALL;
-            let at = (x + full - LIST_PAD - size, y + (h - size) / 2.0);
-            self.icon(at.0, at.1, size, Icon::ChevronRight, size, muted);
+            self.row_chevron(x + full - LIST_PAD, y, h, muted);
         }
         h
     }

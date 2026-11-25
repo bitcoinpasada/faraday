@@ -339,7 +339,7 @@ rule's reach is written down):
   Material 3's outlined common button and the
   sheet its bottom sheet, the pages this was checked against.
 - A pressable row is a touch target tall at least (48 dp), its text in
-  its middle; the chevron is `ROW_CHEVRON` in an `ICON_SMALL` box
+  its middle; the chevron is `CHEVRON`, drawn by `Ui::row_chevron`,
   (`screens::row_press`, `screens::address_press`; Explore's
   `code_row`).
 

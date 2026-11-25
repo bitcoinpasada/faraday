@@ -1221,8 +1221,6 @@ pub const MENU_TAG_H: f32 = 18.0;
 pub const MENU_TAG_PAD: f32 = 14.0;
 /// The gap between a row's tags.
 pub const MENU_TAG_GAP: f32 = 6.0;
-/// A section card's chevron, its box and its glyph.
-pub const MENU_ROW_CHEVRON: f32 = 24.0;
 /// The widest a menu page is: three tiles at `CATALOG_TILE_MIN` and the two
 /// gaps between them (`docs/MENU-PAGE.md` §2).
 pub const MENU_PAGE_W: f32 = 3.0 * CATALOG_TILE_MIN + 2.0 * MENU_GAP;
@@ -2101,11 +2099,11 @@ pub const ICON_GLYPH_BUTTON: f32 = 18.0;
 pub const PICK_RADIO_DOT_INSET: f32 = 5.0;
 /// The gap between a button's icon and its label.
 pub const ICON_GAP: f32 = GAP;
-/// The chevron at the end of a row that opens what the row shows (a
-/// descriptor's row, an address's): its glyph, in a box `ICON_SMALL` wide.
-pub const ROW_CHEVRON: f32 = 9.0;
+/// The chevron at the end of whatever opens a page or details (F332): its
+/// box and its glyph, one size for every row, drawn by `Ui::row_chevron`.
+pub const CHEVRON: f32 = ICON_SMALL;
 /// The room a row's chevron takes from its text: the box and a gap.
-pub const ROW_CHEVRON_ROOM: f32 = ICON_SMALL + GAP;
+pub const ROW_CHEVRON_ROOM: f32 = CHEVRON + GAP;
 
 /// The height a word entry's own keyboard is sized to inside a card, which
 /// then grows to it.

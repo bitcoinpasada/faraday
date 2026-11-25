@@ -77,8 +77,10 @@ pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: us
     } else {
         Role::Warning
     };
-    let h = ui.wrap_as((x, y, w), BODY_M, tone, &line);
+    // A line that opens Backups ends in the chevron (F332).
+    let h = ui.wrap_as((x, y, w - tokens::ROW_CHEVRON_ROOM), BODY_M, tone, &line);
     ui.press_box(x, y - 6.0, w, h + 12.0, action);
+    ui.row_chevron(x + w, y - 6.0, h + 12.0, Role::OnSurfaceVariant);
     h + 16.0
 }
 
@@ -665,9 +667,10 @@ pub(super) fn wallet_page(
             }
         }
     }
+    // Where the wallet came from is a fact: a plain tag, no press (F332).
     let src = crate::wallet::source_tag(&wlt.source, wlt.origin, true);
-    let sw = ui.measure_as(BODY_S, &src) + 24.0;
-    ui.pill(ix + iw - sw, cy, 28.0, &src);
+    let sw = ui.chip_width(&src);
+    ui.tag(ix + iw - sw, cy, &src, faraday_ui::Status::Neutral);
     // Under the name's line, as tall as the text size makes it.
     cy += ui.advance_as(TITLE_L, 34.0);
     ui.text_as(ix, cy, BODY_M, Role::OnSurfaceVariant, &Session::shape(wlt));

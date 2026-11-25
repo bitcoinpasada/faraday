@@ -198,3 +198,15 @@ pub(crate) fn list_item(ui: &mut Ui, at: (f32, f32, f32), it: &Item, chosen: boo
     };
     ui.list_item(at, &item, chosen)
 }
+
+/// [`list_item`] for an item that opens a page or details: it ends in the
+/// chevron (F332). Returns its height.
+pub(crate) fn list_item_opens(ui: &mut Ui, at: (f32, f32, f32), it: &Item) -> f32 {
+    let item = ListItem {
+        headline: it.headline,
+        supporting: it.supporting,
+        trailing: it.trailing,
+        action: it.action,
+    };
+    ui.list_item_opens(at, &item)
+}

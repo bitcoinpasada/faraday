@@ -1223,7 +1223,15 @@ what chooses has a radio or a box, what acts has an icon and a verb and no
 chevron, a fact reacts to nothing. DESIGN §4.13 has the kinds. The rows of the
 session pane (§2), of the menu pages and of Settings follow it: one row part
 draws the chevron, from whether the row opens. A row with a button keeps the
-button and has the chevron too once its press opens its details (§2). Not built.
+button and has the chevron too once its press opens its details (§2). Built: the wallet card's
+backup line and chart boxes, the wallet's source tag, the sidebar's lock tag, the
+phone's Settings rows, the network pill's arrow (wide windows only), "What you can do", the one
+chevron token (`CHEVRON`, drawn by `Ui::row_chevron`) and the error tone of
+Remove every key, Remove from session and Delete from the stick. **Open:**
+the phone's Home rows (the loaded card in `nav/`), Files' rows, the session
+pane's own chevron, Who signs' one filled button, Delete files' first press,
+and the accent text of `plan/cards.rs` and `screens/entry.rs`; the three lints
+below count them and only let them fall.
 
 Where it changes what is drawn today:
 
@@ -1234,7 +1242,8 @@ Where it changes what is drawn today:
   "Auto-lock off until backup complete" are plain tags.
 - **The phone's Settings and Home:** a row that opens has the chevron, drawn by
   the shared row part.
-- **The network pill** has the small menu arrow; the fact, "Testnet" on a
+- **The network pill** has the small menu arrow on wide windows only; the
+  phone-size window and the Pi keep the pill as it was. The fact, "Testnet" on a
   spend's step, stays a plain tag.
 - **Files:** the Write row keeps its tonal fill and has no chevron; "Written
   after Lock", now text in the accent, is a neutral tag.
@@ -1256,7 +1265,8 @@ What a lint is to hold (`lint-components`):
   takes a status and no accent; a status in `Role::Primary` outside it fails.
 - **The chevron's size.** One token in place of `ROW_CHEVRON`,
   `MENU_ROW_CHEVRON` and the sizes written in place, taken by the row part
-  alone.
+  alone. The one size is 20 (owner, 2026-11-25), the session pane's, so Tools
+  and Check's chevrons are 20 too, not 24.
 
 One filled button a step is not seen by counting lines: a test of a step's
 presses holds it, Who signs' first. Review holds the rest.

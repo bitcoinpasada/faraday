@@ -20,6 +20,8 @@ pub(crate) struct Offer {
     /// The press opens a page or a flow: the row ends in a chevron. One
     /// that acts at once has none.
     pub opens: bool,
+    /// The press begins a dangerous act: the row is in the error tone.
+    pub danger: bool,
 }
 
 /// Whether a press of `action` acts where it stands, with no page or flow
@@ -34,6 +36,7 @@ pub(crate) fn offer(label: &str, icon: Option<Icon>, action: Action) -> Offer {
         icon,
         action,
         opens: !acts_at_once(action),
+        danger: matches!(action, Action::RemoveWallet(_)),
     }
 }
 
@@ -140,9 +143,15 @@ pub(crate) fn draw(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &[Offer]) -> f
     };
     let room = w - lead - LIST_PAD - ICON_SMALL - tokens::GRID;
     for (i, o) in list.iter().enumerate() {
-        let ink = Role::OnSurface;
+        let ink = if o.danger {
+            Role::Error
+        } else {
+            Role::OnSurface
+        };
         if let Some(icon) = o.icon {
-            let tone = if i == 0 {
+            let tone = if o.danger {
+                Role::Error
+            } else if i == 0 {
                 Role::Primary
             } else {
                 Role::OnSurfaceVariant
@@ -165,14 +174,7 @@ pub(crate) fn draw(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &[Offer]) -> f
             &label,
         );
         if o.opens {
-            ui.icon(
-                x + w - LIST_PAD - ICON_SMALL,
-                cy + (LIST_1 - ICON_SMALL) / 2.0,
-                ICON_SMALL,
-                Icon::ChevronRight,
-                ICON_SMALL,
-                Role::OnSurfaceVariant,
-            );
+            ui.row_chevron(x + w - LIST_PAD, cy, LIST_1, Role::OnSurfaceVariant);
         }
         ui.press(Shape::new(x, cy, w, LIST_1, SHAPE_L), ink.paint(), o.action);
         cy += LIST_1;

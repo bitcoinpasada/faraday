@@ -843,7 +843,11 @@ pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let lines: Vec<Line> = m
         .lines
         .iter()
-        .map(|(l, a)| Line::Item(l.clone(), *a))
+        .map(|(l, a)| match a {
+            // The first press of Delete from the stick is in the error tone.
+            Action::File(FilePress::StickDelete(_)) => Line::Danger(l.clone(), *a),
+            _ => Line::Item(l.clone(), *a),
+        })
         .collect();
     menu::draw(
         ui,

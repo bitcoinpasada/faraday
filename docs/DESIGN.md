@@ -569,8 +569,11 @@ item grows with its value, nothing is cut.
 | Begins a dangerous act | The kind it is, in the error tone; the last press is still a hold |
 | States a fact | Nothing: no press, no edge in the accent, no text in the accent; a status is a neutral tag (§4.8) |
 
-As built, some rows that open have no chevron, Files' Write row has one, two
-chevron sizes stand, and some facts have an edge or accent text.
+As built, the chevron is one size (`CHEVRON`, `Ui::row_chevron`), the first
+press of Remove every key, Remove from session and Delete from the stick is in
+the error tone (`Style::Danger`) and the network pill has the arrow on wide windows only (the phone-size window and the Pi keep it as it was); Files'
+Write row, the phone's Home rows and a few accent texts are still to change
+(`docs/WORKSPACE.md` §19).
 
 | Kind | Rendering | Behaviour |
 |---|---|---|

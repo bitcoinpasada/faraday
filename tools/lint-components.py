@@ -147,6 +147,35 @@ RULES = [
         "the menu page container (faraday-core screens/menu_page.rs, `docs/MENU-PAGE.md`)",
         skip=["faraday/faraday-core/src/screens/menu_page.rs"],
     ),
+    # A fact in an outline (F332, docs/WORKSPACE.md §19): `Ui::pill` and
+    # `pill_in` draw an outline and take no press, so a call is a fact that
+    # looks like a button. A fact is a tag (`Ui::tag`, a status or neutral).
+    Rule(
+        "fact-in-outline",
+        [r"\.pill\(", r"\.pill_in\("],
+        ["faraday/"],
+        "a neutral tag (`Ui::tag` with `Status::Neutral`, faraday-ui)",
+        skip=["faraday/faraday-ui/src/lib.rs"],
+    ),
+    # Text in the accent in a status or tag: accent text is for presses only
+    # (F332); a status is a tag in its container's colours. A line lint sees
+    # the tag and the accent within a line of each other.
+    Rule(
+        "accent-in-status",
+        [],
+        ["faraday/faraday-core/src/", "faraday/faraday-starter/src/"],
+        "a status tag (`Ui::tag` with a `Status`, faraday-ui)",
+        near=[(r"\bRole::Primary\b", r"\b(tag|status|chip|badge)\w*\b")],
+    ),
+    # A chevron drawn by hand: the one that ends a row is `Ui::row_chevron`
+    # at the token `CHEVRON` (F332, DESIGN §4.13). The older tokens are gone.
+    Rule(
+        "chevron-own-size",
+        [r"\bIcon::ChevronRight\b", r"\bROW_CHEVRON\b", r"\bMENU_ROW_CHEVRON\b"],
+        ["faraday/"],
+        "`Ui::row_chevron` (faraday-ui) at the token `CHEVRON`",
+        skip=["faraday/faraday-ui/src/lib.rs"],
+    ),
     # A passphrase held or filtered outside the one field (docs/KEYS.md §2): a
     # struct field of type `SecretText` or `TextBox` named `pass*`,
     # `*passphrase*` or `again`, and the printable-ASCII key filter where it

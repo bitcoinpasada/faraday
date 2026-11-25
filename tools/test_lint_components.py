@@ -207,5 +207,26 @@ class PickOwnRowsRuleTests(unittest.TestCase):
         self.assertIn("faraday/faraday-core/src/screens/session_pane/", self.RULE.skip)
 
 
+class ButtonKindRuleTests(unittest.TestCase):
+    def rule(self, name):
+        return next(r for r in lc.RULES if r.name == name)
+
+    def test_a_pill_call_is_a_fact_in_an_outline(self):
+        r = self.rule("fact-in-outline")
+        self.assertEqual(lc.hit_lines(r, "ui.pill(x, y, 28.0, &src);\nself.pill_in(x, y, 24.0, l, c);\n"), [1, 2])
+        self.assertEqual(lc.hit_lines(r, "ui.tag(x, y, &src, Status::Neutral);\npub fn pill(&mut self) {}\n"), [])
+
+    def test_accent_text_in_a_tag_is_a_hit(self):
+        r = self.rule("accent-in-status")
+        self.assertEqual(lc.hit_lines(r, "let tag_ink = Role::Primary;\n"), [1])
+        self.assertEqual(lc.hit_lines(r, "ui.text_as(x, y, LABEL_L, Role::Primary, label);\n"), [])
+
+    def test_a_chevron_drawn_by_hand_is_a_hit(self):
+        r = self.rule("chevron-own-size")
+        for line in ["Icon::ChevronRight,", "tokens::ROW_CHEVRON,", "MENU_ROW_CHEVRON"]:
+            self.assertTrue(lc.hit_lines(r, line + "\n"), line)
+        self.assertEqual(lc.hit_lines(r, "ui.row_chevron(x, y, h, role);\nROW_CHEVRON_ROOM\n"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

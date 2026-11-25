@@ -671,16 +671,8 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
 /// the row's press, which opens what it shows: a receive address's code
 /// (`docs/QR.md` §7.1), as `descriptor_row` opens a wallet's.
 pub(crate) fn row_press(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), action: Action) {
-    let box_w = tokens::ICON_SMALL;
     ui.press_box(x, y, w, h, action);
-    ui.icon(
-        x + w - box_w,
-        y + (h - box_w) / 2.0,
-        box_w,
-        Icon::ChevronRight,
-        tokens::ROW_CHEVRON,
-        Role::OnSurfaceVariant,
-    );
+    ui.row_chevron(x + w, y, h, Role::OnSurfaceVariant);
 }
 
 /// An address `text` in `(size, role)`, whole and wrapped, that opens its

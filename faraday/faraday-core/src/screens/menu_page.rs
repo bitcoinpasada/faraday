@@ -7,16 +7,15 @@ use super::catalog::{Bar, Face, Mark};
 use super::hub_layout::{self, Left, Narrow, Panes, Tile};
 use crate::drawing::View;
 use crate::drawing::{CardSplit, SplitKey};
+use crate::ui::Shape;
 use crate::ui::pal::*;
-use crate::ui::{Glyph, Shape};
 use crate::ui::{Region, Ui};
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, CATALOG_TILE_H as TILE_H, CATALOG_TILE_MIN, GRID, HOME_TILE_GLYPH, LABEL_S,
-    LEAD_MAX, LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, MARGIN_WIDE, MENU_CARD_COLUMNS, MENU_GAP,
-    MENU_PAGE_W, MENU_ROW_CHEVRON, MENU_ROW_DIVIDERS, MENU_ROW_ICON, MENU_TAG_GAP, MENU_TAG_H,
+    BODY_L, BODY_M, CATALOG_TILE_H as TILE_H, CATALOG_TILE_MIN, CHEVRON, GRID, HOME_TILE_GLYPH,
+    LABEL_S, LEAD_MAX, LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, MARGIN_WIDE, MENU_CARD_COLUMNS,
+    MENU_GAP, MENU_PAGE_W, MENU_ROW_DIVIDERS, MENU_ROW_ICON, MENU_TAG_GAP, MENU_TAG_H,
     MENU_TAG_PAD, PAGE_INSET, PANE_TOP_BAR, SHAPE_M, TITLE_S,
 };
-use faraday_draw::widgets::Icon;
 use faraday_ui::parts::section_label;
 
 /// What a block draws: from `at`, `w` wide, returning its height.
@@ -327,7 +326,7 @@ fn row_room(face: &Face, w: f32) -> f32 {
         Mark::None => 0.0,
         Mark::Beside(_) | Mark::Above(_) => MENU_ROW_ICON + LIST_PAD,
     };
-    w - 2.0 * LIST_PAD - lead - MENU_ROW_CHEVRON - LIST_PAD
+    w - 2.0 * LIST_PAD - lead - CHEVRON - LIST_PAD
 }
 
 /// A row's height in a card `w` wide: Material's two-line list item, taller
@@ -433,8 +432,7 @@ fn draw_row(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), face: &Face) {
         Role::OnSurfaceVariant
     };
     ui.wrap_as((tx, top + name, room), BODY_M, muted, face.line);
-    let cx = x + w - LIST_PAD - MENU_ROW_CHEVRON;
-    let tag_end = cx - GRID;
+    let tag_end = x + w - LIST_PAD - CHEVRON - GRID;
     let mut gx = tag_end;
     for tag in face.tags.iter().rev() {
         let gw = ui.measure_as(LABEL_S.mono(), tag) + MENU_TAG_PAD;
@@ -459,14 +457,7 @@ fn draw_row(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), face: &Face) {
         );
         gx -= MENU_TAG_GAP;
     }
-    ui.icon(
-        cx,
-        y + (h - MENU_ROW_CHEVRON) / 2.0,
-        MENU_ROW_CHEVRON,
-        Glyph::Icon(Icon::ChevronRight),
-        MENU_ROW_CHEVRON,
-        Role::OnSurfaceVariant,
-    );
+    ui.row_chevron(x + w - LIST_PAD, y, h, Role::OnSurfaceVariant);
 }
 
 /// The run of sections of tiles `run` from `at`, `width` wide, as flat

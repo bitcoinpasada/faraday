@@ -29,6 +29,9 @@ pub enum MenuLine<'s, A> {
     /// An item with its icon at its start (Material's menu item with a
     /// leading icon): the icon, what it reads and the press it is.
     Icon(Icon, &'s str, A),
+    /// An item that begins a dangerous act: what it reads and the press it
+    /// is, in the error tone (F332).
+    Danger(&'s str, A),
     /// A divider between groups of items (Material's menu divider).
     Divider,
     /// An item that is not available: what it reads and, under it, why.
@@ -93,7 +96,7 @@ pub(crate) fn menu_width<A: Copy + PartialEq>(ui: &Ui<A>, m: &Menu<A>) -> f32 {
                 widest = widest.max(ui.measure_as(LABEL_M, name));
                 under = MENU_INDENT;
             }
-            MenuLine::Item(label, ..) => {
+            MenuLine::Item(label, ..) | MenuLine::Danger(label, _) => {
                 widest = widest.max(ui.measure_as(LABEL_L.regular(), label) + under + TICK);
             }
             MenuLine::Icon(_, label, _) => {
@@ -120,7 +123,7 @@ fn content_h<A: Copy + PartialEq>(ui: &Ui<A>, m: &Menu<A>, titled: bool) -> f32 
         .iter()
         .map(|l| match l {
             MenuLine::Head(_) => hh,
-            MenuLine::Item(..) | MenuLine::Icon(..) => ih,
+            MenuLine::Item(..) | MenuLine::Icon(..) | MenuLine::Danger(..) => ih,
             MenuLine::Off(..) => off_h(ui),
             MenuLine::Divider => divider_h(),
         })
@@ -150,6 +153,17 @@ fn lines<A: Copy + PartialEq>(ui: &mut Ui<A>, m: &Menu<A>, (x, y, w): (f32, f32,
                     ui,
                     (x, cy, w, ih),
                     (label, a, chosen, Role::OnSurface, None),
+                    under,
+                    m.at == Some(k),
+                );
+                cy += ih;
+                k += 1;
+            }
+            MenuLine::Danger(label, a) => {
+                item(
+                    ui,
+                    (x, cy, w, ih),
+                    (label, a, false, Role::Error, None),
                     under,
                     m.at == Some(k),
                 );
