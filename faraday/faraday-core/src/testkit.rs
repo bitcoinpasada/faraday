@@ -2217,6 +2217,18 @@ pub fn message(app: &crate::Faraday) -> Option<&crate::MessageState> {
     app.message.state()
 }
 
+/// Puts `signed` in the open Sign a message as its signature, with nothing
+/// brought in step: what a press of the take-away finds where a key became
+/// held and no action has run since.
+pub fn message_put_signed(app: &mut crate::Faraday, signed: faraday_psbt::message::Signed) {
+    app.message.put_signed(signed);
+}
+
+/// Whether a signed message is kept for **Check it**.
+pub fn message_made_kept(app: &crate::Faraday) -> bool {
+    app.message.made_kept()
+}
+
 /// The receive address Sign a message draws in its row and card: what is
 /// kept for the wallet and number chosen, while the session still says what
 /// it said when it was worked out (nothing otherwise).
