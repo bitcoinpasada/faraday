@@ -1314,6 +1314,9 @@ impl Faraday {
             }
             Code::Message => {
                 let m = self.message.state().ok_or(EN.code_view_no_message)?;
+                if self.message_waits_now(c, m.at.as_ref(), m.wallet) {
+                    return Err(EN.message_waits_backup.into());
+                }
                 let sig = m.signed.as_ref().ok_or(EN.code_view_the_message)?;
                 let text =
                     faraday_keys::message::signed_text(&sig.address, &sig.signature, &m.text);
