@@ -8,7 +8,6 @@ use crate::explore::Page;
 use crate::pick;
 use crate::screens::hub_layout::{self, Left, Narrow, Panes, Tile};
 use crate::ui::Ui;
-use faraday_draw::widgets::Icon;
 
 /// Explore's panes: the keys and the card.
 const PANES: Panes = Panes {
@@ -35,41 +34,16 @@ pub(crate) fn place_in(app: &crate::Faraday, room: f32) -> bool {
     place(app, app.is_compact(), room).is_some()
 }
 
-/// The loaded keys as the pane's rows, `chosen` ticked.
-pub(crate) fn key_rows(app: &View, chosen: Option<[u8; 4]>) -> Vec<pick::PickRow> {
-    app.session
-        .keys
-        .all()
-        .map(|k| {
-            let fp = k.fingerprint;
-            pick::PickRow::pick(
-                Icon::Keys,
-                crate::wallet::key_line(fp, &crate::bip85::key_name(k)).to_string(),
-                String::new(),
-                chosen == Some(fp.0),
-                Action::XKey(fp.0),
-            )
+/// The loaded keys as the pane's group, `chosen` ticked.
+pub(crate) fn key_groups(app: &View, chosen: Option<[u8; 4]>) -> Vec<crate::flow::PickGroup> {
+    pick::Decl::new("")
+        .keys(app, |_, k| {
+            Some(pick::Take::of(
+                chosen == Some(k.fingerprint.0),
+                Action::XKey(k.fingerprint.0),
+            ))
         })
-        .collect()
-}
-
-/// A pane's rows from labels, each with whether it is ticked and what its
-/// press does. Labels only.
-pub(crate) fn key_choices(
-    items: impl IntoIterator<Item = (impl AsRef<str>, bool, Action)>,
-) -> Vec<pick::PickRow> {
-    items
-        .into_iter()
-        .map(|(label, chosen, action)| {
-            pick::PickRow::pick(
-                Icon::Keys,
-                label.as_ref().to_owned(),
-                String::new(),
-                chosen,
-                action,
-            )
-        })
-        .collect()
+        .groups()
 }
 
 /// The pair's divider and outline, from `top` to `end`.

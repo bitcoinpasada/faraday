@@ -2730,29 +2730,16 @@ impl crate::flow::Contained for CreateSteps {
             return None;
         }
         let slot = c.pick_open()?;
-        let keys = crate::create_pick::key_rows(app, c, slot);
-        let ways = crate::create_pick::way_rows(app, c, slot);
-        let mut groups = Vec::new();
-        let loaded = !keys.is_empty();
-        if loaded {
-            groups.push(crate::flow::PickGroup {
-                head: EN.session_group_keys,
-                rows: keys,
-            });
-        }
-        if !ways.is_empty() {
-            groups.push(crate::flow::PickGroup {
-                head: crate::pick::ways_in_head(loaded),
-                rows: ways,
-            });
-        }
-        if groups.is_empty() {
+        let decl = crate::pick::Decl::new(EN.create_which_key)
+            .keys(app, |_, k| {
+                Some(crate::create_pick::take_key(c, slot, k.fingerprint.0))
+            })
+            .ways(crate::create_pick::way_rows(app, c, slot));
+        let pick = decl.pick();
+        if pick.groups.is_empty() {
             return None;
         }
-        Some(crate::flow::Pick {
-            question: EN.create_which_key,
-            groups,
-        })
+        Some(pick)
     }
 
     // Changing an earlier answer clears none of the later ones: the act

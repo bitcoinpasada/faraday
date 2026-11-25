@@ -1061,23 +1061,21 @@ impl crate::flow::Contained for SeedSteps {
         if k != step::SEED || s.typing || s.source.is_some() || s.for_check() {
             return None;
         }
-        let keys = crate::ways_in::screen::holder_rows(app);
-        let loaded = !keys.is_empty();
-        let mut groups = Vec::new();
-        if loaded {
-            groups.push(crate::flow::PickGroup {
-                head: crate::strings::EN.session_group_keys,
-                rows: keys,
-            });
-        }
-        groups.push(crate::flow::PickGroup {
-            head: crate::pick::ways_in_head(loaded),
-            rows: crate::ways_in::screen::way_rows(app, crate::Opening::SeedMakesWallet),
-        });
-        Some(crate::flow::Pick {
-            question: crate::strings::EN.seed_check_which_key,
-            groups,
-        })
+        // Every loaded key holds a seed; a press takes it as the seed.
+        Some(
+            crate::pick::Decl::new(crate::strings::EN.seed_check_which_key)
+                .keys(app, |i, _| {
+                    Some(crate::pick::Take::of(
+                        false,
+                        crate::Action::SeedCheck(crate::seed_check::SeedAction::Loaded(i)),
+                    ))
+                })
+                .ways(crate::ways_in::screen::way_rows(
+                    app,
+                    crate::Opening::SeedMakesWallet,
+                ))
+                .pick(),
+        )
     }
 
     fn hide_shown(&self, app: &mut crate::Faraday) {

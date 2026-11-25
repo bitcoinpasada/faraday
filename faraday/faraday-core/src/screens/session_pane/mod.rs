@@ -6,6 +6,7 @@
 
 mod band;
 mod page_mode;
+pub(crate) mod pick;
 mod rows;
 
 use super::home::{CardLead, lead_card};

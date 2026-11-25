@@ -2,8 +2,7 @@
 
 use crate::convert::set::{self, SetAct};
 use crate::convert::{
-    ConvertAction as C, ConvertState, ROWS, Target, Value, cstep, same_as_source, source,
-    standard_text,
+    ConvertAction as C, ConvertState, ROWS, Target, Value, cstep, same_as_source, standard_text,
 };
 use crate::drawing::{Scrolled, View};
 use crate::screens::next_button_when;
@@ -147,40 +146,21 @@ fn card(
 /// The From step's pick for the pane where the pair stands: the loaded keys
 /// and the aezeed held, then the ways in. Labels and fingerprints only.
 pub(super) fn pick(app: &crate::Faraday, s: &ConvertState) -> flow::Pick {
-    let mut rows: Vec<pick::PickRow> = app
-        .session
-        .keys
-        .all()
-        .map(|k| {
-            let name = key_line(k.fingerprint, &crate::bip85::key_name(k));
+    // The aezeed read for this flow, held by faraday-keys: not a key.
+    let aezeed: Vec<pick::PickRow> = key_of(app, s)
+        .filter(|_| s.aezeed)
+        .map(|info| {
+            let name = key_line(info.fingerprint, EN.convert_lnd_aezeed);
             pick::PickRow::pick(
                 Icon::Keys,
                 String::from(&*name),
-                String::from(&*source(k)),
-                !s.aezeed && s.key == Some(k.fingerprint.0),
-                Action::Convert(C::Key(k.fingerprint.0)),
+                EN.convert_from_aezeed.to_string(),
+                true,
+                Action::Convert(C::Step(cstep::TO)),
             )
         })
+        .into_iter()
         .collect();
-    // The aezeed read for this flow, held by faraday-keys: not a key.
-    if let Some(info) = key_of(app, s).filter(|_| s.aezeed) {
-        let name = key_line(info.fingerprint, EN.convert_lnd_aezeed);
-        rows.push(pick::PickRow::pick(
-            Icon::Keys,
-            String::from(&*name),
-            EN.convert_from_aezeed.to_string(),
-            true,
-            Action::Convert(C::Step(cstep::TO)),
-        ));
-    }
-    let loaded = !rows.is_empty();
-    let mut groups = Vec::new();
-    if loaded {
-        groups.push(flow::PickGroup {
-            head: EN.session_group_keys,
-            rows,
-        });
-    }
     let mut ways = vec![
         pick::PickRow::way_in(Icon::Keys, EN.convert_add_a_key, Action::Entry(None)),
         pick::PickRow::way_in(
@@ -206,14 +186,16 @@ pub(super) fn pick(app: &crate::Faraday, s: &ConvertState) -> flow::Pick {
             ));
         }
     }
-    groups.push(flow::PickGroup {
-        head: pick::ways_in_head(loaded),
-        rows: ways,
-    });
-    flow::Pick {
-        question: EN.convert_which_seed,
-        groups,
-    }
+    pick::Decl::new(EN.convert_which_seed)
+        .keys(app, |_, k| {
+            Some(pick::Take::of(
+                !s.aezeed && s.key == Some(k.fingerprint.0),
+                Action::Convert(C::Key(k.fingerprint.0)),
+            ))
+        })
+        .also_keys(aezeed)
+        .ways(ways)
+        .pick()
 }
 
 fn from_card(
@@ -242,20 +224,16 @@ fn from_card(
         }
         return cy - y;
     }
-    for k in app.session.keys.all() {
-        let fp = k.fingerprint;
-        let press = Action::Convert(C::Key(fp.0));
-        let name = key_line(fp, &crate::bip85::key_name(k));
-        let chosen = !s.aezeed && s.key == Some(fp.0);
-        cy += row(ui, (x, cy, w), (&name, &source(k)), chosen, Some(press));
+    // The keys and the aezeed are the pick's rows (the pane's, drawn from
+    // one place); the open vaults' keys follow them.
+    let keys_group = pick(app, s)
+        .groups
+        .into_iter()
+        .find(|g| g.head == EN.session_group_keys);
+    if let Some(g) = keys_group {
+        cy += pick::draw_groups(ui, x, cy, w, std::slice::from_ref(&g));
     }
     cy += vault_keys(app, ui, (x, cy, w));
-    // The aezeed read for this flow, held by faraday-keys: not a key.
-    if let Some(info) = key_of(app, s).filter(|_| s.aezeed) {
-        let name = key_line(info.fingerprint, EN.convert_lnd_aezeed);
-        let press = Some(Action::Convert(C::Step(cstep::TO)));
-        cy += row(ui, (x, cy, w), (&name, EN.convert_from_aezeed), true, press);
-    }
     let opener = &crate::ways_in::CONVERT_FROM;
     let mut ways = vec![(
         EN.convert_add_a_key.to_string(),

@@ -27,6 +27,7 @@ mod restore;
 mod row_details;
 pub(crate) mod scan_frame;
 mod session_pane;
+pub(crate) use session_pane::pick;
 mod set_time;
 pub(crate) mod settings;
 mod sheets;

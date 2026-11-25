@@ -3,7 +3,7 @@
 //! panel draws the page.
 
 use super::InvoicePress;
-use crate::flow::{Contained, Pick, PickGroup, Row};
+use crate::flow::{Contained, Pick, Row};
 use crate::pick::{self, PickRow};
 use crate::strings::EN;
 use crate::trail::{StepFlow, Steps};
@@ -117,13 +117,7 @@ impl Contained for InvoiceSteps {
     }
 
     fn pick(&self, _: &Faraday, k: u8) -> Option<Pick> {
-        (k == INPUT).then(|| Pick {
-            question: EN.invoice_title,
-            groups: vec![PickGroup {
-                head: pick::ways_in_head(false),
-                rows: ways_in(),
-            }],
-        })
+        (k == INPUT).then(|| pick::Decl::new(EN.invoice_title).ways(ways_in()).pick())
     }
 
     fn hide_shown(&self, _: &mut Faraday) {

@@ -2085,6 +2085,9 @@ pub const DISCLOSE_GLYPH: f32 = 10.0;
 pub const DISCLOSE_ICON_Y: f32 = 14.0;
 /// An icon's glyph in a button, a chip and a chosen segment.
 pub const ICON_GLYPH_BUTTON: f32 = 18.0;
+/// A pick row's radio: the chosen dot sits this far inside the ring's
+/// inner circle (the ring, its gap and the dot's own edge: 2 + 2 + 1).
+pub const PICK_RADIO_DOT_INSET: f32 = 5.0;
 /// The gap between a button's icon and its label.
 pub const ICON_GAP: f32 = GAP;
 /// The chevron at the end of a row that opens what the row shows (a

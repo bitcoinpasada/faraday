@@ -145,78 +145,36 @@ fn choice(on: bool) -> Style {
     }
 }
 
-/// The Contents step's pick for the pane where the pair stands: the wallets,
-/// then the keys a code can be made of, then typing. Labels and fingerprints
+/// The Contents step's pick for the pane where the pair stands: the keys a
+/// code can be made of, then the wallets, then typing. Labels and fingerprints
 /// only.
 pub(super) fn pick(app: &crate::Faraday, s: &KefToolState) -> flow::Pick {
-    let mut groups = Vec::new();
-    let wallets: Vec<_> = app
-        .session
-        .wallets
-        .iter()
-        .enumerate()
-        .map(|(i, wl)| {
-            pick::PickRow::pick(
-                Icon::Wallet,
-                String::from(&*wl.name),
-                String::from(&*crate::wallet::Session::shape(wl)),
-                s.wallet == Some(i),
-                Action::KefTool(K::Wallet(i)),
-            )
-        })
-        .collect();
-    if !wallets.is_empty() {
-        groups.push(flow::PickGroup {
-            head: EN.session_group_wallets,
-            rows: wallets,
-        });
-    }
-    // Every loaded key stays: one that cannot be a code is dimmed with why.
+    // Every loaded key stays: one that cannot be a code is refused with why.
     let offered = super::offered_keys(app);
-    let keys: Vec<_> = app
-        .session
-        .keys
-        .all()
-        .enumerate()
-        .map(|(i, k)| {
+    pick::Decl::new(EN.kef_tool_which)
+        .keys_many(app, |i, k| {
             let on = offered.contains(&i);
-            let row = pick::PickRow::pick(
-                Icon::Keys,
-                String::from(&*crate::wallet::key_line(k.fingerprint, &k.label)),
-                if on {
-                    EN.kef_tool_key.to_string()
-                } else {
-                    String::new()
-                },
-                on && s.key == Some(i),
-                Action::KefTool(K::Key(i)),
-            );
-            if on {
-                row
+            let take = pick::Take::of(on && s.key == Some(i), Action::KefTool(K::Key(i)));
+            // A key a code can be made of says what the code holds.
+            let take = if on {
+                take.line(EN.kef_tool_key)
             } else {
-                row.dimmed_for(EN.kef_tool_not_this_key)
-            }
+                take.refused(EN.kef_tool_not_this_key)
+            };
+            vec![(crate::wallet::key_line(k.fingerprint, &k.label), take)]
         })
-        .collect();
-    let loaded = !groups.is_empty() || !keys.is_empty();
-    if !keys.is_empty() {
-        groups.push(flow::PickGroup {
-            head: EN.session_group_keys,
-            rows: keys,
-        });
-    }
-    groups.push(flow::PickGroup {
-        head: pick::ways_in_head(loaded),
-        rows: vec![pick::PickRow::way_in(
+        .wallets(app, |i, wl| {
+            Some((
+                pick::Take::of(s.wallet == Some(i), Action::KefTool(K::Wallet(i))),
+                String::from(&*crate::wallet::Session::shape(wl)),
+            ))
+        })
+        .ways(vec![pick::PickRow::way_in(
             Icon::Keyboard,
             EN.kef_tool_type,
             Action::KefTool(K::Pick(Pick::Type)),
-        )],
-    });
-    flow::Pick {
-        question: EN.kef_tool_which,
-        groups,
-    }
+        )])
+        .pick()
 }
 
 fn contents(

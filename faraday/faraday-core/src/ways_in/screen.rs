@@ -95,48 +95,6 @@ pub(crate) fn forms(app: &View, ui: &mut Ui, at: (f32, f32, f32), opening: Openi
         - y
 }
 
-/// The loaded keys as the pick's rows: fingerprint, then its name, a
-/// passphrase and the wallet that uses it, as the session pane has them.
-/// A press takes the key as the seed.
-pub(crate) fn holder_rows(app: &crate::Faraday) -> Vec<crate::pick::PickRow> {
-    let session = &app.session;
-    session
-        .keys
-        .all()
-        .enumerate()
-        .map(|(i, k)| {
-            let fp = crate::wallet::fp_text(k.fingerprint);
-            let name = crate::bip85::key_name(k);
-            let mut line = String::new();
-            if !name.eq_ignore_ascii_case(&fp) {
-                line.push_str(&name);
-                line.push_str(" · ");
-            }
-            if k.has_passphrase {
-                line.push_str(EN.home_key_passphrase);
-                line.push_str(" · ");
-            }
-            let user = session.wallets.iter().find(|w| {
-                session
-                    .slots(w)
-                    .iter()
-                    .any(|s| s.fingerprint == Some(k.fingerprint))
-            });
-            match user {
-                Some(w) => line.push_str(&crate::strings::fill(EN.home_key_used_by, &[&w.name])),
-                None => line.push_str(EN.home_card_no_wallet_uses_it),
-            }
-            crate::pick::PickRow::pick(
-                faraday_draw::widgets::Icon::Keys,
-                String::from(&*fp),
-                line,
-                false,
-                Action::SeedCheck(crate::seed_check::SeedAction::Loaded(i)),
-            )
-        })
-        .collect()
-}
-
 /// The ways in as the pick's rows, where a pane at the left holds them:
 /// the forms shown first, then Other forms, which opens the rest in
 /// place. A press is the card's own press.

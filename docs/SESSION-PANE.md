@@ -1,7 +1,7 @@
 # The session pane
 
 **Kind:** Reference
-**Status:** Built: the component (`screens/session_pane/`) and Home's wide card (F323). The phone-size window and the Pi keep their own box (`docs/HOME.md` §4). Wallets' own mode (§1: Waiting, then Keys) stands at the left of Wallets' tile and of a wallet's page on the wide layout. Not built: the pane in the flows (`docs/WORKSPACE.md`).
+**Status:** Built: the component (`screens/session_pane/`) and Home's wide card (F323). The phone-size window and the Pi keep their own box (`docs/HOME.md` §4). Wallets' own mode (§1: Waiting, then Keys) stands at the left of Wallets' tile and of a wallet's page on the wide layout. The pick of the flows is a mode of it (§4); not built: the pane in Restore, Spend from a backup, Save to a vault, the backup board, Silent and Vanity, and the checkbox row (`docs/WORKSPACE.md`).
 
 The session pane is the one component that draws what the session holds as
 rows: the keys and wallets loaded (`app.session`), the flows in progress, the
@@ -104,3 +104,21 @@ frame drawn while a secret was typed or shown keeps no image to glide from
 `loaded_sections` draws the one-column box of `docs/HOME.md` §4 from the same
 module through its own rows (`compact_rows`): what needs the person, the keys
 no wallet uses with their Make a wallet button, and All keys where keys are cut.
+
+## 4. The pick
+
+A flow's pick (`docs/WORKSPACE.md` §2, "The pick") is a mode of the pane
+(`session_pane/pick.rs`, `lint-components` `pick-own-rows`). A flow
+declares with `Decl`: the question, which kinds it takes (`keys`, `wallets`,
+`files`), and for each item a `Take` (chosen or not, what a press does, a
+refusal giving its reason or none), and its ways in, the only rows the flow
+makes itself. The pane lists the items, never the flow: Keys, Wallets, Files,
+then the ways in ("Other ways in" while anything is listed, "Ways in" when
+nothing is). A key row's head is its fingerprint and its line is the one
+`key_line` says for the pane (name, passphrase, codex32 mark, the wallet that
+uses it); a refused row is dimmed, shows its reason as the line and takes no
+press, by pointer or keyboard. The row is the Material single-choice list
+row, a radio in the icon's place, the chosen one in the secondary container
+(`PickRow`, `Kind`). The flow container's Your choices (`flow/choices.rs`) and
+the narrow cards of BIP-85, Check a signed message, Decode, Invoice and Convert's keys draw the same groups through `draw_groups` (Make a new wallet, Sign a message, KEF, My seed, Explore and Lightning keep buttons of their own there). A pick that takes
+several, with a checkbox, is not built.

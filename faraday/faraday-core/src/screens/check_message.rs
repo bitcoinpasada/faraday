@@ -129,38 +129,20 @@ impl Contained for CheckMessageSteps {
 /// Files. The message on show, when it came from a held file, is marked.
 fn pick_groups(app: &Faraday) -> Vec<crate::flow::PickGroup> {
     let shown = app.message.checking();
-    let held: Vec<crate::pick::PickRow> = waiting(app)
-        .into_iter()
-        .map(|(k, name)| {
-            crate::pick::PickRow::pick(
-                Icon::File,
-                name.to_string(),
-                String::new(),
-                shown == Some(k),
-                Action::CheckMessage(k),
-            )
+    crate::pick::Decl::new(EN.decode_choose_message)
+        .files(app, |k, f| {
+            (f.kind == FileKind::Message)
+                .then(|| crate::pick::Take::of(shown == Some(k), Action::CheckMessage(k)))
         })
-        .collect();
-    let loaded = !held.is_empty();
-    let mut groups = Vec::new();
-    if loaded {
-        groups.push(crate::flow::PickGroup {
-            head: EN.session_group_files,
-            rows: held,
-        });
-    }
-    groups.push(crate::flow::PickGroup {
-        head: crate::pick::ways_in_head(loaded),
-        rows: vec![
+        .ways(vec![
             crate::pick::PickRow::way_in(Icon::Scan, EN.compact_scan, Action::Scan),
             crate::pick::PickRow::way_in(
                 Icon::File,
                 EN.parts_open_files,
                 Action::Nav(Screen::Files),
             ),
-        ],
-    });
-    groups
+        ])
+        .groups()
 }
 
 /// The signed messages in Files, by index and name.
@@ -407,9 +389,8 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 if crate::flow::pair_left(app_ref, &CHECK_MESSAGE_STEPS, ui.compact, cw) {
                     return cy - y;
                 }
-                for g in pick_groups(app_ref) {
-                    cy += crate::pick::head(ui, x, cy, w, g.head);
-                    cy += crate::pick::rows(ui, x, cy, w, &g.rows);
+                {
+                    cy += crate::pick::draw_groups(ui, x, cy, w, &pick_groups(app_ref));
                 }
                 return cy - y;
             }

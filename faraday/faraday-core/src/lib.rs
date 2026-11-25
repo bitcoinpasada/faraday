@@ -162,7 +162,7 @@ pub mod nav;
 mod out;
 mod panes;
 mod pass_field;
-mod pick;
+pub(crate) use screens::pick;
 mod pointer;
 mod public_files;
 mod public_kind;

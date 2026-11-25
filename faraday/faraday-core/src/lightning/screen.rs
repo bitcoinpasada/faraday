@@ -45,9 +45,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let y = if compact { top } else { header(app, ui) };
     let mut pane_end = y;
     if let (Some(p), Some(l)) = (pair, app.lightning.state()) {
-        let rows = super::pane::rows(app, l.source);
-        pane_end += pick::head(ui, x0 + p.pane_x, pane_end, p.pane_w, EN.session_group_keys);
-        pane_end += pick::rows(ui, x0 + p.pane_x, pane_end, p.pane_w, &rows);
+        let groups = super::pane::groups(app, l.source);
+        pane_end += pick::draw_groups(ui, x0 + p.pane_x, pane_end, p.pane_w, &groups);
     }
     let end = body(app, ui, x, y, width, (vx, vw, below), pair.is_some());
     if let Some(p) = pair {
