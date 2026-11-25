@@ -289,3 +289,273 @@ fn leaving_a_flow_begun_from_the_details_returns_at_their_scroll() {
     assert!(app.offers(Action::RowClose), "the details, as they were");
     assert_eq!(app.list_offset, at, "the scroll they had");
 }
+
+// ---- Home (WORKSPACE.md §7 point 1: a row of Home's card opens its details)
+
+fn home_of(width: u16, height: u16) -> Faraday {
+    let mut app = faraday_core::testkit::new_on_test_net();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    app
+}
+
+fn home_with_key() -> (Faraday, [u8; 4]) {
+    let mut app = home_of(1366, 768);
+    let fp = add_key(&mut app, WORDS);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    (app, fp)
+}
+
+#[test]
+fn home_a_key_row_opens_its_details_and_home_stays() {
+    let (mut app, fp) = home_with_key();
+    assert!(shown(&mut app, Action::RowOpen(Row::Key(fp))));
+    assert!(!details_of(&mut app, fp));
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert_eq!(app.screen, Screen::Home);
+    assert!(details_of(&mut app, fp));
+    assert!(
+        app.offers(Action::ExploreKey(fp)),
+        "Explore, the first offer"
+    );
+    assert!(
+        app.offers(Action::RowClose),
+        "the way back {:?}",
+        app.offered_actions()
+    );
+}
+
+#[test]
+fn home_the_details_fit_under_the_card_or_beside_it() {
+    // Tall: under the card; short: beside it. Either way they are shown.
+    for height in [1080, 600] {
+        let mut app = home_of(1920, height);
+        let fp = add_key(&mut app, WORDS);
+        app.press(Action::Nav(Screen::Home));
+        let _ = app.frame();
+        app.press(Action::RowOpen(Row::Key(fp)));
+        assert!(details_of(&mut app, fp), "at {height}");
+    }
+}
+
+#[test]
+fn home_back_escape_and_the_tab_return_home() {
+    let (mut app, fp) = home_with_key();
+    for how in 0..3 {
+        app.press(Action::RowOpen(Row::Key(fp)));
+        assert!(details_of(&mut app, fp), "way {how}");
+        match how {
+            0 => {
+                let at = app.where_offered(Action::RowClose).expect("the arrow");
+                touch(&mut app, at);
+            }
+            1 => {
+                app.event(Event::Back);
+                let _ = app.frame();
+            }
+            _ => app.press(Action::Nav(Screen::Home)),
+        }
+        assert!(!details_of(&mut app, fp), "way {how}");
+        assert_eq!(app.screen, Screen::Home);
+    }
+}
+
+#[test]
+fn home_a_press_on_another_row_swaps_the_details() {
+    let (mut app, a) = home_with_key();
+    let b = add_key(&mut app, &faraday_core::testkit::test_words("zebra"));
+    let _ = app.frame();
+    app.press(Action::RowOpen(Row::Key(a)));
+    assert!(details_of(&mut app, a));
+    app.press(Action::RowOpen(Row::Key(b)));
+    assert!(details_of(&mut app, b));
+    assert!(!app.offers(Action::KeyWallet(a, 1)));
+}
+
+#[test]
+fn home_the_key_going_away_returns_home() {
+    let (mut app, fp) = home_with_key();
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(details_of(&mut app, fp));
+    app.press(Action::RemoveKeysHold);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Home);
+    assert!(!app.offers(Action::RowClose));
+}
+
+#[test]
+fn home_lock_clears_the_row_open() {
+    let (mut app, fp) = home_with_key();
+    app.press(Action::RowOpen(Row::Key(fp)));
+    app.press(Action::Lock);
+    let fp = add_key(&mut app, WORDS);
+    app.press(Action::Nav(Screen::Home));
+    assert!(!details_of(&mut app, fp));
+    assert!(!app.offers(Action::RowClose));
+}
+
+#[test]
+fn home_leaving_a_flow_begun_from_the_details_returns_to_them() {
+    let (mut app, fp) = home_with_key();
+    app.press(Action::RowOpen(Row::Key(fp)));
+    let _ = app.frame();
+    app.press(Action::ExploreKey(fp));
+    assert_eq!(app.screen, Screen::Explore);
+    let _ = app.frame();
+    let (x, y) = app.back_offered().expect("a way back");
+    touch(&mut app, (x, y));
+    assert_eq!(app.screen, Screen::Home);
+    assert!(details_of(&mut app, fp), "the details, as they were");
+}
+
+#[test]
+fn home_a_compact_window_opens_nothing() {
+    let mut app = home_of(480, 640);
+    let fp = add_key(&mut app, WORDS);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(!app.offers(Action::RowOpen(Row::Key(fp))));
+    app.press(Action::RowOpen(Row::Key(fp)));
+    let _ = app.frame();
+    assert!(!app.offers(Action::RowClose));
+    assert!(!details_of(&mut app, fp));
+}
+
+fn home_with_wallet() -> Faraday {
+    let c = faraday_core::testkit::compute();
+    let mut app = home_of(1366, 768);
+    app.session.keys.add_words(&c, WORDS, "Seed", None).unwrap();
+    faraday_core::testkit::keep_published(&mut app);
+    let text = faraday_core::create::NewKind::NativeSegwit
+        .key_text(&c, app.session.keys.master_for_tests(0))
+        .unwrap();
+    let d = format!("wpkh({}/<0;1>/*)", &*text);
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Wallet",
+            &d,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn home_a_wallets_details_are_its_page() {
+    let mut app = home_with_wallet();
+    assert!(!app.offers(Action::Backup(0)));
+    app.press(Action::RowOpen(Row::Wallet(0)));
+    assert_eq!(app.screen, Screen::Home);
+    assert!(shown(&mut app, Action::Backup(0)), "its What you can do");
+}
+
+#[test]
+fn home_a_press_beside_a_rows_button_opens_the_details_and_the_button_is_its_own() {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
+    let mut app = home_of(1366, 768);
+    faraday_core::testkit::inbox_file(&mut app, "spend.psbt", psbt);
+    faraday_core::testkit::inbox_file_at(&mut app, 1, "wallet.txt", kit.descriptor.into_bytes());
+    faraday_core::testkit::load_wallet(&mut app, 1);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(app.offers(Action::StartSpend(0)), "the row's button");
+    let (x, y, _, h) = app.hit_box(Action::RowOpen(Row::File(0))).expect("the row");
+    touch(&mut app, (x + 24, y + h / 2));
+    assert!(app.offers(Action::RowClose), "the details are open");
+    assert_eq!(app.screen, Screen::Home);
+    app.press(Action::RowClose);
+    let _ = app.frame();
+    let (bx, by, bw, bh) = app.hit_box(Action::StartSpend(0)).expect("the button");
+    touch(&mut app, (bx + bw / 2, by + bh / 2));
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    let _ = app.frame();
+    assert!(!app.offers(Action::RowClose), "the button is its own press");
+    assert!(app.spend().is_some(), "Sign began the spend");
+}
+
+fn signs(app: &mut Faraday) -> usize {
+    app.drawn_ink()
+        .iter()
+        .filter(|i| {
+            matches!(
+                i.kind,
+                faraday_draw::canvas::InkKind::Icon(faraday_draw::widgets::Icon::Sign)
+            )
+        })
+        .count()
+}
+
+#[test]
+fn a_files_offers_carry_the_icon_their_action_has_elsewhere() {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
+    let mut app = home_of(1366, 768);
+    faraday_core::testkit::inbox_file(&mut app, "spend.psbt", psbt);
+    // The spending wallet is loaded, so the file offers Sign.
+    faraday_core::testkit::inbox_file_at(&mut app, 1, "wallet.txt", kit.descriptor.into_bytes());
+    faraday_core::testkit::load_wallet(&mut app, 1);
+    app.press(Action::Nav(Screen::Catalog));
+    let _ = app.frame();
+    let before = signs(&mut app);
+    app.press(Action::RowOpen(Row::File(0)));
+    let _ = app.frame();
+    assert!(app.offers(Action::StartSpend(0)), "Sign is offered");
+    let after = signs(&mut app);
+    assert!(
+        after > before,
+        "the Sign offer has its icon: {before} then {after}"
+    );
+}
+
+#[test]
+fn home_the_rails_windows_open_no_details() {
+    // 800 x 600 dp is a rail window with the search in the top bar.
+    let mut app = home_of(800, 600);
+    let fp = add_key(&mut app, WORDS);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(!app.offers(Action::RowOpen(Row::Key(fp))));
+    app.press(Action::RowOpen(Row::Key(fp)));
+    let _ = app.frame();
+    assert!(!app.offers(Action::RowClose));
+    assert!(!app.offers(Action::RowOpen(Row::Key(fp))));
+}
+
+#[test]
+fn home_a_wallets_details_stand_beside_the_card_at_1366() {
+    let mut app = home_with_wallet();
+    app.press(Action::RowOpen(Row::Wallet(0)));
+    let _ = app.frame();
+    let row = app
+        .hit_box(Action::RowOpen(Row::Wallet(0)))
+        .expect("the row stays in the card");
+    let b = app.hit_box(Action::Backup(0)).expect("the details");
+    assert!(
+        b.0 >= row.0 + row.2,
+        "beside the card, not under it: {b:?} vs {row:?}"
+    );
+}

@@ -21,6 +21,12 @@ A search bar stands under Home's buttons (every window but the Pi's small
 panel). Typing finds a tool, a Settings card by any word on it or a glossary word and shows the matches under the bar,
 the buttons above staying; a press opens a tool, a card works there as it does on Settings, a word opens at its definition in the guide. Escape clears the search.
 
+## Details
+
+**Key:** home.details
+
+On the wide layout a press on a key, a wallet or a waiting file in Home's card opens its details under the card, or beside it where the window is short. Home stays selected and the top bar shows a back arrow and the item's name. Back, Escape or a press on Home returns Home as it was; a press on another row shows that row. A button on a row does what it says.
+
 ## The power button
 
 **Key:** home.power

@@ -1,7 +1,7 @@
 //! The row-details tour (`docs/WORKSPACE.md` §7 point 1): a row of the
 //! session pane opened in the page's second pane, on a window that is not
 //! compact. Tools with a key open, a wallet open and a held file open, and
-//! Wallets with a key open.
+//! Wallets with a key open, and Home with a key, a wallet and a file open.
 
 use crate::tour::Tour;
 use faraday_core::testkit;
@@ -57,5 +57,12 @@ pub(crate) fn row_details_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::RowClose);
     t.press(Action::Nav(Screen::Wallets));
     t.press(Action::RowOpen(Row::Key(fp)));
-    t.shot("rowdetails-wallets-key")
+    t.shot("rowdetails-wallets-key")?;
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::RowOpen(Row::Key(fp)));
+    t.shot("rowdetails-home-key")?;
+    t.press(Action::RowOpen(Row::Wallet(0)));
+    t.shot("rowdetails-home-wallet")?;
+    t.press(Action::RowOpen(Row::File(0)));
+    t.shot("rowdetails-home-file")
 }

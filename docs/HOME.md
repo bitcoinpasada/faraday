@@ -155,12 +155,12 @@ no rows not drawn (F323):
   spend is under way, "A PSBT to sign" while Files holds a PSBT for it, "Not
   backed up" while a key made here waits for its backup, else its shape. A
   wallet that needs something has the warning icon. The row opens the wallet's
-  card on Wallets (`Action::OpenWallet`) and has no button; **Backups** is the
+  card on Wallets (`Action::OpenWallet`), on the wide layout in Home's second pane (`Action::RowOpen`), and has no button; **Backups** is the
   last row, with the shield icon, only while something is not backed up;
 - **Keys**: a row for every key held, no cap: its fingerprint, under it its
   name in full (none when the name is the fingerprint), "passphrase" when the
   key was loaded with one and the wallet that uses it ("Used by {wallet}"),
-  else "No wallet uses it". The row opens the key (`Action::ExploreKey`). There
+  else "No wallet uses it". The row opens the key (`Action::ExploreKey`; on the wide layout its details in Home's second pane, `docs/WORKSPACE.md` §7). There
   is no All keys row and no Make a wallet button here.
 
 The groups stand in as many columns as fit of at least 336 dp

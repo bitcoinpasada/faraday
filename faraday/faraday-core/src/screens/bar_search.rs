@@ -11,7 +11,7 @@ use crate::ui::{Style, Ui};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
     APP_BAR_H, GAP_SMALL, HOME_SEARCH_MIN, LEAD_MAX, MARGIN_COMPACT, MENU_GAP, SEARCH_BAR_H,
-    TITLE_L,
+    TITLE_L, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 
@@ -86,7 +86,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (room, title, ends): (f32, &str, f32
     } else {
         (0.0, room)
     };
-    let name_end = MARGIN_COMPACT + ui.measure_as(TITLE_L, title) + ui.bar_pill_w + MENU_GAP;
+    // The back arrow of a row open in the page stands before the name.
+    let arrow = if crate::row_open::opened(app).is_some() {
+        TOUCH
+    } else {
+        0.0
+    };
+    let name_end =
+        MARGIN_COMPACT + arrow + ui.measure_as(TITLE_L, title) + ui.bar_pill_w + MENU_GAP;
     let to = ends - GAP_SMALL;
     let y = (APP_BAR_H - SEARCH_BAR_H) / 2.0;
     group(

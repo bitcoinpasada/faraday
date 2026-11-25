@@ -1301,7 +1301,7 @@ fn a_key_with_no_wallet_is_a_row_that_opens_the_key() {
         texts.iter().any(|t| t.contains("No wallet uses it")),
         "{texts:?}"
     );
-    assert!(app.offers(Action::ExploreKey(fp)));
+    assert!(has_key_row(&app, fp));
     assert!(!app.offers(Action::KeyWallet(fp, 1)));
     for a in FIRST {
         assert!(app.offers(a), "{a:?} stands with the key");
@@ -1319,7 +1319,7 @@ fn a_wallet_with_nothing_to_do_has_a_row_and_there_is_no_all_wallets_row() {
     for a in FIRST {
         assert!(app.offers(a), "{a:?} stands with a wallet loaded");
     }
-    assert!(app.offers(Action::OpenWallet(0)), "every wallet has a row");
+    assert!(has_wallet_row(&app, 0), "every wallet has a row");
     let texts = app.drawn_texts();
     assert!(!texts.iter().any(|t| t == "All wallets"), "{texts:?}");
 }
@@ -1352,7 +1352,7 @@ fn a_wallet_with_a_psbt_to_sign_is_home_s_lead_and_sign_opens_its_spend() {
         "{texts:?}"
     );
     assert!(texts.iter().any(|t| t == "A PSBT to sign"), "{texts:?}");
-    assert!(app.offers(Action::OpenWallet(0)));
+    assert!(has_wallet_row(&app, 0));
     let sign = app
         .offered_actions()
         .into_iter()
@@ -1485,11 +1485,15 @@ fn a_key_on_home_opens_itself_and_has_no_make_a_wallet_or_all_keys() {
             !texts.iter().any(|t| t.contains("passphrase")),
             "{width}: no passphrase mark: {texts:?}"
         );
-        assert!(app.offers(Action::ExploreKey(fp)));
+        assert!(has_key_row(&app, fp));
         let texts = app.drawn_texts();
         assert!(!texts.iter().any(|t| t == "All keys"), "{texts:?}");
-        tap(&mut app, Action::ExploreKey(fp));
-        assert_eq!(app.screen, Screen::Explore, "{width}");
+        // A press on the row opens the key's details where the card has
+        // them, Explore where it has none.
+        let row = key_row(&app, fp);
+        tap(&mut app, row);
+        let opened = app.offers(Action::ExploreKey(fp)) && app.screen == Screen::Home;
+        assert!(opened || app.screen == Screen::Explore, "{width}");
     }
 }
 
@@ -1532,7 +1536,7 @@ fn a_search_typed_on_the_wide_home_takes_the_page_and_clearing_it_brings_the_res
         without_passphrase(&mut app);
         // The phone-size window keeps its box and All keys.
         let key = if width > 1000 {
-            Action::ExploreKey(app.session.keys[0].fingerprint.0)
+            key_row(&app, app.session.keys[0].fingerprint.0)
         } else {
             Action::Explore
         };
@@ -2211,7 +2215,7 @@ fn at_1366_by_768_the_search_and_buttons_stand_in_the_top_bar_and_the_buttons_op
         .map(|a| app.hit_box(*a).expect("button"))
         .collect();
     let row = app
-        .hit_box(Action::ExploreKey(key_fp(&app, 0)))
+        .hit_box(key_row(&app, key_fp(&app, 0)))
         .expect("a row of the card");
     assert!(bar.1 + bar.3 <= 64 && row.1 >= 64, "{bar:?} {row:?}");
     for b in std::iter::once(&bar).chain(&buttons) {
@@ -2274,6 +2278,35 @@ fn add_wallet_over(app: &mut Faraday, k: usize, a: u32, name: &str) {
         .unwrap_or_else(|e| panic!("{d}: {}", &*e.text()));
 }
 
+/// Home's row for key `fp`: the one that opens its details where the card
+/// has them (the wide layout), else the one that opens Explore.
+fn key_row(app: &Faraday, fp: [u8; 4]) -> Action {
+    let open = Action::RowOpen(faraday_core::Row::Key(fp));
+    if app.offers(open) {
+        open
+    } else {
+        Action::ExploreKey(fp)
+    }
+}
+
+fn has_key_row(app: &Faraday, fp: [u8; 4]) -> bool {
+    app.offers(key_row(app, fp))
+}
+
+/// Home's row for wallet `w`, as [`key_row`].
+fn wallet_row(app: &Faraday, w: usize) -> Action {
+    let open = Action::RowOpen(faraday_core::Row::Wallet(w));
+    if app.offers(open) {
+        open
+    } else {
+        Action::OpenWallet(w)
+    }
+}
+
+fn has_wallet_row(app: &Faraday, w: usize) -> bool {
+    app.offers(wallet_row(app, w))
+}
+
 fn key_fp(app: &Faraday, k: usize) -> [u8; 4] {
     app.session.keys[k].fingerprint.0
 }
@@ -2284,14 +2317,14 @@ fn key_fp(app: &Faraday, k: usize) -> [u8; 4] {
 fn a_few_loaded_keys_and_wallets_all_have_a_row() {
     let mut app = loaded(3, 2, 1366, 1200);
     for k in 0..3 {
-        assert!(app.offers(Action::ExploreKey(key_fp(&app, k))), "key {k}");
+        assert!(has_key_row(&app, key_fp(&app, k)), "key {k}");
         assert!(
             !app.offers(Action::KeyWallet(key_fp(&app, k), 1)),
             "key {k}"
         );
     }
     for w in 0..2 {
-        assert!(app.offers(Action::OpenWallet(w)), "wallet {w}");
+        assert!(has_wallet_row(&app, w), "wallet {w}");
     }
     let texts = app.drawn_texts();
     assert!(!texts.iter().any(|t| t == "All keys"), "{texts:?}");
@@ -2321,10 +2354,10 @@ fn a_key_names_the_wallet_that_uses_it() {
 fn with_many_keys_every_key_has_a_row() {
     let app = loaded(30, 20, 1366, 4000);
     for k in 0..30 {
-        assert!(app.offers(Action::ExploreKey(key_fp(&app, k))), "key {k}");
+        assert!(has_key_row(&app, key_fp(&app, k)), "key {k}");
     }
     let mut short = loaded(30, 20, 1366, 600);
-    assert!(short.offers(Action::ExploreKey(key_fp(&short, 0))));
+    assert!(has_key_row(&short, key_fp(&short, 0)));
     let _ = short.frame();
     assert!(
         !short.offers(Action::Explore),
@@ -2476,7 +2509,7 @@ fn many_wallets_that_need_nothing_each_have_a_row_on_home() {
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
     for w in 0..13 {
-        assert!(app.offers(Action::OpenWallet(w)), "wallet {w}");
+        assert!(has_wallet_row(&app, w), "wallet {w}");
     }
     assert!(on_screen(&app, Action::Nav(Screen::WalletsStart), 2400));
     tap(&mut app, Action::Nav(Screen::WalletsStart));
@@ -2628,7 +2661,7 @@ fn wallet_and_a_spare_key(width: u16, height: u16, psbt: bool) -> Faraday {
 
 fn spare_key_at(app: &Faraday) -> Option<(u16, u16)> {
     (0..app.session.keys.len()).find_map(|k| {
-        app.where_offered(Action::ExploreKey(key_fp(app, k)))
+        app.where_offered(key_row(app, key_fp(app, k)))
             .or_else(|| app.where_offered(Action::KeyWallet(key_fp(app, k), 1)))
     })
 }
@@ -2672,7 +2705,7 @@ fn home_lead_stands_inside_the_card_once() {
         // The phone-size window keeps its box, which has no row for a
         // wallet that needs nothing.
         assert_eq!(
-            app.offers(Action::OpenWallet(0)),
+            has_wallet_row(&app, 0),
             w >= 1920,
             "{w}x{h}: the wallet's own row"
         );
@@ -2690,10 +2723,10 @@ fn home_lead_stands_inside_the_card_once() {
 fn every_key_and_every_wallet_has_a_row_on_home() {
     let mut app = loaded(8, 2, 1366, 1400);
     for k in 0..8 {
-        assert!(app.offers(Action::ExploreKey(key_fp(&app, k))), "key {k}");
+        assert!(has_key_row(&app, key_fp(&app, k)), "key {k}");
     }
     for w in 0..2 {
-        assert!(app.offers(Action::OpenWallet(w)), "wallet {w}");
+        assert!(has_wallet_row(&app, w), "wallet {w}");
     }
     let texts = app.drawn_texts();
     for gone in ["All keys", "Make a wallet", "All wallets"] {

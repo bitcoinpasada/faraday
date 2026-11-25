@@ -100,6 +100,17 @@ pub(crate) fn groups(app: &View, mode: Mode) -> Vec<Group> {
     groups
 }
 
+/// Home's card on the wide layout: a held file's row (a PSBT with Sign)
+/// opens its details on a press beyond its button, then as every page.
+pub(super) fn home_opening(app: &View, groups: &mut [Group]) {
+    for r in groups.iter_mut().flat_map(|g| g.rows.iter_mut()) {
+        if let (Action::StartSpend(k), Some(_)) = (r.action, r.button) {
+            r.open = Some(Action::RowOpen(crate::row_open::Row::File(k)));
+        }
+    }
+    opening(app, groups);
+}
+
 /// A press on a key's, a wallet's or a held file's row opens it in the
 /// page's second pane (`docs/WORKSPACE.md` §7), the open one marked.
 fn opening(app: &View, groups: &mut [Group]) {

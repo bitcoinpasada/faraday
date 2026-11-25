@@ -20,6 +20,14 @@ pub(crate) struct Group {
 /// The pane's groups in their order: Waiting, Wallets (Backups last), Keys.
 /// A group with no rows is left out.
 pub(crate) fn groups(app: &View) -> Vec<Group> {
+    let mut groups = home_groups(app);
+    if crate::row_open::home_opens(app) {
+        super::page_mode::home_opening(app, &mut groups);
+    }
+    groups
+}
+
+fn home_groups(app: &View) -> Vec<Group> {
     [
         (EN.session_group_waiting, waiting_rows(app)),
         (EN.session_group_wallets, wallet_rows(app)),

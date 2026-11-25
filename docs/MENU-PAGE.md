@@ -229,7 +229,10 @@ two.
   results, the top row's three first actions as tonal buttons beside
   the bar (F314), the lead tile as a block across the page, the loaded wallets beside Backups and the Keys as tiles
   sections, and on the one-column layouts the box of what is loaded
-  above the bar; on the Pi's panel, its places two to a row (§7).
+  above the bar; on the Pi's panel, its places two to a row (§7). On the
+  expanded rail a row opened from its card takes the place a typed search's
+  results have: the row's details, under the card or beside it
+  (`docs/WORKSPACE.md` §7).
 - **Wallets start** (`screens/wallets_start.rs`): its name, the five
   ways in as a tiles section, and its lists of wallets and of keys
   without a wallet as sections. On the wide layout it is the pair

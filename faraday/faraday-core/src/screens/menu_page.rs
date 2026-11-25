@@ -208,6 +208,15 @@ pub(crate) fn draw(
             return;
         }
     }
+    // A row of Home's card opened: its details stand where a search's
+    // results do, under the card or beside it.
+    if !compact && page.search == Some(Bar::Home) && crate::row_open::opened(app).is_some() {
+        let mut panes = page.panes.unwrap_or(RESULTS);
+        panes.stacks &= !apart;
+        if hub_layout::draw_details(app, ui, (x0, cw, h), panes) {
+            return;
+        }
+    }
     if let (false, Some(mut panes)) = (compact, page.panes) {
         panes.stacks &= !apart;
         if !typed && hub_layout::draw(app, ui, (x0, cw, h), (page, sections), panes) {

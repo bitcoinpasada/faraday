@@ -67,6 +67,27 @@ pub(crate) fn draw_results(
     placed(app, ui, area, &body, panes)
 }
 
+/// Draws the open row's details placed the same way, on Home: under
+/// This session's card where they fit, else beside it. Returns false,
+/// drawing nothing, where the room holds neither.
+pub(crate) fn draw_details(
+    app: &View,
+    ui: &mut Ui,
+    area: (f32, f32, f32),
+    mut panes: Panes,
+) -> bool {
+    // A wallet's page fills the room it is given: it stands beside.
+    if matches!(
+        crate::row_open::opened(app),
+        Some(crate::row_open::Opened::Wallet(_))
+    ) {
+        panes.stacks = false;
+    }
+    let body =
+        |ui: &mut Ui, _: (f32, f32), w: f32| crate::screens::row_details::content_h(app, ui, w);
+    placed(app, ui, area, &body, panes)
+}
+
 /// The stack where `body`'s tile fits under the card, else the pair. The
 /// pair is measured only where the stack does not fit.
 fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, panes: Panes) -> bool {
@@ -78,13 +99,16 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
     let card_h = crate::menu::measure(ui, &mut |ui| stacked_card(app, ui, (0.0, 0.0), hw));
     let tile_h = crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, hw), body));
     if let Some(under) = panes.stack(top, card_h, tile_h, h) {
+        // Details scroll in their own area, under a card that stands
+        // still; a region left open here would reach the top bar.
+        if crate::row_open::opened(app).is_some() {
+            stacked_card(app, ui, (x0 + hx, top), hw);
+            let rest = (h - MARGIN_WIDE - under).max(tile_h);
+            return crate::screens::row_details::draw(app, ui, (x0 + hx, under, hw, rest));
+        }
         let clip = ui.rect(x0, 0.0, cw, h);
         let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
         stacked_card(app, ui, (x0 + hx, top), hw);
-        let rest = (h - MARGIN_WIDE - under).max(tile_h);
-        if crate::screens::row_details::draw(app, ui, (x0 + hx, under, hw, rest)) {
-            return true;
-        }
         tile_surface(ui, (x0 + hx, under, hw, tile_h));
         tile_content(ui, (x0 + hx, under, hw), body);
         let content = under + tile_h + MARGIN_WIDE;

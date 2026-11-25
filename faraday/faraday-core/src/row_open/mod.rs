@@ -1,6 +1,6 @@
 //! The row opened on a menu page (`docs/WORKSPACE.md` §7 point 1): a press
 //! on a key's, a wallet's or a held file's row of the session pane on Tools,
-//! Check or Wallets opens the item in the page's second pane instead of
+//! Check, Wallets or the wide layout's Home opens the item in the page's second pane instead of
 //! leaving the page. This is the one state of it: which page, which item.
 //! The item is kept by what it is (a key by its fingerprint, a wallet by its
 //! identity, a file by its name and size), never by a place that shifts when
@@ -12,6 +12,8 @@ use faraday_bip::policy::WalletId;
 /// The pages that open a row in their second pane.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Page {
+    /// Home, on the wide layout where the search stands in the top bar.
+    Home,
     Tools,
     Check,
     Wallets,
@@ -21,12 +23,28 @@ impl Page {
     /// The page a screen is, where it has the pane.
     pub(crate) fn of(screen: Screen) -> Option<Page> {
         match screen {
+            Screen::Home => Some(Page::Home),
             Screen::Catalog => Some(Page::Tools),
             Screen::Check => Some(Page::Check),
             Screen::Wallets | Screen::WalletsStart => Some(Page::Wallets),
             _ => None,
         }
     }
+}
+
+/// Whether `page` opens a row in this window: not on the phone's layout,
+/// and Home only on the expanded rail (the rail's windows keep Home as it
+/// is), and not while Home's search is typed (its results
+/// take the tile's place).
+fn takes_rows(app: &Faraday, page: Page) -> bool {
+    !app.is_compact()
+        && (page != Page::Home
+            || (app.nav() == crate::nav::Nav::ExpandedRail && app.tools.home_find().is_empty()))
+}
+
+/// Whether Home's card draws its rows as ones that open details.
+pub(crate) fn home_opens(app: &Faraday) -> bool {
+    app.screen == Screen::Home && !app.is_compact() && app.nav() == crate::nav::Nav::ExpandedRail
 }
 
 /// A row as pressed: a wallet or a file by its place in this frame's list,
@@ -96,7 +114,7 @@ fn area(app: &Faraday) -> &RowOpenArea {
 /// on and the item is still there. A lookup.
 pub(crate) fn opened(app: &Faraday) -> Option<Opened> {
     let (page, item) = area(app).open.as_ref()?;
-    if app.is_compact() || Page::of(app.screen) != Some(*page) {
+    if !takes_rows(app, *page) || Page::of(app.screen) != Some(*page) {
         return None;
     }
     match item {
@@ -165,12 +183,12 @@ pub(crate) fn sync(app: &mut Faraday, tab: bool) {
         return;
     };
     let page = *page;
-    if app.is_compact() {
+    if app.is_compact() || (page == Page::Home && app.nav() != crate::nav::Nav::ExpandedRail) {
         app.wallets.row_open_lock();
         return;
     }
     if Page::of(app.screen) != Some(page) {
-        if tab || app.screen == Screen::Home || Page::of(app.screen).is_some() {
+        if tab || Page::of(app.screen).is_some() {
             app.wallets.row_open_lock();
         }
         return;

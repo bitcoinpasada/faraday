@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
-**Open:** To build: the session pane's form in the flows (§2; Home's card in groups and the modes of Tools, Check and Wallets are built, `docs/SESSION-PANE.md`), the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on Home, Files and Vaults (§2, §7; Tools, Check and Wallets have them; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: the guide as the third pane and the glide on it), Vaults' pane (§2), one order of the groups with Keys first and Waiting a band at the pane's foot, on Home too (§1, §2; HOME.md §2's lead, now the first row of the Waiting group at the card's top, becomes the first row of that band), Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), Files first in a pick opened from Check (§2), a flow's pick leaving out the keys it cannot take (§2), the heights (F331: one resting level, the flow's card raised alone with its own fill, §3, §6), the search and the pills constant on every menu page and kept in a flow (§4, §16), Mode inline with its one confirmation (§9), the Scan button under Settings, the viewfinder in the pane of the flows other than Check an address, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks other than Units (§2), the timings on the Pi that §6 and §8 name, the take-away in the flows other than Sign a message (§15), flows in progress and the way out of a flow (§16), Tools lit in the sidebar by a tool opened from it (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how the flow's card's fill looks (§3).
+**Open:** To build: the session pane's form in the flows (§2; Home's card in groups and the modes of Tools, Check and Wallets are built, `docs/SESSION-PANE.md`), the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on Files and Vaults (§2, §7; Tools, Check, Wallets and Home have them; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: the guide as the third pane and the glide on it), Vaults' pane (§2), one order of the groups with Keys first and Waiting a band at the pane's foot, on Home too (§1, §2; HOME.md §2's lead, now the first row of the Waiting group at the card's top, becomes the first row of that band), Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), Files first in a pick opened from Check (§2), a flow's pick leaving out the keys it cannot take (§2), the heights (F331: one resting level, the flow's card raised alone with its own fill, §3, §6), the search and the pills constant on every menu page and kept in a flow (§4, §16), Mode inline with its one confirmation (§9), the Scan button under Settings, the viewfinder in the pane of the flows other than Check an address, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks other than Units (§2), the timings on the Pi that §6 and §8 name, the take-away in the flows other than Sign a message (§15), flows in progress and the way out of a flow (§16), Tools lit in the sidebar by a tool opened from it (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how the flow's card's fill looks (§3).
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -579,8 +579,8 @@ window never scrolls as a whole.
    the item already picked, so the pane turns straight into Your choices,
    and leaving it returns to the details. Where the item goes away (a key
    unloaded, a file taken away) the page returns; Lock clears as anywhere.
-   Built on Tools, Check and Wallets where the window is not compact
-   (`row_open`, `screens/row_details.rs`): the open row by what it is (a key
+   Built on Tools, Check and Wallets where the window is not compact, and on
+   Home on the expanded rail only, the rail's windows keeping Home as it is (`row_open`, `screens/row_details.rs`): the open row by what it is (a key
    by its fingerprint, a wallet by its identity, a file by its name and
    size) in its own area; a key's details offer Explore and, where no wallet
    uses it, Make a wallet from this key, Add another key and Restore; a
@@ -589,7 +589,14 @@ window never scrolls as a whole.
    the button. The offers end in the chevron where they open a page or flow
    and not where they act at once (F332). A flow begun from the details
    returns to them when it is left by Back; a press on another tab clears
-   them. Not built: Home's details, Files' and Vaults'.
+   them. On Home they stand in the second pane's place as a search's results
+   do (point 3): under the card where they fit (a wallet's page never stacks:
+   it stands beside), else beside it; a held file's row is a waiting PSBT's;
+   a typed search shows its results and the row stays open behind it. A file's
+   offers carry the icon their action has elsewhere (Sign, Check an address,
+   Back up, Make a new wallet, Restore a wallet, Open a vault); an action with
+   none has none, and a group with none has no gap for one. Not built: Files'
+   and Vaults' details.
 2. **The pane as a flow's pick and Your choices** (§2), beside the step, as
    one card (§4).
 3. **Search results sit in a pane**, stacked first by the same rule: under

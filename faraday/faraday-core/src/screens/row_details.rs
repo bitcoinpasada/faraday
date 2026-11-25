@@ -59,11 +59,30 @@ fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
         ));
         list.push(actions::offer(
             EN.loose_card_restore,
-            None,
+            offer_icon(Action::RestoreWallet),
             Action::RestoreWallet,
         ));
     }
     list
+}
+
+/// The icon an action carries elsewhere (a wallet's group, the first
+/// actions, Wallets' ways in, Home's rows); none where it carries none.
+fn offer_icon(action: Action) -> Option<Icon> {
+    use crate::file_menu::FilePress;
+    use crate::vault::VaultAction;
+    match action {
+        Action::StartSpend(_) | Action::File(FilePress::SignMessage(_)) => Some(Icon::Sign),
+        Action::SpendBackup(crate::spend_backup::SpendBackupAction::FromFile(_)) => {
+            Some(Icon::Sign)
+        }
+        Action::File(FilePress::CheckAddress(_)) => Some(Icon::Verify),
+        Action::Backup(_) => Some(Icon::Shield),
+        Action::CreateWallet => Some(Icon::Flag),
+        Action::RestoreWallet => Some(Icon::Wallet),
+        Action::Vault(VaultAction::Open(_)) => Some(Icon::Lock),
+        _ => None,
+    }
 }
 
 /// What held file `k` offers: its shared list.
@@ -73,7 +92,7 @@ fn file_offers(app: &View, k: usize) -> Vec<Offer> {
     crate::items::offer(app, k, &|seen| app.spends_from(seen), &loaded_at)
         .list
         .into_iter()
-        .map(|(label, action)| actions::offer(&label, None, action))
+        .map(|(label, action)| actions::offer(&label, offer_icon(action), action))
         .collect()
 }
 
@@ -108,6 +127,17 @@ fn body(app: &View, ui: &mut Ui, opened: Opened, (x, y): (f32, f32), w: f32) -> 
         }
     }
     cy - y
+}
+
+/// What the open item's details take inside their padding, `w` wide: the
+/// room the stack asks for under This session's card. A wallet's page
+/// fills the room it is given and never stacks: it stands beside.
+pub(crate) fn content_h(app: &View, ui: &mut Ui, w: f32) -> f32 {
+    match crate::row_open::opened(app) {
+        None => 0.0,
+        Some(Opened::Wallet(_)) => 1.0e6,
+        Some(opened) => crate::menu::measure(ui, &mut |ui| body(app, ui, opened, (0.0, 0.0), w)),
+    }
 }
 
 /// The open item's details in `(x, y, w, h)`, the tile's place. False,

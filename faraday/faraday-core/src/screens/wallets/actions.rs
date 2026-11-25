@@ -132,7 +132,12 @@ pub(crate) fn offers(app: &View, w: usize, new_from: bool) -> Vec<Offer> {
 pub(crate) fn draw(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &[Offer]) -> f32 {
     faraday_ui::parts::section_label(ui, x, y, EN.wallets_what_you_can_do);
     let mut cy = y + ui.line_as(TITLE_S) + tokens::GRID;
-    let lead = 2.0 * LIST_PAD + ICON_SMALL;
+    // A group none of whose offers has an icon leaves no gap for one.
+    let lead = if list.iter().any(|o| o.icon.is_some()) {
+        2.0 * LIST_PAD + ICON_SMALL
+    } else {
+        LIST_PAD
+    };
     let room = w - lead - LIST_PAD - ICON_SMALL - tokens::GRID;
     for (i, o) in list.iter().enumerate() {
         let ink = Role::OnSurface;
