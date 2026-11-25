@@ -2547,12 +2547,18 @@ pub(crate) fn gate_encode(flows: &[BackupFlow]) -> Vec<u8> {
                 .wallet
                 .as_ref()
                 .map_or(Text::new(), |w| Text::joined(&w.held, ","));
+            let wid = f
+                .wallet
+                .as_ref()
+                .and_then(|w| w.id)
+                .map_or(Text::new(), |id| id.to_hex());
             out.push_str(&text!(
-                "{}\t{}\t{}\t{}\n",
+                "{}\t{}\t{}\t{}\t{}\n",
                 f.kind.code(),
                 &*s.id,
                 &*clean(&s.name),
-                &*held
+                &*held,
+                &*wid
             ));
         }
     }

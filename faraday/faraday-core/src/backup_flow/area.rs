@@ -440,6 +440,14 @@ impl BackupFlowArea {
     }
 }
 
+/// Which flow a gate line is of.
+enum GateFlow {
+    Found(usize),
+    /// Two or more flows fit and the line cannot tell them apart.
+    Unsure,
+    None,
+}
+
 impl BackupFlowArea {
     /// The flow that made the key `subject`, when it is kept.
     pub(crate) fn of(&self, kind: Kind, subject: &[u8]) -> Option<&BackupFlow> {
@@ -480,44 +488,75 @@ impl BackupFlowArea {
         })
     }
 
+    /// The made flow of `kind` and subject `sum` a gate line is of: for a wallet, by its id where both have one (an equal id before a flow with none), by the checksum alone where the line has none and one flow has it.
+    fn gate_flow(
+        &self,
+        kind: Kind,
+        sum: &str,
+        wid: Option<faraday_bip::policy::WalletId>,
+    ) -> GateFlow {
+        let cands: Vec<usize> = (0..self.all.len())
+            .filter(|&i| {
+                let f = &self.all[i];
+                f.kind == kind && f.made && f.subject.as_ref().is_some_and(|s| s.id == sum)
+            })
+            .collect();
+        let id_of = |i: usize| self.all[i].wallet.as_ref().and_then(|w| w.id);
+        if !kind.is_wallet() {
+            return cands
+                .first()
+                .map_or(GateFlow::None, |&i| GateFlow::Found(i));
+        }
+        match wid {
+            Some(w) => cands
+                .iter()
+                .copied()
+                .find(|&i| id_of(i) == Some(w))
+                .or_else(|| cands.iter().copied().find(|&i| id_of(i).is_none()))
+                .map_or(GateFlow::None, GateFlow::Found),
+            None => match cands.as_slice() {
+                [] => GateFlow::None,
+                [i] => GateFlow::Found(*i),
+                _ => GateFlow::Unsure,
+            },
+        }
+    }
+
     /// Costs what `BackupFlow::new` costs, once a key whose flow did not
     /// read. Reads the keys that wait. One whose flow did not read comes
     /// back as a flow of its own at Where, made and unwritten, so it still
     /// waits.
     pub(crate) fn gate_restore(&mut self, c: &Compute, bytes: &[u8]) {
         for line in String::from_utf8_lossy(bytes).lines() {
-            let mut p = line.splitn(4, '\t');
+            let mut p = line.splitn(5, '\t');
             let (Some(k), Some(id), Some(name)) = (p.next(), p.next(), p.next()) else {
                 continue;
             };
             let held = p.next().unwrap_or("");
+            // The wallet's id, where the line has one (a line written
+            // before it was kept has none).
+            let wid = p.next().and_then(faraday_bip::policy::WalletId::from_hex);
             let Some(kind) = Kind::from_code(k) else {
                 continue;
             };
-            let known = self.all.iter().any(|f| {
-                f.kind == kind && f.made && f.subject.as_ref().is_some_and(|s| s.id == id)
-            });
-            if known {
-                // What the gate holds back is held, whatever the flow's
-                // own state says.
-                if kind.is_wallet()
-                    && let Some(w) = self
-                        .all
-                        .iter_mut()
-                        .find(|f| {
-                            f.kind == kind
-                                && f.made
-                                && f.subject.as_ref().is_some_and(|s| s.id == id)
-                        })
-                        .and_then(|f| f.wallet.as_mut())
-                {
-                    for h in held.split(',').filter(|x| !x.is_empty()) {
-                        if !w.held.iter().any(|x| x.eq_ignore_ascii_case(h)) {
-                            w.held.push(Text::of(h));
+            match self.gate_flow(kind, id, wid) {
+                GateFlow::Found(i) => {
+                    // What the gate holds back is held, whatever the flow's
+                    // own state says.
+                    if let Some(w) = self.all[i].wallet.as_mut()
+                        && kind.is_wallet()
+                    {
+                        for h in held.split(',').filter(|x| !x.is_empty()) {
+                            if !w.held.iter().any(|x| x.eq_ignore_ascii_case(h)) {
+                                w.held.push(Text::of(h));
+                            }
                         }
                     }
+                    continue;
                 }
-                continue;
+                // A line that cannot tell two flows of one checksum apart
+                // joins neither: it is a flow of its own, so its key waits.
+                GateFlow::None | GateFlow::Unsure => {}
             }
             let mut f = BackupFlow::new(c, kind);
             f.made = true;
@@ -529,6 +568,7 @@ impl BackupFlowArea {
             if kind.is_wallet() {
                 let mut w = WalletFlow::blank();
                 w.checksum = Some(Text::of(id));
+                w.id = wid;
                 w.name = Text::of(name);
                 w.held = held
                     .split(',')

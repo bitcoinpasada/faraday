@@ -1289,7 +1289,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[m("Reveal::VaultEntry"), m("Reveal::OutboxFile"), p("A label tweak times G is libsecp256k1's ecmult_gen through a secret key, in a randomized context; the output tweak is treated as public and multiplied by ecmult, as libsecp256k1's own silent payments module does."), p("The scan key and the texts that carry it are written in fixed buffers that zeroize on drop. SecretKey is Copy, so every add_tweak, mul_tweak and negate copies the key and only the last copy is erased; the earlier copies are left in memory, later work under the security scope (docs/SECURITY-MODEL.md).")],
         limits: &[p("Scanning stops at K_max, 2323 outputs for one scan key."), p("A script type the protocol does not list, a taproot input under H, an uncompressed key and a scriptSig holding no key matching its hash are skipped."), p("The wallet record keeps public values only.")],
         own_calls: &[p("The faraday-silent 1 record holds the kind, the network, the key's origin, the label count and the address. Neutral."), w("no decision")],
-        screens: &["Silent", "Wallets"],
+        screens: &["BackupFlow", "Silent", "Wallets"],
         from_step: &[],
     },
     Block {

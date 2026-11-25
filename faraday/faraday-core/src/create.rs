@@ -2645,7 +2645,7 @@ impl Faraday {
     ) -> crate::plan::Answers {
         let sets = self.c32_sets(w);
         let flow = self.session.wallets.get(w).and_then(|wl| {
-            let f = &self.flows[self.wallet_flow_active(wl.checksum())?];
+            let f = &self.flows[self.wallet_flow_active(wl.checksum(), Some(wl.id()))?];
             f.wallet
                 .as_ref()
                 .filter(|wf| !wf.setup && !f.made && wf.shape.vaults > 0)

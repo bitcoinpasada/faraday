@@ -332,10 +332,11 @@ pub(crate) fn flow_wallet_ids(
 }
 
 /// Whether share `num` of the flow's wallet is among what a vault held
-/// before the flow (`before`'s tokens). With the wallet's one id, its own
-/// token (and the old form, by checksum `cs`); with none or two, any share
-/// token of that number, so a flow with no id to go by refuses as it
-/// always did.
+/// before the flow (`before`'s tokens). With the wallet's id or ids (one
+/// wallet's, or two of one checksum), their tokens (and the old form, by
+/// checksum `cs`); with none, a token by an id too (it cannot be told whose),
+/// never an old-form token of another checksum, which is plainly another
+/// wallet's.
 pub(crate) fn share_held_before(
     before: &[Text],
     cs: &str,
@@ -344,10 +345,14 @@ pub(crate) fn share_held_before(
 ) -> bool {
     before.contains(&text!("s{cs}:{num}"))
         || match ids {
-            [id] => before.contains(&text!("s{}:{num}", &*id.to_hex())),
-            _ => before
+            [] => before.iter().any(|t| {
+                t.strip_prefix('s')
+                    .and_then(|r| r.strip_suffix(&*text!(":{num}")))
+                    .is_some_and(|who| who.len() == 64)
+            }),
+            ids => ids
                 .iter()
-                .any(|t| t.starts_with('s') && t.ends_with(&*text!(":{num}"))),
+                .any(|id| before.contains(&text!("s{}:{num}", &*id.to_hex()))),
         }
 }
 
@@ -494,7 +499,8 @@ mod tests {
 
     /// A share the vault held before the flow is never taken out, whatever
     /// the flow can tell of its wallet after a restart: with no id found
-    /// any share of that number counts, with one id its own does.
+    /// a share of that number held under any id counts (never an old-form token of
+    /// another checksum), with one id its own does.
     #[test]
     fn a_share_held_before_is_told_by_its_number_where_no_id_is_found() {
         use super::share_held_before;
@@ -505,6 +511,11 @@ mod tests {
         let before = [faraday_text::text!("s{}:2", &*first.id().to_hex())];
         assert!(share_held_before(&before, cs, &[], 2), "no id: the number");
         assert!(!share_held_before(&before, cs, &[], 1));
+        let other = [faraday_text::text!("sdeadbeef:2")];
+        assert!(
+            !share_held_before(&other, cs, &[], 2),
+            "another checksum's is plainly another wallet's"
+        );
         assert!(share_held_before(&before, cs, &[first.id()], 2));
         assert!(share_held_before(&before, cs, &[first.id(), twin.id()], 2));
         assert!(

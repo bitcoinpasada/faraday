@@ -1030,7 +1030,7 @@ impl Session {
     /// a key that began to wait for its backup since, and returns each
     /// one's place (as the list was when it went, the earlier ones already
     /// gone), checksum, name and the refusal's text.
-    pub(crate) fn drop_forged(&mut self, c: &Compute) -> Vec<(usize, Text, Text, Text)> {
+    pub(crate) fn drop_forged(&mut self, c: &Compute) -> Vec<(usize, Text, WalletId, Text, Text)> {
         let now: Vec<Fingerprint> = self.keys.all().map(|k| k.fingerprint).collect();
         let waiting = self.waiting.clone();
         let mut dropped = Vec::new();
@@ -1079,7 +1079,7 @@ impl Session {
             match forged {
                 Some(why) => {
                     let w = self.wallets.remove(i);
-                    dropped.push((i, Text::of(w.checksum()), w.name, why.text()));
+                    dropped.push((i, Text::of(w.checksum()), w.id(), w.name, why.text()));
                 }
                 None => {
                     // A key loaded or removed: what the keys give is
@@ -1424,7 +1424,7 @@ impl Session {
     /// Takes out the wallets made from typed words or seeds that hold the
     /// key under `fp`. The place and checksum of each, as the list was when
     /// it went (the earlier ones already gone). A lookup over the wallets.
-    pub(crate) fn drop_typed_with(&mut self, fp: Fingerprint) -> Vec<(usize, Text)> {
+    pub(crate) fn drop_typed_with(&mut self, fp: Fingerprint) -> Vec<(usize, Text, WalletId)> {
         let mut gone = Vec::new();
         let mut i = 0;
         while i < self.wallets.len() {
@@ -1432,7 +1432,7 @@ impl Session {
             let typed = matches!(w.origin, Origin::TypedWords | Origin::TypedSeeds);
             if typed && self.slots(w).iter().any(|s| s.fingerprint == Some(fp)) {
                 let w = self.wallets.remove(i);
-                gone.push((i, Text::of(w.checksum())));
+                gone.push((i, Text::of(w.checksum()), w.id()));
             } else {
                 i += 1;
             }
@@ -4452,8 +4452,8 @@ impl Faraday {
                     if !gone.is_empty() {
                         // Wallets after the one taken out moved up: a key
                         // tick drawn before is dropped.
-                        for (i, cs) in gone {
-                            self.wallet_left(i, cs.as_str());
+                        for (i, cs, id) in gone {
+                            self.wallet_left(i, cs.as_str(), id);
                         }
                         let last = self.session.wallets.len().saturating_sub(1);
                         self.wallets.set_wallet(self.wallets.wallet().min(last));
@@ -4756,7 +4756,7 @@ impl Faraday {
     /// ([`WalletsArea::list_changed`]).
     pub(crate) fn remove_wallet(&mut self, i: usize) -> wallet::Wallet {
         let w = self.session.wallets.remove(i);
-        self.wallet_left(i, w.checksum());
+        self.wallet_left(i, w.checksum(), w.id());
         w
     }
 
@@ -4766,7 +4766,7 @@ impl Faraday {
     /// place moves it up one when it was after the one gone, and a flow on
     /// the one gone ends (Back up, Restore) or forgets it (the pages that
     /// hold one only once there is one).
-    pub(crate) fn wallet_left(&mut self, gone: usize, checksum: &str) {
+    pub(crate) fn wallet_left(&mut self, gone: usize, checksum: &str, id: WalletId) {
         self.wallets.set_list_changed();
         // First: restore finds the flow by its place, before any flow is
         // dropped below.
@@ -4775,16 +4775,16 @@ impl Faraday {
             .wallet_left(gone)
             .map(|taken| taken.before.and_then(|was| self.flows.restore(*was)));
         if self.backup.wallet_left(gone) {
-            // The flow of the wallet gone, by its checksum: the place
+            // The flow of the wallet gone, by its id: the place
             // now holds the wallet that moved into it.
-            let flow = self.wallet_flow_at(checksum);
+            let flow = self.wallet_flow_at(checksum, Some(id));
             crate::wallet_backup::kef::dropped(self);
             self.backup.close();
             self.flow_drop_unmade(flow);
             if self.screen == Screen::Backup {
                 self.screen = Screen::Wallets;
             }
-        } else if let Some(f) = self.wallet_flow_active(checksum) {
+        } else if let Some(f) = self.wallet_flow_active(checksum, Some(id)) {
             // Another wallet's Back up is the one open: the unmade flow of
             // the wallet gone still ends, its row with it.
             self.flow_drop_unmade(Some(f));
@@ -4886,10 +4886,10 @@ impl Faraday {
         let dropped = self.session.drop_forged(&c);
         self.sync_waiting_if_changed();
         self.sync_psbt_wallets_if_changed();
-        for (i, cs, ..) in &dropped {
-            self.wallet_left(*i, cs.as_str());
+        for (i, cs, id, ..) in &dropped {
+            self.wallet_left(*i, cs.as_str(), *id);
         }
-        if let Some((_, _, name, why)) = dropped.first() {
+        if let Some((_, _, _, name, why)) = dropped.first() {
             let text = Text::fill(EN.vaults_refused, &[name, why]);
             self.wallets.set_wallet(0);
             self.spend_after_wallet_removed();

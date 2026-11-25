@@ -4074,7 +4074,7 @@ impl Faraday {
         let (m, _, paths) = Self::spend_ways(wallet);
         // The vaults set up before the keys are the plan's first vaults.
         let vaults = self
-            .wallet_flow_active(wallet.checksum())
+            .wallet_flow_active(wallet.checksum(), Some(wallet.id()))
             .and_then(|i| self.flows[i].wallet.as_ref())
             .map_or(0, |w| w.shape.vaults);
         plan::Shape {

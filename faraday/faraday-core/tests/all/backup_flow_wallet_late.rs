@@ -772,6 +772,7 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
     assert_eq!(app.flow().unwrap().wallet.as_ref().unwrap().answers.omit, 0);
     assert!(app.flow().unwrap().adding, "Vault 1's share is another now");
     unlock(&mut app, PHRASE);
+    assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
     shell.flow(&mut app, F::CopyKey);
     let texts: Vec<String> = app
         .vaults()
@@ -2477,5 +2478,132 @@ fn the_made_wallet_taken_out_leaves_its_made_flow_with_what_it_wrote() {
             .and_then(|x| x.checksum.as_ref())
             .map(|t| t.to_string()),
         Some("written".to_string())
+    );
+}
+
+/// The description sealed into a vault added after the lock is the text
+/// Faraday makes of the policy it read, never a file's own bytes: a
+/// Coldcard-form export in the Inbox that names the wallet's own key and
+/// also holds a silent payments account has the wallet's id, and the
+/// account it adds is not what the vault stores. The vault's own record is
+/// deleted first, so the copy reaches the Files step.
+#[test]
+fn the_description_put_into_an_added_vault_is_the_policy_faraday_read_not_the_file() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::light();
+    sticks(&mut shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    let fp = key_in(&mut app, 1);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    if app.create().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
+    no_words(&mut app);
+    no_paper_description(&mut app);
+    description_out_of(&mut app, 0);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(Item::Envelopes));
+    let own = app.session.wallets[0].policy().to_descriptor_checksummed();
+    let wid = app.session.wallets[0].id();
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    // The wallet's own key as the export's single-sig account.
+    let origin = &own[own.find('[').unwrap() + 1..own.find(']').unwrap()];
+    let (fp, path) = origin.split_once('/').unwrap();
+    let xpub = own[own.find(']').unwrap() + 1..].split('/').next().unwrap();
+    let deriv = format!("m/{}", path.replace('h', "'"));
+    let export = format!(
+        r#"{{"chain":"XTN","xfp":"{fp}","xpub":"{xpub}","account":0,
+"bip84":{{"deriv":"{deriv}","xpub":"{xpub}","xfp":"{fp}","name":"p2wpkh"}},
+"bip352":{{"spscan":"tspscan1q05wxw5wc7wqmkf8cnfc6ry76qej8vhr3a3mmxmwgv35s0tlw24fs82k0npv2hv6p97s8sd9t7vpf44kluka9w863zjwxzfrym2ay9ccfzt06c4",
+"deriv":"m/352'/1'/0'","name":"p2tr","xfp":"2A21A78D"}}}}"#
+    );
+    let read = faraday_core::wallet::read_wallet(&testkit::compute(), &export);
+    assert_eq!(
+        read.as_ref().map(|p| p.id()).ok(),
+        Some(wid),
+        "the export reads as the wallet's own id: {:?}",
+        read.as_ref().err()
+    );
+    testkit::inbox_insert(
+        &mut app,
+        0,
+        faraday_core::Item {
+            name: faraday_text::Text::of("coldcard-export.json"),
+            bytes: export.into_bytes().into(),
+            kind: faraday_core::wallet::FileKind::Wallet,
+            secret: false,
+            picture: None,
+            sha: None,
+            facts: None,
+            wallet: None,
+            psbt: None,
+            outpoints: Vec::new(),
+            unsigned_txid: None,
+        },
+    );
+    shell.flow(&mut app, F::ChangePlan);
+    flow_whole_in_vault(&mut shell, &mut app, 0);
+    {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        assert!(
+            wf.answers.wallet_in_vault(0),
+            "in Vault 1: {:?}",
+            app.toast_text()
+        );
+    }
+    assert!(app.flow().unwrap().adding, "{:?}", app.toast_text());
+    if app.vaults().open.is_empty() {
+        unlock(&mut app, PHRASE);
+    }
+    // The person deletes the wallet's record from the open vault (Vaults,
+    // Wallets, Delete): no vault of the round holds the description, and
+    // the copy takes it from Files, where the Inbox's export is first.
+    faraday_core::testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Category(1)));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Item(0)));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::HoldDelete));
+    app.press(Action::Nav(Screen::BackupFlow));
+    assert_eq!(
+        app.vaults()
+            .store()
+            .contents_for_tests(app.vaults().open[0].id)
+            .of(kind::WALLET)
+            .count(),
+        0,
+        "the vault holds no description: {:?}",
+        app.toast_text()
+    );
+    shell.flow(&mut app, F::CopyKey);
+    let texts: Vec<String> = app
+        .vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .of(kind::WALLET)
+        .filter_map(|(_, r)| r.text(field::WALLET).map(str::to_string))
+        .collect();
+    let kinds: Vec<u8> = app
+        .vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .iter()
+        .map(|r| r.kind)
+        .collect();
+    assert_eq!(
+        texts,
+        vec![own.to_string()],
+        "{:?} step {:?} kinds {kinds:?} open {} {:?}",
+        app.toast_text(),
+        step(&app),
+        app.vaults().open.len(),
+        app.flow().unwrap().live.problem
     );
 }

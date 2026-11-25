@@ -1526,7 +1526,7 @@ impl Faraday {
                 self.spend_backup_set_wallet(w);
             }
             Ok(i) => {
-                self.wallet_left(w, kept.checksum());
+                self.wallet_left(w, kept.checksum(), kept.id());
                 // `i` was the end of the list with the old wallet out: the
                 // same place now.
                 self.spend_backup_set_wallet(i);
@@ -1547,7 +1547,7 @@ impl Faraday {
                 return true;
             }
             Err(e) => {
-                self.wallet_left(w, kept.checksum());
+                self.wallet_left(w, kept.checksum(), kept.id());
                 self.spend_backup.state.error = Some(e.text());
             }
         }

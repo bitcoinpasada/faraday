@@ -4678,6 +4678,7 @@ standards = [
   "BIP 353",
 ]
 screens = [
+  "BackupFlow",
   "Silent",
   "Wallets",
 ]

@@ -45,6 +45,19 @@ enum CopyStop {
     Wanted(Box<plan::codex32::Wanted>),
 }
 
+/// Whether wallet flow `f` is the flow of the wallet with this checksum and
+/// id: by id where the flow kept one and the wallet's is given (a twin of
+/// the same checksum is another wallet), by checksum alone otherwise.
+fn flow_is_of(f: &BackupFlow, checksum: &str, id: Option<faraday_bip::policy::WalletId>) -> bool {
+    f.wallet.as_ref().is_some_and(|w| {
+        w.checksum.as_deref() == Some(checksum)
+            && match (w.id, id) {
+                (Some(a), Some(b)) => a == b,
+                _ => true,
+            }
+    })
+}
+
 /// What a copy reads and does not change: the flow, its wallet's
 /// description, and the open vaults that hold the keys.
 struct CopyCtx<'a> {
@@ -52,15 +65,49 @@ struct CopyCtx<'a> {
     c: &'a Compute,
     wf: &'a super::WalletFlow,
     cs: &'a str,
+    /// The wallet's id, `None` for a flow that kept none: then the checksum
+    /// tells the wallet.
+    id: Option<faraday_bip::policy::WalletId>,
     holders: Vec<usize>,
 }
 
+/// The description sealed where Files holds one or more records of the wallet (each already the text Faraday makes of it): of those and the loaded wallet's own text, the one with the most labels (a silent record's count; the loaded wallet's first of equals, then the first found). `None` where Files holds none.
+fn sealed_of(found: Vec<Text>, loaded: Option<Text>) -> Option<Text> {
+    if found.is_empty() {
+        return None;
+    }
+    let labels =
+        |t: &Text| faraday_bip::silent_wallet::SilentWallet::parse(t).map_or(0, |s| s.labels);
+    loaded
+        .into_iter()
+        .chain(found)
+        .reduce(|a, b| if labels(&b) > labels(&a) { b } else { a })
+}
+
 impl CopyCtx<'_> {
-    /// Costs reading the wallet description `t` (`read_wallet`): whether it is this wallet's, by its checksum.
+    /// Costs reading the wallet description `t` (`read_wallet`): whether it is this wallet's, by its id (its checksum for a flow with no id).
     fn of_wallet(&self, t: &str) -> bool {
         crate::wallet::read_wallet(self.c, t)
             .ok()
-            .is_some_and(|p| p.checksum() == self.cs)
+            .is_some_and(|p| self.is_policy(p.checksum(), p.id()))
+    }
+
+    /// Costs reading the wallet description `t` (`read_wallet`): the text Faraday makes of the policy it read, when that is this wallet's. Never the file's own bytes (a file that also holds another account reads as this wallet's id and is stored as what Faraday made of it).
+    fn own_text(&self, t: &str) -> Option<Text> {
+        let p = crate::wallet::read_wallet(self.c, t).ok()?;
+        self.is_policy(p.checksum(), p.id())
+            .then(|| match p.silent() {
+                Some(s) => Text::of(&s.to_text()),
+                None => Text::of(&p.to_descriptor_checksummed()),
+            })
+    }
+
+    /// Whether a description with this checksum and id is this wallet's.
+    fn is_policy(&self, checksum: &str, id: faraday_bip::policy::WalletId) -> bool {
+        match self.id {
+            Some(me) => me == id,
+            None => checksum == self.cs,
+        }
     }
 }
 
@@ -80,30 +127,57 @@ impl Faraday {
         self.flows.owner_seq
     }
 
-    /// The wallet flow of the wallet whose descriptor has this checksum: the
+    /// The wallet flow of the wallet with this id (its checksum, where the
+    /// flow kept no id: [`flow_is_of`]): the
     /// one under way, else the one that is done (the checklist reads what
     /// it wrote).
-    pub(crate) fn wallet_flow_at(&self, checksum: &str) -> Option<usize> {
-        self.wallet_flow_active(checksum).or_else(|| {
-            self.flows.iter().position(|f| {
-                f.kind == Kind::Wallet
-                    && f.wallet
-                        .as_ref()
-                        .is_some_and(|w| w.checksum.as_deref() == Some(checksum))
+    pub(crate) fn wallet_flow_at(
+        &self,
+        checksum: &str,
+        id: Option<faraday_bip::policy::WalletId>,
+    ) -> Option<usize> {
+        // A flow of the equal id, under way or else done, before one that
+        // kept no id (the gate's), which only stands in for it.
+        let equal = |also: &dyn Fn(&BackupFlow) -> bool| {
+            id.and_then(|id| {
+                self.flows.iter().position(|f| {
+                    f.kind == Kind::Wallet
+                        && also(f)
+                        && flow_is_of(f, checksum, Some(id))
+                        && f.wallet.as_ref().is_some_and(|w| w.id == Some(id))
+                })
             })
+        };
+        equal(&|f| f.step != Step::Done)
+            .or_else(|| equal(&|_| true))
+            .or_else(|| self.wallet_flow_active(checksum, id))
+            .or_else(|| self.wallet_flow_first(checksum, id, |_| true))
+    }
+
+    /// The first wallet flow of that wallet that `also` accepts: a flow of the equal id before one that kept none (which matches every wallet of the checksum).
+    fn wallet_flow_first(
+        &self,
+        checksum: &str,
+        id: Option<faraday_bip::policy::WalletId>,
+        also: impl Fn(&BackupFlow) -> bool,
+    ) -> Option<usize> {
+        let of = |f: &BackupFlow| f.kind == Kind::Wallet && also(f) && flow_is_of(f, checksum, id);
+        id.and_then(|id| {
+            self.flows
+                .iter()
+                .position(|f| of(f) && f.wallet.as_ref().is_some_and(|w| w.id == Some(id)))
         })
+        .or_else(|| self.flows.iter().position(of))
     }
 
     /// The wallet flow of that wallet that is not done: a new backup of a
     /// wallet whose last one is done starts a flow of its own.
-    pub(crate) fn wallet_flow_active(&self, checksum: &str) -> Option<usize> {
-        self.flows.iter().position(|f| {
-            f.kind == Kind::Wallet
-                && f.step != Step::Done
-                && f.wallet
-                    .as_ref()
-                    .is_some_and(|w| w.checksum.as_deref() == Some(checksum))
-        })
+    pub(crate) fn wallet_flow_active(
+        &self,
+        checksum: &str,
+        id: Option<faraday_bip::policy::WalletId>,
+    ) -> Option<usize> {
+        self.wallet_flow_first(checksum, id, |f| f.step != Step::Done)
     }
 
     /// The place of this flow among the flows (a flow drawn is a reference
@@ -143,8 +217,8 @@ impl Faraday {
     /// done and the keys are not locked away: the checklist's.
     pub(crate) fn wallet_flow_of_backup(&self) -> Option<usize> {
         let b = self.backup.state()?;
-        let cs = self.session.wallets.get(b.wallet)?.checksum();
-        self.wallet_flow_at(cs)
+        let wl = self.session.wallets.get(b.wallet)?;
+        self.wallet_flow_at(wl.checksum(), Some(wl.id()))
     }
 
     /// Whether wallet `w`'s backup was left part way: its vaults set up
@@ -154,7 +228,7 @@ impl Faraday {
         self.session
             .wallets
             .get(w)
-            .and_then(|wl| self.wallet_flow_active(wl.checksum()))
+            .and_then(|wl| self.wallet_flow_active(wl.checksum(), Some(wl.id())))
             .is_some_and(|i| !self.flows[i].made)
     }
 
@@ -876,7 +950,7 @@ impl Faraday {
         let shape = self.plan_shape_now(b.wallet);
         let m = self.plan_mapped(c, &shape, &b.answers);
         let own;
-        let flow = match self.wallet_flow_active(wl.checksum()) {
+        let flow = match self.wallet_flow_active(wl.checksum(), Some(wl.id())) {
             Some(i) => &self.flows[i],
             None => {
                 own = BackupFlow::new_wallet_on(c, shape.clone(), b.answers.clone(), &wl.name, &m);
@@ -950,7 +1024,7 @@ impl Faraday {
         let mut opens: Vec<(usize, usize)> = Vec::new();
         for &v in &used {
             let taken: Vec<usize> = opens.iter().map(|&(_, o)| o).collect();
-            let Some(o) = self.wallet_vault_open(&c, &checksum, v, &taken) else {
+            let Some(o) = self.wallet_vault_open(&c, &checksum, wid, v, &taken) else {
                 return self.toast(EN.backup_flow_unlock_first);
             };
             opens.push((v, o));
@@ -967,7 +1041,7 @@ impl Faraday {
         // The flow of this wallet's backup under way; a flow that is done
         // is replaced, and a new backup writes everything its plan names.
         let mut carry: Vec<Text> = Vec::new();
-        let i = match self.wallet_flow_active(&checksum) {
+        let i = match self.wallet_flow_active(&checksum, Some(wid)) {
             Some(i) => i,
             None => {
                 let done: Vec<usize> = (0..self.flows.len())
@@ -975,9 +1049,7 @@ impl Faraday {
                         let f = &self.flows[k];
                         f.kind == Kind::Wallet
                             && f.step == Step::Done
-                            && f.wallet
-                                .as_ref()
-                                .is_some_and(|x| x.checksum.as_deref() == Some(checksum.as_str()))
+                            && flow_is_of(f, &checksum, Some(wid))
                     })
                     .collect();
                 for k in done.into_iter().rev() {
@@ -1043,7 +1115,7 @@ impl Faraday {
                 .state()
                 .and_then(|b| b.before.iter().find(|(s, _)| *s == salt))
                 .map_or_else(|| self.vault_tokens(&c, o), |(_, t)| texts(t));
-            let others = self.vault_others(&c, o, &checksum);
+            let others = self.vault_others(&c, o, &checksum, Some(wid));
             if let Some(wf) = self.flows.all[i].wallet.as_mut() {
                 if !wf.before.iter().any(|(s, _)| *s == salt) {
                     wf.before.push((salt, held));
@@ -1107,12 +1179,13 @@ impl Faraday {
         &self,
         c: &Compute,
         checksum: &str,
+        wid: faraday_bip::policy::WalletId,
         v: usize,
         taken: &[usize],
     ) -> Option<usize> {
         // The vault the flow made or chose for `v` stays its vault while it
         // fits; the lock never takes another open vault in its place.
-        if let Some(i) = self.wallet_flow_active(checksum) {
+        if let Some(i) = self.wallet_flow_active(checksum, Some(wid)) {
             if let Some(o) = self.flow_open_index(i, v) {
                 return (self.backup_open_fits(c, v, o) && !taken.contains(&o)).then_some(o);
             }
@@ -1274,11 +1347,12 @@ impl Faraday {
 
     /// The flow's wallet, if loaded: its place among the session's wallets.
     pub(crate) fn wallet_flow_wallet(&self, i: usize) -> Option<usize> {
-        let cs = self.flows.get(i)?.wallet.as_ref()?.checksum.clone()?;
-        self.session
-            .wallets
-            .iter()
-            .position(|w| w.checksum() == &*cs)
+        let wf = self.flows.get(i)?.wallet.as_ref()?;
+        let cs = wf.checksum.clone()?;
+        self.session.wallets.iter().position(|w| match wf.id {
+            Some(id) => w.id() == id,
+            None => w.checksum() == &*cs,
+        })
     }
 
     /// The sticks are written: the vault unlocked from Done shows the
@@ -1369,6 +1443,7 @@ impl Faraday {
             c: &c,
             wf: &wf,
             cs: &cs,
+            id: wf.id,
             holders,
         };
         let work = match self.wallet_copy_gather(&cx, &added) {
@@ -1561,29 +1636,45 @@ impl Faraday {
         use faraday_vault::records::{field, kind as rkind};
         let wf = cx.wf;
         let holders = cx.holders.as_slice();
-        let of_wallet = |t: &str| cx.of_wallet(t);
+        let own_text = |t: &str| cx.own_text(t);
         if wf.answers.wallet_in_vault(v) {
+            // A record is there only where its stored text is the text
+            // Faraday makes of it: a raw file's bytes do not stop a clean
+            // copy being put beside it.
             let there: Vec<Text> = self
                 .vaults
                 .records(self.vaults.open[o].id)
                 .of(rkind::WALLET)
-                .filter_map(|(_, r)| r.public_text(field::WALLET).map(Text::of))
+                .filter_map(|(_, r)| {
+                    let stored = r.public_text(field::WALLET)?;
+                    own_text(stored).filter(|t| **t == *stored)
+                })
                 .collect();
             for h in holders {
-                for (_, r) in self
-                    .vaults
-                    .records(self.vaults.open[*h].id)
+                let records = self.vaults.records(self.vaults.open[*h].id);
+                // Of holder records that read to one text, the one whose
+                // stored text is already that text goes first.
+                let mut ordered: Vec<_> = records
                     .of(rkind::WALLET)
-                {
-                    let t = Text::of(r.public_text(field::WALLET).unwrap_or_default());
-                    if of_wallet(&t)
-                        && !there.contains(&t)
+                    .filter_map(|(_, r)| {
+                        let stored = r.public_text(field::WALLET).unwrap_or_default();
+                        own_text(stored).map(|t| (*t != *stored, t, r))
+                    })
+                    .collect();
+                ordered.sort_by_key(|(raw, _, _)| *raw);
+                for (_, t, r) in ordered {
+                    if !there.contains(&t)
                         && !w
                             .add
                             .iter()
                             .any(|x| x.view().public_text(field::WALLET) == Some(&*t))
                         && let Some(copy) = r.to_public()
                     {
+                        // The text Faraday makes of it, whatever the holder's record held.
+                        let mut copy = copy;
+                        if copy.text(field::WALLET) != Some(&*t) {
+                            copy.set(field::WALLET, t.as_bytes());
+                        }
                         w.add.push(Staged::Made(copy));
                     }
                 }
@@ -1591,17 +1682,24 @@ impl Faraday {
             // No vault of the round has it: the description file the
             // checklist wrote, kept in Files, is it.
             if there.is_empty() && !w.add.iter().any(|x| x.view().kind() == rkind::WALLET) {
-                let found = self
+                let files: Vec<Text> = self
                     .inbox
                     .iter()
                     .chain(self.outbox.iter())
                     .filter(|it| it.kind == crate::wallet::FileKind::Wallet)
-                    .filter_map(|it| std::str::from_utf8(&it.bytes).ok().map(Text::of))
-                    .find(|t| of_wallet(t));
-                match found {
+                    .filter_map(|it| std::str::from_utf8(&it.bytes).ok())
+                    .filter_map(own_text)
+                    .collect();
+                let loaded = self
+                    .session
+                    .wallets
+                    .iter()
+                    .find(|x| cx.is_policy(x.checksum(), x.id()))
+                    .map(Faraday::wallet_text);
+                match sealed_of(files, loaded) {
                     Some(t) => w.add.push(Staged::Made(
                         Record::new(rkind::WALLET)
-                            .with(field::WALLET, t.trim().as_bytes())
+                            .with(field::WALLET, t.as_bytes())
                             .with(field::WALLET_NAME, wf.name.as_bytes()),
                     )),
                     None => return Err(CopyStop::Say(Text::of(EN.backup_flow_no_description))),
@@ -1672,8 +1770,9 @@ impl Faraday {
         // share of this wallet goes.
         let kept = wf.answers.vault_shares(c, &wf.shape, v);
         // The flow's wallet by its own id, a loaded twin never standing in;
-        // for a flow saved before the id was kept, the one wallet of its
-        // checksum that is here. Where that is not one wallet, a share
+        // for a flow that holds no id (the gate's, made at a restart from a
+        // line written without one), the one wallet of its checksum that
+        // is here. Where that is not one wallet, a share
         // record is told apart by no one's id: none is taken out and none
         // is put in, and the flow says so where it matters (a share to
         // put in, or one of this checksum here that the plan does not keep).
@@ -1683,15 +1782,11 @@ impl Faraday {
                 if kept.is_empty() && !self.vault_share_unclaimed(cx, o) {
                     return Ok(());
                 }
-                return Err(CopyStop::Say(Text::of(
-                    if ids.is_empty() && kept.is_empty() {
-                        EN.backup_flow_share_unknown
-                    } else if ids.is_empty() {
-                        EN.backup_flow_no_description
-                    } else {
-                        EN.backup_flow_two_wallets
-                    },
-                )));
+                return Err(CopyStop::Say(Text::of(if ids.is_empty() {
+                    EN.backup_flow_no_description
+                } else {
+                    EN.backup_flow_two_wallets
+                })));
             }
         };
         for (k, r) in self.vaults.records(self.vaults.open[o].id).iter() {
@@ -1857,7 +1952,7 @@ impl Faraday {
         let Some(hp) = cx.holders.iter().find_map(|&h| {
             self.vaults
                 .described_of(c, self.vaults.open[h].id, rkind::PLAN)
-                .find(|(_, _, d)| *d.checksum == *cx.cs)
+                .find(|(_, _, d)| cx.is_policy(&d.checksum, d.policy.id()))
                 .map(|(_, _, d)| d.policy.clone())
         }) else {
             return false;
@@ -1867,7 +1962,7 @@ impl Faraday {
             .described_of(c, self.vaults.open[o].id, rkind::PLAN)
             .any(|(_, r, d)| {
                 *d.same == *want
-                    && *d.checksum != *cx.cs
+                    && !cx.is_policy(&d.checksum, d.policy.id())
                     && !crate::vault::plan_store::same_keys(d, &hp)
                     && !crate::vault::plan_store::reads_for(d, r, &hp)
             })
@@ -1902,7 +1997,7 @@ impl Faraday {
         let holder = holders.iter().find_map(|&h| {
             self.vaults
                 .described_of(c, self.vaults.open[h].id, rkind::PLAN)
-                .find(|(_, _, d)| *d.checksum == *cx.cs)
+                .find(|(_, _, d)| cx.is_policy(&d.checksum, d.policy.id()))
                 .and_then(|(_, r, d)| Some((r.to_public()?, d.policy.clone())))
         });
         // Each record of the wallet in the vault, and whether one is in the
@@ -1920,7 +2015,7 @@ impl Faraday {
                     continue;
                 }
                 kept.push(k);
-                other_order |= *d.checksum != *cx.cs;
+                other_order |= !cx.is_policy(&d.checksum, d.policy.id());
             }
         }
         // With one in the other order, the vault's records of the wallet
@@ -1976,7 +2071,7 @@ impl Faraday {
         // and the keys other wallets' records in it name: kept.
         let salt = self.vaults.open[o].vault_id();
         let first = self.vault_tokens(c, o);
-        let others = self.vault_others(c, o, cs);
+        let others = self.vault_others(c, o, cs, cx.id);
         if let Some(f) = self.flows.all[i].wallet.as_mut() {
             if !f.before.iter().any(|(s, _)| *s == salt) {
                 f.before.push((salt, first));
@@ -2434,9 +2529,16 @@ impl Faraday {
     }
 
     /// Costs what `described` costs. The keys, by fingerprint, that a
-    /// record in open vault `o` of a wallet other than the one with
-    /// checksum `cs` names: its description, or its plan.
-    pub(crate) fn vault_others(&self, c: &Compute, o: usize, cs: &str) -> Vec<Text> {
+    /// record in open vault `o` of a wallet other than the one with this id
+    /// (the checksum `cs` where there is none: a twin of the same checksum is
+    /// another wallet) names: its description, or its plan.
+    pub(crate) fn vault_others(
+        &self,
+        c: &Compute,
+        o: usize,
+        cs: &str,
+        id: Option<faraday_bip::policy::WalletId>,
+    ) -> Vec<Text> {
         let mut out: Vec<Text> = Vec::new();
         let Some(v) = self.vaults.open.get(o) else {
             return out;
@@ -2448,7 +2550,7 @@ impl Faraday {
                 continue;
             };
             let p = &d.policy;
-            if d.checksum == cs {
+            if id.map_or(d.checksum == cs, |id| p.id() == id) {
                 continue;
             }
             // Any record of another wallet: its keys may derive from a
@@ -3082,5 +3184,203 @@ impl Faraday {
             && !self
                 .wallet_flow_of_owner(owner)
                 .is_some_and(|i| self.flows[i].step > Step::Vaults)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CopyCtx, flow_is_of};
+    use crate::testkit::{self, WALLET_ID_FIRST as FIRST, WALLET_ID_TWIN as TWIN};
+    use crate::wallet::Origin;
+    use faraday_text::Text;
+
+    fn app_with(wallets: &[&str]) -> crate::Faraday {
+        let c = testkit::compute();
+        let mut app = crate::Faraday::new();
+        testkit::move_to(&mut app.session, testkit::NET).unwrap();
+        for (name, d) in ["First", "Twin"].into_iter().zip(wallets) {
+            app.session
+                .add_wallet_confirmed(&c, name, d, "kit", Origin::Named)
+                .expect("the wallet reads");
+        }
+        app
+    }
+
+    /// Silent records of the same address and origin with another label
+    /// count: the largest of the loaded wallet's and Files' is sealed,
+    /// never the first one found.
+    #[test]
+    fn a_silent_record_in_files_with_another_label_count_seals_the_larger() {
+        let c = testkit::compute();
+        let base = faraday_bip::silent_wallet::from_scan_key(
+            &c,
+            "tspscan1q05wxw5wc7wqmkf8cnfc6ry76qej8vhr3a3mmxmwgv35s0tlw24fs82k0npv2hv6p97s8sd9t7vpf44kluka9w863zjwxzfrym2ay9ccfzt06c4",
+            "2A21A78D",
+            "m/352'/1'/0'",
+        )
+        .unwrap();
+        let with = |labels: u32| {
+            let mut s = base.clone();
+            s.labels = labels;
+            Text::of(&s.to_text())
+        };
+        let (none, two, five) = (with(0), with(2), with(5));
+        assert_eq!(
+            super::sealed_of(vec![none.clone(), two.clone()], None),
+            Some(two.clone()),
+            "the larger count, not the first"
+        );
+        assert_eq!(
+            super::sealed_of(vec![five.clone(), none.clone(), two.clone()], None),
+            Some(five.clone())
+        );
+        assert_eq!(
+            super::sealed_of(vec![none.clone()], Some(two.clone())),
+            Some(two.clone()),
+            "one old copy in Files never takes the loaded wallet's place"
+        );
+        assert_eq!(
+            super::sealed_of(vec![none.clone(), five.clone()], Some(two.clone())),
+            Some(five),
+            "nor the loaded wallet a newer copy's"
+        );
+        assert_eq!(
+            super::sealed_of(Vec::new(), Some(two)),
+            None,
+            "Files holds none"
+        );
+        assert_eq!(super::sealed_of(Vec::new(), None), None);
+    }
+
+    /// A description of the checksum but not of the wallet's id is no copy
+    /// of the wallet: a crafted file in Files, a twin's record in a holder
+    /// or in the added vault never counts for it.
+    #[test]
+    fn a_description_of_the_same_checksum_is_not_the_wallets_copy() {
+        let c = testkit::compute();
+        let first = crate::wallet::read_wallet(&c, &Text::of(FIRST)).unwrap();
+        let wf = crate::backup_flow::WalletFlow::blank();
+        let cx = |id| CopyCtx {
+            i: 0,
+            c: &c,
+            wf: &wf,
+            cs: first.checksum(),
+            id,
+            holders: Vec::new(),
+        };
+        let by_id = cx(Some(first.id()));
+        assert!(by_id.of_wallet(FIRST));
+        assert!(!by_id.of_wallet(TWIN), "the twin's description");
+        // A flow with no id goes by the checksum, as it always did.
+        assert!(cx(None).of_wallet(TWIN));
+    }
+
+    /// A twin's Back up neither takes over nor overwrites the first
+    /// wallet's flow, and the flow acts on its own wallet whichever is
+    /// loaded first.
+    #[test]
+    fn a_twins_flow_lookup_never_finds_the_first_wallets_flow() {
+        let c = testkit::compute();
+        let mut app = app_with(&[TWIN, FIRST]);
+        let (twin, first) = (app.session.wallets[0].id(), app.session.wallets[1].id());
+        let cs = Text::of(app.session.wallets[0].checksum());
+        let shape = app.plan_shape_now(1);
+        let answers = app.wallet_start_answers(&c, 1, &shape);
+        let mut f = crate::backup_flow::BackupFlow::new_wallet(&c, shape, answers, "First");
+        if let Some(wf) = f.wallet.as_mut() {
+            wf.checksum = Some(Text::of(&cs));
+            wf.id = Some(first);
+        }
+        let i = testkit::flow_push(&mut app, f);
+        assert!(flow_is_of(&app.flows[i], &cs, Some(first)));
+        assert!(!flow_is_of(&app.flows[i], &cs, Some(twin)));
+        assert_eq!(app.wallet_flow_active(&cs, Some(first)), Some(i));
+        assert_eq!(app.wallet_flow_active(&cs, Some(twin)), None);
+        assert_eq!(app.wallet_flow_at(&cs, Some(twin)), None);
+        assert_eq!(app.wallet_flow_wallet(i), Some(1), "its own, not the twin");
+    }
+
+    /// Two flows of one checksum, a twin's and the first wallet's: the
+    /// flow of the equal id is found before one that kept none, wherever
+    /// either stands.
+    #[test]
+    fn a_flow_of_the_equal_id_is_found_before_one_with_no_id() {
+        let c = testkit::compute();
+        let mut app = app_with(&[TWIN, FIRST]);
+        let first = app.session.wallets[1].id();
+        let cs = Text::of(app.session.wallets[0].checksum());
+        let shape = app.plan_shape_now(1);
+        let mut at = Vec::new();
+        for id in [None, Some(first)] {
+            let answers = app.wallet_start_answers(&c, 1, &shape);
+            let mut f =
+                crate::backup_flow::BackupFlow::new_wallet(&c, shape.clone(), answers, "First");
+            if let Some(wf) = f.wallet.as_mut() {
+                wf.checksum = Some(Text::of(&cs));
+                wf.id = id;
+            }
+            at.push(testkit::flow_push(&mut app, f));
+        }
+        assert_eq!(app.wallet_flow_active(&cs, Some(first)), Some(at[1]));
+        assert_eq!(app.wallet_flow_at(&cs, Some(first)), Some(at[1]));
+        assert_eq!(app.wallet_flow_active(&cs, None), Some(at[0]));
+    }
+
+    /// Two made flows of one checksum, each with a key held: a gate line
+    /// joins the flow of its own id; a line with none is a flow of its own.
+    #[test]
+    fn a_gate_line_joins_a_held_key_only_to_its_own_flow() {
+        let c = testkit::compute();
+        let mut app = app_with(&[TWIN, FIRST]);
+        let (twin, first) = (app.session.wallets[0].id(), app.session.wallets[1].id());
+        let cs = Text::of(app.session.wallets[0].checksum());
+        let shape = app.plan_shape_now(1);
+        let mut at = Vec::new();
+        for id in [first, twin] {
+            let answers = app.wallet_start_answers(&c, 1, &shape);
+            let mut f = crate::backup_flow::BackupFlow::new_wallet(&c, shape.clone(), answers, "W");
+            f.made = true;
+            f.subject = Some(crate::backup_flow::Subject {
+                id: Text::of(&cs),
+                name: Text::of("W"),
+            });
+            if let Some(wf) = f.wallet.as_mut() {
+                wf.checksum = Some(Text::of(&cs));
+                wf.id = Some(id);
+            }
+            at.push(testkit::flow_push(&mut app, f));
+        }
+        let code = crate::backup_flow::Kind::Wallet.code();
+        let mut bytes = Text::new();
+        for (id, key) in [
+            (Some(twin), "aaaa0001"),
+            (Some(first), "bbbb0002"),
+            (None, "cccc0003"),
+        ] {
+            let id = id.map_or(Text::new(), |i| i.to_hex());
+            bytes.push_str(&faraday_text::text!(
+                "{code}\t{}\tW\t{key}\t{}\n",
+                &*cs,
+                &*id
+            ));
+        }
+        app.flows.gate_restore(&c, bytes.as_bytes());
+        let held = |i: usize| -> Vec<&str> {
+            let wf = app.flows[i].wallet.as_ref().unwrap();
+            wf.held.iter().map(|t| &**t).collect()
+        };
+        assert_eq!(held(at[0]), vec!["bbbb0002"], "the first wallet's own");
+        assert_eq!(held(at[1]), vec!["aaaa0001"], "the twin's own");
+        assert_eq!(
+            app.flows.len(),
+            3,
+            "the line that tells none apart is a flow of its own"
+        );
+        let own = app.flows[2].wallet.as_ref().unwrap();
+        assert_eq!(
+            own.held.iter().map(|t| &**t).collect::<Vec<_>>(),
+            vec!["cccc0003"]
+        );
+        assert!(app.flows[2].made && own.id.is_none());
     }
 }
