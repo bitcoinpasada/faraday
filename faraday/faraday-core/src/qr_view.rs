@@ -1350,6 +1350,13 @@ impl Faraday {
             view.whole = Some(Text::of(text));
             Ok(view)
         };
+        // An address under its code in groups of four, as every screen shows
+        // one; the code itself holds the address.
+        let address = |title: &str, text: &str| -> Result<QrView, Why> {
+            let mut view = plain(title, text)?;
+            view.whole = Some(faraday_ui::grouped(text));
+            Ok(view)
+        };
         let path = || {
             self.explore
                 .path()
@@ -1388,7 +1395,7 @@ impl Faraday {
                     EN.code_view_receive,
                     &[&text!("{}", &*w.name), &text!("{at}")],
                 );
-                plain(&title, &a).map(|mut v| {
+                address(&title, &a).map(|mut v| {
                     v.caution = crate::wallet::keys_caution_text(w);
                     v
                 })
@@ -1399,11 +1406,11 @@ impl Faraday {
                 if v.key.is_some_and(|k| self.key_held(c, Fingerprint(k))) {
                     return Err(EN.code_view_no_address.into());
                 }
-                plain(EN.vanity_vanity_address, f.address.as_str())
+                address(EN.vanity_vanity_address, f.address.as_str())
             }
             Code::ExploreAddress => {
                 let r = explore_open()?;
-                plain(
+                address(
                     &Text::fill(EN.code_view_explore_address, &[&path()]),
                     &r.address,
                 )

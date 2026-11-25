@@ -124,7 +124,9 @@ fn a_character_that_cannot_start_the_address_is_refused() {
 fn the_address_found_opens_its_code() {
     let mut app = with_key();
     let found = search(&mut app, "q");
-    crate::common::opens_its_code(&mut app, faraday_core::Code::VanityAddress, &found);
+    let shown = String::from(&*faraday_ui::grouped(&found));
+    let code = faraday_core::Code::VanityAddress;
+    crate::common::opens_its_code_shown(&mut app, code, &found, &shown);
     assert_eq!(opened_address(&mut app), found);
 }
 

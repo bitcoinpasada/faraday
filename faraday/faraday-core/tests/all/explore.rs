@@ -180,7 +180,12 @@ fn the_address_public_key_and_extended_key_open_their_codes() {
         ),
         (Code::ExploreXpub, r.xpub.as_str()),
     ] {
-        crate::common::opens_its_code(&mut app, code, want);
+        // The address is read in groups of four; the keys as they are.
+        let shown = match code {
+            Code::ExploreAddress => String::from(&*faraday_ui::grouped(want)),
+            _ => want.to_string(),
+        };
+        crate::common::opens_its_code_shown(&mut app, code, want, &shown);
     }
 }
 

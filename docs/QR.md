@@ -349,7 +349,7 @@ rule's reach is written down):
   screen prints it, by `Session::address_shown` or `Session::shown`
   (§1, Sending): not a `bitcoin:` URI, not upper-cased. In Practice
   that is the testnet address the screen prints (F81). The QR sheet
-  shows the address whole under the code (`QrView::whole`), to read
+  shows the address whole, in groups of four, under the code (`QrView::whole`), to read
   against the code.
 - Explore's public key and extended key, and the node id: the text the
   screen shows (hex for the keys, the xpub as printed).
