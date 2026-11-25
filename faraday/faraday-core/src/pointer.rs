@@ -828,6 +828,10 @@ impl Faraday {
         if screen != Screen::Decode && !for_decode {
             self.decode.drop_typed();
         }
+        // The nonce check's chosen input goes on leaving the check.
+        if screen != Screen::NonceCheck {
+            self.decode.drop_nonce_input();
+        }
         if self.sheet != Some(Sheet::WordList) {
             self.wordlist.clear();
         }

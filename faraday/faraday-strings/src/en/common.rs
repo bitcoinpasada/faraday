@@ -894,6 +894,30 @@ macro_rules! words_common {
     // ----- nonce check of a transaction brought in (faraday-core/src/screens/nonce_check.rs) -----
     /// Title of `Screen::NonceCheck`.
     nonce_screen_title: "Nonce check",
+    /// Question heading the pane of `Screen::NonceCheck` as the flow's one card (`decode/nonce_flow.rs`).
+    nonce_pane_question: "Choose an input",
+    /// Heading of the pane's group holding the file or scan the check opened from.
+    nonce_pane_file: "Checked",
+    /// Heading of the pane's group of inputs.
+    nonce_pane_inputs: "Inputs",
+    /// First row of the pane: every input's signatures.
+    nonce_pane_all: "All inputs",
+    /// Second line of a pane row. `{}`: the number of signatures on the input, `{}`: its verdict.
+    nonce_pane_line: "{} · {}",
+    /// Pane row's signatures: one.
+    nonce_pane_one_signature: "1 signature",
+    /// Pane row's signatures: not one. `{}`: how many.
+    nonce_pane_signatures: "{} signatures",
+    /// Second line of an input row with no signature.
+    nonce_pane_no_signature: "No signature",
+    /// Verdict of a pane row whose input shares a nonce with another input.
+    nonce_pane_reused: "Nonce reused",
+    /// Verdict of a pane row whose input's key was used before, on another transaction.
+    nonce_pane_used_before: "Nonce used before",
+    /// Verdict of a pane row whose input does not match the output it spends.
+    nonce_pane_mismatch: "Does not match",
+    /// The card's line when the chosen input has no signature.
+    nonce_card_input_none: "No signature on this input",
     /// Line in `Screen::NonceCheck` for a PSBT that is not finished.
     nonce_screen_more_wanted: "Not finished: more signatures are wanted",
     /// Line in `Screen::NonceCheck` when a signature is wrong.

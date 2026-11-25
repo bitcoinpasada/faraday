@@ -1834,6 +1834,8 @@ keeps its changes, and a lock asks about them as it does today.
 
 ## Nonce check
 
+**On a window wide enough for the container's pair the check is one card** (owner, 2026-11-24): at the left the file or scan it opened from (a press chooses All inputs), All inputs and a row per input (its number, how many signatures, its verdict, or the warning that names it: a nonce reused, its nonce used before, an input that does not match, in the error role); a row chosen shows only that input's signatures, every warning stays above them, and the buttons act on the whole transaction. A small panel draws the page below.
+
 **A signed transaction brought in is checked, not signed** (owner,
 2026-10-29). A PSBT that carries a signature and that no key loaded here
 is left to sign (each key a key origin names on an input not yet final

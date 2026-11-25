@@ -24,6 +24,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(o) = app.outside_check() else {
         return;
     };
+    if crate::decode::nonce_flow::contained_check(app) {
+        return card(app, ui, x0, cw, h);
+    }
     // A small panel has the way back in its bar, and one column.
     let (x, w) = if ui.compact {
         (x0 + compact::M, cw - 2.0 * compact::M)
@@ -40,7 +43,83 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &o.source) + PAD;
-    y += nonce_card(ui, &o.check, x, y, w);
+    y = body(app, ui, o, (x, y, w), None);
+    app.scroll.content_h().set(y - top + SPACER);
+    ui.region_close(open, app.scroll.content_h().get() - h);
+}
+
+/// The nonce check as the flow's one card: the file and the inputs are at
+/// the left, the card holds the check, of one input's signatures when one
+/// is chosen (`docs/FLOW-CONTAINER.md` §2).
+fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::decode::nonce_flow::{CHECK, NONCE_STEPS};
+    let Some(o) = app.outside_check() else {
+        return;
+    };
+    let back = app.named_back((decode_back(o.back), Action::Nav(o.back)));
+    let page = crate::flow::Page {
+        area: (x0, cw),
+        h,
+        foot_h: 0.0,
+        back: Some(back),
+        heading: EN.nonce_screen_title,
+        chip: None,
+        note: None,
+        chip_tap: None,
+        step: None,
+        moves: crate::ui::Moves::No,
+    };
+    let Some(contained) = crate::trail::StepFlow::contained(&NONCE_STEPS) else {
+        return;
+    };
+    let scroll = app.decode.nonce_scroll();
+    let (next, again, _) = {
+        let app_ref: &View = app;
+        let mut body_of = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
+            if step != CHECK {
+                return 0.0;
+            }
+            let Some(o) = app_ref.outside_check() else {
+                return 0.0;
+            };
+            let end = body(app_ref, ui, o, (x, y, w), o.input);
+            // Where the pair does not stand the pane's rows follow the
+            // check: every warning stays at the card's top.
+            let mut cy = end;
+            if !crate::flow::pair_left(app_ref, &NONCE_STEPS, ui.compact, cw) {
+                for g in crate::decode::nonce_pane::groups(app_ref) {
+                    cy += crate::pick::head(ui, x, cy, w, g.head);
+                    cy += crate::pick::rows(ui, x, cy, w, &g.rows);
+                }
+            }
+            cy - y
+        };
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        crate::flow::contained(
+            ui,
+            app_ref,
+            contained,
+            &page,
+            scroll,
+            &mut body_of,
+            &mut under,
+        )
+    };
+    app.scroll(crate::drawing::Scrolled::NonceCheck, next, again);
+}
+
+/// The check from `y`: its warnings and rows (of input `only`, or every
+/// one's), why nothing is finished, what is done with it and the ending.
+/// Returns where it ends.
+fn body(
+    app: &View,
+    ui: &mut Ui,
+    o: &crate::decode::OutsideCheck,
+    (x, y, w): (f32, f32, f32),
+    only: Option<usize>,
+) -> f32 {
+    let mut y = y;
+    y += nonce_card(ui, &o.check, x, y, w, only);
     let wrong = o.check.refused(o.finished.is_some());
     // Why there is no finished transaction, when there is none.
     if o.finished.is_none() {
@@ -120,6 +199,5 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.stroke(x, y, w, th + 2.0 * PAD, SHAPE_S, Role::OutlineVariant);
         y += th + 2.0 * PAD + PAD;
     }
-    app.scroll.content_h().set(y - top + SPACER);
-    ui.region_close(open, app.scroll.content_h().get() - h);
+    y
 }

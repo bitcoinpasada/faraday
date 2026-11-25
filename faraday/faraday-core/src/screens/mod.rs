@@ -96,7 +96,7 @@ use sheets::{
 use sidebar::sidebar;
 pub(crate) use sidebar::{leave_label, lock_held_pill, name_suffix};
 pub(crate) use spend::{
-    STEPS as SPEND_TITLES, signers_count, single_key_unloaded, step_body, step_summary,
+    STEPS as SPEND_TITLES, row_verdict, signers_count, single_key_unloaded, step_body, step_summary,
 };
 pub(crate) use wallets::{
     backup_line, loose_card, missing_keys_line, silent_address_lines, slot_marks, spend_paths_rows,

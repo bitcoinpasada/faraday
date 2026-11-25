@@ -1315,6 +1315,9 @@ impl Faraday {
             Screen::CheckMessage if crate::screens::check_message::contained(self) => {
                 Place::CheckMessage
             }
+            Screen::NonceCheck if crate::decode::nonce_flow::contained_check(self) => {
+                self.decode.nonce_scroll_y().map(|_| Place::NonceCheck)?
+            }
             Screen::Files
             | Screen::Wallets
             | Screen::WalletsStart
@@ -1417,6 +1420,7 @@ impl Faraday {
             Place::Invoice => y(self.tools.invoice.scroll_y()),
             Place::Decode => y(self.decode.scroll_y()),
             Place::CheckMessage => y(Some(self.message.check_scroll_y())),
+            Place::NonceCheck => y(self.decode.nonce_scroll_y()),
             Place::SeedCheck => y(self.tools.seed_check.scroll_y()),
             Place::MultisigCheck => y(self.tools.mscheck.scroll_y()),
             Place::CoreWallet => y(self.tools.core_wallet.scroll_y()),
@@ -1467,6 +1471,7 @@ impl Faraday {
             Place::Invoice => self.tools.invoice.set_scroll_y(to),
             Place::Decode => self.decode.set_scroll_y(to),
             Place::CheckMessage => self.message.set_check_scroll_y(to),
+            Place::NonceCheck => self.decode.set_nonce_scroll_y(to),
             Place::SeedCheck => self.tools.seed_check.set_scroll_y(to),
             Place::MultisigCheck => self.tools.mscheck.set_scroll_y(to),
             Place::CoreWallet => self.tools.core_wallet.set_scroll_y(to),
@@ -1519,6 +1524,8 @@ enum Place {
     Decode,
     /// Check a signed message's card, where it is drawn as a flow.
     CheckMessage,
+    /// The nonce check's card, where it is drawn as a flow.
+    NonceCheck,
     SeedCheck,
     MultisigCheck,
     CoreWallet,
@@ -1554,6 +1561,12 @@ impl Faraday {
     /// How far the stick's list in the Files visit is scrolled, units.
     pub fn visit_in_offset(&self) -> f32 {
         self.scroll.visit_in_offset()
+    }
+
+    /// How far the nonce check's one card is scrolled, units: none when
+    /// no check is open.
+    pub fn nonce_card_offset(&self) -> Option<f32> {
+        self.decode.nonce_scroll_y()
     }
 
     /// How far Your choices is scrolled within its pane, units.

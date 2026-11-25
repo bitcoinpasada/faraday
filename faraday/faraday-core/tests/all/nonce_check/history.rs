@@ -205,6 +205,36 @@ fn a_key_reusing_a_nonce_on_another_transaction_is_refused_and_nothing_is_offere
 }
 
 #[test]
+fn a_key_used_before_is_warned_of_with_every_row_chosen() {
+    use faraday_core::decode::CheckPress;
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+    let (d, k) = (key(3), key(9));
+    let (a, b) = (signed(0, &d, &k), signed(1, &d, &k));
+    let mut app = with_named_vault(&[&a, &b]);
+    remembered(&mut app);
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    check_file(&mut app, 2);
+    for row in [None, Some(0)] {
+        app.press(Action::NonceCheck(CheckPress::Input(row)));
+        let text = shown(&mut app);
+        assert!(text.contains("nonce used before, on another"), "{row:?}");
+        assert!(text.contains(EN.nonce_screen_refused_used), "{row:?}");
+        assert!(text.contains(EN.nonce_pane_used_before), "the pane row");
+    }
+}
+
+#[test]
 fn the_same_signature_again_is_not_refused_and_the_vault_says_so() {
     let (d, k) = (key(3), key(9));
     let a = signed(0, &d, &k);

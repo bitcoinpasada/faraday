@@ -302,6 +302,7 @@ pub(crate) enum Scrolled {
     Decode,
     /// Check a signed message's card, where it is drawn as a flow.
     CheckMessage,
+    NonceCheck,
     SeedCheck,
     MultisigCheck,
     CoreWallet,
@@ -551,6 +552,9 @@ impl Faraday {
                 }
                 Scrolled::CheckMessage => {
                     self.message.set_check_scroll(to);
+                }
+                Scrolled::NonceCheck => {
+                    self.decode.set_nonce_scroll(to);
                 }
                 Scrolled::SeedCheck => {
                     self.tools.seed_check.set_scroll(to);

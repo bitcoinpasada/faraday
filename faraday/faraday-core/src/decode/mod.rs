@@ -13,6 +13,8 @@ pub(crate) mod check_screen;
 pub(crate) mod check_words;
 pub(crate) mod diff_words;
 pub(crate) mod flow;
+pub(crate) mod nonce_flow;
+pub(crate) mod nonce_pane;
 pub(crate) mod said;
 pub(crate) mod screen;
 
@@ -332,6 +334,15 @@ pub struct OutsideCheck {
     /// What the inputs spend, as far as is known, and from where, for
     /// Decode.
     prevouts: (Vec<Option<TxOut>>, AmountsFrom),
+    /// Each input's signature count and verdict, worked out when the
+    /// check opens and again when it is made again (`nonce_flow`).
+    pub rows: Vec<nonce_flow::InputRow>,
+    /// The input whose signatures the card shows; `None` for all of them.
+    /// Dropped on leaving the check and at a lock.
+    pub input: Option<usize>,
+    /// How far the flow's card is scrolled, where the check is drawn as
+    /// one.
+    scroll: crate::flow::Scroll,
 }
 
 /// What [`OutsideCheck`] offers when the nonce history refuses nothing.
@@ -383,6 +394,8 @@ pub enum CheckPress {
     Out,
     /// Decode the checked transaction.
     Decode,
+    /// The input whose signatures the card shows, or all of them.
+    Input(Option<usize>),
 }
 
 /// The Decode screen's area: the transaction taken apart, while it is
@@ -622,6 +635,37 @@ impl DecodeArea {
     pub(crate) fn set_check_scroll_y(&mut self, y: f32) {
         if let Some(x) = self.check.as_mut() {
             x.scroll.y = y;
+        }
+    }
+
+    /// The nonce check's chosen input is dropped: it opens on all of them.
+    pub(crate) fn drop_nonce_input(&mut self) {
+        if let Some(o) = self.outside.as_mut() {
+            o.input = None;
+        }
+    }
+
+    /// The nonce check card's scroll.
+    pub(crate) fn nonce_scroll(&self) -> crate::flow::Scroll {
+        self.outside
+            .as_ref()
+            .map_or_else(Default::default, |o| o.scroll)
+    }
+
+    pub(crate) fn set_nonce_scroll(&mut self, to: crate::flow::Scroll) {
+        if let Some(o) = self.outside.as_mut() {
+            o.scroll = to;
+        }
+    }
+
+    /// The card's scroll, units.
+    pub(crate) fn nonce_scroll_y(&self) -> Option<f32> {
+        self.outside.as_ref().map(|o| o.scroll.y)
+    }
+
+    pub(crate) fn set_nonce_scroll_y(&mut self, y: f32) {
+        if let Some(o) = self.outside.as_mut() {
+            o.scroll.y = y;
         }
     }
 
@@ -878,6 +922,7 @@ impl Faraday {
         } else {
             (finished, hex)
         };
+        let rows = nonce_flow::input_rows(&check.rows, psbt.unsigned_tx().input.len());
         self.decode.outside = Some(Box::new(OutsideCheck {
             source: Text::of(&name),
             check,
@@ -889,11 +934,15 @@ impl Faraday {
             back,
             show_hex: false,
             made_with: self.session.inspect_inputs(),
+            rows,
+            input: None,
+            scroll: crate::flow::Scroll::default(),
             psbt,
             prevouts,
         }));
         self.screen = Screen::NonceCheck;
         self.list_offset = 0.0;
+        self.scroll.set_choices_offset(0.0);
     }
 
     /// Costs what [`wallet::Session::nonce_check`] costs when the keys or
@@ -913,6 +962,7 @@ impl Faraday {
                 o.check.used_before = found;
                 o.made_with = now;
                 o.check.history_gen = u64::MAX;
+                o.rows = nonce_flow::input_rows(&o.check.rows, o.psbt.unsigned_tx().input.len());
             }
             // The history may have changed since the check was made.
             o.sync(&history);
@@ -921,6 +971,9 @@ impl Faraday {
         if let (Some(entries), Some(o)) = (noted, self.decode.outside.as_ref()) {
             let tx = o.check.tx;
             self.memory.nonces.note(tx, &entries);
+        }
+        if let Some(o) = self.decode.outside.as_mut() {
+            o.scroll = crate::flow::Scroll::default();
         }
         self.screen = Screen::NonceCheck;
         self.list_offset = 0.0;
@@ -947,6 +1000,15 @@ impl Faraday {
         match press {
             CheckPress::Inbox(k) => self.nonce_check_open(c, k),
             CheckPress::Back => self.nonce_check_back(c),
+            CheckPress::Input(i) => {
+                if let Some(o) = self.decode.outside.as_mut() {
+                    o.input = i.filter(|k| o.rows.iter().any(|r| r.input == *k));
+                    // The card on a wide window scrolls by its own offset.
+                    o.scroll = crate::flow::Scroll::default();
+                }
+                // The warnings and the chosen rows are in view.
+                self.list_offset = 0.0;
+            }
             CheckPress::Hex => {
                 if let Some(o) = self.decode.outside.as_mut() {
                     o.show_hex = !o.show_hex;
@@ -1893,5 +1955,6 @@ impl crate::at_lock::AtLock for DecodeArea {
     fn lock(&mut self) {
         self.clear_check();
         self.drop_typed();
+        self.drop_nonce_input();
     }
 }

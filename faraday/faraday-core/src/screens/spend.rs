@@ -34,19 +34,22 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
     let Some(check) = app.nonce_check(psbt) else {
         return 0.0;
     };
-    nonce_card(ui, &check, x, y, w)
+    nonce_card(ui, &check, x, y, w, None)
 }
 
 /// The nonce check: each signature against its key and this
 /// transaction, each one made here recomputed from its key, and any nonce
 /// used twice. Drawn on Spend's Send it card and on the nonce check of a
-/// transaction brought in (`Screen::NonceCheck`). Returns its height.
+/// transaction brought in (`Screen::NonceCheck`). `only` is the input
+/// whose signatures are drawn, or `None` for every input's; every warning
+/// above the rows is drawn whichever it is. Returns its height.
 pub(crate) fn nonce_card(
     ui: &mut Ui,
     check: &crate::wallet::NonceCheck,
     x: f32,
     y: f32,
     w: f32,
+    only: Option<usize>,
 ) -> f32 {
     let mut cy = y;
     let head = check.headline();
@@ -60,10 +63,11 @@ pub(crate) fn nonce_card(
         (Role::Warning, Icon::Warning)
     };
     ui.icon(x, cy + 8.0, 20.0, icon, 12.0, tone);
-    if ui.compact {
-        // Wrapped beside its icon on a small panel.
+    let room = w - 26.0;
+    if ui.compact || ui.wrap_lines_as(TITLE_S, &head, room) > 1 {
+        // Wrapped beside its icon on a small panel, or where it does not fit.
         cy += ui
-            .wrap_as((x + 26.0, cy + 8.0, w - 26.0), TITLE_S, tone, &head)
+            .wrap_as((x + 26.0, cy + 8.0, room), TITLE_S, tone, &head)
             .max(20.0)
             + 16.0;
     } else {
@@ -89,7 +93,20 @@ pub(crate) fn nonce_card(
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
     const SHOWN: usize = 12;
-    for r in check.rows.iter().take(SHOWN) {
+    let rows: Vec<&crate::wallet::NonceRow> = check
+        .rows
+        .iter()
+        .filter(|r| only.is_none_or(|i| r.input == i))
+        .collect();
+    if only.is_some() && rows.is_empty() {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.nonce_card_input_none,
+        ) + GAP;
+    }
+    for r in rows.iter().take(SHOWN) {
         ui.text_mid_as(
             (x, cy, 30.0),
             BODY_S,
@@ -115,9 +132,9 @@ pub(crate) fn nonce_card(
         ui.rule(x, cy + 30.0, w, Role::OutlineVariant);
         cy += 32.0;
     }
-    if check.rows.len() > SHOWN {
-        let rest = &check.rows[SHOWN..];
-        let ok = !rest.iter().any(crate::wallet::NonceRow::wrong);
+    if rows.len() > SHOWN {
+        let rest = &rows[SHOWN..];
+        let ok = !rest.iter().any(|r| r.wrong());
         ui.text_mid_as(
             (x, cy, 30.0),
             BODY_S,
@@ -173,7 +190,7 @@ fn history_lines(ui: &mut Ui, check: &crate::wallet::NonceCheck, x: f32, y: f32,
 }
 
 /// A nonce check row's verdict and its tone. A lookup.
-fn row_verdict(r: &crate::wallet::NonceRow) -> (Text, Role) {
+pub(crate) fn row_verdict(r: &crate::wallet::NonceRow) -> (Text, Role) {
     use crate::wallet::Unmatched;
     use faraday_psbt::verify::Verdict;
     match (r.verdict, r.recomputed) {

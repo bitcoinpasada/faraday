@@ -844,6 +844,9 @@ impl Faraday {
             Screen::CheckMessage if crate::screens::check_message::contained(self) => {
                 &crate::screens::check_message::CHECK_MESSAGE_STEPS
             }
+            Screen::NonceCheck if crate::decode::nonce_flow::contained_check(self) => {
+                &crate::decode::nonce_flow::NONCE_STEPS
+            }
             Screen::SeedCheck => &crate::seed_check::SEED_STEPS,
             Screen::MultisigCheck => &crate::multisig_check::MS_STEPS,
             Screen::CoreWallet => &crate::core_wallet::tool::CORE_WALLET_STEPS,

@@ -112,13 +112,19 @@ fn ecdsa_with_k(d: &SecretKey, z: [u8; 32], k: &SecretKey) -> Signature {
 /// under one key: a second, spending the first one's output script, is
 /// added where the spend has one.
 fn signed_elsewhere(how: How) -> faraday_psbt::Psbt {
+    signed_elsewhere_of(how, 2)
+}
+
+/// [`signed_elsewhere`] with `n` inputs where one nonce is on every input.
+fn signed_elsewhere_of(how: How, n: usize) -> faraday_psbt::Psbt {
     let c = testkit::compute();
     let (mut psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
-    if matches!(how, How::SameNonce) && psbt.unsigned_tx().input.len() < 2 {
+    while matches!(how, How::SameNonce) && psbt.unsigned_tx().input.len() < n {
         let inner = psbt.inner_mut();
         let mut txin = inner.unsigned_tx.input[0].clone();
+        let next = inner.unsigned_tx.input.len() as u32;
         txin.previous_output =
-            OutPoint::new(txin.previous_output.txid, txin.previous_output.vout + 1);
+            OutPoint::new(txin.previous_output.txid, txin.previous_output.vout + next);
         inner.unsigned_tx.input.push(txin);
         let mut second = inner.inputs[0].clone();
         second.non_witness_utxo = None;
@@ -4091,3 +4097,7 @@ mod leaf_not_run {
 /// message refuses the signature (F227).
 #[path = "nonce_check/history.rs"]
 mod history;
+
+/// The nonce check on the flow's one card: the pane's rows per input.
+#[path = "nonce_check/pane.rs"]
+mod pane;
