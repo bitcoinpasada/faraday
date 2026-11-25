@@ -1388,7 +1388,9 @@ fn checks_receive_rows_open_their_codes() {
         let want = app
             .session
             .address_shown(&c, &app.session.wallets[w], false, i);
-        crate::common::opens_its_code(&mut app, faraday_core::Code::Receive(w, i), &want);
+        let shown = String::from(&*faraday_ui::grouped(&want));
+        let code = faraday_core::Code::Receive(w, i);
+        crate::common::opens_its_code_shown(&mut app, code, &want, &shown);
     }
 }
 
