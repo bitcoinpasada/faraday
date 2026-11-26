@@ -1620,7 +1620,8 @@ impl Faraday {
                     if let Some(item) = self.outbox.iter_mut().find(|i| i.name == name) {
                         item.sha = Some(sha);
                     }
-                    self.message.file_signed(&name, sha, key);
+                    let id = self.loaded_key_id(key);
+                    self.message.file_signed(&name, sha, key, id);
                 }
                 self.toast_out(&name);
             }

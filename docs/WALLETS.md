@@ -1472,7 +1472,8 @@ is backed up it goes as any file does. The PNG of its code is held back
 the same way. Which key signed which file, by
 name and SHA-256, and that the file is held back are kept across a lock: it
 stays held after a lock or **Remove every key**, while the key is not
-loaded, until that key's backup is finished.
+loaded, until that same key (told by more than its fingerprint) is loaded
+with its backup finished.
 
 - **What waits.** The wallet card's first button reads **Finish the backup
   first** and opens the wallet's checklist (its plan when none is made); in

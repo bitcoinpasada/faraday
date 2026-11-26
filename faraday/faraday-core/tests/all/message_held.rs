@@ -263,7 +263,13 @@ fn code_shown(app: &mut Faraday) -> bool {
 }
 
 /// The app after a lock and the restart, over what the lock kept.
-fn restarted(mut app: Faraday) -> Faraday {
+fn restarted(app: Faraday) -> Faraday {
+    restarted_over(app, |_| {})
+}
+
+/// [`restarted`], with the kept record of the signed files put through
+/// `edit`.
+fn restarted_over(mut app: Faraday, edit: impl FnOnce(&mut String)) -> Faraday {
     app.press(Action::Lock);
     let mut saved = None;
     while let Some(c) = app.poll_storage() {
@@ -271,7 +277,14 @@ fn restarted(mut app: Faraday) -> Faraday {
             saved = Some((outbox, kept));
         }
     }
-    let (outbox, kept) = saved.expect("the lock kept the boxes");
+    let (outbox, mut kept) = saved.expect("the lock kept the boxes");
+    let (_, bytes) = kept
+        .iter_mut()
+        .find(|(n, _)| &**n == "signed-files")
+        .expect("the signed files' record");
+    let mut record = String::from_utf8(bytes.to_vec()).expect("text");
+    edit(&mut record);
+    *bytes = record.into_bytes().into();
     let mut next = testkit::started();
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
@@ -282,10 +295,7 @@ fn restarted(mut app: Faraday) -> Faraday {
     next
 }
 
-/// A stick visit's Write with everything Select all takes, and `name`
-/// ticked besides when `tick`: the names the write sends. `waits` says
-/// that Select all is to leave `name` out.
-fn visit_writes(app: &mut Faraday, name: &str, tick: bool, waits: bool) -> Vec<String> {
+fn stick_in(app: &mut Faraday) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
@@ -295,6 +305,13 @@ fn visit_writes(app: &mut Faraday, name: &str, tick: bool, waits: bool) -> Vec<S
         files: Vec::new(),
         vaults: Vec::new(),
     }]));
+}
+
+/// A stick visit's Write with everything Select all takes, and `name`
+/// ticked besides when `tick`: the names the write sends. `waits` says
+/// that Select all is to leave `name` out.
+fn visit_writes(app: &mut Faraday, name: &str, tick: bool, waits: bool) -> Vec<String> {
+    stick_in(app);
     // The stick arrives with what it can take ticked: untick all, then
     // Select all.
     // With only some ticked the first press ticks the rest.
@@ -340,8 +357,8 @@ fn held_back_until_backed_up(mut app: Faraday, name: &str, a_code: bool) {
     assert_eq!(next.session.keys.all().count(), 0);
     assert_held_without_the_key(&mut next, name);
 
-    // The write answered and the stick out, the key loaded again, still
-    // waiting, and then backed up.
+    // The write answered and the stick out, the same words loaded again:
+    // a key typed from its words counts as backed up.
     next.storage(StorageEvent::Written {
         stick: faraday_text::Text::of("one"),
         name: faraday_text::Text::of("other.txt"),
@@ -351,9 +368,7 @@ fn held_back_until_backed_up(mut app: Faraday, name: &str, a_code: bool) {
     next.storage(StorageEvent::Sticks(Vec::new()));
     while next.poll_storage().is_some() {}
     load_the_key(&mut next);
-    testkit::mark_made_here(&mut next, fp);
-    assert!(row_says_it_waits(&mut next));
-    testkit::release_made(&mut next, fp);
+    assert_eq!(next.session.keys.last().unwrap().fingerprint, fp);
     // The refusal's toast says the same words: its time runs out first.
     next.event(Event::Tick {
         now_ms: 10 * faraday_draw::tokens::TOAST_SHOW_MS,
@@ -447,11 +462,50 @@ fn a_held_file_stays_held_after_remove_every_key() {
     // a lock first and sends nothing.
     let written = visit_writes(&mut app, &name, true, true);
     assert!(!written.contains(&name), "{written:?}");
-    app.press(Action::Cancel);
-    app.storage(StorageEvent::Sticks(Vec::new()));
-    while app.poll_storage().is_some() {}
+    // The lock is confirmed. In the next process the stick comes in, and
+    // nothing writes the held file.
     let mut next = restarted(app);
+    stick_in(&mut next);
+    while let Some(c) = next.poll_storage() {
+        if let StorageCommand::Write { name: wrote, .. } = c {
+            assert!(*wrote != *name, "the held file was written");
+        }
+    }
+    next.storage(StorageEvent::Sticks(Vec::new()));
+    while next.poll_storage().is_some() {}
     assert_held_without_the_key(&mut next, &name);
+}
+
+/// A key with the same fingerprint and another id cannot be made here, so
+/// the id the lock kept is changed instead: the key loaded after the
+/// restart is then not the one that signed, and the file stays held. The
+/// same words, over the record as it was kept, release it for good.
+#[test]
+fn only_the_key_that_signed_releases_a_held_file() {
+    for another in [true, false] {
+        let (mut app, name) = signed_file();
+        hold(&mut app);
+        let signer = app.session.keys.last().unwrap();
+        let (fp, id) = (signer.fingerprint, signer.id);
+        let id = faraday_crypto::hex::encode_string(&id.0);
+        let mut next = restarted_over(app, |record| {
+            assert!(record.contains(&*id), "the id is kept");
+            if another {
+                *record = record.replace(&*id, &"5a".repeat(32));
+            }
+        });
+        assert!(row_says_it_waits(&mut next), "no key loaded");
+        load_the_key(&mut next);
+        // Brings the holds up to date with the key now loaded.
+        testkit::mark_made_here(&mut next, faraday_bip::keys::Fingerprint([0; 4]));
+        assert_eq!(next.session.keys.last().unwrap().fingerprint, fp);
+        assert_eq!(row_says_it_waits(&mut next), another, "{name}");
+        // The key gone again: what the holds were brought to stays.
+        next.press(Action::RemoveKeys);
+        next.press(Action::RemoveKeysHold);
+        assert_eq!(next.session.keys.all().count(), 0);
+        assert_eq!(row_says_it_waits(&mut next), another);
+    }
 }
 
 #[test]
