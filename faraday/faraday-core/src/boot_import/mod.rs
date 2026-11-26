@@ -37,7 +37,8 @@ pub enum ImportAction {
     /// Later: close it. Nothing is read or imported; the list stays for
     /// the sheet to open again.
     Later,
-    /// Tick or untick file n of [`ImportView::files`].
+    /// Tick or untick the listed file with this [`ImportFile::id`]: the
+    /// file itself, wherever the list now has it.
     File(usize),
     /// Unselect all while any is ticked; Select all once none is.
     All,
@@ -75,6 +76,9 @@ pub enum Staged {
 /// One file of the boot stick.
 #[derive(Debug, Clone)]
 pub struct StagedFile {
+    /// The number its name was given when the list was made, never given
+    /// to another: a press names the file by it.
+    id: usize,
     /// Its name on the stick.
     pub name: Text,
     /// Its size on the stick.
@@ -120,6 +124,9 @@ pub struct ImportState {
 /// A file the sheet lists.
 #[derive(Debug, Clone)]
 pub struct ImportFile {
+    /// What a tick names the file by: its own while the list stands, not
+    /// its place in the list.
+    pub id: usize,
     /// Its name on the stick.
     pub name: Text,
     /// What it is, or what its codes held.
@@ -259,6 +266,19 @@ impl ImportState {
             self.skip.remove(&f.name);
         }
         self.files.retain(here);
+    }
+
+    /// Takes the file at `name` off the list while it still picks: it was
+    /// deleted or written over, so what is there is not what was listed.
+    /// FAT names match whatever their case. The listing the import knows
+    /// stays: the next one is followed from it.
+    fn drop_name(&mut self, name: &str) {
+        if self.asked {
+            return;
+        }
+        let at = |n: &str| n.eq_ignore_ascii_case(name);
+        self.skip.retain(|n| !at(n));
+        self.files.retain(|f| !at(&f.name));
     }
 
     /// The place of the file named `name`, while it waits for its read.
@@ -609,6 +629,7 @@ impl Faraday {
                 continue;
             }
             state.files.push(StagedFile {
+                id: state.files.len(),
                 name: Text::of(name),
                 size: *size,
                 vault: boot.is_vault(name),
@@ -650,6 +671,34 @@ impl Faraday {
         };
         imp.follow(s);
         if imp.files.is_empty() {
+            self.import.clear();
+        }
+    }
+
+    /// A file of `stick` deleted, or written by Faraday: the import's
+    /// list drops its name at once, ahead of the next listing. With none
+    /// left the import ends.
+    pub(crate) fn import_drop_name(&mut self, stick: &str, name: &str) {
+        let Some(imp) = self.import.state.as_mut().filter(|i| i.stick == stick) else {
+            return;
+        };
+        imp.drop_name(name);
+        if imp.files.is_empty() {
+            self.import.clear();
+        }
+    }
+
+    /// Ends an import that still picks when its stick is in by id with a
+    /// listing it does not hold: no later one would be followed.
+    pub(crate) fn import_end_unheld(&mut self) {
+        let unheld = self.import.state().is_some_and(|i| {
+            !i.asked
+                && self
+                    .stick
+                    .iter()
+                    .any(|s| i.stick == s.id.as_str() && !i.lists(s))
+        });
+        if unheld {
             self.import.clear();
         }
     }
@@ -1005,12 +1054,17 @@ impl Faraday {
     }
 
     /// Whether Import can be pressed: the list still picks, something is
-    /// ticked, and the stick is in to be read.
+    /// ticked, and the stick is in to be read, with the listing the import
+    /// holds.
     pub(crate) fn import_may_go(&self) -> bool {
         self.import_stick_in()
             && self.clean_now()
             && self.import.state().is_some_and(|i| {
                 !i.asked
+                    && self
+                        .stick
+                        .iter()
+                        .any(|s| i.stick == s.id.as_str() && i.lists(s))
                     && i.files
                         .iter()
                         .any(|f| f.state == Staged::Listed && !i.skip.contains(&f.name))
@@ -1081,6 +1135,7 @@ impl Faraday {
             };
             let enabled = !imp.asked && file.state == Staged::Listed;
             view.files.push(ImportFile {
+                id: file.id,
                 name: file.name.duplicate(),
                 line,
                 chosen: imp.asked || (enabled && !imp.skip.contains(&file.name)),
@@ -1137,10 +1192,10 @@ impl Faraday {
                 self.vaults.clear_unlock();
                 self.vaults.set_focus(None);
             }
-            I::File(i) => {
+            I::File(id) => {
                 let Some(f) = self
                     .import_view()
-                    .and_then(|v| v.files.get(i).filter(|f| f.enabled).cloned())
+                    .and_then(|v| v.files.into_iter().find(|f| f.id == id && f.enabled))
                 else {
                     return;
                 };

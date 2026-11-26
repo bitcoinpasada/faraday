@@ -322,6 +322,7 @@ impl Faraday {
         match failed {
             None => {
                 self.flow_copy_gone(stick, Some(name));
+                self.import_drop_name(stick, name);
                 // A copy tick of the same name on the stick shown stays
                 // when the file went from another stick.
                 let shown = self.stick.get(self.visit.stick).map(|s| &s.id);

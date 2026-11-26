@@ -188,6 +188,7 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
                 app.visit_same_mark(&stick, &wrote_as, size, out_row);
             }
             app.visit_written(&name, &wrote_as);
+            app.import_drop_name(&stick, &wrote_as);
             // A rename is carried by one write, to the stick written:
             // another stick keeps its own name for the same vault.
             app.visit.renamed_remove(&name);
@@ -412,6 +413,7 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
     if followed {
         app.import_follow_listing();
     }
+    app.import_end_unheld();
     let ids_now: Vec<faraday_text::Text> = app.stick.iter().map(|s| s.id.clone()).collect();
     if app.visit.stick >= app.stick.len() {
         app.visit.set_stick(0);
