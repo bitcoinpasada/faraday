@@ -19,7 +19,7 @@ fn remove_every_key_with_a_key_kept_nowhere_lists_it_and_takes_a_hold() {
         texts.iter().any(|t| t == "Hold to remove every key"),
         "{texts:?}"
     );
-    app.press(Action::RemoveKeysHold);
+    crate::common::hold(&mut app, Action::RemoveKeysHold);
     assert!(!app.holds_secret());
     assert_eq!(app.sheet, None);
 }

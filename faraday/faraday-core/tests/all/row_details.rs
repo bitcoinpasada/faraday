@@ -1622,7 +1622,7 @@ fn remove_this_key_of_a_key_kept_nowhere_lists_it_and_takes_a_hold() {
     assert_eq!(app.session.keys.len(), 2);
     assert!(details_of(&mut app, fp));
     app.press(Action::RemoveKey(fp));
-    app.press(Action::RemoveKeyHold(fp));
+    crate::common::hold(&mut app, Action::RemoveKeyHold(fp));
     let _ = app.frame();
     assert_eq!(app.sheet, None);
     let left: Vec<[u8; 4]> = app.session.keys.all().map(|k| k.fingerprint.0).collect();

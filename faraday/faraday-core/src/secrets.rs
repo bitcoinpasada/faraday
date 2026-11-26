@@ -589,7 +589,10 @@ impl Faraday {
             Action::SecretHold => self.secret_hold(),
             Action::RegisterHold => self.register_act(held),
             Action::Sweep(a) => self.sweep_act(a),
-            Action::ReviewHold => self.wallet_act(held),
+            Action::ReviewHold | Action::RemoveKeysHold | Action::RemoveKeyHold(_) => {
+                self.wallet_act(held)
+            }
+            Action::PublishedHold => self.published_act(held),
             Action::DevicesHold => self.devices_act(held),
             Action::NameTakenOverwrite => self.visit_act(held),
             Action::OutboxDeleteHold => self.inbox_act(held, c),

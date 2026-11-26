@@ -168,7 +168,7 @@ fn a_key_demo_wrote_on_an_online_computer_is_kept_on_mainnet_only_by_a_hold() {
         Some(Sheet::Published),
         "a press does not keep it"
     );
-    app.press(Action::PublishedHold);
+    crate::common::hold(&mut app, Action::PublishedHold);
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.keys.len(), 1);
 }
