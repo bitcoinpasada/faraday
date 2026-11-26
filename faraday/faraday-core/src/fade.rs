@@ -125,10 +125,12 @@ pub(crate) struct Fade {
     /// glides, not the pane alone. Cleared when a fade ends.
     glide_pair: bool,
     /// The change of page under way is the guide's pane coming or going:
-    /// where the pane stands at rest, in pixels, and whether it comes
+    /// where the frame before drew it, in pixels, and whether it comes
     /// (true) or goes. It slides in from the window's right edge or back
     /// out to it. Cleared when a fade ends.
-    guide_slide: Option<(Rect, bool)>,
+    guide_slide: Option<(Option<Rect>, bool)>,
+    /// Where the last frame drew the guide's pane, in pixels.
+    guide: Option<Rect>,
     /// An image of the page's surface, as large as the frames, that a
     /// step's card goes out to and comes in from: made when the new frame
     /// of a step's fade is first kept, empty with no step fade. One more
@@ -231,7 +233,13 @@ impl Fade {
         };
         let whole = Rect::new(0, 0, canvas.width(), canvas.height());
         let n = self.cores.blend_all_within(canvas, pair, k, &[whole]);
-        if let Some((place, coming)) = self.guide_slide {
+        // A pane that comes stands where the new frame draws it; one that
+        // goes, where the frame before drew it.
+        let guide_slide = self.guide_slide.and_then(|(was, coming)| {
+            let place = if coming { self.guide } else { was };
+            place.map(|place| (place, coming))
+        });
+        if let Some((place, coming)) = guide_slide {
             // The guide's rest place is the through-fade's own pixels
             // while the page that does not hold the guide is on the
             // screen (opening, the old page going out; closing, the new
@@ -261,7 +269,7 @@ impl Fade {
             ];
             canvas.blend_shifted((before, &self.after), (a, b), at, e, fill);
         }
-        if let Some((place, coming)) = self.guide_slide {
+        if let Some((place, coming)) = guide_slide {
             // The guide's pane enters from the window's right edge, or
             // leaves to it, over the page that gives way beside it.
             let edge = Rect::new(canvas.width(), place.y, place.w, place.h);
@@ -290,6 +298,12 @@ impl Fade {
         let (x, y) = (a.x.min(b.x), a.y.min(b.y));
         let (r, d) = (a.right().max(b.right()), a.bottom().max(b.bottom()));
         Some(Rect::new(x, y, r - x, d - y))
+    }
+
+    /// Where the frame being drawn put the guide's pane, in pixels, or
+    /// that it put none.
+    pub(crate) fn set_guide(&mut self, guide: Option<Rect>) {
+        self.guide = guide;
     }
 
     /// Where the frame being drawn put the session pane, in pixels, or
@@ -671,7 +685,7 @@ impl Faraday {
             && self.fade.from.is_none()
             && pane_toggle
             && !screen_change)
-            .then(|| (self.guide_place_in(canvas), drawn_key.1.0));
+            .then(|| (self.fade.guide, drawn_key.1.0));
         // A fade begun over one under way goes through a new surface.
         self.fade.surface = Vec::new();
         if self.fade.last_drawn.is_some() && !own_motion {
@@ -701,19 +715,6 @@ impl Faraday {
         {
             self.fade.marks.from = self.fade.marks.frame.clone();
         }
-    }
-
-    /// Where the guide's supporting pane stands at rest in `canvas`, in
-    /// pixels: the place `hub_layout::guide_place` gives it under the
-    /// top app bar. Arithmetic.
-    fn guide_place_in(&self, canvas: &Canvas) -> Rect {
-        use faraday_draw::tokens::APP_BAR_H;
-        let (w, h) = self.size();
-        let k = canvas.width() as f32 / w.max(1.0);
-        let nav = crate::screens::SIDEBAR_W;
-        let (x, y, pw, ph) = crate::screens::hub_layout::guide_place((nav, w - nav, h - APP_BAR_H));
-        let px = |v: f32| (v * k).round() as i32;
-        Rect::new(px(x), px(APP_BAR_H + y), px(pw), px(ph))
     }
 
     /// The step a live fade is drawing as the card, while the fade out
@@ -819,12 +820,12 @@ impl Faraday {
         }
     }
 
-    /// Where the guide's pane stands at rest, in pixels (x, y, width,
+    /// Where the last frame drew the guide's pane, in pixels (x, y, width,
     /// height), for the tests.
     #[cfg(feature = "testkit")]
     #[doc(hidden)]
     pub fn guide_rest_place(&self) -> Option<(i32, i32, i32, i32)> {
-        let r = self.guide_place_in(self.canvas.as_ref()?);
+        let r = self.fade.guide?;
         Some((r.x, r.y, r.w, r.h))
     }
 

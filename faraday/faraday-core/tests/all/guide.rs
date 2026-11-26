@@ -651,3 +651,23 @@ fn a_pair_moves_left_where_the_guide_needs_the_room() {
     let (before, after) = beside_guide(1920, Screen::WalletsStart, Action::Entry(None));
     assert!(after < before, "{after} left of {before}");
 }
+
+/// Beside a pair the guide's pane is as tall as the pair: its top and its
+/// foot are the session pane's, which ends level with the tile.
+#[test]
+fn beside_a_pair_the_guides_pane_has_the_pairs_top_and_foot() {
+    use faraday_core::Screen;
+    for screen in [Screen::Catalog, Screen::WalletsStart] {
+        let mut app = faraday_core::testkit::started();
+        window(&mut app, 1920, 1080);
+        app.press(Action::Nav(screen));
+        app.press(Action::Guide);
+        crate::common::through_fade(&mut app);
+        frame(&mut app);
+        let (_, top, _, tall) = app.pane_place().expect("This session's pane");
+        let guide = app.guide_rest_place().expect("the guide's pane");
+        // The pane's place is counted from under the top app bar.
+        let bar = faraday_draw::tokens::APP_BAR_H as i32;
+        assert_eq!((guide.1 - bar, guide.3), (top, tall), "{screen:?}");
+    }
+}

@@ -256,6 +256,7 @@ pub(crate) fn draw(
     groups: &[Group],
 ) -> f32 {
     card_surface(ui, (x, y, w, h));
+    ui.pair_span = Some((y, y + h));
     let head_h = ui.line_as(TITLE_M) + GRID;
     ui.text_as(
         x + PAD + faraday_draw::tokens::LIST_PAD,

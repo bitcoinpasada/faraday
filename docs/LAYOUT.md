@@ -250,8 +250,7 @@ entry, the backup board) takes no pane for Your choices (§6).
 On extra-large, Guide opens as a pane at the right, `SUPPORT_PANE`
 (400 dp) wide, beside the page it explains, instead of the Guide
 sheet over it; it follows the page's steps as the person moves on,
-closes when the person moves to another screen unless it is pinned,
-and its close button puts it away. Below extra-large, Guide stays the
+stays open across pages and flows, and its close button puts it away. Below extra-large, Guide stays the
 sheet it is today.
 
 A supporting pane holds its place (owner, 2026-10-24): it does not
@@ -268,9 +267,16 @@ Faraday Demo's host strip now, outside the app (F118,
 `docs/DESKTOP-HOST.md`).
 
 Guide's pane, from 1600 dp: the ? and the
-bar's Cryptography, open it beside the page, which is laid out in the
-room left of it, so nothing of the page is under it and the page takes
-presses as before; the top bar's search and Home's pills stand where they do with the guide shut, placed from the bar's whole room (the pane stands under the bar), at every width; nothing else opens it, on any screen or size (owner,
+bar's Cryptography, open it beside the page, so nothing of the page is
+under it and the page takes presses as before. A pair (a menu page's,
+Files', Wallets', Vaults', and Check an address's, Explore's and
+Lightning's where they stand as one) is placed in the whole room and
+moves left only as far as the pane needs; Tools' and Check's wide tile
+takes its narrower form where it does not fit beside the pane. A stacked
+or one-column page is laid out in the room left of the pane. Beside a
+pair the pane has the pair's top and foot; beside any other page it runs
+from `SUPPORT_PANE_TOP` to the margin above the window's foot
+(`docs/WORKSPACE.md` §7.4). the top bar's search and Home's pills stand where they do with the guide shut, placed from the bar's whole room (the pane stands under the bar), at every width; nothing else opens it, on any screen or size (owner,
 2026-10-29). The pane
 is a card in the surface-container role, Material's large shape. Its
 header row, as Material's side sheet has, holds, at its end, the close

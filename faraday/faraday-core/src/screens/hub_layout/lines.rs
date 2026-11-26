@@ -57,11 +57,9 @@ pub(crate) fn limits(left: bool, compact: bool, top: f32, view_h: f32) -> (f32, 
 pub(crate) fn lines(ui: &mut Ui, (at, top, end): (f32, f32, f32), pair: Option<((f32, f32), f32)>) {
     divider(ui, at, top, end);
     if let Some(((left, right), limit)) = pair {
-        outline(
-            ui,
-            (left - tokens::PAD, top - OUTLINE_ABOVE),
-            (right + tokens::PAD, (end + tokens::PAD).min(limit)),
-        );
+        let (from, to) = (top - OUTLINE_ABOVE, (end + tokens::PAD).min(limit));
+        ui.pair_span = Some((from, to));
+        outline(ui, (left - tokens::PAD, from), (right + tokens::PAD, to));
     }
 }
 

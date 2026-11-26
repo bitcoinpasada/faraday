@@ -21,9 +21,19 @@ use crate::ui::{Slot, Ui};
 
 /// Draws the guide's supporting pane for the page area at `x0`, `cw` wide,
 /// in a window `h` tall, at the one place every supporting pane stands
-/// (`hub_layout::guide_place`). Reads the state.
+/// (`hub_layout::guide_place`), with a pair's height where one was drawn.
+/// Reads the state.
 pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
-    let (x, y, w, view) = super::hub_layout::guide_place((x0, cw, h));
+    let (x, mut y, w, mut view) = super::hub_layout::guide_place((x0, cw, h));
+    // Beside a pair the pane is as tall as the pair, tops and feet level;
+    // beside any other page it has the window's height
+    // (`docs/WORKSPACE.md` §7.4).
+    if let Some((top, foot)) = ui.pair_span {
+        let end = foot.min(h - T::MARGIN_WIDE);
+        y = top.max(0.0);
+        view = (end - y).max(T::TOUCH);
+    }
+    ui.guide_drawn = Some((x, ui.oy + y, w, view));
     // Nothing of the page under the pane takes a press.
     let area = ui.rect(x, y, w, view);
     ui.drop_presses_inside(area);

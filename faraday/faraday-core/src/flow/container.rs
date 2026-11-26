@@ -193,7 +193,7 @@ pub(crate) fn contained(
     let columns = unit
         .filter(|_| left)
         .map_or((x, work.unwrap_or(x + w)), |u| (area_x + u.pane_x, x + w));
-    let card = RaisedCard::draw(ui, app, raised.then_some(columns), (top, clip_end));
+    let card = RaisedCard::draw(ui, app, (raised.then_some(columns), left), (top, clip_end));
     let seen = (clip_x, area_x + room_w);
     let (seen, tail) = card.view(seen, (clip_top, clip_end));
     let (view_x, view_y, view_w, view_rows) = seen;
@@ -379,13 +379,16 @@ impl RaisedCard {
     fn draw(
         ui: &mut Ui,
         app: &Faraday,
-        columns: Option<(f32, f32)>,
+        (columns, paired): (Option<(f32, f32)>, bool),
         (top, clip_end): (f32, f32),
     ) -> Self {
         let drawn = columns.map(|(from, to)| {
             let foot = app.scroll.card_foot().get();
             let (left, right) = (from - tokens::PAD, to + tokens::PAD);
             hub_layout::card(ui, (left, top - tokens::PAD), (right, foot.min(clip_end)));
+            if paired {
+                ui.pair_span = Some((top - tokens::PAD, foot.min(clip_end)));
+            }
             (foot, left, right)
         });
         RaisedCard { drawn }

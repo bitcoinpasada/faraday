@@ -930,6 +930,10 @@ impl Faraday {
                 self.fade.set_pane(ui.pane.take().map(|(x, y, w, h)| {
                     faraday_draw::Rect::new(ui.px(x), ui.px(y), ui.px(w), ui.px(h))
                 }));
+                self.fade
+                    .set_guide(ui.guide_drawn.take().map(|(x, y, w, h)| {
+                        faraday_draw::Rect::new(ui.px(x), ui.px(y), ui.px(w), ui.px(h))
+                    }));
                 layer = ui.content;
                 spoiled = ui.spoiled;
                 (ui.focus_box, ui.focus_action)

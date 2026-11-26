@@ -527,6 +527,14 @@ pub struct Ui<'a, A> {
     /// change of page glides it from its old place to its new one
     /// (`docs/MOTION.md` §3.5). Set by whoever draws the pane.
     pub pane: Option<(f32, f32, f32, f32)>,
+    /// Where the pair this frame drew starts and ends, top and foot, in the
+    /// page's units: the guide's pane beside it stands level with it
+    /// (`docs/WORKSPACE.md` §7.4). `None` where no pair was drawn. Set by
+    /// whoever draws a pair.
+    pub pair_span: Option<(f32, f32)>,
+    /// Where the guide's pane was drawn this frame, as `pane` is. Set by
+    /// whoever draws it.
+    pub guide_drawn: Option<(f32, f32, f32, f32)>,
     /// While the body of a flow on the container that holds wide content
     /// runs (`docs/LAYOUT.md` §14): where its work ends, as an x in design
     /// units: `SPACER` before Your choices, or the page area's end less the
@@ -706,6 +714,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             flow_card: None,
             flow_card_raised: false,
             pane: None,
+            pair_span: None,
+            guide_drawn: None,
             flow_work: None,
             flow_end: None,
             follow_to: None,
