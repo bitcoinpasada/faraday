@@ -27,15 +27,12 @@ pub(super) fn mark(app: &View, keys: &mut [SessionRow], wallets: &mut [SessionRo
     };
     let cur = app.vaults.current;
     for (k, (key, row)) in app.session.keys.all().zip(keys.iter_mut()).enumerate() {
-        // A key with a passphrase is in a vault only where the vault
-        // holds it with that passphrase; its words alone are a mark of
-        // their own, and Save is for a key the vault holds nowhere.
+        // A key is in a vault only where the vault holds it with its
+        // passphrase, or with none where it has none; its words alone are
+        // a mark of their own, and Save is for a key the vault holds
+        // nowhere.
         let words = app.vault_holds_seed_kept(cur, k, false);
-        let held = if key.has_passphrase {
-            app.vault_holds_seed_kept(cur, k, true)
-        } else {
-            words
-        };
+        let held = app.vault_holds_seed_kept(cur, k, true);
         let savable = key.has_words() || app.session.keys.holds_seed_bytes(k);
         let mark = match (held, words) {
             (true, _) => EN.session_mark_in_a_vault,

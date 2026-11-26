@@ -100,9 +100,10 @@ impl OpenVaults {
 
     /// Costs what `word_count` costs. Whether key record `i` of open vault
     /// `id` holds session key `k`'s seed, as words or as a master seed,
-    /// and with `with_pass` stores its passphrase too: lookups once the
-    /// vault's records are read (the same answer as the app's
-    /// `vault_holds_seed`, which hashes again at each call).
+    /// and with `with_pass` stores its passphrase too, or none where it
+    /// has none: lookups once the vault's records are read. (The app's
+    /// `vault_holds_seed` hashes again at each call, and asks only a key
+    /// with a passphrase whether the record stores it.)
     pub fn key_record_holds(
         &self,
         c: &Compute,
@@ -119,7 +120,16 @@ impl OpenVaults {
         let seed = keys
             .seed_record_id_kept(k)
             .is_some_and(|s| self.record_id(c, id, i) == Some(s));
-        (words || seed) && (!with_pass || self.stores_passphrase_of(view, keys, k))
+        (words || seed) && (!with_pass || self.stores_passphrase_as(view, keys, k))
+    }
+
+    /// Whether key record `r` stores a passphrase as session key `k` has
+    /// one: the same passphrase, or none for a key with none.
+    fn stores_passphrase_as(&self, r: RecordView<'_>, keys: &Keys, k: usize) -> bool {
+        match r.raw().text(field::KEY_PASSPHRASE) {
+            Some(p) => keys.passphrase_matches(k, p),
+            None => keys.info(k).is_some_and(|key| !key.has_passphrase),
+        }
     }
 
     // ---- key records and the session ----

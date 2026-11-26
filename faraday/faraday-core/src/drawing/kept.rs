@@ -966,9 +966,10 @@ impl View<'_> {
         self.kept(|c| self.app.vault_holds_seed(c, o, k, with_pass))
     }
 
-    /// Whether open vault `o` holds session key `k`'s seed, as
-    /// [`View::vault_holds_seed`] says, from the ids kept with the key and
-    /// the vault's records: lookups once both are read, no hash per call.
+    /// Whether open vault `o` holds session key `k`'s seed, and with
+    /// `with_pass` its passphrase too (none, for a key with none), from the
+    /// ids kept with the key and the vault's records: lookups once both are
+    /// read, no hash per call.
     pub(crate) fn vault_holds_seed_kept(&self, o: usize, k: usize, with_pass: bool) -> bool {
         self.kept(|c| {
             let Some(open) = self.app.vaults.open.get(o) else {

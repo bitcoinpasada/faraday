@@ -303,9 +303,11 @@ fn a_passphrase_stored_with_other_words_does_not_make_the_key_held() {
         .unwrap();
     app.press(Action::Vault(V::SaveKeyWithPassphrase(1)));
     testkit::settle(&mut app);
-    // Key 1 stored with its own passphrase; key 2 has another: words only.
-    assert_eq!(count(&mut app, EN.session_mark_words_in_a_vault), 1);
-    assert_eq!(count(&mut app, EN.session_mark_in_a_vault), 2);
+    // Key 1 is stored with its own passphrase. Key 2 has another and key 0
+    // has none: for both the vault holds the words only.
+    assert_eq!(count(&mut app, EN.session_mark_words_in_a_vault), 2);
+    assert_eq!(count(&mut app, EN.session_mark_in_a_vault), 1);
+    assert!(!app.offers(Action::Vault(V::SaveKey(0))));
 }
 
 #[test]
@@ -365,7 +367,7 @@ fn seal_ends(mut app: Faraday) {
 /// The press is refused twice over: by the app while a job runs, and by
 /// the vault, which the next test asks alone.
 #[test]
-fn a_press_on_save_while_the_vault_seals_is_not_taken() {
+fn a_press_on_save_while_the_vault_seals_adds_nothing() {
     let (mut app, id) = sealing();
     app.press(Action::Vault(V::SaveKey(0)));
     assert_eq!(

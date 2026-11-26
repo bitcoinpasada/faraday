@@ -127,7 +127,8 @@ own.
   While exactly one vault is open each is marked "In a vault" where that
   vault holds it and "Not saved" where it does not; a key with a BIP-39
   passphrase is "In a vault" only where the vault holds it with that
-  passphrase, and where the vault holds its words alone it reads "Words in
+  passphrase, and a key without one only where the vault holds its words
+  with none; where the vault holds its words otherwise it reads "Words in
   a vault" (owner, 2026-11-25), with no Save. A row not saved
   carries Save, one press (the vault's own Save: a key by itself, with no
   passphrase, which stays Save with passphrase on the key's page, so a key
