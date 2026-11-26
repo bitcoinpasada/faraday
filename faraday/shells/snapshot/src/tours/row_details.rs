@@ -111,6 +111,8 @@ pub(crate) fn row_details_tour(t: &mut Tour) -> Result<(), String> {
         .map_err(|e| format!("{e:?}"))?;
     testkit::inbox_file(&mut t.app, "work.kdbx", vault);
     t.press(Action::Nav(Screen::Vaults));
+    // The vault's card, its chevron at the right, before a press opens it.
+    t.shot("rowdetails-vaults")?;
     // One column opens none there: the frame is then the page.
     t.press(Action::RowOpen(Row::Vault(0)));
     t.shot("rowdetails-vaults-vault")?;
