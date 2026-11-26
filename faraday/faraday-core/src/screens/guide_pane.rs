@@ -10,9 +10,9 @@
 //! on the guide's state (`Faraday::guide_place`); drawing reads it.
 
 use crate::ui::Region;
+use crate::ui::Shape;
 use faraday_draw::tokens as T;
 use faraday_draw::widgets::Icon;
-use crate::ui::Shape;
 
 use super::sheets::{GuideLook, guide_body};
 use crate::Action;
@@ -67,7 +67,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let (clip, max) = guide_body(app, ui, &look, (x, y, w, view));
     let close_x = x + w - T::GAP - T::TOUCH;
     close_button(ui, close_x, y + T::GUIDE_PANE_CLOSE_TOP);
-    if shorter.is_some_and(|span| span != full) {
+    // The arrow stands only where the page makes the pane shorter than
+    // the window's.
+    if shorter.is_some_and(|(_, span)| span < full.1) {
         tall_button(ui, close_x - T::TOUCH, y + T::GUIDE_PANE_CLOSE_TOP, tall);
     }
     // Its edges fade into the pane's own container.
@@ -97,7 +99,12 @@ fn tall_button(ui: &mut Ui, x: f32, y: f32, tall: bool) {
         T::shape_full(T::ICON_BUTTON),
     );
     let role = Role::OnSurfaceVariant;
-    ui.press_to(button, (x, y, T::TOUCH, T::TOUCH), role.paint(), Action::GuideTall);
+    ui.press_to(
+        button,
+        (x, y, T::TOUCH, T::TOUCH),
+        role.paint(),
+        Action::GuideTall,
+    );
     let (icon, tip) = if tall {
         (Icon::ChevronUp, EN.guide_collapse)
     } else {

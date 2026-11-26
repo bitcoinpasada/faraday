@@ -894,7 +894,14 @@ fn search_results_and_a_rows_details_stay_clear_of_the_guide() {
     let mut app = faraday_core::testkit::started();
     window(&mut app, 1920, 1080);
     add_key(&mut app);
-    let fp = app.session.keys.all().next().expect("the key").fingerprint.0;
+    let fp = app
+        .session
+        .keys
+        .all()
+        .next()
+        .expect("the key")
+        .fingerprint
+        .0;
     app.press(Action::Nav(Screen::Home));
     crate::common::through_fade(&mut app);
     app.press(Action::Guide);
@@ -934,15 +941,16 @@ fn beside_a_stacked_page_the_guides_pane_has_its_top_and_foot() {
     );
 }
 
-/// Beside a pair the pane's arrow lets it down to the window's foot and
-/// folds it back to the pair's; it stays let down after the guide is
-/// closed and opened again.
+/// Beside a page shorter than the window the pane's arrow lets it down to
+/// the window's height and folds it back to the page's; it stays let down
+/// after the guide is closed and opened again.
 #[test]
 fn the_guides_arrow_lets_its_pane_down_and_keeps_it_so() {
     use faraday_core::Screen;
     let mut app = faraday_core::testkit::started();
     window(&mut app, 1920, 1080);
-    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Nav(Screen::Check));
+    crate::common::through_fade(&mut app);
     let open = |app: &mut Faraday| {
         app.press(Action::Guide);
         crate::common::through_fade(app);
@@ -955,7 +963,11 @@ fn the_guides_arrow_lets_its_pane_down_and_keeps_it_so() {
     frame(&mut app);
     let tall = app.guide_rest_place().expect("the guide's pane");
     assert!(tall.3 > short.3, "let down: {tall:?} against {short:?}");
-    assert_eq!(tall.1 + tall.3 + faraday_draw::tokens::MARGIN_WIDE as i32, 1080, "{tall:?}");
+    assert_eq!(
+        tall.1 + tall.3 + faraday_draw::tokens::MARGIN_WIDE as i32,
+        1080,
+        "{tall:?}"
+    );
     app.press(Action::GuideClose);
     frame(&mut app);
     assert_eq!(open(&mut app), tall, "opened again, it is as it was left");
@@ -963,4 +975,9 @@ fn the_guides_arrow_lets_its_pane_down_and_keeps_it_so() {
     crate::common::through_fade(&mut app);
     frame(&mut app);
     assert_eq!(app.guide_rest_place(), Some(short), "folded back");
+    // Tools runs past the window's foot: nothing to let down, no arrow.
+    app.press(Action::Nav(Screen::Catalog));
+    crate::common::through_fade(&mut app);
+    frame(&mut app);
+    assert!(app.hit_box(Action::GuideTall).is_none());
 }
