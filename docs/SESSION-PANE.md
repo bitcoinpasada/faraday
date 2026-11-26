@@ -74,7 +74,9 @@ Home's, with Home's rows (`stacked_card`). Beside, the pane is the page's own
 mode (`session_pane/page_mode.rs`): "This session" in Title M, then each
 group's small heading and its rows in one column, in WORKSPACE §2's order for
 Tools and Check, Waiting the band at the foot (the lead with its button, the waiting PSBTs, an import put off and the locked vault files; not backups, files to write, the last write or open vaults) and In progress (each flow in progress that is not the band's lead) a group of its own after the others, scrolling within
-(`Slot::HomeBox`) where the page's height cuts it. Open vaults, files to write
+(`Slot::HomeBox`) where the page's height cuts it. Vaults' mode is Keys, then Wallets, with Waiting at the foot (a waiting PSBT with
+Sign, flows in progress); its rows keep their own presses, as Vaults has no
+details yet. Open vaults, files to write
 and Backups are not in it, and no row of it is also in the tile.
 
 A file row of the page's own mode carries the row button of WORKSPACE §2's

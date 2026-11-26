@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
-**Open:** To build: the session pane's form in Restore, Spend from a backup, Save to a vault, the backup board, Silent and Vanity, and the checkbox row where a step takes several (§2; Home's card in groups, the modes of Tools, Check and Wallets and the pick of the other flows, which declare what they take and refuse into the pane, are built, `docs/SESSION-PANE.md`), the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on Files and Vaults (§2, §7; Tools, Check, Wallets and Home have them; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: the guide as the third pane and the glide on it), Vaults' pane (§2), Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), Files first in a pick opened from Check (§2), a pick with no seed held, a wallet already holding the key and a flow's pick leaving out the keys it cannot take (every builder answers for every key), the heights (F331: one resting level, the flow's card raised alone with its own fill, §3, §6), the search and the pills constant on every menu page and kept in a flow (§4, §16), Mode inline with its one confirmation (§9), the Scan button under Settings, the viewfinder in the pane of the flows other than Check an address, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks other than Units (§2), the timings on the Pi that §6 and §8 name, the take-away in the flows other than Sign a message (§15), flows in progress and the way out of a flow (§16), Tools lit in the sidebar by a tool opened from it (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how the flow's card's fill looks (§3).
+**Open:** To build: the session pane's form in Restore, Spend from a backup, Save to a vault, the backup board, Silent and Vanity, and the checkbox row where a step takes several (§2; Home's card in groups, the modes of Tools, Check and Wallets and the pick of the other flows, which declare what they take and refuse into the pane, are built, `docs/SESSION-PANE.md`), the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), row buttons on the wallet rows and the shares' file row, and details on Files and Vaults (§2, §7; Tools, Check, Wallets and Home have them; Files' row menu and card buttons already read the shared list), the guide as a pane (§7), the rest of the pane container (§14: the guide as the third pane and the glide on it), Marks, Save and Load in Vaults' pane (§2), Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), Files first in a pick opened from Check (§2), a pick with no seed held, a wallet already holding the key and a flow's pick leaving out the keys it cannot take (every builder answers for every key), the heights (F331: one resting level, the flow's card raised alone with its own fill, §3, §6), the search and the pills constant on every menu page and kept in a flow (§4, §16), Mode inline with its one confirmation (§9), the Scan button under Settings, the viewfinder in the pane of the flows other than Check an address, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page tools and checks other than Units (§2), the timings on the Pi that §6 and §8 name, the take-away in the flows other than Sign a message (§15), flows in progress and the way out of a flow (§16), Tools lit in the sidebar by a tool opened from it (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8); how the flow's card's fill looks (§3).
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
 what is loaded and going on lives in it, and it works with every part of
@@ -121,9 +121,13 @@ own.
 - **Vaults' right tile** ends with a neutral row (owner, 2026-11-24), "Make a new
   vault", at the list's foot where the list fits and pinned at the tile's
   foot where the list scrolls.
-- **Vaults** is two panes (owner, 2026-11-23). At the left stand this
-  session's keys and wallets, each marked "In a vault" or "Not saved"; its
-  tile at the right holds the vault files, then an open vault's contents.
+- **Vaults** is two panes (owner, 2026-11-23), built as the pair
+  (`screens/vaults_pair.rs`, Vaults' mode of the pane: Keys, then Wallets,
+  Waiting at the foot). At the left stand this session's keys and wallets;
+  the marks "In a vault" and "Not saved" on them are still Open. Its tile at
+  the right holds the vault files, each a card with View contents and Lock or
+  Unlock, ending in Make a new vault; an open vault's contents are still a
+  full page.
   Load and Save are one press per item, with no ticks and no drag and drop.
   An item both in the vault and in the session is shown in both places,
   marked in both.
@@ -441,7 +445,7 @@ Every page, with its place:
 | Home | centred, every group (§2) |
 | Tools, Check | stacked under This session where it all fits; else the pair, the pane at the flow's place at 1920 and wider (rule 3), the tile taking the rest of the width at 1920 in more columns |
 | Wallets | the pair |
-| Vaults | two panes: this session's keys and wallets at the left, the vault files, then an open vault's contents, at the right |
+| Vaults | the pair (built; marks, Save and Load Open): this session's keys and wallets at the left, the vault files at the right, an open vault's contents on a page of their own |
 | Files | In Faraday at the left, the stick at the right |
 | Settings | no pane; under Home's card where it all fits, else its own page |
 | A flow's pick, and a flow under way | the flow's pair, one card with an inset divider |
@@ -803,7 +807,7 @@ component with Home's pane.
 | Wallets, list and keys without (`screens/wallets.rs`) | wallets, loose keys | opens | the wallets in the page's tile, ending in its pinned rows (§2); the loose keys leave it; the pane beside it (§2) |
 | Wallets start (`screens/wallets_start.rs`, `loose_key_rows`) | keys without a wallet | opens | unchanged |
 | Files, In Faraday (`screens/visit.rs`, `in_faraday`) | files held to write | several, checks | Files' form (§2) |
-| Vaults (`vault/screen.rs`, `list`) | vault files | opens | the page's tile, ending in Make a new vault (§2); its pane this session's keys and wallets |
+| Vaults (`vault/screen.rs`, `list`) | vault files | opens | the page's tile, ending in Make a new vault (§2); its pane this session's keys and wallets (built, `screens/vaults_pair.rs`) |
 | Scan's key sheet (`screens/sheets.rs`) | keys a QR names | none | unchanged |
 | Sign a transaction (`screens/spend.rs`) | the wallet's keys here | none: `to_sign` is filled from the PSBT (`wallet.rs`) | unchanged; Your choices' first row names the wallet | Sign with another key loaded here (while signatures are missing); Sign another transaction (opens the scanner); Check the signed transaction |
 

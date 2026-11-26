@@ -34,6 +34,7 @@ mod sheets;
 pub(crate) use sheets::scan_demo_offers;
 mod sidebar;
 mod spend;
+mod vaults_pair;
 pub(crate) mod visit;
 mod visit_same;
 mod wallets;
@@ -698,7 +699,9 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Randomness => randomness::draw(app, ui, x, cw, h),
         Screen::Codes => crate::codes::screen::draw(app, ui, x, cw, h),
         Screen::Vaults | Screen::Unlock if crate::panes::screen::shown(app, app.screen) => {
-            crate::vault::panes_screen::draw(app, ui, x, cw, h);
+            if !(app.screen == Screen::Vaults && vaults_pair::draw(app, ui, (x, cw, h))) {
+                crate::vault::panes_screen::draw(app, ui, x, cw, h);
+            }
         }
         Screen::Vaults => crate::vault::screen::list(app, ui, x, cw, h),
         Screen::Backups => crate::backups::screen::draw(app, ui, x, cw, h),

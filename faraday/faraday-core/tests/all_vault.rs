@@ -61,3 +61,5 @@ mod vault_tabs;
 mod vault_trim;
 #[path = "all/vault_way.rs"]
 mod vault_way;
+#[path = "all/vaults_pair.rs"]
+mod vaults_pair;
