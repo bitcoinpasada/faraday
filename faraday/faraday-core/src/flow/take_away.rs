@@ -73,9 +73,13 @@ impl Pane<'_> {
                 },
             );
         }
-        y += tokens::GRID;
-        self.button(ui, (x, y, w), state);
-        y += BUTTON_H;
+        // A take-away with a code and no file has no button: a code needs
+        // no stick (`docs/WORKSPACE.md` §15).
+        if !self.take.files.is_empty() {
+            y += tokens::GRID;
+            self.button(ui, (x, y, w), state);
+            y += BUTTON_H;
+        }
         y += foot(ui, x, y, w);
         ui.clip_presses_since(mark, clip);
         ui.region_close(open, (y + CHOICES_INSET - h).max(0.0));
@@ -88,11 +92,19 @@ impl Pane<'_> {
     fn rows(&self, ui: &mut Ui, (px, pw, top): (f32, f32, f32)) -> (f32, Write) {
         let app = self.app;
         let stick = !app.stick.is_empty();
+        // With no stick each waiting row says so in Files' words.
+        let waiting_line = Text::fill(EN.files_waiting_medium, &[app.medium.a()]);
+        let waiting_tag = if stick { "" } else { waiting_line.as_str() };
         let mut y = top;
         let (mut waiting, mut ticked, mut done) = (0usize, 0usize, 0usize);
         for file in &self.take.files {
             let name = &file.name;
-            if let Some((k, item)) = app.outbox.iter().enumerate().find(|(_, i)| i.name == *name) {
+            if let Some((k, item)) = app
+                .outbox
+                .iter()
+                .enumerate()
+                .find(|(_, i)| i.name == *name && i.sha == Some(file.sha))
+            {
                 let on = app.visit.out.contains(&**name);
                 waiting += 1;
                 ticked += usize::from(on);
@@ -103,7 +115,7 @@ impl Pane<'_> {
                     ListRow {
                         name: &item.name,
                         line: &line,
-                        tag: ("", Role::OnSurfaceVariant.paint()),
+                        tag: (waiting_tag, Role::OnSurfaceVariant.paint()),
                         ticked: Some(on),
                         greyed: false,
                         same: false,
@@ -195,7 +207,7 @@ impl Pane<'_> {
             BUTTON_H,
             &label,
             Style::Primary.when(on),
-            Action::VisitWrite,
+            Action::TakeWrite,
         );
     }
 }

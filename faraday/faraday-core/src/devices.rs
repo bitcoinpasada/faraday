@@ -657,7 +657,7 @@ impl Faraday {
         self.vaults.tidy_shown(false);
         // This sheet names no mode: a lock from it changes none.
         // Not once the lock is agreed (sealing or restarting): the mode
-        // the person agreed to stays.
+        // the person agreed to stays, and the write too.
         if !self.restart && !self.sealing() {
             if self.next_mode.changing() {
                 // A Lock that waits for randomness answered the change
@@ -665,6 +665,12 @@ impl Faraday {
                 self.fresh.wait_cancel();
             }
             self.next_mode.clear();
+            // A write whose sheet named its files was not answered: this
+            // sheet names none, so its Lock writes nothing (spend's was
+            // asked for).
+            if self.visit.lock_to_write().is_some_and(|w| !w.spend) {
+                self.visit.set_lock_to_write(None);
+            }
         }
         self.sheet = Some(Sheet::Lock);
     }

@@ -1022,3 +1022,34 @@ fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
         Action::PowerOff,
     );
 }
+
+/// What the flow on show gives to take away at its last step, worked out
+/// now from the flow's own state: the take-away's Write reads this, never
+/// what a frame drew.
+pub(crate) fn take_away_now(app: &crate::Faraday) -> Option<crate::flow::TakeAway> {
+    use crate::flow::Contained;
+    match app.screen {
+        crate::Screen::Message => message::MESSAGE_STEPS.take_away(app, crate::mstep::SIGN),
+        _ => None,
+    }
+}
+
+/// The names of the files the flow on show offers to take away and
+/// that wait in the Outbox, read from the flow now. A file that may be
+/// a secret is never among them.
+pub(crate) fn take_away_names(app: &crate::Faraday) -> Vec<faraday_text::Text> {
+    let Some(take) = take_away_now(app) else {
+        return Vec::new();
+    };
+    take.files
+        .iter()
+        .filter(|f| {
+            app.outbox.iter().any(|i| {
+                i.name == f.name
+                    && i.sha == Some(f.sha)
+                    && i.exposure() != crate::secrets::Exposure::Secret
+            })
+        })
+        .map(|f| faraday_text::Text::of(&f.name))
+        .collect()
+}

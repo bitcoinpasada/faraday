@@ -926,6 +926,12 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::MSign);
     t.shot("message-signed")?;
     t.sticks(true);
+    t.app.storage(StorageEvent::Sticks(t.sticks.clone()));
+    t.pump();
+    t.shot("message-signed-stick")?;
+    // Not now: the end of the flow, with the stick in.
+    t.press(Action::Cancel);
+    t.shot("message-signed-stick-pane")?;
     t.press(Action::Lock);
     t.app.storage(StorageEvent::Sticks(t.sticks.clone()));
     t.pump();

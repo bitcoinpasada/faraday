@@ -722,7 +722,17 @@ pub(super) fn remove_keys_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// Writing what is For the stick from a session that held a secret: the
 /// lock comes first, and this says what it keeps and wipes.
 pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let then = if app.stick.is_empty() {
+    // A write that waits through the lock sends only the files it names.
+    let then = if let Some(wait) = app.visit.lock_to_write() {
+        let mut names = Text::default();
+        for (k, name) in wait.names.iter().enumerate() {
+            if k > 0 {
+                names.push_str(", ");
+            }
+            names.push_str(name);
+        }
+        Text::fill(EN.write_out_lock_names, &[&*names, &*wait.label])
+    } else if app.stick.is_empty() {
         Text::fill(EN.write_out_lock_plug, &[app.medium.a()])
     } else {
         Text::of(EN.write_out_lock_here)

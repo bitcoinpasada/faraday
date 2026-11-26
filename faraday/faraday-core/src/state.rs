@@ -1500,6 +1500,11 @@ impl Faraday {
                         }
                         let sha = crate::sha256_of(c, text.as_bytes());
                         let name = self.put_outbox_beside(&name, text.as_bytes().to_vec());
+                        // Kept on the item, so the take-away's row and
+                        // press tell this file from another under its name.
+                        if let Some(item) = self.outbox.iter_mut().find(|i| i.name == name) {
+                            item.sha = Some(sha);
+                        }
                         if let Some(m) = self.message.state.as_mut() {
                             m.out_name = Some(name.duplicate());
                             m.out_sha = Some(sha);
@@ -2256,6 +2261,9 @@ impl Faraday {
             // warning before it said. It is no mode change: the sheet that
             // asked for one ends with it.
             self.next_mode.clear();
+            // A write is a press: one that waited for this lock to be
+            // pressed is given up.
+            self.visit.set_lock_to_write(None);
             self.lock_now(true);
             return true;
         }

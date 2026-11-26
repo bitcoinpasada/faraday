@@ -179,7 +179,12 @@ impl crate::flow::Contained for MessageSteps {
         let base = m.file_name()?;
         // Drawn only while the file is not waiting: the name it is made
         // under beside the files that are, another signature's among them.
-        let again = if app.outbox.iter().any(|i| i.name == name) {
+        let sha = m.out_sha?;
+        let again = if app
+            .outbox
+            .iter()
+            .any(|i| i.name == name && i.sha == Some(sha))
+        {
             base
         } else {
             crate::stick::visit_taken::outbox_free_name(&app.outbox, &base)
@@ -187,7 +192,7 @@ impl crate::flow::Contained for MessageSteps {
         Some(flow::TakeAway {
             files: vec![flow::TakeFile {
                 name,
-                sha: m.out_sha?,
+                sha,
                 again,
                 make_label: EN.message_make_the_file,
                 make: Action::MOut,

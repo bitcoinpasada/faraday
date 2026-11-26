@@ -72,6 +72,9 @@ macro_rules! words_screens_sheets {
     write_out_lock_plug: "Lock, plug in {}, and the visit writes them",
     /// Text in `write_out_sheet`, with the stick already in.
     write_out_lock_here: "Lock, and the visit writes them",
+    /// Text in `write_out_sheet`, for a take-away's write. First `{}`: the
+    /// files' names; second: the stick's label.
+    write_out_lock_names: "Lock, then write {} to {}",
     /// Text in `write_out_sheet`. `{}`: `app.medium.a()`.
     write_out_target: "Write to {}",
     /// Text in `write_out_sheet`.
