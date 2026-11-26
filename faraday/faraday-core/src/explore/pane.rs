@@ -1,6 +1,6 @@
 //! Explore's keys as a pane at the left of the card on the wide layout
-//! (`docs/FLOW-CONTAINER.md` §4): the rows, where the pair stands and its
-//! lines. Labels only: nothing here holds or reads a secret.
+//! (`docs/FLOW-CONTAINER.md` §4): the rows, where the pair stands, its
+//! card and divider. Labels only: nothing here holds or reads a secret.
 
 use crate::Action;
 use crate::drawing::View;
@@ -53,16 +53,15 @@ pub(crate) fn key_groups(app: &View, chosen: Option<[u8; 4]>) -> Vec<crate::flow
         .groups()
 }
 
-/// The pair's divider and outline, from `top` to `end`.
-pub(crate) fn lines(ui: &mut Ui, x0: f32, p: hub_layout::Place, top: f32, end: f32) {
-    let at = x0 + p.pane_x + p.pane_w + p.gap / 2.0;
+/// The pair's card, under content that starts at `top`.
+pub(crate) fn card(app: &View, ui: &mut Ui, x0: f32, p: hub_layout::Place, top: f32) {
     let edges = (x0 + p.pane_x, x0 + p.card_x + p.card_w);
-    hub_layout::lines(ui, (at, top, end), Some((edges, f32::MAX)));
+    hub_layout::pair_card(ui, app.scroll.card_foot(), edges, top);
 }
 
 /// The end of a page where the pair stands, whatever its card shows: the
-/// pair's lines from `y_pane` to the lower of the card (`y`) and the pane
-/// (`pane_end`), and the scroll height to there, with the outline's foot
+/// divider from `y_pane` to the lower of the column (`y`) and the pane
+/// (`pane_end`), and the scroll height to there, with the card's foot
 /// below it.
 pub(crate) fn foot(
     app: &View,
@@ -72,8 +71,10 @@ pub(crate) fn foot(
     (y, pane_end): (f32, f32),
 ) {
     let end = hub_layout::level(pane_end, y, f32::MAX);
-    lines(ui, x0, p, y_pane, end);
-    // The outline ends a padding below `end`: the page scrolls to a padding
+    let at = x0 + p.pane_x + p.pane_w + p.gap / 2.0;
+    hub_layout::divider(ui, (at, y_pane, end));
+    hub_layout::pair_card_ends(ui, app.scroll.card_foot(), end);
+    // The card ends a padding below `end`: the page scrolls to a padding
     // below that.
     let pad = faraday_draw::tokens::PAD;
     crate::compact::screen::finish(app, ui, h, end + 2.0 * pad);

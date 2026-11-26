@@ -10,7 +10,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{APPEARANCE_LABEL_GAP, APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, SEGMENTED_H, TITLE_M};
-use faraday_draw::tokens::{ELEVATION_FAB, PAD, SHAPE_M};
+use faraday_draw::tokens::{PAD, SHAPE_M};
 use faraday_shell_api::Orientation;
 use faraday_ui::parts::wrap_buttons;
 use std::sync::OnceLock;
@@ -586,8 +586,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         });
         let h = inner + 2.0 * PAD;
         if ui.shows(y, h) {
-            ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);
-            ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+            crate::screens::hub_layout::tile_surface(ui, (x, y, w, h));
         }
         draw_cards(app, ui, (ix, y + PAD, iw), &cards, columns);
         h

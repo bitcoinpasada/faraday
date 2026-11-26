@@ -11,7 +11,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Ask, Faraday, Screen, Sheet};
-use faraday_draw::tokens::{BODY_L, GAP};
+use faraday_draw::tokens::{BODY_L, GAP, PAD};
 
 /// Check an address' panes: the scanner's frame and the card.
 const PANES: Panes = Panes {
@@ -61,10 +61,14 @@ pub(crate) fn place_in(app: &Faraday, room: f32) -> bool {
     place(app, app.is_compact(), room).is_some()
 }
 
-/// The pane's frame and the card's title and Cancel, with the pair's
-/// lines. Returns the page's end `y`.
+/// The pane's frame and the card's title and Cancel, on the pair's card
+/// with its divider. Returns the page's end `y`.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, p: hub_layout::Place, y: f32) -> f32 {
     let Some(sc) = app.scan() else { return y };
+    // A raised card stands a padding above its content.
+    let y = y + PAD / 2.0;
+    let edges = (x0 + p.pane_x, x0 + p.card_x + p.card_w);
+    hub_layout::pair_card(ui, app.scroll.card_foot(), edges, y);
     let (px, w) = (x0 + p.pane_x, p.pane_w);
     let h = w * 0.75;
     ui.fill(px, y, w, h, 8.0, Role::SurfaceContainerHighest);
@@ -82,8 +86,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, p: hub_layout::Place, y: f3
     cy += crate::screens::button_rows(ui, x, cy, cw, &ways[usize::from(!paste)..]);
     let end = cy.max(y + h);
     let at = x0 + p.pane_x + p.pane_w + p.gap / 2.0;
-    let edges = (x0 + p.pane_x, x0 + p.card_x + p.card_w);
-    hub_layout::lines(ui, (at, y, end), Some((edges, f32::MAX)));
+    hub_layout::divider(ui, (at, y, end));
+    hub_layout::pair_card_ends(ui, app.scroll.card_foot(), end);
     end
 }
 

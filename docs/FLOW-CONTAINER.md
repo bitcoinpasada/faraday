@@ -195,7 +195,7 @@ step: the label, and under it the answer or "Not chosen yet", each row a
 press in its 48 dp target. The current step's row is marked as current.
 Explore and Derive is not a step flow: where the pair fits (`docs/HUB-LAYOUT.md`),
 its Path page stands as the same pair with the loaded keys as the pick's rows
-(`session_pane/pick.rs`, one choice, checked against Material's single-choice list row) in place of Your choices, the same divider and outline,
+(`session_pane/pick.rs`, one choice, checked against Material's single-choice list row) in place of Your choices, the same divider and raised card,
 and the result in the card; the pane scrolls with the page. Addresses and
 Find, the one-column layouts and a room too narrow for the pair keep today's
 row of keys. Changing the key hides what its eyes show (`prune`).
@@ -215,7 +215,8 @@ the pick's rows, pressing what the buttons press, and the aezeed and
 Convert, on a one-column layout or in a room too narrow for the pair the
 sources are the buttons in the card (the rows are checked against Material's
 single-choice list row, as Explore's). The page ends in one tail for every
-case (the pair's lines and the scroll to a padding below the outline's foot).
+case (the pair's divider and the scroll to a padding below the card's foot),
+and the pair stands on the same raised card.
 The private key is hidden whenever the node it shows changes or goes: another
 source, a file, an edit of the words or the passphrase, a read, a stick.
 A pane taller than the window scrolls within itself (LAYOUT §6), so a low

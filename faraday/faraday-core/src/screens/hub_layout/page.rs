@@ -26,7 +26,7 @@ fn home_span(room: f32) -> (f32, f32) {
 }
 
 /// The tile's surface: raised, as the cards beside it.
-fn tile_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
+pub(crate) fn tile_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
     // Everything raised on a menu page rests at level 1 (F331); a High
     // contrast theme casts no shadow, so an outline stands in its place.
     ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_SHEET);

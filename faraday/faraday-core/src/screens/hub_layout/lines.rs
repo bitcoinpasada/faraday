@@ -2,11 +2,12 @@
 //! (`docs/FLOW-CONTAINER.md` §4).
 
 use crate::ui::{Ui, pal::*};
+use core::cell::Cell;
 use faraday_draw::tokens;
 
-/// How far the pair's outline stands above the card's top: the heading
-/// starts a padding under the top bar, so the line stands half a padding
-/// under it.
+/// How far the pair's limit stands above the card's top: the heading
+/// starts a padding under the top bar, so it stands half a padding under
+/// it.
 const OUTLINE_ABOVE: f32 = tokens::PAD / 2.0;
 
 /// A flow's one card (F331): from `from` to `to` (the corners, x and y),
@@ -27,9 +28,7 @@ pub(crate) fn card(ui: &mut Ui, from: (f32, f32), to: (f32, f32)) {
     }
 }
 
-/// The pair's outline: one thin rounded edge from `from` to `to` (the
-/// corners, x and y), round Your choices and the step; no fill, the page
-/// is the surface.
+/// The flow card's thin outline from `from` to `to`, at High contrast.
 fn outline(ui: &mut Ui, from: (f32, f32), to: (f32, f32)) {
     ui.stroke(
         from.0,
@@ -41,7 +40,30 @@ fn outline(ui: &mut Ui, from: (f32, f32), to: (f32, f32)) {
     );
 }
 
-/// The card's top and foot limits: where the pair stands, its outline's top
+/// The raised card of a pair on a page that scrolls whole: a padding
+/// outside `edges` (the panes' left and right) and above `top`, where
+/// their content starts. It stands under the content, which alone says
+/// where it ends, so it is drawn to the foot `kept` from the last frame
+/// ([`pair_card_ends`]).
+pub(crate) fn pair_card(ui: &mut Ui, kept: &Cell<f32>, (left, right): (f32, f32), top: f32) {
+    card(
+        ui,
+        (left - tokens::PAD, top - tokens::PAD),
+        (right + tokens::PAD, kept.get()),
+    );
+}
+
+/// After the content of a [`pair_card`], which ends at `end`: keeps where
+/// the card ends, and a frame that finds another end is drawn again.
+pub(crate) fn pair_card_ends(ui: &mut Ui, kept: &Cell<f32>, end: f32) {
+    let foot = end + tokens::PAD;
+    if (foot - kept.get()).abs() > f32::EPSILON {
+        kept.set(foot);
+        ui.spoiled = true;
+    }
+}
+
+/// The card's top and foot limits: where the pair stands, its card's top
 /// and the line a margin above the window's foot; else the page's.
 pub(crate) fn limits(left: bool, compact: bool, top: f32, view_h: f32) -> (f32, f32) {
     if left {
@@ -51,20 +73,9 @@ pub(crate) fn limits(left: bool, compact: bool, top: f32, view_h: f32) -> (f32, 
     }
 }
 
-/// The lines of one card: the divider at `at` from `top` to `end`, and,
-/// where the pair stands (its left edge and the card's right, the foot
-/// limit), the outline a padding outside it.
-pub(crate) fn lines(ui: &mut Ui, (at, top, end): (f32, f32, f32), pair: Option<((f32, f32), f32)>) {
-    divider(ui, at, top, end);
-    if let Some(((left, right), limit)) = pair {
-        let (from, to) = (top - OUTLINE_ABOVE, (end + tokens::PAD).min(limit));
-        outline(ui, (left - tokens::PAD, from), (right + tokens::PAD, to));
-    }
-}
-
 /// One card's divider: at `at`, the middle of the gap, inset by the card's
 /// padding, from `top` to where the taller side ends.
-fn divider(ui: &mut Ui, at: f32, top: f32, end: f32) {
+pub(crate) fn divider(ui: &mut Ui, (at, top, end): (f32, f32, f32)) {
     let inset = tokens::PAD;
     if end - top > 2.0 * inset {
         ui.fill(

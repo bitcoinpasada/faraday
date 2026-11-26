@@ -42,7 +42,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         EN.lightning_a_lightning_node
     };
-    let y = if compact { top } else { header(app, ui) };
+    let mut y = if compact { top } else { header(app, ui) };
+    if let Some(p) = pair {
+        // A raised card stands a padding above its content.
+        y += faraday_draw::tokens::PAD / 2.0;
+        crate::explore::pane::card(app, ui, x0, p, y);
+    }
     let mut pane_end = y;
     if let (Some(p), Some(l)) = (pair, app.lightning.state()) {
         let groups = super::pane::groups(app, l.source);

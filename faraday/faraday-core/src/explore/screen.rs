@@ -36,10 +36,16 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // On the wide layout the keys stand in the pane at the left of the card
     // (`docs/FLOW-CONTAINER.md` §4); elsewhere they are a row of buttons.
     let pair = super::pane::place(app, compact, cw);
-    let (x, width, y_pane) = match pair {
-        Some(p) => (x0 + p.card_x, p.card_w, y),
-        None => (x, width, y),
+    // A raised card stands a padding above its content.
+    let (x, width) = match pair {
+        Some(p) => {
+            y += T::PAD / 2.0;
+            super::pane::card(app, ui, x0, p, y);
+            (x0 + p.card_x, p.card_w)
+        }
+        None => (x, width),
     };
+    let y_pane = y;
     let mut pane_end = y_pane;
     if let Some(p) = pair {
         let groups = super::pane::key_groups(app, e.key);

@@ -8,8 +8,8 @@ mod page;
 mod pair;
 mod turn;
 
-pub(crate) use lines::{card, limits, lines};
-pub(crate) use page::{draw, draw_details, draw_results, draw_results_alone};
+pub(crate) use lines::{card, divider, limits, pair_card, pair_card_ends};
+pub(crate) use page::{draw, draw_details, draw_results, draw_results_alone, tile_surface};
 pub(crate) use turn::{Kind, STEP_MS, page_turn};
 
 use super::session_pane::Mode;

@@ -51,8 +51,9 @@ page that does not stack is measured as a pair.
   that fills the room (a flow's wide content).
 - `level(a, b, most)`: where the pair ends, level: the longer of the two, at
   most `most`.
-- `lines` and `limits`: the pair's divider and outline, and the top and foot
-  that the panes scroll between.
+- `card`, `divider` and `limits`: a flow's raised card, the pair's divider,
+  and the top and foot that the panes scroll between; `pair_card` and
+  `pair_card_ends`: that card on a page that scrolls whole.
 - `guide_place((x0, cw, h))`: where Guide's pane stands at the right edge (and `guide_place_at`, `guide_room`); the glide and the dice sheet's column read it, no page works it out.
 - Beside Guide's pane a page's pair is placed in the whole room
   (`Faraday::guide_beside_pair`, `place(room, true)`): it moves left only

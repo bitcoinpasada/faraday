@@ -345,7 +345,7 @@ pub(crate) fn contained(
             px - gap / 2.0
         };
         let end = hub_layout::level(top + pane_h, y - next.y, view_h);
-        hub_layout::lines(ui, (at, top, end), None);
+        hub_layout::divider(ui, (at, top, end));
         pane_end = top + pane_h;
     }
     card.settle(ui, app, (y, pane_end), max > 0.0, (view_h, clip_end));

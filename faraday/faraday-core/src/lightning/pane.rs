@@ -1,7 +1,7 @@
 //! The Lightning page's keys as a pane at the left of the card on the wide
 //! layout (`docs/FLOW-CONTAINER.md` §4): where the pair stands and the
 //! rows. Labels only: nothing here holds or reads a secret. The pair's
-//! lines are Explore's (`explore::pane::lines`).
+//! card and divider are Explore's (`explore::pane`).
 
 use crate::Action;
 use crate::drawing::View;
