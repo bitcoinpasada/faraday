@@ -46,6 +46,7 @@ Entry (`entry_act`, `faraday/faraday-core/src/word_entry.rs:~913-1037`):
 - Lock: `EntryArea::holds` counts typed text, parts, passphrase or word keys; `lock()` calls `reset()` (`faraday/faraday-core/src/state.rs:2766-2781`). The lock then restarts the process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
 - Leaving the screen resets the entry (`faraday/faraday-core/src/state.rs:~2234-2239`). Passphrase fields are emptied when their screen goes and when a stick arrives (`faraday/faraday-core/src/pass_field/mod.rs:623-644`).
 - Word list: `WordListArea` holds `find: String` (a search, which can hold a seed word) and a mark; `holds` = find non-empty or a mark set; `lock` = `clear()` (`faraday/faraday-core/src/wordlist/mod.rs:325-335`).
+- `Parts` and `Clash` (`faraday/faraday-core/src/forms.rs:18`, `160`) have no `Drop` of their own; each element wipes itself. `slip39::Share` has `Drop` and `ZeroizeOnDrop` (`core/faraday-bip/src/slip39.rs:574-580`). `Codex32` and `Codex32Ascii` derive `ZeroizeOnDrop` (`core/faraday-bip/src/codex32/mod.rs:370-381`). `SeedXor` has `Drop` (`core/faraday-entropy/src/xor.rs:40`). None of them has `Debug`. `Clash.differ` holds box positions only.
 
 ## Reach
 
@@ -127,7 +128,6 @@ None.
 ## Doubts
 
 - c2c4c296f names wallet files, BSMS, Coldcard exports, PSBT registration and BBQr. The 112-character cap is in `core/faraday-bip/src/xkey.rs:~43`; that Add a key's Xprv form goes through it was not traced.
-- `Parts` and `Clash` are documented as wiped on drop but have no `Drop` in `faraday/faraday-core/src/forms.rs`; wiping rests on their element types, unconfirmed.
 - `EntryList::Slip39` is never built by `WordEntry::list()` (`faraday/faraday-core/src/word_entry.rs:~473-475`).
 - `reading_keys` loops over 2048 indices per keystroke.
 - The word list's draw calls `app.wordlist_scroll(max, scroll)`, which writes the clamped scroll to state during drawing (`faraday/faraday-core/src/wordlist/screen.rs:~133`); a memo or a breach of "drawing reads", unclear.

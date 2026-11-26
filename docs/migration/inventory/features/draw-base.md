@@ -43,6 +43,7 @@ None; it has no input.
 - The call list's `text` (may hold a seed's words) is a `faraday_text::Text` and is zeroized on every `List::clear` (`core/faraday-draw/src/canvas/list.rs:131-140`, `core/faraday-draw/src/canvas/list.rs:136-138`; `Text::clear` at `core/faraday-text/src/text.rs:307-309`).
 - Band scratch rows that were written are zeroed after each band paints (`core/faraday-draw/src/canvas/list/bands.rs:552-565`).
 - `GlyphCache` holds bitmaps keyed by (family, px, code point), byte count and a held flag; `Shapes` holds coverage masks by key, byte count, filled counter and a held flag.
+- The canvas belongs to the app. At a lock it ends with the process, or with the old app dropped in the not-kept rebuild. `cut`'s texts wipe as they drop (`core/faraday-text/src/text.rs:363`). The lock itself only forgets the glyphs (`faraday/faraday-core/src/at_lock.rs:101-108`, `faraday/faraday-core/src/vault/seal.rs:192-199`).
 
 ## Reach
 
@@ -116,7 +117,6 @@ None given to this feature.
 ## Doubts
 
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- The canvas pixmap keeps the last frame and `cut` keeps strings that ran past their clip until the next `Canvas::clear`; Lock clears glyphs only. Whether a lock draws a blank page before the next frame, and so whether a shown secret stays in the pixmap or `cut` after a lock, was not traced.
 - `Scale::IDENTITY` is test-only in effect: its other uses (`core/faraday-draw/src/text.rs:290`, `core/faraday-draw/src/widgets/keyboard.rs:930`) sit after `#[cfg(test)]` lines.
 - One oversize shape can exceed the 1 MiB shape budget on its own (`core/faraday-draw/src/shapes.rs:129`).
 - `ease_path` divides by `1 - join[0]`; if `join[0]` could be 1 this divides by zero (`core/faraday-draw/src/easing.rs:~44-45`).

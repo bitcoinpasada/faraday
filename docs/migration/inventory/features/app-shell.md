@@ -57,6 +57,7 @@ The `Faraday` app value and its `App` implementation: it takes every event the s
 - Idle timers: lock after 30 min (`IDLE_LOCK_MIN`), power off after 60 min (`IDLE_OFF_MIN`), warning 5 min before, or half the lock time when that is shorter (`IDLE_WARN_MS`) (`faraday/faraday-core/src/lib.rs:319-325`). These are first values; Settings changes both (`faraday/faraday-core/src/state.rs:2558-2563`).
 - `Faraday::new()` (`faraday/faraday-core/src/state.rs:~2678-2764`): Home, 1280x800, scale 1.0, `online` false, `tainted` false, `Medium::Stick`, Secure Boot Unknown.
 - Dead field: `disclosed: Option<Disclosed>` is documented "always none now" and is only ever set to `None` (`faraday/faraday-core/src/lib.rs:1046`, `faraday/faraday-core/src/state.rs:2744`).
+- Lock: `lock_finish` runs every area's `AtLock::lock` (`lock_areas`, listing `faraday/faraday-core/src/at_lock.rs:177-193`), asserts in debug builds that nothing is held after it, saves the boxes and exits (`faraday/faraday-core/src/vault/seal.rs:933-946`). The app then ends: the process restarts, or, when the save fails with keys waiting for their backup, the stick shell drops the app and builds a fresh one in the same process (see `lock`). What each area clears is in `lock` and in each area's file.
 
 ## Reach
 
@@ -121,4 +122,3 @@ None.
 - `picture::draw` returns its canvas; no caller was checked.
 - The board tokens `BOARD_MENU_DOT` and `BOARD_MARK` are used for every ⋮ menu (`faraday/faraday-core/src/menu.rs:~100-107`), a possible naming leftover.
 - Cosmetic doc defects named but not re-read: `faraday/faraday-core/src/action.rs:~47-48, ~794-796`.
-- Per-area lock behaviour of the areas listed under State was not checked here; see each area's file and `lock`.

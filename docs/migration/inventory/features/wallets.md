@@ -149,7 +149,7 @@ Chart (`ChartAction`, `faraday/faraday-core/src/chart_edit.rs`)
   - `lock()` calls `wipe()` (`faraday/faraday-core/src/wallet.rs:1539-1549`). It clears `keys` (`keys.clear()`), `wallets`, `wallet_asked` and its counters, `wallet_covered`, `wallet_confirmed`, `key_xpubs` and `silent_handed`.
   - Not cleared: `waiting`, `waiting_inputs`, `psbt_wallets`, `psbt_wallets_inputs`, `key_marks`, `accounts`, `modes` (fingerprints, indices and display marks).
 - Lock, Wallets area: `WalletsArea::lock` calls `clear_spend()` and `row_open.lock()` (`faraday/faraday-core/src/wallet/state.rs:1264-1274`).
-- Lock, chart: the glance lock clears `work.pass` only (`faraday/faraday-core/src/glance/mod.rs:2487-2494`). `work.text`, `result`, `refused` and `moving_to` stay.
+- Lock, chart: the glance lock clears `work.pass` only (`faraday/faraday-core/src/glance/mod.rs:2487-2494`). `work.text`, `result`, `refused` and `moving_to`, all public, go with the app at the lock, the not-kept rebuild included (`faraday/faraday-core/src/storage_api.rs:19-23`).
 - The chart sheet closes on any other press (`faraday/faraday-core/src/action.rs:1430-1442`). A sheet's own field presses, the keyboard's included, and tick presses stay in the sheet (fixes f36ccb21d, 278d951d8).
 - Every lock ends in a restart and Exit (`faraday/faraday-core/src/vault/seal.rs:933-946`), so whatever is not wiped is gone with the process.
 - The secrets this feature holds are the session's keys, wiped at lock, and the chart's typed passphrase, wiped at lock.
@@ -422,7 +422,6 @@ The silent payments keystores (`faraday/faraday-core/tests/vectors/interop/sparr
   - `master_proof` (`~475`) had no caller found.
 - `file_witness_refusal` (`faraday/faraday-core/src/wallet.rs:~4162-4177`) is live; it is used at `~3688`.
 - `nonce_check`'s doc says only valid signatures are looked at, but the filter does not check validity.
-- The chart's sheet state (`result`, `refused`, `moving_to`, `work.text`) survives the glance lock hook. The process restarts at lock anyway.
 - `Make a new key` is on the start page but not on the pair tile. Whether that is intended is unclear.
 - `KeyWallet(fp, 1)` is a literal of unclear meaning (`faraday/faraday-core/src/screens/session_pane/rows.rs:~180, ~330`).
 - The callers of `wallet_page`, `wallet_rows`, `loose_card`, `missing_keys_line` and `first_receive_row` outside the tab were not traced. `faraday/faraday-core/src/screens/row_details.rs:~276` calls `wallets::{actions, wallet_page}`.

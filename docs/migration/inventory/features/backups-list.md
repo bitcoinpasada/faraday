@@ -38,6 +38,7 @@ opens a place's checklist item in Back up (`wallet-backup`) or a chart node.
 - Marks: printed templates, envelopes, descriptor shown, passphrase checked (`backups_marked`, `backups_shown`, `backups_passphrase_checked`); the Krux code mark `KefMark` (`faraday/faraday-core/src/backups/mod.rs:~103-125`; `kef_mark` `~1913`, `backups_kef_set` `~1930`).
 - `backups_sync` (`faraday/faraday-core/src/backups/mod.rs:~1155`) records the backup under way when its checklist is made; it adopts a record only when exactly one loaded wallet has the checksum (`~1162-1166`). `backup_record_of` (`~1969`).
 - Lock: a lock ends the process (`faraday/faraday-core/src/vault/seal.rs:933-946`); the records come back through the kept state `backups` (`faraday/faraday-core/src/memory/mod.rs:493-494`, decode `622`). `encode` (`faraday/faraday-core/src/backups/mod.rs:~378`) and `decode` (`~463`) carry the backup line, `wid`, `spot`, `marks`, `pass`, `check`, `id`, `kef`, `plan`. Not encoded, so lost at a lock: `Record.dated`, `BackupsArea.older`, `BackupsArea.undated`.
+- `older` and `undated` are RAM only and go at an app lock, as meant (`faraday/faraday-core/src/backups/mod.rs:549-555`). A held undated check is dated by Set the time, or by a later unlock in the same app of the copy the stick held or of one sealed from it, such as a single vault's lock (`undated_written`, `copy_takes`, `faraday/faraday-core/src/backups/mod.rs:1743-1770`). One no open vault takes stays held.
 - `sync` (`faraday/faraday-core/src/backups/mod.rs:~610`): an id the session no longer holds is kept, not dropped (`~633-636`).
 
 ## Reach
@@ -118,7 +119,6 @@ None.
 - Rows kept here that fit `wallet-backup` as well: f4653d345, d4d8e11eb, fa702dbd4, eb8395720, 5df98df9c, d17295cd3.
 - The `kef` kept line: the doc text says eight fields, a comment (`faraday/faraday-core/src/backups/mod.rs:~526-528`) says a line without the hash is dropped, and the code accepts 7, 9 or 10 fields.
 - The module doc (`faraday/faraday-core/src/backups/mod.rs:~1-10`) and `Dated` (`~78`) say names never go into kept checks, but `Dated.line` and `Held` carry a place line that starts with the place's name (RAM only).
-- `BackupsArea.older` and `undated` are lost at a lock because they are not encoded; whether that is meant is not stated.
 - `faraday/faraday-core/src/backups/mod.rs` lines 1-60 were seen only in a truncated preview; the drawing in `faraday/faraday-core/src/backups/screen.rs` was read once.
 - Doc misplaced at `faraday/faraday-core/src/backups/mod.rs:~4149-4156`.
 - Test modules were not read; no fixture is named for this feature.

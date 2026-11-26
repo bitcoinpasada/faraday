@@ -109,6 +109,7 @@ tile SpendBackup and Home. Code: `faraday/faraday-core/src/spend_backup/mod.rs`
   `app.wallets.spend()`, `app.vaults` (open, pick, passphrase, working,
   memory_free_mib, unlock_error), `app.stick`, `app.online`, `app.medium`,
   Inbox and Outbox.
+- `SpendBackupState` (`faraday/faraday-core/src/spend_backup/mod.rs:245`) derives `Debug` but holds no seed. Seeds are named by fingerprint in `SeedsState.keys` and `ticked` (`faraday/faraday-core/src/seeds/mod.rs:100-104`). Typed boxes are `Text`, whose `Debug` prints only a length (`core/faraday-text/src/text.rs:383-387`).
 
 ## Reach
 
@@ -240,8 +241,6 @@ Drawn rules:
   (`faraday/faraday-core/src/spend_backup/mod.rs:~1008`).
 - `STEP_AT = 16` and `LATER_AT = 32` card numbering assumes fewer than 16
   steps.
-- `SpendBackupState` derives Debug; whether the seeds would print is
-  unknown.
 - The drawing does work on every frame (`restore::merge`,
   `create::read_key`, `from_utf8_lossy`, `receive_line` for up to 3 plus
   the address rows per side, `spend_backup_guess()` several times,

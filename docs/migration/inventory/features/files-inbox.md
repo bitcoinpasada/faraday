@@ -72,7 +72,7 @@ page's drawing helpers and is described here where it is drawn.
 - Storage commands from the file menu: `StorageCommand::Hash`, `Rename`, `NameStick` (`faraday/faraday-core/src/file_menu.rs:~544-547`, `~698-730`).
 - SHA-256 of Inbox and Outbox files worked out in process under `Compute`.
 - `save_boxes()` after Inbox and Outbox pushes, removes and renames: the boxes are kept by the shell across a restart (`storage`).
-- Decode and Sign this message take `item.bytes.clone()`, a second copy of the file's bytes.
+- Decode and Sign this message take `item.bytes.clone()`, a local wiping copy dropped when the press is done (`faraday/faraday-core/src/file_menu.rs:480-498`). Decode keeps only the decoded transaction (`faraday/faraday-core/src/decode/mod.rs:1104-1140`); Sign this message keeps the text as its message (`faraday/faraday-core/src/state.rs:2063-2074`), public by the message area's lock rule (`faraday/faraday-core/src/state.rs:2783-2791`), until Done, Cancel the flow or a lock.
 - Making a potential wallet runs key derivation (PBKDF2) under `Compute`, then `session.add_wallet`; toasts.
 - Drawing writes only scrollbar cells (`app.visit.bar(..).set`, `faraday/faraday-core/src/screens/visit.rs:~89-90`, `~1803-1805`), scroll regions and clip stacks. No storage, worker, camera, clipboard, time or randomness from drawing.
 
@@ -94,6 +94,8 @@ page's drawing helpers and is described here where it is drawn.
 - `copy_ack` kinds: `Ack::Any` (secret, Entries, SecretWallet, KeyWithSecret, KruxCode), `Ack::Seed` (Words, SeedPart, KeyLine), `Ack::Unknown` (Text, Other), none (public or sealed).
 - The page drawing keeps nothing. It reads `app.visit` (out, from_inbox, inn, stick, tab_stick, log, receipt, reading, load_after, bars), `app.vaults.open`, `app.stick`, `app.inbox`, `app.outbox`, `app.scroll`. It reads file bytes only for share text (`share_note`, `faraday/faraday-core/src/screens/visit.rs:~1680`).
 - `VisitArea` lock clears `pictures_scan`, `taken`, `name_taken` and `after_visit` only (`faraday/faraday-core/src/stick/visit_taken.rs:2526-2541`).
+- Every arm of `Secret` (`faraday/faraday-core/src/inbox.rs:633-645`) wipes on drop. `Mnemonic` has `Drop` (`core/faraday-bip/src/bip39.rs:759`) and `slip39::Share` has `Drop` (`core/faraday-bip/src/slip39.rs:574`). `Codex32` and `Seed` are `Zeroizing`; `Xprv` is a `SecretText`. `Potential.pass` is a `PassField` of `SecretText` (`faraday/faraday-core/src/pass_field/mod.rs:117-124`), with no `Clone` or `Debug`.
+- A `write_waiting` of this process goes at every lock, the not-kept rebuild included. Only a "Lock and write" crosses, as `lock_to_write` encoded under `write-waiting` (`faraday/faraday-core/src/memory/mod.rs:460-465`). The new app reads it back as its `write_waiting`. `WriteWait` holds names and hashes, no bytes (`faraday/faraday-core/src/stick/visit_taken.rs:213-227`).
 
 ## Reach
 
@@ -224,10 +226,7 @@ None.
 - d5fd12b64 and dad3b6c94 came with the stick shell's rows and are carried here.
 - `faraday/faraday-core/src/stick/wipe.rs` (zeroing and the delete ask) was read by no report; its rules are known only from fix rows.
 - An earlier report said Import is offered "only when no vault is open"; the code says the opposite (a vault must be open). The correction is carried.
-- `Secret::Words` and SLIP-39 shares, and `Potential.pass`, hold secrets in types outside this area; whether they wipe on drop was not checked here.
-- Decode and Sign this message take `item.bytes.clone()`; whether their own state keeps that copy after their screen is done was not traced.
 - Line numbers in `faraday/faraday-core/src/screens/visit.rs` and most of `faraday/faraday-core/src/screens/files.rs` come from one report each and were not re-read; only the ones marked plainly were checked.
 - `inbox_actions` (`faraday/faraday-core/src/screens/files.rs:~1340-1361`) always returns `note = None`: apparently a dead return.
 - Doc comments: `faraday/faraday-core/src/screens/files.rs:1` says "Inbox and Outbox" though the file has no Outbox code; `~560-565` stacked docs.
 - `faraday/faraday-core/src/screens/visit_same.rs` (drawing) and `faraday/faraday-core/src/stick/visit_same.rs` (logic, `SameFiles`) are two distinct modules with the same name.
-- Whether `write_waiting` on `VisitArea` can outlive a lock in the same process is unclear; the kept-state writer encodes only `lock_to_write`.

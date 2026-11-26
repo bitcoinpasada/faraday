@@ -33,6 +33,7 @@ How pages move: finger pans and flicks, the wheel, rubber-band stretch at the en
 - A frame that showed a secret (`secret_drawn`, `step_secret`, `secret_shown`) is not kept for a fade: the next change is drawn at once, or a live fade redraws both cards from state (`faraday/faraday-core/src/fade.rs:~600-615, ~748, ~874-890`).
 - A lock does not clear `Fade` or `Scroll` (confirmed at `faraday/faraday-core/src/fade.rs:164, 193-205, 395`). Every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`), so neither outlives it.
 - `Out` is declared to hold nothing a lock wipes.
+- `Out.storage_out` is served before the lock's restart or rebuild (`faraday/shells/stick/src/main.rs:1726-1741`, `faraday/faraday-storage/src/lib.rs:896-932`). Anything left goes with the app, and its `Files` bytes wipe as they drop (`faraday/faraday-core/src/storage_api.rs:11-12`).
 
 ## Reach
 
@@ -71,7 +72,6 @@ None.
 ## Doubts
 
 - Which is authoritative after a lock, the `Scroll` offsets or the screens' own offsets, is not known.
-- `Out.storage_out` can carry file bytes, yet `Out` is declared to hold nothing a lock wipes. That holds only if the queue is drained before a lock; when the shell drains it was not checked.
 - `own_motion` in `faraday/faraday-core/src/fade.rs:~629` is always false (a dead toggle).
 - `faraday/faraday-core/src/moved.rs` has `cfg(test)` counters in non-test code.
 - `faraday/faraday-core/src/fade/bands.rs` was read by no one.

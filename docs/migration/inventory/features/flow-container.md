@@ -31,7 +31,7 @@ The flow container: the card a step flow is drawn on, Back and Forward through i
 - `Spot` (`:~393-423`): screen, guide, lock_ask, wallet index (`GONE` = `usize::MAX`), glance, scroll offsets, vault item and category fields. No secret.
 - `Trail` holds nothing a lock wipes (`faraday/faraday-core/src/trail.rs:84-85`).
 - `InProgress` (`faraday/faraday-core/src/in_progress.rs`, `Public`): begun, ways, shown, search. No secrets. Going kinds: Create, Restore, Backup, Spend, Message, Vault, Flow(i).
-- Every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`), so `Trail` and `InProgress` do not outlive a lock.
+- Every lock ends the app: a fresh process, or, when the save fails with keys waiting for their backup, a fresh app in the same process (`faraday/faraday-core/src/vault/seal.rs:933-946`, `faraday/faraday-core/src/storage_api.rs:1167-1202`). So `Trail` and `InProgress` do not outlive a lock. Of the flows, only backup flows cross a lock, through the kept state (`faraday/faraday-core/src/memory/mod.rs:503-515`), without `layouts` or `live`. Make a new wallet with its keys kept nowhere is ended by `lock_flows` (`faraday/faraday-core/src/vault/seal.rs:654-660`). Create, Restore, Spend, Back up and Message are cleared by their areas' locks.
 
 ## Reach
 
@@ -97,6 +97,5 @@ None.
 ## Doubts
 
 - A Vault flow never counts as finished (`faraday/faraday-core/src/in_progress.rs:~1164`); not checked further.
-- Whether flows (`BackupFlowArea.all`, layouts) survive the lock's process restart was answered for the backup board (`lock_flows` keeps them) but `lock_flows` and `flow_before_lock` were not read for every flow.
 - `c4c1eb2dc` (a resumed flow returns to where it was first begun) is a decision change (F77 amended) as much as a repair; its row sits under the screen frame's fixes.
 - The trail rules were spot-checked as a group; only the line numbers written without `~` were checked one by one.

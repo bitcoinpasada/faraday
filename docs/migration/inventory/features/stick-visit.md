@@ -47,6 +47,8 @@ stick in, from the Files page (`Screen::Files`), and from flows that write
 - `VisitArea`'s lock (`faraday/faraday-core/src/stick/visit_taken.rs:2526-2541`): `holds` is "a pictures transfer read in parts"; `lock()` clears `pictures_scan`, `taken`, `name_taken` and `after_visit`. It does not clear `write_waiting`, `lock_to_write`, the receipt, `vault_from` or the sign fields.
 - A lock ends the process (`faraday/faraday-core/src/vault/seal.rs:933-946`); only what the kept state encodes survives. The memory writer encodes only `lock_to_write`, as the `write-waiting` bytes (`faraday/faraday-core/src/memory/mod.rs:462-465`: a write waiting in this process is not carried over a later lock). After the restart `faraday/faraday-core/src/stick/events.rs:626` calls `visit_write_waiting`, which reads it back. So a "Lock and write" survives its own lock; an in-process `write_waiting` does not outlive a later lock, and the idle lock gives up a waiting write (fix d9492c283).
 - Restart clears everything else in these areas.
+- `put_outbox_pair_beside_files` (`faraday/faraday-core/src/stick/visit_taken.rs:1045`) takes plain `Vec<u8>` for a picture and a file. Its one caller, `kef_save_files` (`faraday/faraday-core/src/compute.rs:785-796`), passes a KEF code's PNG and its sealed `.kef` file, which are public.
+- `lock_drops` names the Inbox files a lock drops, for the Write out sheet's own section (`faraday/faraday-core/src/stick/visit_taken.rs:1141-1147`, `faraday/faraday-core/src/screens/sheets.rs:742-755`).
 
 ## Reach
 
@@ -142,8 +144,6 @@ None.
 
 - Left out of Fixes, as about the boot finder and USB authorisation rather than this feature: c83dbbd28 (the boot-stick finder ran as root for its whole search), 88421cf04 (the finder read other devices and files; the Pi could miss a late card), a6c3e33b2 (a USB device plugged in after boot stayed authorised if the command line lost its USB word).
 - Fixes 7e7cfa757 and 948e491e8 have symptoms inferred from the commit, not read in full. 466494b01 also covers plan limits that belong to the backup plan.
-- `put_outbox_pair_beside_files` takes plain byte vectors for a picture and a file (`faraday/faraday-core/src/stick/visit_taken.rs:1045`, `~1047-1049`, `~1076`); whether either can be a secret was not checked.
-- `lock_drops` (`faraday/faraday-core/src/stick/visit_taken.rs:1141`) has no caller in its file.
 - `VisitFrom(Screen::Entry)` has no `holds_secret` check, unlike `VisitFrom(back)`; whether that is meant is not known.
 - `faraday/faraday-core/src/screens/visit.rs` (the Files page body) was not read in full; the visit's drawing rules beyond those cited are missing.
 - Two files share a name: `faraday/faraday-core/src/screens/visit_same.rs` (drawing) and `faraday/faraday-core/src/stick/visit_same.rs` (logic, `SameFiles`).

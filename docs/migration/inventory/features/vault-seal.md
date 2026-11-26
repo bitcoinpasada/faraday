@@ -52,6 +52,7 @@ timer, and for flows that seal a vault before they go on.
 - Summaries (`faraday/faraday-core/src/vault/summaries.rs`): the `vault-summaries` lines `vault, copy, from, wallet, key, sum, planned, wid, pid, map, seal`.
 - Clock (`faraday/faraday-core/src/vault/area.rs`): `set_clock(unix_secs, at_ms)` (`~760-763`), `clock_offset`, `clock_checked` (setters `~865-872`, with no check there), `local_secs` floors at 0 (`~3578-3580`), `CLOCK_FLOOR` 2020-01-01 (`~3572`).
 - Plan records (`faraday/faraday-core/src/vault/plan_store.rs`): a wallet's backup plan (answers, holds, notes) kept in the vault through `plan_record`, `plan_forget`, `plan_take`, `plan_restore`, `plan_refused`, `plan_extras_of`.
+- `older` and `save_hold` are not cleared by the seal's end or a lock hook. `vault_older_settle` (`faraday/faraday-core/src/backups/mod.rs:4205-4216`) and `vault_save_also_settle` (`faraday/faraday-core/src/vault/mod.rs:4774-4781`) drop them after a press, once their vault is gone or their sheet is down. At a lock they are cleared with the app, the not-kept rebuild included.
 
 ## Reach
 
@@ -129,7 +130,6 @@ None.
 - No rows were given to this feature; the rows above were given under Inside a vault and moved here. 2b550d917 and f65ef4ddc (the Locked sheet's notices) are in `lock`.
 - 1d2273364 also changes how typed codex32 shares are tried; that part belongs to the codex32 backup feature. Its file list was partly cut.
 - `faraday/faraday-core/src/vault/seal.rs:~789-791` discards a seal result with `seal_ended(id, false)` and the comment "vault let go as it is, its changes kept", against `seal_given_up` closing every vault: which path applies is not known. `faraday/faraday-core/src/vault/seal.rs:~397-399`: a refusal outside a lock of all drops `lock_after` and `after` with no message, unlike `faraday/faraday-core/src/vault/seal.rs:~900-924`.
-- Whether `older` and `save_hold` are cleared by a lock: neither `seal_end` nor `seal_given_up` touches them; they go when the app ends.
 - `faraday/faraday-core/src/vault/summaries.rs:~75`: a planned string containing a comma would split on decode; whether one can occur is not known.
 - `seal_refusal`'s doc comment (`faraday/faraday-core/src/vault/area.rs:~3088-3100`) reads as two docs merged.
 - `faraday/faraday-core/src/vault/rekey_screen.rs` and `faraday/faraday-core/src/vault/plan_store.rs` line numbers are not inventory-verified.

@@ -246,7 +246,6 @@ None.
 - The host passes `ScrollEnd` to the app with a menu open, and drops keys while a sheet is open, so the Samples sheet cannot be driven by keyboard. Whether this is intended is unclear.
 - The v4l2 width cap is 1920 in code (`faraday/shells/v4l2/src/convert.rs:24`) and 1280 in a doc comment (`faraday/shells/v4l2/src/lib.rs:446-447`). Media Foundation's cap is 1280, and its comment says "same as the V4L2 shell's".
 - The v4l2 crate doc says 640×480 and "no device chooser yet", while the code takes a wanted size. `search()` opens every `/dev/video*` read-write, which also touches nodes that are not cameras.
-- Whether `faraday_draw::Canvas` wipes its pixels was not read. The host's canvases show whatever is on screen.
 - Not read by the inventory:
   - `faraday/shells/mediafoundation/src/camera.c`.
   - `faraday/shells/v4l2/src/abi.rs:~421-452`.

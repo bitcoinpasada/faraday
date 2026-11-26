@@ -50,6 +50,7 @@ typed passphrase on sixteen screens and sheets.
 - The eye `PassEye { shown, hardware, opened }` lives in `typing.pass_eye` (`Public`). `settle` closes it whenever the set of passphrase fields drawn changes (`faraday/faraday-core/src/pass_field/mod.rs:~684-697`).
 - The fields built on `PassField` (`Where`, `faraday/faraday-core/src/pass_field/mod.rs:~304-363`): Potential (Inbox possible wallet), Aezeed (Lightning), Entry (Add a key), SeedRead, KefRead, Slot (Make a new wallet's key slot), NewKey, SeedCheck, KefTool, BackupKef, CoreWallet, CopyCheck, GlanceCheck, Unlock, VaultCreate, VaultPrompt.
 - Other secret text types confirmed as `SecretText`: `WordCheck.typed` (`faraday/faraday-core/src/copy_check.rs:19-24`), `EntryState.typed` (`faraday/faraday-core/src/state.rs:28-49`, `299`).
+- An unprotected secret goes to the Outbox as `Item::new(.., bytes.to_vec())` (`faraday/faraday-core/src/secrets.rs:722-726`). `Item::new` moves the `Vec` into `Zeroizing` with no copy (`faraday/faraday-core/src/item.rs:93-94`), and `Item`'s `Debug` prints no bytes (`faraday/faraday-core/src/item.rs:59-68`). The Outbox `Item` is `at_lock::Public` (`faraday/faraday-core/src/item.rs:56-57`) and is kept across a lock by design (`faraday/faraday-core/src/storage_api.rs:686-690`).
 
 ## Reach
 
@@ -95,6 +96,7 @@ typed passphrase on sixteen screens and sheets.
   - Refusal text (`refused_text`, `~296-302`): `state::ascii_refused()`, `EN.passphrase_too_long`, `stick::keys_load(medium)`.
   - The eye: a passphrase typed with a hardware keyboard waits for the eye to be opened once before the step goes on (`PassEye::waits`, `faraday/faraday-core/src/pass_field/eye.rs`; `after_key`, `faraday/faraday-core/src/pass_field/mod.rs:~671-680`). Add a key and Create wait until the eye is opened (fix c4ef92575). The eye does not close a sheet or clear the field (fix 665a69d16).
   - The two typed passphrases of a pair are compared in constant time (lengths may show) (fix bbbe17f44).
+- Secret arithmetic is libsecp256k1's or runs with no branch and no table read by a secret's value: MuSig2's and BIP-352's secret scalars through `SecretScalar` (`core/faraday-bip/src/musig.rs:222-288`, `core/faraday-bip/src/silent.rs:996-1021`), the nonce `reduce` (`core/faraday-bip/src/musig.rs:118-160`), SLIP-39's GF(256) (`core/faraday-bip/src/slip39.rs:345-365`), AEZ's round through `aes::hazmat::cipher_round` (`core/faraday-bip/src/aez.rs:49`); the `_public` helpers are for public values only (fix a67d98731).
   - A Krux read's passphrase has no maximum; a field is emptied when either of its texts holds anything (fix 3e14471e0).
   - Lightning's aezeed words and passphrases take no typing with a stick attached and are emptied when one arrives; the screen says keys load only with no stick (fixes ba111ecdb, ffe9ed711).
 - Leaving Add a key by any way out (arrow, Escape, the mouse's back button) wipes the words typed there; one leave hook covers every way out (fixes 8e172237b, c70cdd9c7, 57798af03).
@@ -154,11 +156,11 @@ None. The word lists come from `faraday-bip`.
 ## Doubts
 
 - Rows 5bd9bcc00, 636cac6a2, d3a1fe6e4, bc4b2a364 and 7ed76a00b were given under `lock` and moved here.
-- Rows left out as outside the inventory's scope (copies of secrets in freed memory or on the stack, timing of secret-key arithmetic, wipe on unwind): a67d98731, 853e92165, 651fc00a5, and most of 6b7e8096b. The part of 6b7e8096b about the compact entry field and New key's SLIP-39 deal (a secret left in the app's own state) was not separated from the rest.
+- Rows left out as outside the inventory's scope (copies of secrets in freed memory or on the stack, wipe on unwind): 853e92165, 651fc00a5 and 6b7e8096b, whose compact entry field and SLIP-39 deal parts are locals, not app state.
 - bbbe17f44 is described from its commit message only; its file list was not inspected. 8aa52fad5's file list was not checked. c70cdd9c7 may only have removed duplication, not a live leak.
 - e5eeecc2a (history) says a passphrase is printable ASCII; the code at the frozen commit keeps that only for the Bip39, KefMake and Lightning kinds; the Vault, Kdbx, KefRead and CoreWallet kinds take any non-control character (`faraday/faraday-core/src/pass_field/mod.rs:~45-51`).
 - The passphrase field rules come from a direct read of `faraday/faraday-core/src/pass_field/` for this file; only `faraday/faraday-core/src/pass_field/mod.rs:114-124` is inventory-verified.
 - `faraday/faraday-core/src/text_check.rs:~101` maps every other secret file kind to `Kind::Wif` (a catch-all); whether that is intended is not stated.
 - `check` -> `tokens` -> `ur_part` -> `check` has no depth cap in code; input is bounded by `MAX_TEXT`; the termination argument is unverified.
-- `outbox_secret` takes an `OutReason` it discards (a dead parameter). Whether the Outbox `Item` that receives an unprotected secret's plain `Vec` wipes it is not stated.
+- `outbox_secret` takes an `OutReason` it discards (`let _ = why;`, `faraday/faraday-core/src/secrets.rs:503`): a dead parameter.
 - Fields not yet moved onto `PassField` keep their own state and are handled where they are (module doc, `faraday/faraday-core/src/pass_field/mod.rs:~7-10`); which ones those are is not listed by the inventory.

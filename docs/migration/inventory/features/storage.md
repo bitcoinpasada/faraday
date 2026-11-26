@@ -60,6 +60,7 @@ sticks), `faraday/faraday-disk/`, `faraday/faraday-files/` and
 - `save_boxes` (`faraday/faraday-core/src/storage_api.rs:~1147-1160`) keeps the Inbox, Outbox and kept entries in the shell's keeping across a restart; `ForgetBoxes` removes them at a real end (power-off).
 - A lock does not drop the boxes, also during a vault transfer (history fix b6c4143a9).
 - A new app starts a clean session with the disk process after a lock (history fix 3dc2acf7c).
+- `HostRead`, `Print` and `SaveDownload` carry plain `Vec<u8>` and are online only, never reaching the disk process (`faraday/faraday-storage/src/lib.rs:1013-1024`). `SaveDownload` can carry a secret file received by Transfer, moved out of `Zeroizing` (`faraday/faraday-core/src/transfer/mod.rs:369-387`). `Print` carries a `FileKind::Sheet` file's PDF (`faraday/faraday-core/src/qr_view.rs:1101-1110`). `HostRead` carries any computer file picked for Transfer. Their `Debug` prints no bytes (`faraday/faraday-core/src/storage_api.rs:959-968`).
 
 ## Reach
 
@@ -142,7 +143,7 @@ None.
 - `Boxes::save`'s early `?` returns drop `first_error` and stop later subfolders despite the doc at `faraday/faraday-storage/src/lib.rs:~577-583`; whether intended is unclear.
 - `MakeEmpty`'s success numbers (`next: 2, total: 0`) look like a placeholder; their meaning is unclear.
 - `(bytes.len() - 1)` in `send_piece` would underflow for an empty file; looks unreachable, not checked.
-- `HostRead`, `Print` and `SaveDownload` carry plain `Vec<u8>`; whether any of them can be secret by design is unclear. `Boxes::Memory` `clear()` wiping was not checked.
+- `StorageEvent`'s doc says it carries bytes in wiping buffers (`faraday/faraday-core/src/storage_api.rs:203-206`), but `HostRead.bytes` is a plain `Vec<u8>` (`faraday/faraday-core/src/storage_api.rs:499`).
 - `NameStick`'s 11-capital rule is from a doc comment only.
 - Which action sends `ForgetBoxes`, `Print` and `OpenInstitute` is outside the files read for this feature (the power-off path sends `ForgetBoxes` through `exit_forgetting`, `faraday/faraday-core/src/action.rs:1317-1326`).
 - `faraday/shells/stick/src/diskwork.rs:~254` says a job after the idle wait is refused as busy; no such refusal is in that file, and `faraday-storage` was not read for it.

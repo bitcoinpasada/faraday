@@ -28,7 +28,7 @@ it has no screen of its own.
 ## Effects
 
 - Scripted presses (`press`, `press_as`, `faraday/faraday-core/src/pointer.rs:~675, 681`) forget the entry probe, set the Inbox's typed-at, `note_secrets`, `note_here`, allow inline jobs, `later_all`, `refresh_text_files`, `backup_settle`. `slow::guard` runs on every press (`~716-722`, debug only).
-- `after_input` (`faraday/faraday-core/src/pointer.rs:~768-870`) drops, when leaving a screen unless the next screen keeps it (`kept`, `~800-806`): the vault back-to, Add a key's visit return, the keygen card (`keygen_drop`), `bip85.clear`, `vanity.clear`, `lightning.clear`, `silent.clear`, `wordlist.clear`, `decode.drop_typed`, `decode.drop_nonce_input`, the unlock passphrase (`vaults.clear_unlock`, `~823-829`); `secret_cancel()` on a press that leaves a detour (`~796`). A stick visit's return is kept only while Files is up (`~730-758`).
+- `after_input` (`faraday/faraday-core/src/pointer.rs:768-879`) drops on leaving a screen. `kept(s)` (`:797-802`) is: the screen is `s`; a vault detour waits to return to `s`; Add a key or New key is up, opened from `s` (`adding_key_for`, `:731-735`); Files is up for Add a key's stick visit of `s` (`visiting_for`, `:740-742`). By `kept`: Bip85 (`:840-842`); Lightning, also while SecretOut is up (`:864-866`); Silent, also on Backup while it holds state and while Qr is up (`:812-813`, `:867-869`); Vanity (`:860-863`); Restore's Decode detour (`:803-808`). By screen or sheet: the unlock passphrase on Unlock, BackupFlow, SpendBackup, the import sheet or an unlock under way (`:819-826`); New key on KeyGen, Randomness or the Keys card (`:830-835`); Decode's typed text on Decode or Restore's detour (`:849-851`); the nonce check's input on NonceCheck (`:853-855`); the word list on its sheet (`:856-858`); `secret_cancel` unless a detour waits or SecretOut or Pull is up (`:793-795`); then `shown_tidy`, `tool_tidy`, `tools.tidy` (`:843-847`). A stick visit's return is kept only while Files is up (`:772-774`).
 - Shell (`faraday/shells/stick/src/main.rs`):
   - `touch` (`~1361`) sends `Event::Touch`;
   - `move_arrow` (`~1096`) and `input_ended` hide the arrow when the last pointing device goes;
@@ -107,4 +107,3 @@ None.
 - a6c59705c and 425eb6b48 came with the stick shell's rows and are carried here.
 - 069caaf4d's file list was not fully read.
 - Most line numbers in `faraday/faraday-core/src/pointer.rs` and the shell's `faraday/shells/stick/src/main.rs` come from one report and were not re-read; only those written plainly were checked.
-- `after_input` drops several areas' state on leaving a screen; which areas are kept by `kept` was not listed screen by screen.

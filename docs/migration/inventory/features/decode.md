@@ -181,6 +181,7 @@ Check a signer:
   Save-to-stick bytes) and `state`. A lock then restarts the process
   (`faraday/faraday-core/src/vault/seal.rs:933-946`), so neither outlives it
   in memory.
+- In the not-kept path (a lock whose save fails with keys waiting), `state` and `outside` go with the dropped old app. The new app carries nothing of Decode (`faraday/faraday-core/src/storage_api.rs:19-23`, `1167-1190`).
 - Leaving: `open_nonce_landing` drops `outside`
   (`faraday/faraday-core/src/decode/mod.rs:~669`); `show` clears `typed`
   (`~590`); `DecodeAnother` and `TypedPress::Open` clear `state`. The
@@ -391,9 +392,6 @@ Compare (`faraday/faraday-core/src/decode/check_others.rs`):
 
 - c287628be and c3ab6eb33 were given to `spend-signing`; a7fef6f08 to
   `check-page`. They are placed here as they concern these screens.
-- `outside` and `state` survive `DecodeArea::lock`; PSBTs can carry key
-  origins and xpubs. The process restart at lock clears memory; whether any
-  other lock path clears them earlier was not found.
 - The doc at `faraday/faraday-core/src/wallet.rs:~1851-1852` says only a
   valid signature is looked at for nonce history, but the filter at
   `~1857` checks only fingerprint and place; whether

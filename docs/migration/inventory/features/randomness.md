@@ -51,6 +51,7 @@ and the Lock sheet, and from Settings.
 - `keygen.dice` (`codex32::DiceChoice`) is kept for the session.
 - Create a vault dice: `DiceEntry` holds the rolls in a `vault::TextBox`, which holds a `SecretText` (`faraday/faraday-core/src/vault/area.rs:1016-1021`). Create a vault's lock closes the dice entry (`faraday/faraday-core/src/vault/area.rs:4477-4486`).
 - The rollers remember which positions they made, so the result can say "simulated dice" (`faraday/faraday-core/src/fresh/roller/mod.rs`, `faraday/faraday-core/src/dice_entry/mod.rs`).
+- Every faraday-entropy accumulator wipes on drop and has no `Debug`: `DiceRolls`, `CoinFlips`, `CardDraws`, `CameraNoise`, `PointerKeys`, `DeviceRandom`, `RawHex`, `Mixed`, `RawEntropy`, `SeedXor` and `BookletChar` (for example `core/faraday-entropy/src/dice.rs:99-112`). `OwnPage`'s `Drop` wipes the camera frame (`faraday/faraday-core/src/fresh/page.rs:95-101`). The rollers' answers are `Zeroizing` (`faraday/faraday-core/src/fresh/roller/mod.rs:121-122`); their last face is a plain `u8`, in Faraday Demo only.
 
 ## Reach
 
@@ -127,7 +128,6 @@ None.
 
 ## Doubts
 
-- `faraday/faraday-core/src/fresh.rs` beyond the lines above, the faraday-entropy accumulators and the rollers' code were read only in part; the module doc of New key says the accumulators are erased on drop (`faraday/faraday-core/src/keygen/mod.rs:~15-16`), unconfirmed.
 - `Skip`, `Another` and `Area` of Add randomness fall to `_ => {}` in `act()`; `Act::Roll(f)` and the card `Rank`/`Suit` are not range-checked in the page. Unconfirmed whether this is reachable.
 - The Spend open steps 5, 6 and 9 are bare numbers with no names.
 - A dice sample file for Practice, `tools/vectors/entropy/dice.json`, is named in the samples' docs but is not in the kept fixture list.

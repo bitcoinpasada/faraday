@@ -207,7 +207,7 @@ runs the same spend through its own step cards.
 - Back or a lock drops a signing answer still on the worker.
 - The spend is also cleared when its wallet leaves (`wallet_left`,
   `refresh_spend`, `faraday/faraday-core/src/wallet.rs:~5042-5046`).
-- What leaving the Spend screen does to the spend was not read.
+- Leaving the Spend screen keeps the spend, a flow in progress (`faraday/faraday-core/src/in_progress.rs:282-284`), with its MuSig2 round's secret nonces (`SpendState.musig`). It is dropped by Cancel the flow (`faraday/faraday-core/src/in_progress.rs:787-799`), Start over (`faraday/faraday-core/src/in_progress.rs:595-600`), its wallet leaving (`faraday/faraday-core/src/wallet.rs:5040-5050`), Remove keys (`faraday/faraday-core/src/wallet.rs:5290-5302`), a published key removed (`faraday/faraday-core/src/wallet.rs:4577`), a new spend (`faraday/faraday-core/src/wallet/state.rs:1149-1151`) and the lock; the round alone ends when every nonce has signed (`faraday/faraday-core/src/wallet/state.rs:777-789`).
 - `session.key_xpubs` caches public xpubs of held keys (register sheet).
 
 ## Reach
@@ -487,6 +487,7 @@ Amounts and sighash (in `core/faraday-psbt`):
   by the leaf; a hashlock preimage is not shown as a signature.
 - A fee is stated only when known (128-bit sums, money range); else
   "Cannot tell" or "amount not stated".
+- A secret scalar times G is `secret_base_mul` (`PublicKey::from_secret_key`, constant time and blinded, `core/faraday-bip/src/musig.rs:944-959`). A secret times a point is `secp256k1::ecdh` (`core/faraday-bip/src/silent.rs:788-800`). `PublicKey::mul_tweak` takes public scalars only (`core/faraday-psbt/src/musig.rs:472`, `916`, `1242`, `1331`, `1342`; `core/faraday-bip/src/silent.rs:820`, `1021`). Secret scalar sums and products are libsecp256k1's `SecretKey` operations (`core/faraday-psbt/src/musig.rs:219-290`) (fix 2cbe8c4ba).
 
 ## Domain calls
 
@@ -613,8 +614,6 @@ Amounts and sighash (in `core/faraday-psbt`):
   checking first; reachability unchecked.
 - `K::None` locktime prints a literal "0", not from the strings file.
 - `faraday/faraday-core/src/slow.rs` entries say "not yet timed on a Pi 3B+".
-- What leaving `Screen::Spend` (not a lock) does to `SpendState` was not
-  read.
 - 2cbe8c4ba names old crate paths (`core/osk-bip`, `core/osk-psbt`,
   `opensigner/`) that no longer exist; the rule carries to
   `core/faraday-psbt` and `core/faraday-bip`.
@@ -630,12 +629,7 @@ Amounts and sighash (in `core/faraday-psbt`):
   `multisig-5-psbt.png`, `multisig-6-psbt-bbqr-part-*-of-10.png`) are read
   only by the scanner's own tests (`faraday/faraday-qr/tests/interop.rs`);
   they belong to scanning, not listed here.
-- Rows 2cbe8c4ba (constant-time multiplication of secret scalars) and
-  7501864ae (a MuSig2 nonce input not wiped on drop) are kept: the project's
-  security scope names secret-key arithmetic outside a constant-time
-  library, and a Faraday secret type that does not wipe, as ordinary bugs.
-  bce5d73fa (old secret nonces left in freed memory) is left out under the
-  scope rule.
+- Row bce5d73fa (old secret nonces left in freed memory) is left out under the scope rule.
 - The rule anchors marked `~` that point into `core/faraday-psbt` and
   `core/faraday-bip` were found by searching the code at `d89dde5de` for
   the constant or error the fix row names; `faraday/faraday-core/src/screens/spend.rs:212`

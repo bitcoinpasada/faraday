@@ -109,6 +109,7 @@ Commands the shell carries out (`faraday/shells/starter/src/main.rs:~319-547`), 
   - `sweep_key_sheets` at start removes what an earlier run left (`faraday/shells/starter/src/main.rs:914`).
   - It is not wiped at a Demo lock or when leaving the Demo.
 - The Starter has no lock. Its state lasts as long as the process.
+- `StarterCommand` derives `Debug` (`faraday/faraday-starter/src/api.rs:1024`), so `PrintNotes`' `Zeroizing` PDF, which carries the recovery key, would print in full. Nothing outside tests formats a command: the shell matches each one (`faraday/shells/starter/src/main.rs:410-430`), and its prints carry no command.
 
 ## Reach
 
@@ -286,7 +287,6 @@ Commands the shell carries out (`faraday/shells/starter/src/main.rs:~319-547`), 
 - Seven history rows were moved here from `starter-app`, because they are about the Start page, restart or BitLocker: 6cc0ab0f2, 14d8f76a0, 0ea78ac6f, 1927556c7, 70162b5b3, a687c8692 and 153b7b72c.
 - 76aaee791, a Secure Boot certificate time, was moved to `secure-boot`.
 - 63c1b7eea and 5d818fb5b name files under `faraday/shells/hub` and `faraday/faraday-hub`, the Starter's earlier names.
-- `StarterCommand` derives `Debug` (`faraday/faraday-starter/src/api.rs:1024`), and `Zeroizing`'s `Debug` prints the inner bytes. A debug print of `PrintNotes` would show the PDF with the recovery key. Whether anything logs commands is unknown.
 - A key sheet whose `write_all` fails after the file is made is not recorded in `key_sheets`. It is left until the next start's sweep.
 - On Windows, `tpm_unlock` is fixed to `false` (`faraday/shells/starter/src/windows/registry.rs:114`), so Windows never reports a TPM-unlocked disk. Intent unclear.
 - Windows takes compressed-only cameras as usable, and Linux does not. Whether this is by design is unclear.

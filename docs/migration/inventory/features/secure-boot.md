@@ -62,18 +62,20 @@ signature reading (see `starter-make-stick`).
   - A signed image goes to the Outbox under the image's own name, with the toast `secureboot_signed`. The sign state is then reset (`sb_reset`) (`faraday/faraday-core/src/secure_boot/mod.rs:275-284`).
 - Making keys in the backup flow returns a `Built`: the record, the owner GUID as subject, a name (the owner, or the GUID when no owner was typed), and the enrolment files for the outbox. The backup flow writes them with the plan (`faraday/faraday-core/src/secure_boot/mod.rs:152-182`).
 - Check: a toast `<name>: <what>` and the same line kept in `sb_checked` (`faraday/faraday-core/src/secure_boot/mod.rs:306-317`).
+- The enrolment files are `PK.auth`, `KEK.auth`, `db.auth`, `PK.esl`, `KEK.esl`, `db.esl`, `PK.cer`, `KEK.cer` and `db.cer` (`faraday/faraday-sb/src/lib.rs:204-229`). All are public.
 
 ## State and lock
 
 - In `VaultsState` (`faraday/faraday-core/src/vault/area.rs:2555-2566`):
-  - `sb_owner: Text`: the owner name being typed.
+- `sb_owner: Text`: declared, never written or read (`faraday/faraday-core/src/vault/area.rs:2557`).
   - `sb_own_only: bool`.
   - `sb_images: bool`.
   - `sb_sign: Option<(usize, Checked)>`: the image picked and its release check.
   - `sb_checked: Option<Text>`: the last check line.
   - None of these holds a secret.
+- `sb_sign` and `sb_images` are cleared when the item closes (`faraday/faraday-core/src/vault/act_state.rs:140-149`), on Add (`faraday/faraday-core/src/vault/mod.rs:786-787`), after a signing (`faraday/faraday-core/src/vault/area.rs:880-883`) and on the images toggle (`faraday/faraday-core/src/vault/act_state.rs:52-55`, with `sb_checked`); `sb_checked` and `sb_own_only` otherwise stay until the lock. Closing a vault does not touch them (`faraday/faraday-core/src/vault/area.rs:2801-2811`).
 - The private keys (PK, KEK, db) are in the open vault's type-8 record (`faraday_vault::records::kind::SECURE_BOOT`). The core reaches them only through `vaults.store()`: `sb_enrolment` and `sb_sign_image` in `faraday/faraday-keys/src/vault/reveals.rs:~515`, `~539`.
-- The seed and the made key in `sb_build` are locals handed to `faraday_keys::secure_boot::create`.
+- The seed and the blinding seed in `sb_build`, `sb_enrol` and `sb_sign` are `Zeroizing<[u8; 32]>` locals from `fresh` (`faraday/faraday-core/src/fresh.rs:554`), lent to `faraday_keys`. The keys made or read back are `faraday_sb::Keys`, with no `Debug` or `Clone` (`faraday/faraday-sb/src/lib.rs:50-60`). Their private keys are `Zeroizing` (`faraday/faraday-sb/src/x509.rs:33-39`) and drop when the call returns. The made key is `MadeKey(Record)` (`faraday/faraday-keys/src/vault/mod.rs:355`), whose fields are `Zeroizing` (`faraday/faraday-vault/src/records.rs:361-367`).
 - `SecureBootAtStart` (Unknown, Off, On) is `at_lock::Public`: it holds nothing a lock wipes (`faraday/faraday-core/src/secure_boot/state.rs:9-20`).
 - A lock closes the vaults with the rest of the vault area. It then restarts the process (`faraday/faraday-core/src/vault/seal.rs:933-946`). So no Secure Boot key stays reachable after a lock.
 
@@ -172,5 +174,3 @@ signature reading (see `starter-make-stick`).
 - 76aaee791 was filed under the Starter in the history. It changes `faraday/faraday-sb/src/x509.rs`, so it is placed here.
 - Earlier notes said Enrol "refuses silently when a wait is selected". In the code, the press first goes to the backup flow (`faraday/faraday-core/src/vault/mod.rs:886-892`). The silent refusal in `sb_enrol_refusal` is only reached from other callers, such as `sb_enrol_draws`.
 - The earlier caller line `faraday/faraday-core/src/backup_flow/screen.rs:1404` draws the record (`shown`). Keys are made from `faraday/faraday-core/src/backup_flow/steps.rs:2226`.
-- Not read: how `faraday_keys` wipes the seed, the made key and the blinding seeds once `create`, `sb_enrolment` and `sb_sign_image` return. Also not read: the exact files the enrolment writes.
-- Not read: whether `sb_owner` and the sign and check fields are cleared when the vault closes without a lock. The process restart at lock clears them in any case.

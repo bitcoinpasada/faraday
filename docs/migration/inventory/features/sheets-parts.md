@@ -47,6 +47,7 @@ The sheets drawn over screens (lock, power, idle, devices, scan, QR, new input, 
 
 - Own no state. They read the owning areas: lock and idle, secrets, inbox, inputs, devices, scan, QR view, guide.
 - Per-frame values only: `Cells`, `OptionRow`, `CopyGrid` (a borrowed QR matrix), `SheetLine`, `GuideLook`.
+- The typed word cells' `Text` copies of a word being typed (`faraday/faraday-core/src/screens/parts.rs:1256-1286`, `1314-1315`) are locals of one frame's drawing, wiped when it returns.
 - `OnceLock` caches of static text (idle minute labels, scale labels).
 - What a lock wipes is each owning area's; every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
 
@@ -137,4 +138,3 @@ None.
 - `EntryCandidate(n as u8)` would truncate past 255 candidates (`faraday/faraday-core/src/screens/parts.rs:~1456`); arithmetic at `faraday/faraday-core/src/screens/parts.rs:~1935, ~1993` is unchecked but out of reach for QR sizes.
 - `QR_PARTS[1]` is the default part size (`faraday/faraday-core/src/screens/sheets.rs:~1340`), a magic index.
 - c7f92d46c is mostly a Secure Boot change; only the sheet-scroll part is a fix of this feature.
-- Whether the local `Text` copies in typed word cells (`faraday/faraday-core/src/screens/parts.rs:~1266, ~1314-1315`) can hold secret words after the screen is done was not checked.

@@ -21,7 +21,7 @@ None outward.
 ## State and lock
 
 - `TypingArea` (`faraday/faraday-core/src/edit.rs`) is `Public`: it holds no text; it has the `pass_eye` flag.
-- `Shown` cache (`faraday/faraday-core/src/visible.rs:~105-155`): `RefCell<Option<Kept>>` holding the source `Text`, the visible string and up to 4 wrap tables.
+- `Shown` cache (`faraday/faraday-core/src/visible.rs:~105-155`): `RefCell<Option<Kept>>` holding the source `Text`, the visible string and up to 4 wrap tables. Its one holder is `MessageArea.shown` (`faraday/faraday-core/src/state.rs:1108`), given only a signed message's text (`faraday/faraday-core/src/screens/message.rs:351`, `471`; `faraday/faraday-core/src/screens/check_message.rs:336`), which is public.
 - Typed text lives in each field's own area, not here. `typing_text` builds `SecretText` copies, which wipe when dropped.
 - Every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
 - `moved_plan` and `plan_moved` (the frame-only redraw plan) also live in `faraday/faraday-core/src/edit.rs`.
@@ -60,6 +60,5 @@ None.
 
 ## Doubts
 
-- Whether `Shown` is ever given a secret's text is not known.
 - The `INVISIBLE` table is fixed to Unicode 16.0 and will drift from later Unicode versions.
 - A history note names a commit that put a caret in every empty word-grid cell (1761268bd); its row was not given to this feature.

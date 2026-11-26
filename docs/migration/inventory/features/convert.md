@@ -45,6 +45,7 @@ Tools (back name Tools, `Screen::Catalog`) and from Explore on a key
 - `ConvertState` (`~459-506`): public data only (open card, done flags, scroll, key fingerprint, aezeed, other forms, `set: Option<SetState>`, target, shown, part, back, checkable, refused, `paths`, settings, parts, SLIP-39 shape, k, n). `SetState` (`faraday/faraday-core/src/convert/set.rs:~27-45`): act, group, member, lost, destroyed, others, error, refused; nothing secret.
 - Secrets: `held`, `shown_text`, `check`, `set_typed`, the random draw (`Zeroizing`, `faraday/faraday-core/src/convert/mod.rs:1436-1439`), the scanned luma (`Zeroizing`, `~1507`), file bytes (`Zeroizing`). A typed aezeed and a typed SLIP-39 set are held in faraday-keys and wiped by `forget_held` (`1645-1648`).
 - Lock (`AtLock for ConvertArea`, `faraday/faraday-core/src/convert/mod.rs:1900-1911`): `holds()` is `Holds::typed` of held, shown text, check or a typed share; `lock()` = `clear()`: the state is None, `set_typed` is cleared, and `drop_value` drops held, shown text, check, found and found part (`700-716`). The lock does not call `forget_held`. The lock then restarts the process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
+- The aezeed and the SLIP-39 set Convert holds in faraday-keys are cleared in the same lock by the session area: `Session::lock` calls `wipe`, then `keys.clear()`, then `remove_all`, which sets `aezeed` and `slip39_set` to `None` (`faraday/faraday-core/src/wallet.rs:1539-1549`, `5568-5579`; `faraday/faraday-keys/src/session.rs:1274-1293`).
 - Leaving: `tidy` (`faraday/faraday-core/src/convert/mod.rs:1817-1826`) clears the flow and calls `forget_held` unless the screen is Convert, Add a key opened from Convert, or Lightning for Convert.
 - Idle warning: `hide` (`1807-1812`) drops `shown_text` and closes the eye; the value stays held.
 - Stick attached: `stick_attached` (`1653-1659`) wipes the typed share and the check copy and closes share entry.
@@ -120,7 +121,6 @@ None.
 
 ## Doubts
 
-- The lock does not call `forget_held`: an aezeed or SLIP-39 set typed into faraday-keys may survive Convert's own lock hook. How the keys store is wiped at lock was not checked; the process restart after a lock ends it in any case.
 - An unreadable scanned SeedQR reports as "not same wallet"; the message may mislead.
 - `ROWS` predicates, `Target::checks` and `file_for` line numbers were not re-checked exactly.
 - Who calls `set::record` was not read.

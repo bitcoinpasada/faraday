@@ -69,7 +69,7 @@ Files: `faraday/faraday-core/src/core_wallet/mod.rs`, `faraday/faraday-core/src/
   - `beside: Vec<Text>`;
   - `mode`;
   - `passphrase: Option<SecretText>`.
-- `ReadDone` holds `Result<Wallet, Refusal>`.
+- `ReadDone` holds `Result<Wallet, Refusal>`. `Wallet` (`faraday/faraday-core-wallet/src/lib.rs:369-400`) holds nothing secret: descriptors, labels, the `mkey` method and rounds (`faraday/faraday-core-wallet/src/lib.rs:343-352`), the passphrase's verdict and counts. Private keys give only pass or fail (`faraday/faraday-core-wallet/src/lib.rs:28-32`). Its texts are `Text`, which wipes on drop (`core/faraday-text/src/text.rs:363`).
 - The passphrase is taken, and so cleared, as the read begins, whatever the result (`faraday/faraday-core/src/core_wallet/tool.rs:561`).
 - Lock (`faraday/faraday-core/src/core_wallet/tool.rs:852-858`):
   - `holds` is typed when the passphrase has text or a file is chosen (`holds_secret`, `~149-151`).
@@ -131,6 +131,7 @@ The parser (`faraday/faraday-core/src/core_wallet/mod.rs`, `faraday/faraday-sqli
 - A descriptor's creation time is read as unsigned 64-bit (fix d9bf89852).
 - A range size or next index of 1,000,000 or more is refused, as Core's CheckDescriptorRangeBounds does. A range over one index on a descriptor with no `*` is refused as corrupted (fix df76fb29a).
 - A sortedmulti wallet is one wallet whatever its key order (fix e45fa284d).
+- A descriptor record with a private key in its text is not kept. `key_facts` reads only descriptors of public keys (`core/faraday-bip/src/descriptor.rs:216-225`), so such a record fails as `Fault::Descriptor`, keeping only its name and key hex (`faraday/faraday-core-wallet/src/lib.rs:1143-1147`, `656-667`). Normalising refuses an extended private key too (`faraday/faraday-core-wallet/src/normal.rs:215-218`). Descriptor texts are `Text`, wiped on drop.
 
 ## Domain calls
 
@@ -166,8 +167,6 @@ The parser (`faraday/faraday-core/src/core_wallet/mod.rs`, `faraday/faraday-sqli
 
 ## Doubts
 
-- `ReadDone`'s `Wallet` is not wiped here. Whether the `faraday-core-wallet` crate's `Wallet` holds anything secret was not read.
-- Descriptor text is not wiped; the module doc calls it public. Whether a descriptor from a Core file could carry private keys was not checked.
 - Whether the hold always runs `Take` again after `Refusal::Unconfirmed` is unclear.
 - The SQLite fixtures belong to the parser crate. That they are the only test data of this tool beyond the samples was not checked.
 - e45fa284d was not read beyond its commit message. Its main surface is the session's dedupe (see wallets).

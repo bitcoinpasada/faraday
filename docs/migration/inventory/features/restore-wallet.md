@@ -89,6 +89,7 @@ Steps
 - A wallet made from anything but typed seeds returns to the check that opened Restore.
 - A description's keys are cleared from the seeds; typed seeds keep them.
 - With a stick put in during Restore, the screen says what holds a secret and offers Lock (fix 66737c616).
+- `restore::Pool` (`faraday/faraday-core/src/restore.rs:132-140`) holds multisig config share texts and what they merge to: fingerprints, paths and xpubs, nothing secret. They are `Text`, which wipes on drop.
 
 ## Reach
 
@@ -245,5 +246,4 @@ None of its own. The multisig configs and wallet files of `faraday/faraday-core/
   - `readable` has no caller found;
   - `hide_shown` is a no-op;
   - `still_fits` is always true.
-- Whether `restore::Pool` wipes what it holds was not read.
 - Drawing calls `restore::merge` while it draws. Whether the result is cached was not checked.

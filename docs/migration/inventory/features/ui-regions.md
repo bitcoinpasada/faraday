@@ -28,7 +28,7 @@ None outside the app's state.
 
 - Offsets per `Slot` are the app's. Between `region_begin` and `region_end` an `Open` holds the saved offset, moved rows and saved seen clip.
 - `region_finish` pushes or replaces the `scrolled` list; `stretch_view` uses `Ui.stretch`.
-- `backdrop` and `still` keep a `frost` snapshot of the page for the life of the sheet or popup. It is a cached copy of the page's pixels, which may show what the page showed.
+- `backdrop` and `still` keep a `frost` snapshot of the page for the life of the sheet or popup: keyed by screen, sheet and theme (`faraday/faraday-core/src/drawing.rs:898`), taken each frame and kept only if the frame drew one (`faraday/faraday-core/src/drawing.rs:919-922`, `faraday/faraday-core/src/fade.rs:404-420`), so the first frame without it drops it; a display change drops it (`faraday/faraday-core/src/fade.rs:394-399`).
 - No secrets of its own.
 
 ## Reach
@@ -70,4 +70,3 @@ None given to this feature.
 
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - A fix row on the top edge fade (74fc0bda0, "top edge fade drawn with nothing under it", in `faraday/faraday-ui/src/lib.rs` and `faraday/faraday-ui/src/region.rs`) appears in the inventory's spot checks but its row was not given to this feature; its full wording is not here.
-- Whether the `frost` snapshot outlives its sheet or popup, and so can hold a shown secret after that screen is done or after a lock, was not traced.

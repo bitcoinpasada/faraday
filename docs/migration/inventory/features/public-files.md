@@ -91,7 +91,7 @@ Worker answers
 
 Which stick carries a key's public files (`faraday/faraday-core/src/backup_flow/wallet_files.rs`)
 - `public_stick_at` (`~226-235`) picks the first stick, in `t.key()` order, at a place with no secret file.
-- `public_clash` (`~242-262`) reports the first secret file that would clash. It clones the whole flow and calls `wallet_replan_on`.
+- `public_clash` (`faraday/faraday-core/src/backup_flow/wallet_files.rs:242-264`) reports the first secret file that would clash. It replans a local clone of the flow (no key material: `faraday/faraday-core/src/backup_flow/mod.rs:1015-1052`), dropped on return; its one caller keeps only the file names and the stick's name (`faraday/faraday-core/src/backup_flow/wallet.rs:971-990`).
 - `is_secret_file` (`~217-221`) counts these as secret files:
   - a seed's words;
   - a SeedQR;
@@ -121,4 +121,3 @@ None. See Doubts.
 - Every line number in `faraday/faraday-core/src/public_files.rs` and `faraday/faraday-core/src/backup_flow/wallet_files.rs` is unconfirmed.
 - The silent-wallet QR rule's line in the Backup screen is approximate. It is probably in `faraday/faraday-core/src/public_files.rs`, not at `faraday/faraday-core/src/screens/backup.rs:~1668-1675`.
 - Public files left without a slot (`faraday/faraday-core/src/backup_flow/steps.rs:~478-482`) are not attached to a slot and not removed from the Inbox. Whether they stay visible in Files is unclear.
-- `public_clash` clones the whole flow, which may include secret state. Its callers were not read.

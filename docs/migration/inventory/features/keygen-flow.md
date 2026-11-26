@@ -58,6 +58,7 @@ and Quiz; SLIP-39 shares and codex32 shares are made inside the same flow
 - `hide_left_step` and `hide_secrets` keep the flow but hide the words and the codex32 QR (`faraday/faraday-core/src/keygen/area.rs:~147-172`). Opening a step sets `shown = false` (decision F104).
 - After Lock in the key is in `session.keys`; the flow keeps its words until it ends. The Tools result card keeps only fingerprint, name, typed flag and rows (`faraday/faraday-core/src/keygen/mod.rs:~2243-2268`).
 - Passphrase fields are emptied when their screen goes (`faraday/faraday-core/src/pass_field/mod.rs:623-639`) and when a stick arrives (`faraday/faraday-core/src/pass_field/mod.rs:642-644`).
+- `Mnemonic` (`core/faraday-bip/src/bip39.rs:759`) and `slip39::Share` (`core/faraday-bip/src/slip39.rs:574`) wipe on drop and have no `Debug` or `Clone`. `Codex32Make` (`faraday/faraday-core/src/codex32/mod.rs:466`) has no `Drop` or `Debug`; its secret fields each wipe themselves: `Zeroizing` rolls, `BookletChar`, `Made`, `SecretText`, `Held<Vec<Text>>`, `Codex32` and the `WorkSet` (`faraday/faraday-keys/src/codex32.rs:49-68`).
 
 ## Reach
 
@@ -146,7 +147,6 @@ None. Practice's codex32 sample (BIP 93 test vector 2) comes from the shell's sa
 - Row 298b5c5f9 left out: outside the inventory's scope.
 - 24a4901f7 is a mixed commit; most of it added behaviour (sources on the card, Skip, the word-list search).
 - Silent refusals with no note: passphrase mismatch at Lock in, a bad scanned SeedQR, the eye wait.
-- Whether `Mnemonic`, `slip39::Share` and `Codex32Make` wipe on drop was not checked (types in other crates).
 - `keygen_done` for the Tools result card uses `new_keys` without `+1` (`faraday/faraday-core/src/keygen/mod.rs:~2255`); unconfirmed.
 - Reach of `Keys::next_handout` outside Practice was not read.
 - Comments that disagree with the code: `faraday/faraday-core/src/keygen/mod.rs:~2945-2946` says typing is on from 600 dp, the code tests `!compact`; `~1263-1268` doc and code disagree on the Reduce-motion value of the rerolled-face fade. The arm `(Some(Source::Coins), '1'..='6') if by_die` (`~2822`) looks unreachable.

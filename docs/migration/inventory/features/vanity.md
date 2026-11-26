@@ -38,8 +38,8 @@ Tools (`Screen::Vanity`) and from Explore on a key (`OpenOn(fp)`).
 ## State and lock
 
 - `VanityArea.state: Option<VanityState>` (`faraday/faraday-core/src/vanity/mod.rs:~74-93`, `~121-123`): `open`, `done[5]`, `scroll`, `key: Option<[u8;4]>`, `grind: Grind` (the typed prefix and the `find`: `address`, `suffix`, a BIP-39 passphrase fragment and so a secret, and `account`), `running`, `shown`, `back`, `error`.
-- Lifetime: from `Open`/`OpenOn` until `Done`, `Another` (which reopens), a successful `Use` (`~552`, `~517`), or a lock.
-- Leaving the screen does not clear it: `hide_shown` only sets `shown = false` (`hide_secrets`, `faraday/faraday-core/src/vanity/mod.rs:127-129`; `622-659`). A find's suffix stays in the app's state until Done, Another, Use or a lock.
+- Lifetime: from `Open`/`OpenOn` until `Done`, `Another` (which reopens), a successful `Use` (`~552`, `~517`), leaving the screen, or a lock.
+- Leaving the screen clears it: `after_input` calls `vanity.clear()` unless the vanity screen, or Add a key or New key opened from it, or Files for its key's stick visit is up (`faraday/faraday-core/src/pointer.rs:814`, `860-863`; `faraday/faraday-core/src/vanity/mod.rs:147-149`). The suffix is a `Counter` wiped on drop (`core/faraday-bip/src/vanity.rs:137`). `hide_shown` only sets `shown = false` while the screen stays (`faraday/faraday-core/src/vanity/mod.rs:127-129`).
 - Lock: `AtLock for VanityArea` (`faraday/faraday-core/src/vanity/mod.rs:650-659`): `holds = Holds::typed(state.is_some())`, `lock = clear()`, which drops the `Grind` and its find. `Text` wipes on drop (`core/faraday-text/src/text.rs:363-367`). The lock then restarts the process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
 - A key made by `Use` lives on in `session.keys`, marked made here (it must be backed up before it signs).
 
@@ -81,4 +81,3 @@ None.
 
 - `Use` on the Account dial is offered for a key waiting for backup, though the address and code are hidden; there is no held-key check on that path.
 - `Use` on the Passphrase dial adds the key before the later silent-payments branch.
-- A find's passphrase suffix stays in the app's state after the screen is left, until Done, Another, Use or a lock; whether that is intended is unclear.

@@ -68,6 +68,7 @@ Suggest corrections (`Press`, `faraday/faraday-core/src/codex32_correct/mod.rs:~
 - `take` (`faraday/faraday-core/src/codex32_correct/mod.rs:~662-670`) replaces the stage with `Closed`, so `Shown` and `Retyped` drop; the string moves into `Taken`.
 - The correction lives in the Add a key entry state (`faraday/faraday-core/src/state.rs:~76`); the entry's lock calls `reset()` (`faraday/faraday-core/src/state.rs:2766-2781`).
 - `KeyMarks` (`faraday/faraday-core/src/codex32_correct/mod.rs:~697`): per fingerprint, for the session, "Share entry corrected" or "Share repairs unchecked"; never weakened (`~703`). Not secret.
+- `Codex32Make.inputs` (`faraday/faraday-core/src/codex32/mod.rs:544`) is a `Vec<Codex32>`. `Codex32` derives `ZeroizeOnDrop` (`core/faraday-bip/src/codex32/mod.rs:370-374`), so each string typed in wipes as it drops.
 
 ## Reach
 
@@ -162,7 +163,6 @@ None. Practice's sample is BIP 93 test vector 2, handed in by the shell (`farada
 ## Doubts
 
 - Rows left out as not about this feature: e20186b1f (a plan record's codex32 string), 54332b693 (a codex32 secret read at a flow's scanner), 363c80dbf (a vault's share-set identity), 591ae4a10 (codex32 offered as a backup of a key of words).
-- Whether `inputs: Vec<Codex32>` in `Codex32Make` wipes was not located.
 - `Strings` of a backup's codex32 set are not counted in that area's `holds()`, so a typed but unlocked codex32 string would not raise the lock prompt on its own (Back up, not this flow).
 - Drawing writes flow state: `note_dice_body_h` (`faraday/faraday-core/src/codex32/dice_screen.rs:~253`, `~266`) and `note_sheet_room` (`faraday/faraday-core/src/codex32/screen.rs:~749`, `~787`); whether this is interior mutability or a real write is unclear.
 - `column_scale` returns `Option` but never `None` (`faraday/faraday-core/src/codex32/dice_screen.rs:~284`); `die_line` could read "higher . 0" for an equal pair (`~420-431`); `kw` can go negative at tiny widths (`~184`).

@@ -57,6 +57,7 @@ usually with the Load sheet over it (see `vault-contents`).
 - At a lock `VaultArea::lock` clears the unlock `passphrase` (`faraday/faraday-core/src/vault/area.rs:4477-4486`); `holds().typed` counts it (`4461-4487`).
 - Stale answers (an unlock whose file no longer matches the picked file, or Unlock left) are dropped and wiped (`faraday/faraday-core/src/vault/stretch.rs:~398-414`).
 - `key_files_used` records a key file's name before the key file is accepted (`faraday/faraday-core/src/vault/unlock_keys.rs:~76`); nothing in the inventory clears it; it is read at `faraday/faraday-core/src/vault/area.rs:~511` and by Delete files (`faraday/faraday-core/src/stick/wipe.rs`, "used this power-on").
+- `older` (`OpenHold`: lines, vault id, sheet, a public summary, `faraday/faraday-core/src/vault/seals.rs:484-495`) is dropped once its vault is not open (`faraday/faraday-core/src/backups/mod.rs:4205-4216`). At a lock it goes with the app, the not-kept rebuild included.
 
 ## Reach
 
@@ -131,4 +132,3 @@ usually with the Load sheet over it (see `vault-contents`).
 - The Unlock screen and `faraday/faraday-core/src/vault/mod.rs` action line numbers are not inventory-verified.
 - `faraday/faraday-core/src/vault/stretch.rs:~563-566`: a key file that fails to read gives `parts = None` with no message through `.ok()`; the vault is kept with no key parts.
 - `faraday/faraday-core/src/vault/mod.rs:~1126-1138`: the match arms for `Work::Unlock/Create/Kdbx/KdbxCheck` look unreachable (only `FlowMake` runs there).
-- Whether `older` (`OpenHold`) is cleared by a lock is not shown by the lock path; it goes when the app ends.

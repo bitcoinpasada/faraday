@@ -96,7 +96,7 @@ Sweep (`SweepAction`)
   - flags and `kef`.
 - The words wait in memory, never drawn, until a choice loads them or the sheet closes.
 - `seed_read_stick_arrived` (`faraday/faraday-core/src/seeds/read.rs:~354`) clears the passphrase when a stick is in the way.
-- `Sweep` holds `typed: SecretText`, the review and the signed result. The key itself is `Keys::sweep` in `session.keys`.
+- `Sweep` holds `typed: SecretText`, the review and the signed result. The review is the PSBT as read with address, amount, fee and warning texts (`faraday/faraday-core/src/seeds/sweep.rs:88-111`); the signed result is the signed PSBT and finished hex also put in the Outbox (`faraday/faraday-core/src/seeds/sweep.rs:114-121`, `faraday/faraday-core/src/seeds/read.rs:977-992`): public, since the signer adds only partial signatures (`core/faraday-psbt/src/sweep.rs:137-138`). The key itself is `Keys::sweep` in `session.keys`.
 - `sweep_tidy` (`faraday/faraday-core/src/seeds/read.rs:732-740`) runs after every press (`faraday/faraday-core/src/action.rs:1294`). It erases the key and the sweep unless the sheet or the sweep scanner is up. Done also erases them.
 - Lock: `AtLock for SeedsArea` (`faraday/faraday-core/src/seeds/mod.rs:1086-1094`).
   - `holds` is typed exactly when `holds_secret()`.
@@ -210,4 +210,3 @@ None.
 - One row given to this feature (1f6eb9aad) is outside the inventory's scope and is not carried.
 - Several line numbers are unconfirmed: the Make path, the `SeedsArea` and `SeedRead` field lists, the silent NativeSegwit fallback and the descriptor error order.
 - Whether the `kef_timing` flag that survives a lock can stay true when a timing run never answers is unclear.
-- No check confirms that `Sweep.review` and `signed` hold only public data. The review is a PSBT; the signed result is plain bytes.

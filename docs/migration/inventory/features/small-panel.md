@@ -42,7 +42,7 @@ The compact layout used on small panels (the Pi's panel, phone-size windows, and
 - `Osk` (`:~1195-1235`): `keys` (shift and symbol layer), `manual`, `hidden`, `pressed`, `was_shown`, `reveal`, `lift`, `field_at`, `caret`, `was_field: Option<Text>` (built from debug strings of screen, sheet, vault focus and flags; an identifier for "same field", not typed text, `:~1673-1686`), `kept`, `drawn`, shape and box. No typed characters are kept; they go straight to `self.key`.
 - `leave()` clears `manual` and resets `keys`; `done()` clears `manual` and sets `hidden` (`faraday/faraday-core/src/compact/mod.rs:1394-1404`).
 - The compact screens own no state. They read the entry state's passphrase and typed words, which belong to Add a key (`EntryArea::lock` = `reset`, `faraday/faraday-core/src/state.rs:2766-2791`).
-- Every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`), so `CompactArea` does not outlive it.
+- Every lock ends the app: a fresh process, or, when the save fails with keys waiting, a fresh app in the same process (`faraday/faraday-core/src/vault/seal.rs:933-946`, `faraday/faraday-core/src/storage_api.rs:1167-1202`). So `CompactArea`, with `Osk.was_field`, does not outlive it.
 
 ## Reach
 
@@ -113,7 +113,6 @@ None. (`crate::demo::PASSPHRASE` and `crate::ABOUT_PAGE` are constants in code.)
 
 ## Doubts
 
-- `Osk.was_field` survives a lock in the same process (the area is `Public`), though the lock's restart ends it.
 - `flow_bar_tools` may overlap the pill when tools fill the width (`faraday/faraday-core/src/compact/mod.rs:~181`).
 - The call site of `toggle_about` was not found in the code read.
 - Which `Screen` variant hosts the compact Add a key page is not visible in `faraday/faraday-core/src/compact/screen.rs`; whether `entry_sample_shown()` includes "field empty" is not known.

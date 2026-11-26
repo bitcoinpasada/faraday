@@ -58,6 +58,7 @@ Tool (`KefToolAction`)
 Read
 - `KefRead` (`faraday/faraday-core/src/seeds/kef.rs:~102-125`): `pass: PassField`, `forms: Vec<Zeroizing<Vec<u8>>>` (passphrase forms to try), `offered: Option<Zeroizing<Vec<u8>>>`, `shown: Option<Text>` (the note text or hex), `eye`, `sure`. `holds_secret()` = pass, forms, shown or offered.
 - Cleared when the sheet closes, and at lock: the seeds area's lock clears the seed sheet, the Krux read and the carried passphrase (`faraday/faraday-core/src/seeds/mod.rs:455-464`, `1086-1094`).
+- The ways the sheet ends that drop `KefRead` with `shown`: Cancel outside Working (`faraday/faraday-core/src/seeds/kef.rs:791-803`), the general Cancel (`faraday/faraday-core/src/action.rs:1374`), Use as passphrase (`faraday/faraday-core/src/seeds/kef.rs:740-748`), read on as a public code or seed words (`faraday/faraday-core/src/seeds/kef.rs:655-700`), a stick arriving (`faraday/faraday-core/src/seeds/kef.rs:753-765`), its wallet leaving (`faraday/faraday-core/src/seeds/kef.rs:769-785`), the worker's answer finding another sheet up (`faraday/faraday-core/src/seeds/kef.rs:486-491`), the lock.
 - A stick arriving closes the sheet and drops the carried passphrase. `hide_secrets` only closes the eye. `kef_cancel` in Working keeps `KefRead` but clears `forms` (`faraday/faraday-core/src/seeds/kef.rs:~791-799`).
 - The carried note lives only on the seed scanner, its card and the Krux sheet it leads to; it is forgotten on Cancel, at lock, and when the next code holds something public or is a codex32 string (fix rows 1450b6c00, e867840c5).
 
@@ -172,7 +173,6 @@ Tool (`faraday/faraday-core/src/kef_tool/`)
 - `WordsFingerprint` is converted outside `faraday/faraday-core/src/worker/kef_make.rs`; `MakeStart` has no constructor there.
 - The comment at `faraday/faraday-core/src/worker/kef.rs:~4-5` says no screen reaches these jobs yet; the backup board and Tools do.
 - Reading a Krux file is gated by `may_load_keys` while scanning is not; whether the file path is reachable otherwise is unclear.
-- `KefRead.shown` holds the decrypted note or its hex until the sheet closes or the lock.
 - `Header.high`/`sure` in `faraday/faraday-core/src/seeds/kef.rs` and `KefAct::Show` in the Ask stage look unused.
 - `reading_passphrases` (which passphrase forms are tried) is in faraday-keys and was not read.
 - Line numbers in the form and tool marked `~` were found off by up to 40 lines where checked.

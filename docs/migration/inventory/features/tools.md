@@ -168,9 +168,9 @@ Calculators:
   seed_check, mscheck and core_wallet (`~1075-1082`). A lock then restarts
   the process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
 - The catalog has no state (static `TILES`).
-- Lightning node key: `LightningArea` has its own lock
-  (`faraday/faraday-core/src/lightning/mod.rs:894`); what it clears was not
-  read.
+- `ots` (public at lock) is cleared after every press once `Screen::OtsCheck` is left (`ots_check::tidy`, `faraday/faraday-core/src/ots_check/mod.rs:797-801`, from `tool_tidy`, `faraday/faraday-core/src/tools/mod.rs:755-758`). At a lock it goes with the app.
+- Lightning node key: `LightningArea` has its own lock: `clear()`, with `holds` the state being present (the words, the passphrase or the node key; `faraday/faraday-core/src/lightning/mod.rs:894-902`).
+- `ToolsState.read` keeps the last `Rc<Reading>` beside a `SecretText` copy of the text it came from (`faraday/faraday-core/src/tools/mod.rs:126`, `233-244`, `598-604`). For a WIF or an extended private key typed into Encodings, `Reading::Encodings` holds the decoded private key in a plain `Vec<u8>` that derives `Debug` and `Clone` and does not wipe (`core/faraday-codec/src/encodings.rs:32-47`). It drops with the state when Tools leaves the screen (`faraday/faraday-core/src/tools/mod.rs:512-515`), on Escape (`faraday/faraday-core/src/tools/mod.rs:685-688`) and at lock (`faraday/faraday-core/src/tools/mod.rs:1084-1104`).
 
 ## Reach
 
@@ -262,6 +262,7 @@ Lightning:
 - On Mainnet without Demo, a Core Lightning `hsm_secret` made from a
   sample's words and a SLIP-39 set of a sample are refused with the
   public-sample line; Testnet takes both.
+- Only Convert an xpub refuses an extended private key (`core/faraday-bip/src/slip132.rs:136-141`). Encodings, Hashes, Descriptor checksum and Miniscript take any typed text. The module doc's "Nothing here is a secret" (`faraday/faraday-core/src/tools/mod.rs:4-5`) and `hide_shown`'s "Typed text here is public" (`faraday/faraday-core/src/tools/flow.rs:112-115`) do not hold for them.
 
 ## Domain calls
 
@@ -315,13 +316,6 @@ Lightning tool lists `hsm_secret` files in Files as buttons to read,
   invoice decoder or the other dispatched tools (Convert, Krux code, Check a
   timestamp, My seed makes my wallet, Read a Bitcoin Core wallet, Check a
   multisig setup); only their module docs and fix rows are here.
-- `Reading` (bytes derived from what was typed) sits in an `Rc` not known
-  to wipe; the `hide_shown` doc in `faraday/faraday-core/src/tools/flow.rs:~112-115`
-  says the typed text is public while
-  `faraday/faraday-core/src/tools/mod.rs:~101-102`, `~1075-1076` say an
-  extended private key can be typed. Not resolved.
-- `ots` is declared public at lock and not cleared in the code read;
-  `invoice` is cleared by `tidy` when the screen is left.
 - `type_descriptor` (`~379-388`) and `run_selftest_with` (`~1023-1035`) are
   testkit-gated items in product code.
 - Whether Take to Wallets persists the wallet to storage is unclear.
