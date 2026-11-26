@@ -659,6 +659,7 @@ pub fn replays(action: Action) -> bool {
     matches!(
         action,
         Action::LoadWallet(_)
+            | Action::AddressCheck(crate::address_check::AddressPress::LoadThen(_))
             | Action::TTake
             | Action::RUse(_)
             | Action::RRebuild
@@ -5219,11 +5220,11 @@ impl Faraday {
     }
 
     /// Costs what `add_wallet` costs. Loads the wallet an Inbox file
-    /// describes, named after the file.
-    pub(crate) fn load_wallet(&mut self, index: usize) {
+    /// describes, named after the file. Whether it was loaded.
+    pub(crate) fn load_wallet(&mut self, index: usize) -> bool {
         let c = self.compute();
         let Some(item) = self.inbox.get(index) else {
-            return;
+            return false;
         };
         let text = Text::from_utf8_lossy(&item.bytes);
         let source = Text::of(&item.name);
@@ -5238,11 +5239,13 @@ impl Faraday {
                 self.wallets.set_wallet(i);
                 self.screen = Screen::Wallets;
                 self.refresh_spend();
+                return true;
             }
-            // Held for its sheet: its hold runs this again.
+            // Held for its sheet: its hold runs the press again.
             Err(Refusal::Unconfirmed) => {}
             Err(e) => self.toast(&e.text()),
         }
+        false
     }
 
     /// The wallet chosen on the Wallets tab.
@@ -5387,7 +5390,9 @@ impl Faraday {
                 }
             }
             Action::Primary => self.primary(),
-            Action::LoadWallet(i) => self.load_wallet(i),
+            Action::LoadWallet(i) => {
+                self.load_wallet(i);
+            }
             Action::LoadKey(i) => {
                 if self
                     .inbox

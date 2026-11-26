@@ -51,6 +51,10 @@ pub enum AddressPress {
     Way(u8),
     /// Another: the page again, empty, to check the next address.
     Another,
+    /// The wallet file at this place of the Inbox loaded, then the page,
+    /// empty; a refusal opens nothing, and a wallet held for its sheet
+    /// opens it once the hold runs this again.
+    LoadThen(usize),
 }
 
 /// What the page holds.
@@ -452,7 +456,8 @@ fn refuse(app: &mut Faraday, why: Text) {
     }
 }
 
-/// Costs what a check costs. One press on the page.
+/// Costs what a check costs, or for `LoadThen` what `load_wallet` costs.
+/// One press on the page.
 pub(crate) fn act(app: &mut Faraday, press: AddressPress) {
     match press {
         AddressPress::Scan => app.act(Action::ScanFor(crate::Ask::Address)),
@@ -468,6 +473,15 @@ pub(crate) fn act(app: &mut Faraday, press: AddressPress) {
         }
         AddressPress::Way(i) => way(app, usize::from(i)),
         AddressPress::Another => open(app),
+        AddressPress::LoadThen(k) => {
+            // The page's back link returns to where the press was made,
+            // not to the wallet a load goes to.
+            let from = app.screen;
+            if app.load_wallet(k) {
+                app.screen = from;
+                open(app);
+            }
+        }
     }
 }
 
