@@ -1260,7 +1260,7 @@ session pane (§2), of the menu pages and of Settings follow it: one row part
 draws the chevron, from whether the row opens. A row with a button keeps the
 button and has the chevron too once its press opens its details (§2). Built: the wallet card's
 backup line and chart boxes, the wallet's source tag, the sidebar's lock tag, the
-phone's Settings rows, the network pill's arrow (wide windows only), "What you can do", the one
+phone's Settings rows, the network pill's arrow (the sidebar layout only), "What you can do", the one
 chevron token (`CHEVRON`, drawn by `Ui::row_chevron`) and the error tone of
 Remove every key, Remove from session and Delete from the stick. **Open:**
 the phone's Home rows (the loaded card in `nav/`), Files' rows, the session
@@ -1277,8 +1277,9 @@ Where it changes what is drawn today:
   "Auto-lock off until backup complete" are plain tags.
 - **The phone's Settings and Home:** a row that opens has the chevron, drawn by
   the shared row part.
-- **The network pill** has the small menu arrow on wide windows only; the
-  phone-size window and the Pi keep the pill as it was. The fact, "Testnet" on a
+- **The network pill** has the small menu arrow on the layout with the sidebar
+  only; the narrow rail, the phone-size window and the Pi keep the pill as it
+  was (owner, 2026-11-25: on the narrow rail it would push out Home's pills). The fact, "Testnet" on a
   spend's step, stays a plain tag.
 - **Files:** the Write row keeps its tonal fill and has no chevron; "Written
   after Lock", now text in the accent, is a neutral tag.

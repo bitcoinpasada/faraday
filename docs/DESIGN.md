@@ -571,7 +571,7 @@ item grows with its value, nothing is cut.
 
 As built, the chevron is one size (`CHEVRON`, `Ui::row_chevron`), the first
 press of Remove every key, Remove from session and Delete from the stick is in
-the error tone (`Style::Danger`) and the network pill has the arrow on wide windows only (the phone-size window and the Pi keep it as it was); Files'
+the error tone (`Style::Danger`) and the network pill has the arrow on the layout with the sidebar only (the narrow rail, the phone-size window and the Pi keep it as it was); Files'
 Write row, the phone's Home rows and a few accent texts are still to change
 (`docs/WORKSPACE.md` §19).
 

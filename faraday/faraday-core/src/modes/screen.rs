@@ -53,12 +53,11 @@ fn arrow_room(app: &View) -> f32 {
     }
 }
 
-/// Whether the pill carries the arrow: on the layouts with a rail only.
+/// Whether the pill carries the arrow: on the layout with the sidebar only.
+/// The narrow rail's bar keeps Home's three pills from about 1020 dp, which
+/// the arrow would push out (owner, 2026-11-25).
 fn has_arrow(app: &View) -> bool {
-    matches!(
-        app.nav(),
-        crate::nav::Nav::Rail | crate::nav::Nav::ExpandedRail
-    )
+    app.nav() == crate::nav::Nav::ExpandedRail
 }
 
 /// The pill's width, for a row that makes room for it. Load samples is
