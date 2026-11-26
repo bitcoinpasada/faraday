@@ -143,23 +143,15 @@ pub(crate) fn draw(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &[Offer]) -> f
     } else {
         LIST_PAD
     };
-    let end = LIST_PAD + ICON_SMALL + tokens::GRID;
+    let room = w - lead - LIST_PAD - ICON_SMALL - tokens::GRID;
     for (i, o) in list.iter().enumerate() {
         let ink = if o.danger {
             Role::Error
         } else {
             Role::OnSurface
         };
-        // A row with no icon takes the empty column where its label
-        // needs it.
-        let from = if o.icon.is_none() && ui.measure_as(BODY_L, &o.label) > w - lead - end {
-            LIST_PAD
-        } else {
-            lead
-        };
-        // A label that still does not fit takes a second line, as a list
-        // item's headline does.
-        let room = w - from - end;
+        // A label that does not fit takes a second line, as a list item's
+        // headline does.
         let line = ui.line_as(BODY_L);
         let two = ui.measure_as(BODY_L, &o.label) > room;
         let h = if two {
@@ -188,12 +180,12 @@ pub(crate) fn draw(ui: &mut Ui, (x, y, w): (f32, f32, f32), list: &[Offer]) -> f
             let at = ui.first_line_end(BODY_L, &o.label, room);
             let (one, rest) = o.label.split_at(at);
             let top = cy + (h - 2.0 * line) / 2.0;
-            ui.text_mid_as((x + from, top, line), BODY_L, ink, one.trim_end());
+            ui.text_mid_as((x + lead, top, line), BODY_L, ink, one.trim_end());
             let rest = ui.fit_as(BODY_L, rest.trim_start(), room);
-            ui.text_mid_as((x + from, top + line, line), BODY_L, ink, &rest);
+            ui.text_mid_as((x + lead, top + line, line), BODY_L, ink, &rest);
         } else {
             ui.text_mid_as(
-                (x + from, cy + (h - line) / 2.0, line),
+                (x + lead, cy + (h - line) / 2.0, line),
                 BODY_L,
                 ink,
                 &o.label,

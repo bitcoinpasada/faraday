@@ -149,7 +149,7 @@ fn offer_icon(action: Action) -> Option<Icon> {
         Action::SpendBackup(crate::spend_backup::SpendBackupAction::FromSeedFile(_)) => {
             Some(Icon::Sign)
         }
-        Action::File(FilePress::CheckAddress(_)) => Some(Icon::Verify),
+        Action::File(FilePress::CheckAddress(_)) | Action::AddressCheck(_) => Some(Icon::Verify),
         Action::SeedCheck(crate::seed_check::SeedAction::File(_)) => Some(Icon::Checklist),
         Action::Backup(_) => Some(Icon::Shield),
         Action::CreateWallet => Some(Icon::Flag),
