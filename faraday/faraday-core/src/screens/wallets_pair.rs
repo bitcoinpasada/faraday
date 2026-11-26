@@ -13,7 +13,7 @@ use crate::ui::pal::*;
 use crate::ui::{Shape, Ui};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
-    BODY_L, ELEVATION_FAB, GAP, GAP_SMALL, ICON_SMALL, LIST_1, LIST_PAD, MARGIN_WIDE, PAD,
+    BODY_L, ELEVATION_SHEET, GAP, GAP_SMALL, ICON_SMALL, LIST_1, LIST_PAD, MARGIN_WIDE, PAD,
     PANE_TOP_BAR, SHAPE_L, SHAPE_M, TITLE_M,
 };
 use faraday_draw::widgets::Icon;
@@ -180,7 +180,7 @@ pub(super) fn draw_start(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) 
     let tile_h = room;
     pane(app, ui, x0, &p, (top, tile_h));
     let tx = x0 + p.card_x;
-    ui.shadow(tx, top, p.card_w, tile_h, SHAPE_M, ELEVATION_FAB);
+    ui.shadow(tx, top, p.card_w, tile_h, SHAPE_M, ELEVATION_SHEET);
     ui.fill(
         tx,
         top,
@@ -189,6 +189,9 @@ pub(super) fn draw_start(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) 
         SHAPE_M,
         Role::SurfaceContainerLow,
     );
+    if ui.theme.is_high_contrast() {
+        ui.stroke(tx, top, p.card_w, tile_h, SHAPE_M, Role::Outline);
+    }
     let (ix, iy) = (tx + PAD, top + PAD);
     ui.text_as(
         ix + LIST_PAD,

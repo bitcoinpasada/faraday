@@ -11,7 +11,7 @@ use crate::row_open::Opened;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Region, Ui};
-use faraday_draw::tokens::{BODY_L, BODY_M, ELEVATION_FAB, GRID, PAD, SHAPE_M, TITLE_S};
+use faraday_draw::tokens::{BODY_L, BODY_M, ELEVATION_SHEET, GRID, PAD, SHAPE_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::section_label;
 
@@ -172,8 +172,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) 
         super::wallets::wallet_page(app, ui, (x, w), (y, h), (false, false));
         return true;
     }
-    ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);
+    ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_SHEET);
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+    if ui.theme.is_high_contrast() {
+        ui.stroke(x, y, w, h, SHAPE_M, Role::Outline);
+    }
     let inner = w - 2.0 * PAD;
     let need =
         crate::menu::measure(ui, &mut |ui| body(app, ui, opened, (0.0, 0.0), inner)) + 2.0 * PAD;

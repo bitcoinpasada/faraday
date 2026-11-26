@@ -6,7 +6,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L};
+use faraday_draw::tokens::{ELEVATION_SHEET, FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L};
 use faraday_draw::tokens::{GRID, TOUCH};
 use faraday_draw::widgets::Icon;
 
@@ -30,8 +30,15 @@ const MARK_H: f32 = 32.0;
 const MARK_MARGIN: f32 = 2.0;
 
 pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
+    // Raised on a menu page and flat in a flow, with no line (F331); a High
+    // contrast theme casts no shadow, so its outline stands in both.
+    if !super::bar_search::in_flow(app) {
+        ui.shadow(0.0, 0.0, SIDEBAR_W, h, 0.0, ELEVATION_SHEET);
+    }
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, Role::SurfaceContainerLow);
-    ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
+    if ui.theme.is_high_contrast() {
+        ui.stroke(0.0, 0.0, SIDEBAR_W, h, 0.0, Role::Outline);
+    }
     ui.mark(MARK_X, MARK_TOP, MARK_W, MARK_H);
     // The name with its word (DEMO, OFFLINE) centred on the mark, its
     // capitals 9 tall, which ends it within the rows' labels' edge.

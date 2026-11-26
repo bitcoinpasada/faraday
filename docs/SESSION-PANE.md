@@ -55,7 +55,8 @@ Open, Sign), in the Waiting group, one column, never across the card.
 ## 2. Home's card
 
 The card is at most `MENU_PAGE_W` wide, centred, `HOME_CARD_GAP` under the top
-bar's row, raised at level 3 on surface-container-low (F315). Its heading is
+bar's row, raised at level 1 on surface-container-low, with a thin outline at High contrast
+(F331). Its heading is
 "This session" (Title Large). The groups stand in as many columns as fit of at
 least `SESSION_COL_MIN` (336 dp), `SPACER` (24 dp) apart; each group stands
 whole, and the next one goes into the shortest column. The card is as tall as

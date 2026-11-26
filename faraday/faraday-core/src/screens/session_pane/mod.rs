@@ -18,7 +18,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Region, Shape, Slot, Style, Ui};
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BUTTON_H, ELEVATION_FAB, GAP_SMALL, GRID, HOME_BOX_KEYS, HOME_BOX_MIN_ROWS,
+    BODY_L, BODY_M, BUTTON_H, ELEVATION_SHEET, GAP_SMALL, GRID, HOME_BOX_KEYS, HOME_BOX_MIN_ROWS,
     HOME_CARD_GAP, HOME_CARD_HEAD, ICON_SMALL, LIST_1, LIST_2, LIST_PAD, MARGIN_WIDE, MENU_PAGE_W,
     NAV_ICON, PAD, SESSION_COL_MIN, SHAPE_M, SPACER, TITLE_S,
 };
@@ -287,14 +287,17 @@ fn draw_row(
     }
 }
 
-/// The card's surface: a raised card of the surface-container-low fill with
-/// the Scan button's shadow. Where it stands is the pane's place for the
+/// The card's surface: a raised card of the surface-container-low fill at
+/// level 1, an outline in its place at High contrast. Where it stands is the pane's place for the
 /// change of page (`docs/MOTION.md` §3.5); the one drawer reports it for
 /// Home's card, the stacked card and the page's pane alike.
 fn card_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
     ui.pane = Some((x, y, w, h));
-    ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);
+    ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_SHEET);
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+    if ui.theme.is_high_contrast() {
+        ui.stroke(x, y, w, h, SHAPE_M, Role::Outline);
+    }
 }
 
 /// How many columns of at least `SESSION_COL_MIN` fit across `inner`, at

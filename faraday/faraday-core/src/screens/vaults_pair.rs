@@ -14,7 +14,7 @@ use crate::strings::EN;
 use crate::ui::Ui;
 use crate::ui::pal::*;
 use crate::vault::VaultAction as V;
-use faraday_draw::tokens::{BODY_L, ELEVATION_FAB, GAP, LIST_PAD, PAD, SHAPE_M, TITLE_M};
+use faraday_draw::tokens::{BODY_L, ELEVATION_SHEET, GAP, LIST_PAD, PAD, SHAPE_M, TITLE_M};
 use faraday_draw::widgets::Icon;
 
 /// Vaults' panes: the session pane in Vaults' mode and the tile, at the
@@ -83,7 +83,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> boo
     let below = if ways_h > 0.0 { GAP + ways_h } else { 0.0 };
     let fit = 2.0 * PAD + head + body + below;
     let tx = x0 + p.card_x;
-    ui.shadow(tx, top, p.card_w, tile_h, SHAPE_M, ELEVATION_FAB);
+    ui.shadow(tx, top, p.card_w, tile_h, SHAPE_M, ELEVATION_SHEET);
     ui.fill(
         tx,
         top,
@@ -92,6 +92,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> boo
         SHAPE_M,
         Role::SurfaceContainerLow,
     );
+    if ui.theme.is_high_contrast() {
+        ui.stroke(tx, top, p.card_w, tile_h, SHAPE_M, Role::Outline);
+    }
     let (ix, iy) = (tx + PAD, top + PAD);
     ui.text_as(ix + LIST_PAD, iy, TITLE_M, Role::OnSurface, EN.vault_vaults);
     let ly = iy + head;
