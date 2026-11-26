@@ -29,17 +29,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let (x, mut y, w, mut view) = super::hub_layout::guide_place((x0, cw, h));
     // Beside a pair or a page of one column the pane is as tall as the
     // page, tops and feet level; beside a page that says no height it has
-    // the window's (`docs/WORKSPACE.md` §7.4). Its arrow lets it down to
-    // the window's height and folds it back.
-    let full = (y, view);
+    // the window's (`docs/WORKSPACE.md` §7.4). Its arrow lets its foot
+    // down to the window's and folds it back; the top stays the page's.
+    let window_foot = y + view;
     let shorter = ui.pair_span.map(|(top, foot)| {
         let end = foot.min(h - T::MARGIN_WIDE);
         let top = top.max(0.0);
         (top, (end - top).max(T::TOUCH))
     });
     let tall = app.guide_pane_tall();
-    if let Some(span) = shorter.filter(|_| !tall) {
-        (y, view) = span;
+    if let Some((top, span)) = shorter {
+        y = top;
+        view = if tall {
+            (window_foot - top).max(span)
+        } else {
+            span
+        };
     }
     ui.guide_drawn = Some((x, ui.oy + y, w, view));
     // Nothing of the page under the pane takes a press.
@@ -67,9 +72,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let (clip, max) = guide_body(app, ui, &look, (x, y, w, view));
     let close_x = x + w - T::GAP - T::TOUCH;
     close_button(ui, close_x, y + T::GUIDE_PANE_CLOSE_TOP);
-    // The arrow stands only where the page makes the pane shorter than
-    // the window's.
-    if shorter.is_some_and(|(_, span)| span < full.1) {
+    // The arrow stands only where the page ends the pane above the
+    // window's foot.
+    if shorter.is_some_and(|(top, span)| top + span < window_foot) {
         tall_button(ui, close_x - T::TOUCH, y + T::GUIDE_PANE_CLOSE_TOP, tall);
     }
     // Its edges fade into the pane's own container.

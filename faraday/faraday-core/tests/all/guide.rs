@@ -996,8 +996,8 @@ fn beside_a_stacked_page_the_guides_pane_has_its_top_and_foot() {
     );
 }
 
-/// Beside a page shorter than the window the pane's arrow lets it down to
-/// the window's height and folds it back to the page's; it stays let down
+/// Beside a page shorter than the window the pane's arrow lets its foot down
+/// to the window's, keeping its top, and folds it back to the page's; it stays let down
 /// after the guide is closed and opened again.
 #[test]
 fn the_guides_arrow_lets_its_pane_down_and_keeps_it_so() {
@@ -1018,6 +1018,7 @@ fn the_guides_arrow_lets_its_pane_down_and_keeps_it_so() {
     frame(&mut app);
     let tall = app.guide_rest_place().expect("the guide's pane");
     assert!(tall.3 > short.3, "let down: {tall:?} against {short:?}");
+    assert_eq!(tall.1, short.1, "the top stays: {tall:?} against {short:?}");
     assert_eq!(
         tall.1 + tall.3 + faraday_draw::tokens::MARGIN_WIDE as i32,
         1080,
