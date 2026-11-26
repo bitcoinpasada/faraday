@@ -84,10 +84,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         super::row_details::draw(app, ui, (x, y, width, (h - y - foot).max(0.0)));
         return;
     }
-    // A stick in with nothing held, and the import's list not up: its files
-    // can be written to and read. While the list stands, Faraday's own
-    // controls are drawn as with no stick, for they would be refused.
-    let usable = app.stick_visit_on();
+    // A stick in with nothing held: its files can be written to and read.
+    let usable = app.stick_pane();
     let stick = app.stick.get(app.visit.stick).filter(|_| usable);
     // A stick holding a secret file is named under the cards, in the
     // error tone, with its button.

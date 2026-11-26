@@ -96,6 +96,9 @@ pub struct ImportState {
     pub stick: Text,
     /// Every file on it but the settings file, in the stick's order.
     pub files: Vec<StagedFile>,
+    /// The stick's files and sizes as last known, bar the settings file:
+    /// what a stick coming back must hold ([`ImportState::lists`]).
+    seen: Vec<(Text, u64)>,
     /// Import was pressed: the ticked files were asked for, and the
     /// ticks are fixed.
     asked: bool,
@@ -223,21 +226,39 @@ fn ext(name: &str) -> Text {
         .unwrap_or_default()
 }
 
+/// A stick's files with their sizes, bar the settings file.
+fn own_files(stick: &StickInfo) -> impl Iterator<Item = (&str, u64)> {
+    stick
+        .files
+        .iter()
+        .filter(|(n, _)| !crate::stick::settings::is_file(n))
+        .map(|(n, s)| (&**n, *s))
+}
+
 /// A picture's file name.
 fn is_png(name: &str) -> bool {
     ext(name) == "png"
 }
 
 impl ImportState {
-    /// Whether `stick` holds the listing the list shows: its files, with
-    /// their sizes, bar the settings file.
+    /// Whether `stick` holds the listing the import knows: the one the
+    /// list was made from, as followed while the stick stayed in. Its
+    /// files, with their sizes, bar the settings file.
     fn lists(&self, stick: &StickInfo) -> bool {
-        let now = stick
-            .files
-            .iter()
-            .filter(|(n, _)| !crate::stick::settings::is_file(n))
-            .map(|(n, s)| (&**n, *s));
-        now.eq(self.files.iter().map(|f| (&*f.name, f.size)))
+        own_files(stick).eq(self.seen.iter().map(|(n, s)| (&**n, *s)))
+    }
+
+    /// Takes `stick`'s listing as the one the import knows. A listed file
+    /// that is gone from it, or is there at another size, leaves the list;
+    /// a file the list did not have does not join it.
+    fn follow(&mut self, stick: &StickInfo) {
+        self.seen = own_files(stick).map(|(n, s)| (Text::of(n), s)).collect();
+        let seen = &self.seen;
+        let here = |f: &StagedFile| seen.iter().any(|(n, s)| *n == f.name && *s == f.size);
+        for f in self.files.iter().filter(|f| !here(f)) {
+            self.skip.remove(&f.name);
+        }
+        self.files.retain(here);
     }
 
     /// The place of the file named `name`, while it waits for its read.
@@ -598,8 +619,39 @@ impl Faraday {
                 },
             });
         }
+        state.follow(boot);
         self.import.set(state);
         self.import_sheet_up();
+    }
+
+    /// Whether the import still picks and its stick is in with the listing
+    /// the import knows. Asked before a new listing is taken: only such a
+    /// listing's successor is followed, never that of a stick which came
+    /// back or took its place.
+    pub(crate) fn import_listing_followed(&self) -> bool {
+        self.import.state().is_some_and(|i| {
+            !i.asked
+                && self
+                    .stick
+                    .iter()
+                    .any(|s| i.stick == s.id.as_str() && i.lists(s))
+        })
+    }
+
+    /// A new listing of the import's stick, which stayed in (a file deleted
+    /// or written from Files): the files that are gone leave the list. With
+    /// none left the import ends.
+    pub(crate) fn import_follow_listing(&mut self) {
+        let Some(imp) = self.import.state.as_mut() else {
+            return;
+        };
+        let Some(s) = self.stick.iter().find(|s| imp.stick == s.id.as_str()) else {
+            return;
+        };
+        imp.follow(s);
+        if imp.files.is_empty() {
+            self.import.clear();
+        }
     }
 
     /// The list step up: Files opens on the import's tile, On the stick

@@ -1258,9 +1258,8 @@ Owner, 2026-11-23 and 2026-11-24. F130 stands: names and sizes until Import.
 - **One button**: "Import and load any keys" when a ticked file's name suggests
   that it may hold a key, else "Import" (owner, 2026-11-24): only names are known
   before the import. It does what today's one button does. Built.
-- **A vault among the ticked files**: its passphrase is asked in the same tile,
-  in place of the list, one vault after another, the second shown once the first
-  is done.
+- **A vault among the ticked files**: its passphrase is asked in the sheet over
+  Home (F328), one vault after another, the second shown once the first is done.
 - After the import, Home. **Later** goes to Home with the import waiting there;
   Files keeps its badge.
 - **A second stick** while an import waits on Files: the import closes, Files shows

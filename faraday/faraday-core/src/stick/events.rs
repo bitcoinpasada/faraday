@@ -398,6 +398,7 @@ pub(crate) fn storage_event(app: &mut Faraday, event: StorageEvent) {
 pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
     let had = !app.stick.is_empty();
     let ids_before: Vec<faraday_text::Text> = app.stick.iter().map(|s| s.id.clone()).collect();
+    let followed = app.import_listing_followed();
     app.stick.set_sticks(sticks);
     // The keys follow: no way of adding one adds it with a stick in.
     let noun = app.stick.in_the_way().then(|| app.medium.noun());
@@ -408,6 +409,9 @@ pub(crate) fn sticks_changed(app: &mut Faraday, sticks: Vec<StickInfo>) {
     // The medium the device started from goes by what it is, not by its volume label.
     let boot = app.medium.boot();
     app.stick.label_boot_sticks(boot);
+    if followed {
+        app.import_follow_listing();
+    }
     let ids_now: Vec<faraday_text::Text> = app.stick.iter().map(|s| s.id.clone()).collect();
     if app.visit.stick >= app.stick.len() {
         app.visit.set_stick(0);

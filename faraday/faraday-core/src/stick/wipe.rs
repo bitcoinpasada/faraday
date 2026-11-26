@@ -808,11 +808,6 @@ pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 impl Faraday {
     /// Handles the Delete files and zero-a-stick actions (`Delete*`, `ZeroStop`).
     pub(crate) fn wipe_act(&mut self, action: Action) {
-        // Nothing of the stick is deleted before Import: its list stands
-        // where the stick's own card does. Stopping a zeroing still works.
-        if self.import_tile_up() && !matches!(action, Action::ZeroStop) {
-            return;
-        }
         match action {
             Action::DeleteFiles => self.delete_open(),
             Action::DeleteUnprotected => self.delete_unprotected(),

@@ -913,36 +913,22 @@ fn boot_with_work(files: &[(String, Vec<u8>)]) -> Faraday {
     app
 }
 
-/// What the list's page refuses: the stick's card, Delete files and the
-/// stick's own file menu. Whatever the page draws live must not be one.
+/// What the list's page refuses: the stick's own Import, and Import and
+/// load. Whatever the page draws live must not be one.
 fn refused_with_the_list(a: Action) -> bool {
-    use faraday_core::file_menu::{FilePress as P, Row};
-    match a {
-        Action::VisitFrom(..) | Action::VisitTab(..) | Action::VisitBar(..) => false,
-        Action::NameTakenBeside | Action::NameTakenOverwrite => false,
-        a if format!("{a:?}").starts_with("Visit") => true,
-        Action::DeleteFiles
-        | Action::DeleteUnprotected
-        | Action::DeleteWhat(..)
-        | Action::DeletePick(..)
-        | Action::DeletePasses(..)
-        | Action::DeleteGo => true,
-        Action::File(P::Menu(r) | P::Rename(r) | P::Details(r) | P::Decode(r)) => {
-            matches!(r, Row::Stick(_))
-        }
-        Action::File(P::StickDelete(_) | P::NameStick) => true,
-        _ => false,
-    }
+    matches!(
+        a,
+        Action::VisitCopy | Action::VisitCopyAndLoad | Action::VisitCopyAndSign
+    )
 }
 
-/// Nothing the list's page offers is refused: In Faraday's ticks, Select
-/// all, Write and the end row are not drawn live while the list stands.
+/// Nothing the list's page offers is refused, and In Faraday's own Write
+/// and the secret-file notice's Delete are offered while the list stands.
 #[test]
-fn nothing_the_list_page_offers_is_refused() {
+fn the_list_page_offers_write_and_delete_and_nothing_it_refuses() {
     let files = stick_files();
     let mut app = boot_with_work(&files);
-    // A secret file written to the stick: its notice and Delete are not
-    // drawn on the list's page.
+    // A secret file written to the stick: its notice and Delete are drawn.
     app.outbox.push(faraday_core::Item {
         name: faraday_text::Text::of("backup-words.txt"),
         bytes: b"words".to_vec().into(),
@@ -964,7 +950,8 @@ fn nothing_the_list_page_offers_is_refused() {
     assert!(app.import_on_show());
     let _ = app.frame();
     let offered = app.offered_actions();
-    assert!(!offered.is_empty());
+    assert!(offered.contains(&Action::VisitWrite), "{offered:?}");
+    assert!(offered.contains(&Action::DeleteUnprotected), "{offered:?}");
     let refused: Vec<_> = offered
         .into_iter()
         .filter(|a| refused_with_the_list(*a))
@@ -1083,11 +1070,9 @@ fn a_second_listing_hashes_nothing_while_the_list_stands_and_does_after_later() 
 /// The stick's own actions do nothing while the import's list stands where
 /// the stick's card does: nothing is read or copied before Import.
 #[test]
-fn the_stick_visit_is_refused_while_the_import_list_stands() {
+fn the_sticks_own_import_is_refused_while_the_import_list_stands() {
     let files = stick_files();
     for action in [
-        Action::VisitIn(0),
-        Action::VisitInAll,
         Action::VisitCopy,
         Action::VisitCopyAndLoad,
         Action::VisitCopyAndSign,
@@ -1107,50 +1092,158 @@ fn the_stick_visit_is_refused_while_the_import_list_stands() {
     }
 }
 
-/// Every other action of the stick's own card is refused too, by the one
-/// rule, and the stick's own file actions: nothing is read, hashed, renamed
-/// or deleted before Import.
+/// The names the list shows.
+fn listed(app: &Faraday) -> Vec<String> {
+    app.import_view()
+        .unwrap()
+        .files
+        .iter()
+        .map(|f| String::from(&*f.name))
+        .collect()
+}
+
+/// The disk process's answers to a deletion of `gone`: each file wiped,
+/// then the stick's listing without them. Returns what is left.
+fn deleted(
+    app: &mut Faraday,
+    files: &[(String, Vec<u8>)],
+    gone: &[&str],
+) -> Vec<(String, Vec<u8>)> {
+    for name in gone {
+        app.storage(StorageEvent::Wiped {
+            stick: faraday_text::Text::of(BOOT),
+            name: faraday_text::Text::of(name),
+        });
+    }
+    let left: Vec<_> = files
+        .iter()
+        .filter(|(n, _)| !gone.contains(&n.as_str()))
+        .cloned()
+        .collect();
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&left)]));
+    let _ = app.frame();
+    left
+}
+
+/// Delete files while the list stands: the file deleted leaves the list,
+/// the other ticks stay, and Import does not bring it. The stick pulled
+/// and put back as it was left brings the same list.
 #[test]
-fn every_action_of_the_sticks_own_card_is_refused_while_the_import_list_stands() {
+fn a_file_deleted_while_the_list_stands_leaves_it_and_is_not_imported() {
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    let notes = files.iter().position(|(n, _)| n == "notes.txt").unwrap();
+    let photo = listed(&app).iter().position(|n| n == "photo.jpg").unwrap();
+    app.press(Action::Import(I::File(photo)));
+    app.press(Action::DeleteFiles);
+    assert_eq!(app.sheet, Some(Sheet::Delete));
+    app.press(Action::DeletePick(notes));
+    while app.poll_storage().is_some() {}
+    app.press(Action::DeleteGo);
+    let mut wipes = 0;
+    while let Some(c) = app.poll_storage() {
+        wipes += usize::from(matches!(c, StorageCommand::Wipe { .. }));
+    }
+    assert_eq!(wipes, 1, "the file is asked to be deleted");
+    let left = deleted(&mut app, &files, &["notes.txt"]);
+    assert!(app.import_tile_up(), "the list stands");
+    let names = listed(&app);
+    assert!(!names.contains(&"notes.txt".to_string()), "{names:?}");
+    assert_eq!(names.len(), files.len() - 1);
+    assert!(!file(&app.import_view().unwrap(), "photo.jpg").chosen);
+
+    pull(&mut app);
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&left)]));
+    let _ = app.frame();
+    assert!(app.import_tile_up(), "the same list is back");
+    assert_eq!(listed(&app), names);
+
+    assert_eq!(app.sheet, None, "the list is what the page shows");
+    app.press(Action::Import(I::Go));
+    let asked = reads(&mut app, &left);
+    assert!(!asked.contains(&"notes.txt".to_string()), "{asked:?}");
+    assert!(!asked.contains(&"photo.jpg".to_string()), "{asked:?}");
+    assert_eq!(asked.len(), left.len() - 1);
+    assert!(!inbox_names(&app).contains(&"notes.txt".to_string()));
+}
+
+/// A listed file no longer on the stick, or there at another size, leaves
+/// the list; with none left the import ends.
+#[test]
+fn the_list_drops_what_is_gone_and_ends_with_nothing_left() {
+    let files = stick_files();
+    let mut app = boot_only(&files);
+    let mut now = files.clone();
+    now.iter_mut().find(|(n, _)| n == "notes.txt").unwrap().1 = b"other".to_vec();
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&now)]));
+    let _ = app.frame();
+    assert!(!listed(&app).contains(&"notes.txt".to_string()));
+    assert_eq!(listed(&app).len(), files.len() - 1);
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&[])]));
+    let _ = app.frame();
+    assert!(app.import().is_none());
+    assert_eq!(app.screen, Screen::Files);
+}
+
+/// Write while the list stands: the file For the stick is asked to be
+/// written, and joins the stick, not the list. Pulled and put back, the
+/// list is the same.
+#[test]
+fn write_works_while_the_list_stands() {
+    let files = stick_files();
+    let mut app = boot_with_work(&files);
+    let names = listed(&app);
+    // The file For the stick came after the ticks were set: tick it.
+    if !app.visit().out.iter().any(|n| &**n == "outgoing.txt") {
+        app.press(Action::VisitOutAll);
+    }
+    assert!(app.visit().out.iter().any(|n| &**n == "outgoing.txt"));
+    while app.poll_storage().is_some() {}
+    app.press(Action::VisitWrite);
+    let mut written = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Write { name, .. } = c {
+            written.push(String::from(&*name));
+        }
+    }
+    assert!(written.contains(&"outgoing.txt".to_string()), "{written:?}");
+    app.storage(StorageEvent::Written {
+        stick: faraday_text::Text::of(BOOT),
+        name: faraday_text::Text::of("outgoing.txt"),
+        wrote_as: faraday_text::Text::of("outgoing.txt"),
+    });
+    let mut now = files.clone();
+    now.push(("outgoing.txt".into(), b"going out".to_vec()));
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&now)]));
+    let _ = app.frame();
+    assert!(app.import_tile_up());
+    assert_eq!(listed(&app), names);
+    pull(&mut app);
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&now)]));
+    let _ = app.frame();
+    assert!(
+        app.import_tile_up(),
+        "the written stick is still the import's"
+    );
+    assert_eq!(listed(&app), names);
+}
+
+/// The stick's menus open while the list stands: Rename stick, and a stick
+/// file's ⋮.
+#[test]
+fn the_sticks_menu_opens_while_the_list_stands() {
     use faraday_core::file_menu::{FilePress as P, Row};
     let files = stick_files();
-    for action in [
-        Action::DeleteFiles,
-        Action::DeleteUnprotected,
-        Action::VisitStick(0),
-        Action::VisitOut(0),
-        Action::VisitOutAll,
-        Action::VisitInbox(0),
-        Action::VisitSettings,
-        Action::VisitWrite,
-        Action::VisitReplace,
-        Action::VisitKeepBoth,
-        Action::File(P::Details(Row::Stick(0))),
-        Action::File(P::Menu(Row::Stick(0))),
-        Action::File(P::Rename(Row::Stick(0))),
-        Action::File(P::NameStick),
-        Action::File(P::StickDelete(0)),
-        Action::File(P::RenameGo),
+    for (press, sheet) in [
+        (P::NameStick, Sheet::Rename),
+        (P::Menu(Row::Stick(0)), Sheet::FileMenu),
     ] {
-        // A file For the stick and a setting changed: something to act on.
-        let mut app = boot_with_work(&files);
+        let mut app = boot_only(&files);
         assert!(app.import_on_show());
-        let ticked = app.visit().inn.clone();
-        let out = app.visit().out.clone();
-        let settings = app.visit_settings_on();
-        while app.poll_storage().is_some() {}
-        app.press(action);
+        app.press(Action::File(press));
         let _ = app.frame();
-        let mut asked = 0;
-        while app.poll_storage().is_some() {
-            asked += 1;
-        }
-        assert_eq!(asked, 0, "{action:?} asked the stick");
-        assert_eq!(app.visit().out, out, "{action:?} changed the ticks");
-        assert_eq!(app.visit_settings_on(), settings, "{action:?}");
-        assert!(app.import_on_show(), "{action:?} took the list down");
-        assert_eq!(app.visit().inn, ticked, "{action:?} changed the ticks");
-        assert_eq!(app.sheet, None, "{action:?} opened a sheet");
+        assert_eq!(app.sheet, Some(sheet), "{press:?}");
+        assert!(app.import_tile_up(), "the list stands under it");
     }
 }
 
@@ -2376,9 +2469,18 @@ fn homes_row_over_a_changed_listing_ends_the_import_and_opens_files() {
     let files = stick_files();
     let mut app = boot_only(&files);
     app.press(Action::Import(I::Later));
-    app.press(Action::Nav(Screen::Files));
-    app.storage(StorageEvent::Sticks(vec![boot_stick(&rewritten(&files))]));
+    pull(&mut app);
+    // Changed while it was out, and back beside a second stick, which
+    // leaves the comparison to Home's row.
+    let mut second = boot_stick(&[]);
+    second.id = faraday_text::Text::of("second");
+    second.boot = false;
+    app.storage(StorageEvent::Sticks(vec![
+        boot_stick(&rewritten(&files)),
+        second,
+    ]));
     let _ = app.frame();
+    assert!(app.import().is_some(), "left to Home's row");
     app.press(Action::Nav(Screen::Home));
     app.press(boot_import::OPEN);
     let _ = app.frame();
