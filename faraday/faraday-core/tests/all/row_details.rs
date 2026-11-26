@@ -236,6 +236,35 @@ fn leaving_a_flow_begun_from_the_details_returns_to_them() {
 }
 
 /// A wallet file held, on Tools: its row carries Load.
+#[test]
+fn a_long_one_word_name_still_titles_its_details() {
+    let mut app = desktop();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let name = "familysavingswalletdescriptorexport.txt";
+    faraday_core::testkit::inbox_file(&mut app, name, vec![0u8; 300]);
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::RowOpen(Row::File(0)));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.starts_with("family") && t.ends_with('…')),
+        "{texts:?}"
+    );
+}
+
 fn tools_with_wallet_file() -> Faraday {
     let mut app = desktop();
     let kit = faraday_core::testkit::kits()

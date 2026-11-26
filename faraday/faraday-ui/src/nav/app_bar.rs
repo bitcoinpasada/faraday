@@ -189,8 +189,9 @@ enum Name {
 /// title medium, or the next smaller role where two lines of it would not
 /// fit the bar; else, where one word does not fit a line, in title medium
 /// shortened at a word, its first word at least, with an ellipsis; else
-/// left off (empty), where no whole word would show. Cheap: a few widths
-/// measured.
+/// left off (empty), where no whole word would show; an item's name
+/// ([`Ui::bar_item_name`]) is cut inside the word instead, since nothing
+/// else on the bar names it. Cheap: a few widths measured.
 fn bar_name<A: Copy + PartialEq>(ui: &Ui<A>, title: &str, first: f32, second: f32) -> Name {
     for role in [TITLE_L, TITLE_M] {
         if ui.measure_as(role, title) <= first {
@@ -220,7 +221,12 @@ fn bar_name<A: Copy + PartialEq>(ui: &Ui<A>, title: &str, first: f32, second: f3
             return Name::One(TITLE_M, short);
         }
     }
-    Name::One(TITLE_M, String::new())
+    let cut = if ui.bar_item_name {
+        ui.fit_as(TITLE_M, title, first).to_string()
+    } else {
+        String::new()
+    };
+    Name::One(TITLE_M, cut)
 }
 
 /// An action at the bar's right end, its right edge at `right`: an icon

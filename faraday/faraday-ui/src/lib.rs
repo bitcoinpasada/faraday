@@ -475,6 +475,9 @@ pub struct Ui<'a, A> {
     /// width and a gap each side (0 where there is none). The top app bar
     /// keeps that room from the name.
     pub bar_pill_w: f32,
+    /// Set round the drawing of a bar whose title is an item's name (a
+    /// file, a wallet, a key): such a name is never left off the bar.
+    pub bar_item_name: bool,
     /// Where the top app bar put the top of the mode pill, centred on
     /// the name's first line; `None` before a bar is drawn.
     pub bar_pill_top: Option<f32>,
@@ -700,6 +703,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             pin: None,
             bar_tools_x: None,
             bar_pill_w: 0.0,
+            bar_item_name: false,
             bar_pill_top: None,
             pin_aside: None,
             sheet_pinning: false,

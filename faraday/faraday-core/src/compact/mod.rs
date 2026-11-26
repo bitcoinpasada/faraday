@@ -138,7 +138,9 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &
         back_tip: EN.tip_back,
     };
     ui.bar_pill_w = pill_room(app, ui);
+    ui.bar_item_name = crate::row_open::opened(app).is_some();
     faraday_ui::nav::app_bar(ui, w, &head, title_end(right, w));
+    ui.bar_item_name = false;
     ui.bar_pill_w = 0.0;
     tools(app, ui, w);
     BAR_H

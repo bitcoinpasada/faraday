@@ -1092,7 +1092,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
 
     /// Where `s` in `role` wrapped `max` wide breaks: the byte its first
     /// line ends at.
-    fn first_line_end(&self, role: TypeRole, s: &str, max: f32) -> usize {
+    pub fn first_line_end(&self, role: TypeRole, s: &str, max: f32) -> usize {
         let role = self.stepped(role);
         let face = self.face(role.size, role.face.into());
         text::wrap(&face, s, self.px(max))

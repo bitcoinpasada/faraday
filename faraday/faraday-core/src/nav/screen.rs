@@ -251,6 +251,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
         actions(ui, &mut r);
         r
     });
+    ui.bar_item_name = crate::row_open::opened(app).is_some();
     if nav == Nav::ExpandedRail {
         // The wide page handed over its name and its way back as it was
         // drawn, under this bar (`crate::screens::bar_head`); one that
@@ -286,6 +287,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             crate::screens::bar_search_draw(app, ui, (w, name, ends));
         }
     }
+    ui.bar_item_name = false;
     actions(ui, &mut right);
     APP_BAR_H
 }
