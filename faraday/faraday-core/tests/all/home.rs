@@ -2666,8 +2666,7 @@ fn spare_key_at(app: &Faraday) -> Option<(u16, u16)> {
     })
 }
 
-/// On a wide window Home's card holds what needs the person (Backups) and
-/// the keys here side by side, both reachable; on a window under 840 dp of
+/// On a wide window Home's card holds the keys here and the wallets (Backups) side by side, both reachable; on a window under 840 dp of
 /// card they stand in one list.
 #[test]
 fn home_card_splits_what_needs_you_from_the_keys_on_a_wide_window_only() {
@@ -2676,7 +2675,10 @@ fn home_card_splits_what_needs_you_from_the_keys_on_a_wide_window_only() {
         .where_offered(Action::Nav(Screen::Backups))
         .expect("Backups row");
     let key = spare_key_at(&wide).expect("key row");
-    assert!(key.0 > backups.0, "the keys stand right of what needs you");
+    assert!(
+        key.0 < backups.0,
+        "the keys stand first, left of the wallets"
+    );
 
     let narrow = wallet_and_a_spare_key(1024, 600, false);
     let backups = narrow

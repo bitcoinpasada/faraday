@@ -4,8 +4,8 @@
 //! files to write and Backups are not in it. The rows are the pane's
 //! (`rows`), so a row reads the same here as on Home.
 
-use super::rows::{Group, key_rows, progress_rows, row, wallet_rows};
-use super::{SessionRow, card_surface, list_rows, rows_h};
+use super::rows::{Group, key_rows, progress_rows, row, wallet_rows, with_band};
+use super::{SessionRow, band, card_surface, list_rows, rows_h};
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::pal::*;
@@ -44,6 +44,27 @@ fn psbt_rows(app: &View) -> Vec<SessionRow> {
             r
         })
         .collect()
+}
+
+/// Tools' and Check's band: the lead with its button, the waiting PSBTs, an
+/// import put off and the locked vault files, and the flows those carry on.
+fn band_rows(app: &View) -> (Vec<SessionRow>, Vec<crate::in_progress::Going>) {
+    let jobs = crate::screens::home::band_jobs(app);
+    let goings = jobs.iter().filter_map(|(g, _)| *g).collect();
+    let rows = jobs
+        .into_iter()
+        .map(|(_, c)| {
+            let mut r = row(c.icon, c.line, c.under, c.action);
+            if !c.button.is_empty() {
+                r.button = Some((c.button, c.enabled));
+            }
+            if let Action::StartSpend(k) = c.action {
+                r.open = Some(Action::RowOpen(crate::row_open::Row::File(k)));
+            }
+            r
+        })
+        .collect();
+    (rows, goings)
 }
 
 /// The files held that a tool takes, a PSBT or a transaction first, then a
@@ -137,40 +158,36 @@ fn built_groups(app: &View, mode: Mode) -> Vec<Group> {
     if mode == Mode::Wallets {
         return wallets_groups(app);
     }
-    let psbts = psbt_rows(app);
-    let waiting = !psbts.is_empty();
-    let mut files = psbts;
-    files.extend(file_rows(app, |_| true));
+    // A waiting PSBT is the band's, not the files'; each flow in progress
+    // that is not the band's is the group after the others.
+    let (waiting, band_goings) = band_rows(app);
+    let progress = progress_rows(app, |g| band_goings.contains(&g));
     let wallets: Vec<SessionRow> = wallet_rows(app)
         .into_iter()
         .filter(|r| r.action != Action::Nav(Screen::Backups))
         .collect();
-    let shown = |g| waiting && g == crate::in_progress::Going::Spend;
-    let order = match (mode, waiting) {
-        (Mode::Tools, true) => [Slotted::Files, Slotted::Keys, Slotted::Wallets],
-        (Mode::Tools, false) => [Slotted::Keys, Slotted::Files, Slotted::Wallets],
-        (Mode::Wallets, _) => unreachable!("Wallets' groups are `wallets_groups`"),
-        (Mode::Check, _) => [Slotted::Files, Slotted::Wallets, Slotted::Keys],
+    let order = match mode {
+        Mode::Tools => [Slotted::Keys, Slotted::Wallets, Slotted::Files],
+        Mode::Wallets => unreachable!("Wallets' groups are `wallets_groups`"),
+        Mode::Check => [Slotted::Files, Slotted::Keys, Slotted::Wallets],
     };
-    let mut files = Some(files);
+    let mut files = Some(file_rows(app, |_| true));
     let mut wallets = Some(wallets);
-    let mut out: Vec<(&'static str, Vec<SessionRow>)> = order
+    let groups: Vec<(&'static str, Vec<SessionRow>)> = order
         .into_iter()
         .filter_map(|s| match s {
             Slotted::Files => files.take().map(|r| (EN.session_group_files, r)),
             Slotted::Wallets => wallets.take().map(|r| (EN.session_group_wallets, r)),
             Slotted::Keys => Some((EN.session_group_keys, key_rows(app))),
         })
+        .chain(std::iter::once((EN.session_group_progress, progress)))
         .collect();
-    out.push((EN.session_group_progress, progress_rows(app, shown)));
-    out.into_iter()
-        .filter(|(_, rows)| !rows.is_empty())
-        .map(|(label, rows)| Group { label, rows })
-        .collect()
+    with_band(groups, waiting)
 }
 
-/// Wallets' groups: Waiting (a waiting PSBT with Sign, the wallet files
-/// held, the flows in progress), then Keys; the wallets are the tile's.
+/// Wallets' groups: Keys, then Waiting at the foot (a waiting PSBT with
+/// Sign, the wallet files held, the flows in progress); the wallets are
+/// the tile's.
 fn wallets_groups(app: &View) -> Vec<Group> {
     let mut waiting = psbt_rows(app);
     let signing = waiting_spend(&waiting);
@@ -178,14 +195,7 @@ fn wallets_groups(app: &View) -> Vec<Group> {
     waiting.extend(progress_rows(app, |g| {
         signing && g == crate::in_progress::Going::Spend
     }));
-    [
-        (EN.session_group_waiting, waiting),
-        (EN.session_group_keys, key_rows(app)),
-    ]
-    .into_iter()
-    .filter(|(_, rows)| !rows.is_empty())
-    .map(|(label, rows)| Group { label, rows })
-    .collect()
+    with_band([(EN.session_group_keys, key_rows(app))], waiting)
 }
 
 /// Whether a row of `rows` is a PSBT's Sign, which names the spend flow.
@@ -203,28 +213,31 @@ enum Slotted {
 }
 
 /// The height of the pane's content: the heading, then each group's
-/// heading and rows, one under another, `w` wide with its padding.
+/// heading and rows, one under another, the band last, `w` wide with its
+/// padding.
 pub(crate) fn content_h(ui: &Ui, w: f32, groups: &[Group]) -> f32 {
     let head = ui.line_as(TITLE_M) + GRID;
     let label_h = ui.line_as(TITLE_S) + GRID;
+    let (rest, band) = band::split(groups);
     let body = if groups.is_empty() {
         ui.line_as(faraday_draw::tokens::BODY_L)
     } else {
-        groups
-            .iter()
+        rest.iter()
             .map(|g| label_h + rows_h(ui, w - 2.0 * PAD, &g.rows))
             .sum::<f32>()
     };
-    2.0 * PAD + head + body
+    let band = band.map_or(0.0, |g| band::layout(ui, w, g).need());
+    2.0 * PAD + head + body + band
 }
 
 /// The pane at `(x, y)`, `w` wide and `h` tall: its surface, the heading
 /// "This session", the groups, scrolling within where `h` cuts them,
-/// `offset` down. Returns how far it can scroll.
+/// `offset` down, and the Waiting band at its foot, `band_offset` down.
+/// Returns how far the groups can scroll.
 pub(crate) fn draw(
     ui: &mut Ui,
     (x, y, w, h): (f32, f32, f32, f32),
-    offset: f32,
+    (offset, band_offset): (f32, f32),
     groups: &[Group],
 ) -> f32 {
     card_surface(ui, (x, y, w, h));
@@ -237,9 +250,22 @@ pub(crate) fn draw(
         EN.home_box_heading,
     );
     let top = y + PAD + head_h;
-    let view = (h - (top - y) - PAD / 2.0).max(0.0);
+    let (rest, band) = band::split(groups);
+    let band = band.map(|g| (g, band::layout(ui, w, g)));
+    let shown = band.as_ref().map_or(0.0, |(_, lay)| {
+        band::shown_h(ui, lay.need(), h).min(lay.need())
+    });
+    let view = if band.is_some() {
+        (h - (top - y) - shown).max(0.0)
+    } else {
+        (h - (top - y) - PAD / 2.0).max(0.0)
+    };
     let clip = ui.rect(x, top, w, view);
-    let total = content_h(ui, w, groups) - 2.0 * PAD - head_h;
+    let label_h = ui.line_as(TITLE_S) + GRID;
+    let total: f32 = rest
+        .iter()
+        .map(|g| label_h + rows_h(ui, w - 2.0 * PAD, &g.rows))
+        .sum();
     let mark = ui.presses_mark();
     let open = ui.region_open(Region::scrolled(Slot::HomeBox, clip, offset));
     if groups.is_empty() {
@@ -252,7 +278,7 @@ pub(crate) fn draw(
         );
     }
     let mut cy = top;
-    for g in groups {
+    for g in rest {
         section_label(ui, x + PAD + faraday_draw::tokens::LIST_PAD, cy, g.label);
         cy += ui.line_as(TITLE_S) + GRID;
         list_rows(ui, (x + PAD, cy), w - 2.0 * PAD, &g.rows);
@@ -261,5 +287,8 @@ pub(crate) fn draw(
     ui.clip_presses_since(mark, clip);
     let max = (total - view).max(0.0);
     ui.region_close(open, max);
+    if let Some((g, lay)) = &band {
+        band::draw(ui, (x, y + h - shown, w, shown), band_offset, g, lay);
+    }
     max
 }

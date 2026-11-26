@@ -130,12 +130,26 @@ fn body(app: &View, ui: &mut Ui, opened: Opened, (x, y): (f32, f32), w: f32) -> 
 }
 
 /// What the open item's details take inside their padding, `w` wide: the
-/// room the stack asks for under This session's card. A wallet's page
-/// fills the room it is given and never stacks: it stands beside.
+/// room the stack asks for under This session's card. A wallet's page is
+/// measured from its own drawing, at the card's width `w` plus the padding
+/// the stack leaves, and less its own padding that `placed` adds.
 pub(crate) fn content_h(app: &View, ui: &mut Ui, w: f32) -> f32 {
     match crate::row_open::opened(app) {
         None => 0.0,
-        Some(Opened::Wallet(_)) => 1.0e6,
+        Some(Opened::Wallet(_)) => {
+            // The page is a card that takes its whole room: its need less
+            // the padding the stack adds around a tile's content.
+            let need = crate::menu::measure(ui, &mut |ui| {
+                super::wallets::wallet_page(
+                    app,
+                    ui,
+                    (0.0, w + 2.0 * PAD),
+                    (0.0, 0.0),
+                    (false, true),
+                )
+            });
+            (need - 2.0 * PAD).max(0.0)
+        }
         Some(opened) => crate::menu::measure(ui, &mut |ui| body(app, ui, opened, (0.0, 0.0), w)),
     }
 }
@@ -147,7 +161,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) 
         return false;
     };
     if let Opened::Wallet(_) = opened {
-        super::wallets::wallet_page(app, ui, (x, w), (y, h), false);
+        super::wallets::wallet_page(app, ui, (x, w), (y, h), (false, false));
         return true;
     }
     ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);

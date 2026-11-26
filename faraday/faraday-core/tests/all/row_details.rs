@@ -434,8 +434,12 @@ fn home_a_compact_window_opens_nothing() {
 }
 
 fn home_with_wallet() -> Faraday {
+    home_with_wallet_of(1366, 768)
+}
+
+fn home_with_wallet_of(width: u16, height: u16) -> Faraday {
     let c = faraday_core::testkit::compute();
-    let mut app = home_of(1366, 768);
+    let mut app = home_of(width, height);
     app.session.keys.add_words(&c, WORDS, "Seed", None).unwrap();
     faraday_core::testkit::keep_published(&mut app);
     let text = faraday_core::create::NewKind::NativeSegwit
@@ -557,5 +561,26 @@ fn home_a_wallets_details_stand_beside_the_card_at_1366() {
     assert!(
         b.0 >= row.0 + row.2,
         "beside the card, not under it: {b:?} vs {row:?}"
+    );
+}
+
+/// Where the wallet's page fits whole under the card, the details stand
+/// under it, as every row's do.
+#[test]
+fn home_a_wallets_details_stand_under_the_card_at_1920x1600() {
+    let mut app = home_with_wallet_of(1920, 1600);
+    app.press(Action::RowOpen(Row::Wallet(0)));
+    let _ = app.frame();
+    let row = app
+        .hit_box(Action::RowOpen(Row::Wallet(0)))
+        .expect("the row stays in the card");
+    let b = app.hit_box(Action::Backup(0)).expect("the details");
+    assert!(
+        b.1 >= row.1 + row.3,
+        "under the card, not beside it: {b:?} vs {row:?}"
+    );
+    assert!(
+        b.0 < row.0 + row.2,
+        "in the card's column, not beside it: {b:?} vs {row:?}"
     );
 }

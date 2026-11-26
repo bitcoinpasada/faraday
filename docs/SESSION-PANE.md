@@ -17,27 +17,30 @@ same rows without Home's columns. A row (`SessionRow`) has a leading icon, a
 headline, a second line, what a press opens and, for a kind with one obvious
 next step, one button.
 
-Three groups stand under small headings (Title Small), in this order; a group
+Three groups stand under small headings (Title Small), in this order, Keys
+first and Waiting last as the band across the card's foot (`session_pane/band.rs`: a hairline
+over it, outside the part that scrolls, at most a third of the pane
+where the pane does not stand whole, its rows in columns on a wide card,
+scrolling within itself, `Slot::HomeBand`); a group
 with no rows is not drawn:
 
-1. **Waiting.** The jobs of `docs/HOME.md` §2, each one row, always, with keys
+1. **Keys.** Every key of `session.keys.all()`, no cap: its fingerprint, then its
+   name in full (wrapping), its passphrase mark, and the wallet that uses it
+   ("Used by {wallet}", else "No wallet uses it"). A press opens the key (on Tools, Check, Wallets and Home in the page's second
+   pane: `row_open`, `screens/row_details.rs`). There
+   is no All keys row and no Make a wallet button.
+2. **Wallets.** Every loaded wallet, a wallet that needs something with the
+   warning icon and colour; Backups last, while something is not backed up. A
+   wallet's row has no button.
+3. **Waiting** (the band). The jobs of `docs/HOME.md` §2, each one row, always, with keys
    and wallets loaded too: the spend under way, a backup not finished, one row
    for each PSBT in Files that waits to be signed (fewest signatures first),
    an import put off, the last write ("Written to {stick}"), one row for each
    locked vault file with Unlock, a vault changed since it was written, a stick
    waiting. Then each flow in progress not already one of them, with Resume,
    and the files to write.
-2. **Wallets.** Every loaded wallet, a wallet that needs something with the
-   warning icon and colour; Backups last, while something is not backed up. A
-   wallet's row has no button.
-3. **Keys.** Every key of `session.keys.all()`, no cap: its fingerprint, then its
-   name in full (wrapping), its passphrase mark, and the wallet that uses it
-   ("Used by {wallet}", else "No wallet uses it"). A press opens the key (on Tools, Check, Wallets and Home in the page's second
-   pane: `row_open`, `screens/row_details.rs`). There
-   is no All keys row and no Make a wallet button.
-
-**Wallets' mode** (wide layout): two groups, Waiting (a waiting PSBT with Sign,
-the wallet files held, the flows in progress) then Keys; the wallets are the
+**Wallets' mode** (wide layout): two groups, Keys, then Waiting as the band (a waiting PSBT with Sign,
+the wallet files held, the flows in progress); the wallets are the
 page's tile, so the pane has no Wallets group, and a key in no wallet stands
 in its Keys group (`screens/session_pane/page_mode.rs`, `Mode::Wallets`).
 
@@ -70,7 +73,7 @@ On the wide layout Tools and Check are placed by the pane container (`docs/HUB-L
 Home's, with Home's rows (`stacked_card`). Beside, the pane is the page's own
 mode (`session_pane/page_mode.rs`): "This session" in Title M, then each
 group's small heading and its rows in one column, in WORKSPACE §2's order for
-Tools with a PSBT waiting, Tools with none and Check, scrolling within
+Tools and Check, Waiting the band at the foot (the lead with its button, the waiting PSBTs, an import put off and the locked vault files; not backups, files to write, the last write or open vaults) and In progress (each flow in progress that is not the band's lead) a group of its own after the others, scrolling within
 (`Slot::HomeBox`) where the page's height cuts it. Open vaults, files to write
 and Backups are not in it, and no row of it is also in the tile.
 

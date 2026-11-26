@@ -556,19 +556,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::panes::screen::alone(x0, cw)
     };
 
-    wallet_page(app, ui, p.detail, (y, bottom - y), card_offers);
+    wallet_page(app, ui, p.detail, (y, bottom - y), (card_offers, false));
 }
 
 /// The wallet's page: its card at `(cx, y)`, `cwid` wide and `ch` tall.
 /// Wallets' page and a wallet's details on Tools and Check draw it. With
 /// no wallet it offers the loose keys' next steps where `card_offers`.
+/// Returns the card's height that holds its content whole: the part that
+/// scrolls in its own box counts at what it needs, not the box's. A
+/// `measuring` draw (`menu::measure`) opens no scrolled region.
 pub(super) fn wallet_page(
     app: &View,
     ui: &mut Ui,
     (cx, cwid): (f32, f32),
     (y, ch): (f32, f32),
-    card_offers: bool,
-) {
+    (card_offers, measuring): (bool, bool),
+) -> f32 {
     // The wallet card: its reading parts at most `COLUMN_MAX`, the
     // chart the card's width.
     ui.card(cx, y, cwid, ch, Role::OutlineVariant);
@@ -584,7 +587,7 @@ pub(super) fn wallet_page(
                 msg,
             );
         }
-        return;
+        return 0.0;
     };
     let ix = cx + 24.0;
     let chart_w = cwid - 48.0;
@@ -671,8 +674,8 @@ pub(super) fn wallet_page(
     cy += ui.advance_as(BODY_M, 26.0);
     cy += super::parts::key_path_line(app, ui, (ix, cy, iw), wlt.policy());
     if let Some(r) = wlt.policy().silent() {
-        silent_wallet_card(app, ui, r, (cx, cwid, ix, iw), cy, y + ch);
-        return;
+        let body = silent_wallet_card(app, ui, r, (cx, cwid, ix, iw), cy, y + ch, measuring);
+        return (cy - y) + body;
     }
 
     let (m, _) = Session::quorum(wlt);
@@ -688,11 +691,14 @@ pub(super) fn wallet_page(
     let view_top = cy - 6.0;
     let view_h = (foot - view_top).max(0.0);
     let clip = ui.rect(cx + 1.0, view_top, cwid - 2.0, view_h);
-    let held_open = ui.region_open(
-        Region::beside(crate::ui::Slot::Card, clip, app.wallets.card_offset())
-            .from_zero(app.wallets.card_offset())
-            .moves(Moves::Yes),
-    );
+    // A measuring draw opens no region: it leaves no scroll state behind.
+    let held_open = (!measuring).then(|| {
+        ui.region_open(
+            Region::beside(crate::ui::Slot::Card, clip, app.wallets.card_offset())
+                .from_zero(app.wallets.card_offset())
+                .moves(Moves::Yes),
+        )
+    });
     let top = cy;
     // The group leads the body; the facts follow, a touch target clear
     // of the last row's.
@@ -782,7 +788,11 @@ pub(super) fn wallet_page(
     cy += first_receive_row(app, ui, (ix, cy, iw), app.wallets.wallet());
     let content = cy - top;
     let max = (content - (view_h - (top - view_top))).max(0.0);
-    ui.region_close(held_open, max);
+    if let Some(open) = held_open {
+        ui.region_close(open, max);
+    }
+    // The card's height that holds its content whole.
+    (top - y) + content + faraday_draw::tokens::WALLET_CARD_FOOT
 }
 
 /// A wallet's **Spend paths** group (`docs/BACKUP-FLOW.md` §18.4): a
@@ -908,18 +918,22 @@ fn silent_wallet_card(
     (cx, cwid, ix, iw): (f32, f32, f32, f32),
     y: f32,
     bottom: f32,
-) {
+    measuring: bool,
+) -> f32 {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let may = app.may_load_keys();
     // The body scrolls in the card below the head, its rows with it.
     let view_top = y - 6.0;
     let view_h = (bottom - 22.0 - view_top).max(0.0);
     let clip = ui.rect(cx + 1.0, view_top, cwid - 2.0, view_h);
-    let held_open = ui.region_open(
-        Region::beside(crate::ui::Slot::Card, clip, app.wallets.card_offset())
-            .from_zero(app.wallets.card_offset())
-            .moves(Moves::Yes),
-    );
+    // A measuring draw opens no region: it leaves no scroll state behind.
+    let held_open = (!measuring).then(|| {
+        ui.region_open(
+            Region::beside(crate::ui::Slot::Card, clip, app.wallets.card_offset())
+                .from_zero(app.wallets.card_offset())
+                .moves(Moves::Yes),
+        )
+    });
     let top = y;
     let mut cy = y;
     // The group leads the body; the facts follow, a touch target clear
@@ -989,5 +1003,9 @@ fn silent_wallet_card(
     cy += 22.0;
     let content = cy - top;
     let max = (content - (view_h - (top - view_top))).max(0.0);
-    ui.region_close(held_open, max);
+    if let Some(open) = held_open {
+        ui.region_close(open, max);
+    }
+    // The card's height that holds its content whole.
+    (top - y) + content + faraday_draw::tokens::WALLET_CARD_FOOT
 }
