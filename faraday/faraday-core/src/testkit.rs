@@ -2221,7 +2221,7 @@ pub fn message(app: &crate::Faraday) -> Option<&crate::MessageState> {
 /// brought in step: what a press of the take-away finds where a key became
 /// held and no action has run since.
 pub fn message_put_signed(app: &mut crate::Faraday, signed: faraday_psbt::message::Signed) {
-    let signer = app.message_signer().and_then(|fp| app.loaded_key_id(fp));
+    let signer = app.message_signer_loaded();
     app.message.put_signed(signed, signer);
 }
 

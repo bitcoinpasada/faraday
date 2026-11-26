@@ -997,7 +997,7 @@ fn add_xor(c: &Compute, parts: &mut forms::Parts, text: &str) -> Result<(), fara
 }
 
 impl MessageState {
-    /// Drops the signature and the id of the key that made it.
+    /// Drops the signature and what tells the key that made it.
     fn drop_signature(&mut self) {
         self.signed = None;
         self.signer = None;
@@ -1073,10 +1073,10 @@ pub struct MessageState {
     pub bip322: bool,
     /// The signature, once made.
     pub signed: Option<faraday_psbt::message::Signed>,
-    /// All 32 bytes of what tells the key that made `signed` from another,
-    /// taken as it was made: its files are recorded with it, whatever is
-    /// loaded by then. Public.
-    signer: Option<faraday_keys::KeyId>,
+    /// The fingerprint of the key that made `signed`, and all 32 bytes of
+    /// what tells it from another, taken as it was made: its files are
+    /// recorded with both, whatever wallet or key is there by then. Public.
+    signer: Option<(faraday_bip::keys::Fingerprint, faraday_keys::KeyId)>,
     /// The name the signed message's file went out under.
     pub out_name: Option<faraday_text::Text>,
     /// The signed text is itself a secret (a seed, a key or a share): its
@@ -1245,8 +1245,8 @@ impl MessageArea {
         }
     }
 
-    /// The id of the key that made the open flow's signature.
-    pub(crate) fn signer(&self) -> Option<faraday_keys::KeyId> {
+    /// The key that made the open flow's signature: its fingerprint and id.
+    pub(crate) fn signer(&self) -> Option<(faraday_bip::keys::Fingerprint, faraday_keys::KeyId)> {
         self.state.as_ref()?.signer
     }
 
@@ -1255,7 +1255,7 @@ impl MessageArea {
     pub(crate) fn put_signed(
         &mut self,
         signed: faraday_psbt::message::Signed,
-        signer: Option<faraday_keys::KeyId>,
+        signer: Option<(faraday_bip::keys::Fingerprint, faraday_keys::KeyId)>,
     ) {
         if let Some(m) = self.state.as_mut() {
             m.signed = Some(signed);
@@ -1502,6 +1502,17 @@ impl Faraday {
         };
         if m.signed.is_some() && self.message_waits(m.at.as_ref(), m.wallet) {
             self.message.made = None;
+            // Its code on show goes with it: no picture is made of it.
+            if self
+                .qr
+                .view()
+                .is_some_and(|q| q.title == EN.code_view_signed_message)
+            {
+                self.qr.close();
+                if self.sheet == Some(Sheet::Qr) {
+                    self.sheet = None;
+                }
+            }
             if let Some(m) = self.message.state.as_mut() {
                 m.drop_signature();
                 m.out_name = None;
@@ -1645,6 +1656,15 @@ impl Faraday {
         }
     }
 
+    /// A lookup. [`Faraday::message_signer`] with the id of the loaded key
+    /// of that fingerprint.
+    pub(crate) fn message_signer_loaded(
+        &self,
+    ) -> Option<(faraday_bip::keys::Fingerprint, faraday_keys::KeyId)> {
+        let fp = self.message_signer()?;
+        Some((fp, self.loaded_key_id(fp)?))
+    }
+
     /// A lookup. The kept receive address of Sign a message while the
     /// session still says what it said when it was worked out; nothing
     /// otherwise (a wallet removed, added, changed or renamed, the network
@@ -1723,7 +1743,7 @@ impl Faraday {
                 }
                 // While the key is loaded to sign: only one of its
                 // fingerprint can be.
-                let signer = self.message_signer().and_then(|fp| self.loaded_key_id(fp));
+                let signer = self.message_signer_loaded();
                 if let Some(m) = self.message.state.as_mut()
                     && (m.at.is_some() || m.wallet.is_some())
                 {
@@ -1803,9 +1823,9 @@ impl Faraday {
                         }
                         // With the key that signed it: the file is held
                         // back while that key waits for its backup.
-                        if let Some(key) = self.message_signer() {
-                            let id = self.message.signer();
-                            self.message.file_signed(&name, sha, key, id);
+                        let signer = self.message.signer();
+                        if let Some((key, id)) = signer {
+                            self.message.file_signed(&name, sha, key, Some(id));
                         }
                         if let Some(m) = self.message.state.as_mut() {
                             m.out_name = Some(name.duplicate());
@@ -1814,6 +1834,9 @@ impl Faraday {
                         // Ticked to write, as the take-away shows it.
                         self.visit.out_extend([&*name]);
                         self.toast_out(&name);
+                        // The record is new: a hold already on its key
+                        // takes it, and its tick goes.
+                        self.sync_waiting();
                     } else {
                         let view = self.code_view(c, Code::Message);
                         self.open_qr(view);
