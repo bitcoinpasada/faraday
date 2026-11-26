@@ -5,7 +5,7 @@
 use faraday_core::kef_form::KefAct;
 use faraday_core::kef_tool::{KefToolAction as K, Pick};
 use faraday_core::strings::EN;
-use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn type_in(app: &mut Faraday, text: &str) {
@@ -67,18 +67,16 @@ fn shown(app: &mut Faraday, text: &str) -> bool {
     app.drawn_text_boxes().iter().any(|(t, _)| t == text)
 }
 
-/// The file rows drawn for the code's files: the pane cuts their long
-/// names short.
+/// The file rows drawn for the code's files: a name alone, whole or cut.
 fn rows(app: &mut Faraday) -> usize {
     let _ = app.frame();
     app.drawn_text_boxes()
         .iter()
-        .filter(|(t, _)| t.starts_with("krux-v20-") && t.ends_with('\u{2026}'))
+        .filter(|(t, _)| t.starts_with("krux-v20-") && !t.contains(' '))
         .count()
 }
 
-/// A stick comes in and the process is clean, so the write goes at once.
-fn ready_to_write(app: &mut Faraday) {
+fn stick_in(app: &mut Faraday) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
@@ -88,9 +86,39 @@ fn ready_to_write(app: &mut Faraday) {
         files: Vec::new(),
         vaults: Vec::new(),
     }]));
+}
+
+/// A stick comes in. The tool holds what was typed, so its arrival asks to
+/// lock first, and the person leaves that for now.
+fn stick_arrives(app: &mut Faraday) {
+    stick_in(app);
     app.press(Action::NotNow);
-    testkit::made_clean(app);
     let _ = app.frame();
+}
+
+/// Write, the lock it asks for and the restart: what the next process
+/// then sends to the stick.
+fn written_through_the_lock(app: &mut Faraday) -> Vec<String> {
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    assert_eq!(writes(app), Vec::<String>::new(), "nothing before the lock");
+    app.press(Action::Lock);
+    let mut saved = None;
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { outbox, kept, .. } = c {
+            saved = Some((outbox, kept));
+        }
+    }
+    let (outbox, kept) = saved.expect("the lock kept the boxes");
+    let mut next = testkit::started();
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox,
+        kept,
+    });
+    while next.poll_storage().is_some() {}
+    stick_in(&mut next);
+    writes(&mut next)
 }
 
 fn writes(app: &mut Faraday) -> Vec<String> {
@@ -118,10 +146,11 @@ fn the_made_code_s_picture_and_file_are_in_the_take_away_ticked_and_written() {
             assert!(app.visit().out.contains(&**name), "ticked: {name}");
         }
         assert!(shown(&mut app, EN.kef_tool_make_another_code));
-        ready_to_write(&mut app);
+        stick_arrives(&mut app);
+        assert_eq!(app.screen, Screen::KefTool, "{w}x{h}");
+        assert_eq!(rows(&mut app), 2, "the stick changes no row, {w}x{h}");
         assert!(app.offers(Action::TakeWrite), "{w}x{h}");
-        app.press(Action::TakeWrite);
-        assert_eq!(writes(&mut app), made, "{w}x{h}");
+        assert_eq!(written_through_the_lock(&mut app), made, "{w}x{h}");
     }
 }
 
@@ -144,19 +173,18 @@ fn a_file_that_may_be_a_secret_is_neither_offered_nor_sent() {
         .into_iter()
         .find(|n| n.ends_with(".png"))
         .expect("the picture");
-    ready_to_write(&mut app);
+    stick_arrives(&mut app);
     assert!(
         app.visit().out.contains(&*held),
         "chosen, and still not sent"
     );
     assert_eq!(rows(&mut app), 1, "the picture's row only");
     assert!(!shown(&mut app, "words.txt"));
-    app.press(Action::TakeWrite);
-    assert_eq!(writes(&mut app), vec![picture]);
+    assert_eq!(written_through_the_lock(&mut app), vec![picture]);
 }
 
 #[test]
-fn a_file_removed_in_files_is_made_again_under_its_name() {
+fn a_removed_file_is_made_again_under_its_name() {
     let mut app = made_at(1366, 768);
     let before = names(&app);
     let gone = before.iter().position(|n| n.ends_with(".kef")).unwrap();
