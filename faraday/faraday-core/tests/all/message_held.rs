@@ -313,8 +313,9 @@ fn visit_writes(app: &mut Faraday, name: &str, tick: bool, waits: bool) -> Vec<S
 /// The signed file `name` of an app whose key is now held: it stays in
 /// Files, unticked, its row says why, it is no code, and a stick visit
 /// writes the other file and not it, a tick left standing included. Backed
-/// up, it is a code and is written.
-fn held_back_until_backed_up(mut app: Faraday, name: &str) {
+/// up, it is written, and it is a code when it is small enough for one
+/// (`a_code`).
+fn held_back_until_backed_up(mut app: Faraday, name: &str, a_code: bool) {
     let fp = app.session.keys.last().unwrap().fingerprint;
     assert!(app.outbox.iter().any(|i| i.name == name), "it stays");
     assert!(!app.visit().out.contains(name), "unticked");
@@ -341,8 +342,15 @@ fn held_back_until_backed_up(mut app: Faraday, name: &str) {
     assert_eq!(next.toast_text(), None);
     next.press(Action::Nav(Screen::Files));
     assert!(!row_says_it_waits(&mut next));
-    assert!(code_shown(&mut next));
-    next.press(Action::Cancel);
+    if a_code {
+        assert!(code_shown(&mut next));
+        next.press(Action::Cancel);
+    } else {
+        // Too large for a code: nothing says it waits.
+        next.press(Action::QrOutbox(0));
+        assert!(next.qr().is_none());
+        assert_eq!(next.toast_text(), None);
+    }
     let written = visit_writes(&mut next, name, true, false);
     assert!(written.iter().any(|n| n == name), "{written:?}");
 }
@@ -351,7 +359,47 @@ fn held_back_until_backed_up(mut app: Faraday, name: &str) {
 fn a_file_made_before_the_hold_is_held_back() {
     let (mut app, name) = signed_file();
     hold(&mut app);
-    held_back_until_backed_up(app, &name);
+    held_back_until_backed_up(app, &name, true);
+}
+
+/// The signed message's picture, made by `presses` before the hold, is held
+/// back as the text file is.
+fn picture_is_held_back(presses: &[Action]) {
+    let (mut app, text) = signed_file();
+    for press in presses {
+        app.press(*press);
+    }
+    if app.qr().is_some() {
+        app.press(Action::Cancel);
+    }
+    let picture = app
+        .outbox
+        .iter()
+        .map(|i| i.name.to_string())
+        .find(|n| n.ends_with(".png"))
+        .expect("the picture");
+    // The text file goes, so the first row is the picture's.
+    app.press(Action::Nav(Screen::Files));
+    assert_eq!(app.outbox[0].name.as_str(), text);
+    app.press(Action::OutboxRemove(0));
+    if app.sheet.is_some() {
+        app.press(Action::OutboxDeleteHold);
+    }
+    assert_eq!(app.outbox.len(), 1);
+    // More than a file shown as a code may hold.
+    assert!(app.outbox[0].bytes.len() > 256 * 1024);
+    hold(&mut app);
+    held_back_until_backed_up(app, &picture, false);
+}
+
+#[test]
+fn a_picture_for_the_stick_made_before_the_hold_is_held_back() {
+    picture_is_held_back(&[Action::CodePng(Code::Message)]);
+}
+
+#[test]
+fn a_picture_from_the_code_sheet_made_before_the_hold_is_held_back() {
+    picture_is_held_back(&[Action::MQr, Action::QrPng]);
 }
 
 #[test]
@@ -360,7 +408,7 @@ fn a_file_of_a_flow_ended_with_done_is_held_back() {
     app.press(Action::MDone);
     assert!(testkit::message(&app).is_none());
     hold(&mut app);
-    held_back_until_backed_up(app, &name);
+    held_back_until_backed_up(app, &name, true);
 }
 
 #[test]
@@ -369,7 +417,7 @@ fn a_file_signed_before_the_number_changed_is_held_back() {
     app.press(Action::MIndex(1));
     assert!(testkit::message(&app).unwrap().signed.is_none());
     hold(&mut app);
-    held_back_until_backed_up(app, &name);
+    held_back_until_backed_up(app, &name, true);
 }
 
 #[test]
