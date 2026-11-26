@@ -629,6 +629,7 @@ pub(crate) fn ask() -> Ask {
     Ask {
         wrap: |a| Action::KefTool(KefToolAction::Backup(a)),
         wrap_dice: |p| Action::KefTool(KefToolAction::BackupDice(p)),
+        another: EN.kef_make_another,
         pin: |n| Action::KefTool(KefToolAction::Backup(KefAct::Pin(n))),
         rows: |r| Action::KefTool(KefToolAction::Backup(KefAct::Rows(r))),
         on_rolls: |_| Action::KefTool(KefToolAction::Backup(KefAct::DiceField)),

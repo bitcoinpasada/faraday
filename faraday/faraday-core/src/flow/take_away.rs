@@ -105,6 +105,11 @@ impl Pane<'_> {
                 .enumerate()
                 .find(|(_, i)| i.name == *name && i.sha == Some(file.sha))
             {
+                // A file that may be a secret has no row: this pane never
+                // offers one (`take_away_names` sends none).
+                if item.exposure() == crate::secrets::Exposure::Secret {
+                    continue;
+                }
                 let on = app.visit.out.contains(&**name);
                 waiting += 1;
                 ticked += usize::from(on);
@@ -164,7 +169,7 @@ impl Pane<'_> {
                 (px, pw, y),
                 ListRow {
                     name: &file.again,
-                    line: EN.message_signed_message,
+                    line: file.line,
                     tag: ("", Role::OnSurfaceVariant.paint()),
                     ticked: None,
                     greyed: false,

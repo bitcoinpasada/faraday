@@ -24,6 +24,8 @@ use faraday_draw::widgets::Icon;
 pub(crate) struct Ask {
     pub wrap: fn(KefAct) -> Action,
     pub wrap_dice: fn(Press) -> Action,
+    /// What the button back to the first step says.
+    pub another: &'static str,
     pub on_rolls: fn(usize) -> Action,
     /// The press that marks block (row) `n` of the grid on Paper.
     pub pin: fn(usize) -> Action,
@@ -230,7 +232,7 @@ fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, a
         cy,
         None,
         BUTTON_H,
-        EN.kef_make_another,
+        ask.another,
         Style::Secondary,
         (ask.wrap)(KefAct::Another),
     );

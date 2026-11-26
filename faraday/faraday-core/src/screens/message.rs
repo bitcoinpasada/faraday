@@ -194,6 +194,7 @@ impl crate::flow::Contained for MessageSteps {
                 name,
                 sha,
                 again,
+                line: EN.message_signed_message,
                 make_label: EN.message_make_the_file,
                 make: Action::MOut,
             }],

@@ -135,6 +135,8 @@ pub(crate) struct TakeFile {
     pub(crate) sha: [u8; 32],
     /// The name a new file is made under, drawn while this one is not there.
     pub(crate) again: Title,
+    /// The row's second line while the file is not waiting: what it is.
+    pub(crate) line: &'static str,
     /// What the row says that makes it (the first time).
     pub(crate) make_label: &'static str,
     /// The press that makes it.

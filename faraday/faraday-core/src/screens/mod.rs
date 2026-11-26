@@ -1043,6 +1043,9 @@ pub(crate) fn take_away_now(app: &crate::Faraday) -> Option<crate::flow::TakeAwa
     use crate::flow::Contained;
     match app.screen {
         crate::Screen::Message => message::MESSAGE_STEPS.take_away(app, crate::mstep::SIGN),
+        crate::Screen::KefTool => {
+            crate::kef_tool::KEF_TOOL_STEPS.take_away(app, crate::kef_tool::kstep::CODE)
+        }
         _ => None,
     }
 }

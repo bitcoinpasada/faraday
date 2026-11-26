@@ -725,6 +725,15 @@ impl KefForm {
         }
     }
 
+    /// Costs what `kef_save_files` costs. Puts the made code's files in
+    /// the Outbox again, those not already there, and takes the names they
+    /// went under.
+    pub(crate) fn save_again(&mut self, app: &mut Faraday) {
+        if let Some(m) = &self.made {
+            self.saved = Some(app.kef_save_files(m));
+        }
+    }
+
     /// Takes the form back to its first step, as Make another does: the
     /// passphrase and the check's are empty.
     pub fn again(&mut self) {

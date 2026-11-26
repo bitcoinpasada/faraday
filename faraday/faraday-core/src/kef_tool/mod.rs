@@ -61,6 +61,9 @@ pub enum KefToolAction {
     Key(usize),
     /// Goes on from Contents with the typed text.
     Next,
+    /// Puts the made code's files in the Outbox again, from the
+    /// take-away's row for one that is no longer there.
+    SaveFiles,
     /// A press on the form.
     Form(KefAct),
     /// A press on the dice entry or the roller.
@@ -84,6 +87,10 @@ pub struct KefToolState {
     pub(crate) wallet: Option<usize>,
     pub(crate) key: Option<usize>,
     pub(crate) form: Option<KefForm>,
+    /// The SHA-256 of each file the made code put in the Outbox, taken
+    /// when it was put: the picture's, when there is one, and the file's.
+    /// Public: the files hold the sealed code.
+    pub(crate) out: Option<(Option<[u8; 32]>, [u8; 32])>,
 }
 
 impl KefToolState {
@@ -277,6 +284,7 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
                 wallet: None,
                 key: None,
                 form: None,
+                out: None,
             });
             app.screen = Screen::KefTool;
         }
@@ -296,6 +304,12 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
             {
                 begin_key(app, only);
             }
+        }
+        KefToolAction::SaveFiles => {
+            // Those still waiting keep the tick the person left them.
+            let waiting: Vec<Text> = app.outbox.iter().map(|i| Text::of(&i.name)).collect();
+            with_form(app, |f, app| f.save_again(app));
+            note_files(app, &waiting);
         }
         KefToolAction::Field => {
             if crate::stick::refuses_secret(app) {
@@ -434,6 +448,7 @@ fn sync(app: &mut Faraday) {
             }
         }
         Stage::Entry | Stage::Making => {
+            s.out = None;
             s.done[usize::from(kstep::MAKE)] = false;
             s.done[usize::from(kstep::CODE)] = false;
             if s.open == Some(kstep::CODE) {
@@ -534,6 +549,9 @@ pub(crate) fn poll(app: &mut Faraday) {
     }
     if with_form(app, |f, app| f.poll(app)).unwrap_or(false) {
         sync(app);
+        if state(app).is_some_and(|s| s.out.is_none()) {
+            note_files(app, &[]);
+        }
         app.out.redraw();
     }
 }
@@ -576,6 +594,35 @@ pub(crate) fn tidy(app: &mut Faraday) {
     {
         with_form(app, |f, app| f.act(app, KefAct::Back));
     }
+}
+
+/// Costs a SHA-256 pass over each of the made code's files, taken from the
+/// Outbox as they were just put there: keeps each hash, on the item and
+/// here, so that only those bytes count as written, and ticks each one
+/// that is not among `waiting`, the files that were there before.
+fn note_files(app: &mut Faraday, waiting: &[Text]) {
+    let Some(saved) = state(app)
+        .and_then(KefToolState::form)
+        .and_then(KefForm::saved)
+        .cloned()
+    else {
+        return;
+    };
+    let c = app.compute();
+    let mut hash = |name: &str| {
+        let item = app.outbox.iter_mut().find(|i| *i.name == *name)?;
+        let sha = crate::sha256_of(&c, &item.bytes);
+        item.sha = Some(sha);
+        Some(sha)
+    };
+    let png = saved.png.as_deref().and_then(&mut hash);
+    let file = hash(&saved.file);
+    if let Some(s) = st(app) {
+        s.out = file.map(|file| (png, file));
+    }
+    let put = saved.png.iter().chain([&saved.file]);
+    let new = put.filter(|n| !waiting.contains(n));
+    app.visit.out_extend(new.map(|n| &**n));
 }
 
 /// Wraps a press on the form as an `Action`.
@@ -651,6 +698,51 @@ impl crate::flow::Contained for KefToolSteps {
 
     fn count_fixed(&self, _: &Faraday) -> bool {
         true
+    }
+
+    fn take_away(&self, app: &crate::Faraday, k: u8) -> Option<crate::flow::TakeAway> {
+        // The made code's picture and file: the sealed code, never what
+        // it holds or its passphrase.
+        let s = state(app)?;
+        if k != kstep::CODE || !s.done[usize::from(k)] {
+            return None;
+        }
+        let f = s.form()?;
+        let (saved, made) = (f.saved()?, f.made()?);
+        let (png_sha, file_sha) = s.out?;
+        let row = |name: &str, base: &str, sha: [u8; 32], line| {
+            let waits = app
+                .outbox
+                .iter()
+                .any(|i| *i.name == *name && i.sha == Some(sha));
+            crate::flow::TakeFile {
+                name: faraday_text::Text::of(name),
+                sha,
+                again: if waits {
+                    faraday_text::Text::of(name)
+                } else {
+                    crate::stick::visit_taken::outbox_free_name(&app.outbox, base)
+                },
+                line,
+                make_label: EN.kef_tool_make_the_file,
+                make: Action::KefTool(KefToolAction::SaveFiles),
+            }
+        };
+        let picture = saved
+            .png
+            .as_deref()
+            .zip(png_sha)
+            .map(|(name, sha)| row(name, &made.png_name, sha, EN.kef_tool_take_picture));
+        let file = row(
+            &saved.file,
+            &made.file_name,
+            file_sha,
+            EN.kef_tool_take_file,
+        );
+        Some(crate::flow::TakeAway {
+            files: picture.into_iter().chain([file]).collect(),
+            codes: Vec::new(),
+        })
     }
 
     fn heads(&self, _: &Faraday) -> usize {

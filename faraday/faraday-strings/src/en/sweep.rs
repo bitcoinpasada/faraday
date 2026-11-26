@@ -508,6 +508,14 @@ macro_rules! words_sweep {
     kef_tool_code_sum: "Made",
     /// The Code card, closed: the code is made and checked.
     kef_tool_code_checked_sum: "Checked",
+    /// The tool's Code card: back to the first step.
+    kef_tool_make_another_code: "Make another code",
+    /// The take-away: puts the code's files in the Outbox again.
+    kef_tool_make_the_file: "Make the file",
+    /// The take-away: what the picture's row is.
+    kef_tool_take_picture: "Picture of the code",
+    /// The take-away: what the file's row is.
+    kef_tool_take_file: "Krux code file",
     /// Tools: the Check a timestamp tile.
     catalog_check_timestamp: "Check a timestamp",
     /// Tools: the line under the Check a timestamp tile.

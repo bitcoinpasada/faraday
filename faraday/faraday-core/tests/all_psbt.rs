@@ -59,6 +59,8 @@ mod kef_form;
 mod kef_make;
 #[path = "all/kef_step.rs"]
 mod kef_step;
+#[path = "all/kef_take_away.rs"]
+mod kef_take_away;
 #[path = "all/kef_tool.rs"]
 mod kef_tool;
 #[path = "all/kef_tool_pick.rs"]
