@@ -1054,3 +1054,208 @@ fn a_set_action_rotated_then_left_keeps_what_was_proved_for_the_next_string() {
     typed_next(&mut app, 'e', E3);
     assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('e'))));
 }
+
+/// What Back up holds of the codex32 strings.
+fn c32_held(app: &Faraday) -> String {
+    let b = app.backup().expect("the backup stays under way");
+    let open = b.c32.as_ref().map(|c| {
+        let typed = c.typed.as_str().to_string();
+        let held: Vec<String> = c.held.iter().map(|s| s.to_string()).collect();
+        (c.seed, typed, held, c.made_all())
+    });
+    format!(
+        "{open:?} {:?} {:?} {:?} {:?}",
+        b.c32_base, b.c32_made, b.c32_checked, b.c32_skipped
+    )
+}
+
+const NOTHING_C32: &str = "None [] [] [] []";
+
+/// Every string of a codex32 set, in its order; as many as its
+/// threshold load the key.
+type Set = Vec<String>;
+
+/// Vector 2's and vector 3's sets, public samples.
+fn vector_sets() -> [Set; 2] {
+    [&[A, C, D][..], &[A3, C3, D3, E3, F3][..]].map(|s| s.iter().map(|x| x.to_string()).collect())
+}
+
+/// Two 2-of-3 sets of seeds nothing publishes, which Mainnet keeps.
+fn own_sets() -> [Set; 2] {
+    [(0x5a, b"keep"), (0x6b, b"stay")].map(|(byte, identifier)| {
+        faraday_bip::codex32::Codex32::from_seed(2, *identifier, &[byte; 16])
+            .unwrap()
+            .split(2, 3, &[byte; 32])
+            .unwrap()
+            .iter()
+            .map(|s| s.encode().as_str().to_string())
+            .collect()
+    })
+}
+
+fn threshold_of(set: &Set) -> usize {
+    usize::from(set[0].as_bytes()[3] - b'0')
+}
+
+/// The index of string `j` of `set`, as a bech32 value.
+fn index_in(set: &Set, j: usize) -> usize {
+    ix(char::from(set[j].as_bytes()[8]))
+}
+
+/// Loads the keys of two codex32 sets from their strings typed, each
+/// set's facts told.
+fn load_two_sets(app: &mut Faraday, sets: &[Set; 2]) {
+    for (i, set) in sets.iter().enumerate() {
+        app.press(Action::Nav(faraday_core::Screen::Home));
+        app.press(Action::Entry(None));
+        app.press(Action::EntryForm(2));
+        for s in &set[..threshold_of(set)] {
+            typed(app, s);
+            app.event(Event::Key(Key::Enter));
+        }
+        app.event(Event::Key(Key::Enter));
+        testkit::keep_published(app);
+        assert_eq!(app.session.keys.len(), i + 1, "the set's key is loaded");
+        let facts = SetFacts {
+            threshold: set[0].as_bytes()[3] - b'0',
+            identifier: set[0].as_bytes()[4..8].try_into().unwrap(),
+            length: 48,
+            unknown: 0,
+            strings: set.iter().map(|s| (s.as_bytes()[8], State::Made)).collect(),
+        };
+        app.session.keys.set_codex32(i, Some(facts));
+    }
+}
+
+/// Whether a group of `string`'s payload is drawn.
+fn drawn(app: &mut Faraday, string: &str) -> bool {
+    let all = app.drawn_texts().concat().replace(' ', "");
+    all.to_lowercase().contains(&string[9..13])
+}
+
+/// Backing up a 2-of-2 wallet of two codex32 keys on `network`, with
+/// strings of both seeds typed back, skipped and made, and seed 1's
+/// codex32 item open with a string half typed.
+fn backing_up_codex32(network: faraday_bip::keys::Network, sets: &[Set; 2]) -> Faraday {
+    let c = testkit::compute();
+    let mut app = on();
+    testkit::move_to(&mut app.session, network).unwrap();
+    load_two_sets(&mut app, sets);
+    let kind =
+        faraday_keys::texts::Spec::Multisig(faraday_bip::keys::MultisigScriptType::NativeSegwit, 0);
+    let [a, b] = [0, 1].map(|i| {
+        app.session
+            .keys
+            .key_text(&c, i, &kind)
+            .unwrap()
+            .unwrap()
+            .to_string()
+    });
+    let wallet = format!("wsh(multi(2,{a}/<0;1>/*,{b}/<0;1>/*))");
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("two.txt"),
+            wallet.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::load_wallet(&mut app, 0);
+    app.press(Action::Backup(0));
+    app.press(Action::BChecklist);
+    if app.backup().and_then(|b| b.open) == Some(plan::Item::Templates) {
+        app.press(Action::BNext(plan::Item::Templates));
+    }
+    let item = |app: &mut Faraday, i: usize| {
+        if app.backup().and_then(|b| b.open) != Some(plan::Item::Codex32(i)) {
+            app.press(Action::BStep(plan::Item::Codex32(i)));
+        }
+        let b = app.backup().unwrap();
+        assert_eq!(
+            b.open,
+            Some(plan::Item::Codex32(i)),
+            "checked {:?}, skipped {:?}",
+            b.c32_checked,
+            b.c32_skipped
+        );
+    };
+    let [first, second] = sets;
+    item(&mut app, 0);
+    for s in &first[..2] {
+        typed_next(&mut app, char::from(s.as_bytes()[8]), s);
+    }
+    c32(&mut app, Press::List);
+    c32(
+        &mut app,
+        Press::Set(SetPress::Replace(index_in(first, 2) as u8)),
+    );
+    type_in(&mut app, &first[0]);
+    type_in(&mut app, &first[1]);
+    c32(&mut app, Press::Set(SetPress::MakeNew));
+    assert!(drawn(&mut app, &first[2]), "the string made is on show");
+    // The string made, skipped, finishes seed 0's item; seed 1's opens
+    // only after it.
+    c32(&mut app, Press::Skip);
+    c32(&mut app, Press::Skip);
+    item(&mut app, 1);
+    c32(&mut app, Press::Open(index_in(second, 0) as u8));
+    type_in(&mut app, &second[0]);
+    c32(&mut app, Press::List);
+    c32(&mut app, Press::Open(index_in(second, 1) as u8));
+    type_in(&mut app, &second[1][..12]);
+    let b = app.backup().unwrap();
+    let st = b.c32.as_ref().expect("seed 1's strings");
+    assert!(!st.typed.is_empty() && !st.held.is_empty());
+    assert!(!b.c32_base.is_empty(), "seed 0's proved strings are kept");
+    assert!(!b.c32_made.is_empty(), "seed 0's made string is kept");
+    assert!(!b.c32_checked.is_empty() && !b.c32_skipped.is_empty());
+    app
+}
+
+#[test]
+fn remove_every_key_ends_the_codex32_strings_back_up_holds() {
+    let sets = vector_sets();
+    let mut app = backing_up_codex32(testkit::NET, &sets);
+    crate::common::remove_every_key(&mut app);
+    assert_eq!(c32_held(&app), NOTHING_C32);
+    assert_eq!(app.backup().unwrap().open, None, "the open item ends");
+    load_two_sets(&mut app, &sets);
+    app.press(Action::Resume(faraday_core::in_progress::Going::Backup));
+    app.settle();
+    let _ = app.frame();
+    assert_eq!(c32_held(&app), NOTHING_C32);
+    // The item opened again starts on its list, nothing held.
+    app.press(Action::BStep(plan::Item::Codex32(0)));
+    let b = app.backup().unwrap();
+    let st = b.c32.as_ref().expect("the item opens");
+    assert!(st.at.is_none() && st.qr.is_none() && st.typed.is_empty());
+    assert!(st.held.is_empty() && st.made_all().is_empty());
+    assert!(b.c32_base.is_empty() && b.c32_made.is_empty());
+    assert!(b.c32_checked.is_empty() && b.c32_skipped.is_empty());
+    assert!(!drawn(&mut app, &sets[0][2]), "no string is drawn");
+    // Nor under the string that was made.
+    c32(&mut app, Press::Open(index_in(&sets[0], 2) as u8));
+    let st = app.backup().unwrap().c32.as_ref().unwrap();
+    assert!(st.made(index_in(&sets[0], 2)).is_none() && st.qr.is_none());
+    assert!(!drawn(&mut app, &sets[0][2]), "no string is drawn");
+}
+
+#[test]
+fn removing_another_key_keeps_the_codex32_strings() {
+    // Only Mainnet cautions of published words.
+    let mut app = backing_up_codex32(faraday_bip::keys::Network::Mainnet, &own_sets());
+    let before = c32_held(&app);
+    // A third key whose words are published comes in, and is removed.
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Entry(None));
+    typed(
+        &mut app,
+        "legal winner thank year wave sausage worth useful legal winner thank yellow",
+    );
+    app.press(Action::EntryAdd);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Published));
+    app.press(Action::PublishedRemove);
+    assert_eq!(app.session.keys.len(), 2);
+    assert_eq!(c32_held(&app), before);
+    assert_eq!(app.backup().unwrap().open, Some(plan::Item::Codex32(1)));
+}

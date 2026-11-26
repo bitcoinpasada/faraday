@@ -4570,7 +4570,7 @@ impl Faraday {
                     }
                     self.restore_key_gone(fp);
                     crate::wallet_backup::kef::dropped(self);
-                    self.backup.key_removed(&self.session.keys);
+                    self.backup_key_removed();
                     self.spend_backup_key_gone(fp);
                     self.create.drop_key(fp.0);
                     // "Key … added" said of the key just removed.
@@ -5289,7 +5289,7 @@ impl Faraday {
                     self.create.key_removed_with_all(fp.0);
                 }
                 crate::wallet_backup::kef::dropped(self);
-                self.backup.key_removed(&self.session.keys);
+                self.backup_key_removed();
                 if self.spend_backup.state().open.is_some() {
                     self.spend_backup_settle_cards();
                 }

@@ -989,15 +989,25 @@ impl WalletBackupArea {
     /// item ends, with what it showed, held and had typed, and the Krux
     /// code forms of the keys gone with it. Where the backup's key is
     /// gone too, so are its Seed XOR parts and the short path; where it
-    /// stays, both stay, the short path on its open card. The codex32 set
-    /// is not touched: with its item open, the item stays. The Krux code
-    /// forms are put away first ([`kef::dropped`]).
-    pub(crate) fn key_removed(&mut self, keys: &faraday_keys::Keys) {
+    /// stays, both stay, the short path on its open card. The codex32
+    /// strings of the seeds in `gone` (by number in the backup's wallet,
+    /// not loaded now) are dropped (wiped), with what was typed back or
+    /// skipped; those of a seed that stays are kept, and so is its open
+    /// codex32 item. The Krux code forms are put away first
+    /// ([`kef::dropped`]).
+    fn key_removed(&mut self, keys: &faraday_keys::Keys, gone: &[usize]) {
         self.kef_drop_gone(keys);
         if let Some(b) = self.state.as_mut() {
-            if !matches!(b.open, Some(plan::Item::Codex32(_))) {
+            if !matches!(b.open, Some(plan::Item::Codex32(i)) if !gone.contains(&i)) {
                 b.open = None;
             }
+            if b.c32.as_ref().is_some_and(|c| gone.contains(&c.seed)) {
+                b.c32 = None;
+            }
+            b.c32_base.retain(|(i, _, _)| !gone.contains(i));
+            b.c32_made.retain(|(i, _, _)| !gone.contains(i));
+            b.c32_checked.retain(|(i, _)| !gone.contains(i));
+            b.c32_skipped.retain(|(i, _)| !gone.contains(i));
             b.seen = None;
             b.reveal = false;
             b.check = None;
@@ -4108,6 +4118,22 @@ impl Faraday {
             .into_iter()
             .map(|(fp, key)| (fp_label(fp), key))
             .collect()
+    }
+
+    /// A key was taken off the session: Back up ends what it held of it
+    /// ([`WalletBackupArea::key_removed`]).
+    pub(crate) fn backup_key_removed(&mut self) {
+        let gone: Vec<usize> = match self.backup.state() {
+            Some(b) => self
+                .backup_seed_list_now(b.wallet)
+                .iter()
+                .enumerate()
+                .filter(|(_, (_, key))| key.is_none())
+                .map(|(i, _)| i)
+                .collect(),
+            None => Vec::new(),
+        };
+        self.backup.key_removed(&self.session.keys, &gone);
     }
 
     /// [`Faraday::backup_seed_list_of`] with each seed's fingerprint as

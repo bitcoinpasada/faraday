@@ -1643,7 +1643,11 @@ same seed, and the plan would not know about the first.
   strings that do not rebuild it count for none and the item stops. A
   set action (Add, Replace) sets the proved strings aside and puts them
   back when it is left or the share is made, but for the index a Replace
-  changed; opening another seed's item keeps them too. A
+  changed; opening another seed's item keeps them too. Remove every key,
+  and the removal of the seed's own key, end what the backup holds of its
+  strings, wiped: the open string and what was typed, the strings made and
+  proved here, and which read "Checked" or "Skipped"; a recorded backup
+  stays, and removing another key keeps them. A
   string typed while fewer than k are typed keeps reading "Not checked";
   with fewer than k strings of an existing set on paper, they can only be
   skipped, since the set cannot be made again from the seed alone. Or
