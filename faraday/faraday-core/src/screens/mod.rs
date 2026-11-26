@@ -328,6 +328,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     };
     let frosted = app.sheet.is_some() && !in_pane && ui.frost.is_some();
     let side = crate::glance::sheet::side_now(app);
+    // A flow's noted heading goes with the flow, in every frame: the
+    // compact, the held and the sidebar one.
+    if !bar_search::in_flow(app) {
+        app.tools.note_flow_head(None);
+    }
     if !frosted && app.is_compact() {
         ui.clear(Role::Surface);
         // The stick pills take a strip across the top; the page is
@@ -653,10 +658,6 @@ fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32
     let (page_h, lift) = page;
     let (ox, cw) = page_area(app, app.screen, full_w);
     ui.ox = ox;
-    // A flow's noted heading goes with the flow.
-    if !bar_search::in_flow(app) {
-        app.tools.note_flow_head(None);
-    }
     if app.screen != Screen::Home {
         ui.oy = -lift;
         dispatch(app, ui, 0.0, cw, page_h);
