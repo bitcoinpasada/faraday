@@ -633,9 +633,10 @@ window never scrolls as a whole.
    Built on Tools, Check and Wallets where the window is not compact, and on
    Home on the expanded rail only, the rail's windows keeping Home as it is (`row_open`, `screens/row_details.rs`): the open row by what it is (a key
    by its fingerprint, a wallet by its identity, a file by its name and
-   size) in its own area; a key's details offer Explore and, where no wallet
-   uses it, Make a wallet from this key, Start a multisig wallet with this key
-   and Restore; a wallet's are its page; a file's are its shared list, then
+   size) in its own area; a key offers every action possible for it, whether or not a
+   wallet uses it (a key a wallet uses can go into another): its details offer
+   Explore, Convert, Make a wallet from this key, Start a multisig wallet with
+   this key and Restore; a wallet's are its page; a file's are its shared list, then
    its kind and size as Files says them. A row
    with a button opens them on a press beside the button. The offers end in the chevron where they open a page or flow
    and not where they act at once (F332). A flow begun from the details

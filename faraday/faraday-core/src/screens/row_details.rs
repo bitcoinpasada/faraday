@@ -45,33 +45,35 @@ pub(crate) fn bar_when(app: &View, ui: &mut Ui, page: &str, stands: bool) -> f32
     }
 }
 
-/// What key `fp` offers: Explore it, and where no wallet uses it, the
-/// ways on that take it (Make a wallet from this key, Start a multisig
-/// wallet with this key, Restore).
-fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
-    let mut list = vec![actions::offer(
-        EN.explore_explore,
-        Some(Icon::Explore),
-        Action::ExploreKey(fp),
-    )];
-    if app.loose_keys().0.iter().any(|k| k.0 == fp) {
-        list.push(actions::offer(
+/// What key `fp` offers, every action that can open with it picked, whether
+/// or not a wallet uses it: Explore it, Convert it (both in the order of
+/// Tools), Make a wallet from this key, Start a multisig wallet with this
+/// key and Restore.
+fn key_offers(fp: [u8; 4]) -> Vec<Offer> {
+    let convert = Action::Convert(crate::convert::ConvertAction::OpenOn(fp));
+    vec![
+        actions::offer(
+            EN.explore_explore,
+            Some(Icon::Explore),
+            Action::ExploreKey(fp),
+        ),
+        actions::offer(EN.convert_way_in, offer_icon(convert), convert),
+        actions::offer(
             super::parts::FROM_KEY,
             Some(Icon::Wallet),
             Action::KeyWallet(fp, 1),
-        ));
-        list.push(actions::offer(
+        ),
+        actions::offer(
             EN.loose_card_start_multisig,
             Some(Icon::Add),
             Action::KeyWallet(fp, 2),
-        ));
-        list.push(actions::offer(
+        ),
+        actions::offer(
             EN.loose_card_restore,
             offer_icon(Action::RestoreWallet),
             Action::RestoreWallet,
-        ));
-    }
-    list
+        ),
+    ]
 }
 
 /// The icon an action carries elsewhere (a wallet's group, the first
@@ -112,7 +114,7 @@ fn file_offers(app: &View, k: usize) -> Vec<Offer> {
 fn body(app: &View, ui: &mut Ui, opened: Opened, (x, y): (f32, f32), w: f32) -> f32 {
     let (offers, facts) = match opened {
         Opened::Key(fp) => (
-            key_offers(app, fp),
+            key_offers(fp),
             super::session_pane::key_facts(app, fp).map(|(head, sub)| (head, sub, true)),
         ),
         Opened::File(k) => (

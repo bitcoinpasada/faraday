@@ -4,6 +4,8 @@
 //! details offer what they offer, a row's button stays its own press and a
 //! flow begun from the details returns to them.
 
+use faraday_core::convert::ConvertAction as C;
+use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit::KindText;
 use faraday_core::{Action, Faraday, Row, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
@@ -1199,4 +1201,74 @@ fn vaults_wallet_rows_have_no_add_a_key() {
     go(&mut app, Screen::Vaults);
     assert!(app.offers(Action::OpenWallet(0)), "the wallet's row");
     assert!(!app.offers(Action::Entry(Some(slot(&app, 0)))));
+}
+
+/// Tools with a key a wallet uses, that key's details open.
+fn tools_with_a_used_keys_details() -> (Faraday, [u8; 4]) {
+    let mut app = desktop();
+    let fp = add_key(&mut app, WORDS);
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    assert_eq!(app.session.wallets.len(), 1, "a wallet uses the key");
+    app.press(Action::Nav(Screen::Catalog));
+    let _ = app.frame();
+    app.press(Action::RowOpen(Row::Key(fp)));
+    let _ = app.frame();
+    (app, fp)
+}
+
+/// Presses `action` on a wallet-used key's details, as they offer it, and
+/// returns the app in the flow it opened.
+fn used_key_press(action: impl Fn([u8; 4]) -> Action) -> (Faraday, [u8; 4]) {
+    let (mut app, fp) = tools_with_a_used_keys_details();
+    let action = action(fp);
+    assert!(shown(&mut app, action), "{action:?} is not offered");
+    app.press(action);
+    let _ = app.frame();
+    (app, fp)
+}
+
+#[test]
+fn a_used_keys_details_offer_make_a_wallet_and_it_takes_the_key() {
+    for n in [1u8, 2] {
+        let (app, fp) = used_key_press(|fp| Action::KeyWallet(fp, n));
+        assert_eq!(app.screen, Screen::Restore);
+        let s = app
+            .restore()
+            .and_then(|r| r.seeds.as_ref())
+            .expect("no seeds card");
+        assert_eq!(s.keys, vec![fp]);
+        assert_eq!(s.n, usize::from(n));
+    }
+}
+
+#[test]
+fn a_used_keys_details_offer_restore() {
+    let (app, _) = used_key_press(|_| Action::RestoreWallet);
+    assert_eq!(app.screen, Screen::Restore);
+}
+
+#[test]
+fn a_used_keys_details_offer_another_form_with_the_key_picked() {
+    let (mut app, fp) = used_key_press(|fp| Action::Convert(C::OpenOn(fp)));
+    assert_eq!(app.screen, Screen::Convert);
+    let key = faraday_core::convert::state(&app).and_then(|s| s.key);
+    assert_eq!(key, Some(fp));
+    // Back steps back through the flow's cards, then leaves it.
+    for _ in 0..4 {
+        if app.screen != Screen::Convert {
+            break;
+        }
+        let _ = app.frame();
+        let (x, y) = app.back_offered().expect("a way back");
+        touch(&mut app, (x, y));
+    }
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(details_of(&mut app, fp), "back in the key's details");
+}
+
+#[test]
+fn a_used_keys_details_offer_explore() {
+    let (app, _) = used_key_press(Action::ExploreKey);
+    assert_eq!(app.screen, Screen::Explore);
 }
