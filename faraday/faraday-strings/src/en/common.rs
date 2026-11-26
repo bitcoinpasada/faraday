@@ -452,6 +452,10 @@ macro_rules! words_common {
     address_check_read_count: "{} of {} addresses read",
     /// Way over from another scanner's read card of an address to the address check.
     read_go_address: "Check the address",
+    /// The way over on the address card in the session pane, where the sidebar's Scan read an address.
+    read_go_this_address: "Check this address",
+    /// Button on that card: the camera on again for the next code.
+    read_scan_another: "Scan another",
     /// Button on the read card of an address not found. `{}`: the depth, in indices of each chain.
     read_look_further: "Look further: {}",
     /// Button on the read card while it looks further.

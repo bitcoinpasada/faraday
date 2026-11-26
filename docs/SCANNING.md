@@ -163,7 +163,7 @@ destination's action.
 | Wallet description | filed, then loaded. **Load the wallet**; in Restore, its description |
 | Split sheets | filed, then Restore's description. **Restore the wallet** |
 | Account key | Create's or Restore's slot waiting for one; else filed. **Make a wallet with it** (Create a wallet opens); Files' row for the key offers the same |
-| Address, BIP-21, silent payment address | **Is this address mine?**: on the address check's own scanner (Home's Scan, Tools' Check an address) the result card (`docs/DESIGN.md` §5, Check an address: the wallet or key account, the place, the path or each cosigner's, the whole address in groups of four, or on a miss the address and how far it looked); on any other scanner the address is named and its way over is **Check the address**; a find in a key's account ends with **Make a wallet**, then **Open the wallet**; with nothing loaded the line is "Load a key or a wallet first"; a `bitcoin:` link is read to BIP 21 first (`core/faraday-codec/src/bip21.rs`), and one with a `req-` parameter or one not well formed says so instead; on a miss the card's ways are **Look further** to each depth past what was looked at, and **Stop** while it looks (`docs/QR.md` §2) |
+| Address, BIP-21, silent payment address | **Is this address mine?**: on the address check's own scanner (Home's Scan, Tools' Check an address) the result card (`docs/DESIGN.md` §5, Check an address: the wallet or key account, the place, the path or each cosigner's, the whole address in groups of four, or on a miss the address and how far it looked); on any other scanner the address is named and its way over is **Check the address**; where the sidebar's Scan stands in the session pane (`docs/WORKSPACE.md` §4) the pane's card shows the address whole first, with **Check this address**, which opens that result, **Scan another** and **Close**; a find in a key's account ends with **Make a wallet**, then **Open the wallet**; with nothing loaded the line is "Load a key or a wallet first"; a `bitcoin:` link is read to BIP 21 first (`core/faraday-codec/src/bip21.rs`), and one with a `req-` parameter or one not well formed says so instead; on a miss the card's ways are **Look further** to each depth past what was looked at, and **Stop** while it looks (`docs/QR.md` §2) |
 | Signed message | filed, then Check a message. **Check the signature** |
 | GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). A GPG public key Faraday can restore from: **Restore from its paperkey** (Restore a GPG key opens on it); an envelope: **Keep in Files** |
 | Text | the card shows it masked (§4.10), with **Save as a note** in the open vault, **Sign this message** while Sign a message offers a wallet (Sign a message opens with the text as the message) and **Keep in Files** |
@@ -380,7 +380,7 @@ restore from (Restore from its paperkey), a TOTP code with no vault
 open. A PSBT to sign has no card: its review opens at once. The code is in Files already
 (public kinds) and **Done** replaces **Cancel**. Where Home's Scan goes
 straight on (a seed to the seed sheet, a share to its form, a TOTP code
-into the open vault's form), no card. An address shows the address check's result card, as the address check's own scanner does (§4.2).
+into the open vault's form), no card. An address shows the address check's result card, as the address check's own scanner does (§4.2); from the sidebar's Scan in the session pane, after the pane's address card (§4.2).
 
 ### 5.5 The Spend tab's intake
 

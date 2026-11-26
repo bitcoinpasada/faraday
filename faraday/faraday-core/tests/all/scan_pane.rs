@@ -472,16 +472,115 @@ fn a_read_with_a_card_shows_it_in_the_pane() {
     }
 }
 
-#[test]
-fn a_read_address_opens_its_check_as_before() {
-    let mut app = beside(Screen::Home, (1920, 1080));
+/// The sidebar's Scan in the pane, `kit::address(4)` read.
+fn address_card(screen: Screen) -> Faraday {
+    let mut app = beside(screen, (1920, 1080));
     sidebar_scan(&mut app);
+    read_address(&mut app);
+    app
+}
+
+fn read_address(app: &mut Faraday) {
     app.event(Event::Scanned {
         bytes: kit::address(4).into_bytes(),
     });
     let _ = app.frame();
+}
+
+/// The frame's text with no spaces: a whole address stands in groups of
+/// four, on as many lines as it takes.
+fn unspaced(app: &mut Faraday) -> String {
+    let texts = app.drawn_texts();
+    texts
+        .iter()
+        .flat_map(|t| t.chars())
+        .filter(|c| !c.is_whitespace())
+        .collect()
+}
+
+#[test]
+fn a_read_address_shows_its_card_in_the_pane() {
+    for screen in [Screen::Home, Screen::Catalog, Screen::WalletsStart] {
+        let mut app = address_card(screen);
+        assert_eq!(app.screen, screen);
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        let texts = app.drawn_texts();
+        for want in ["Check this address", "Scan another", "Close"] {
+            assert!(has(&texts, want), "{screen:?} {want} {texts:?}");
+        }
+        assert!(!has(&texts, "This session"), "{screen:?} {texts:?}");
+        assert!(unspaced(&mut app).contains(&kit::address(4)), "{texts:?}");
+        for way in [Action::ReadGo(0), Action::ReadAgain, Action::Cancel] {
+            assert!(app.where_offered(way).is_some(), "{screen:?} {way:?}");
+        }
+    }
+}
+
+#[test]
+fn check_this_address_opens_the_check_with_that_address() {
+    let mut app = address_card(Screen::Home);
+    app.press(Action::ReadGo(0));
+    let _ = app.frame();
     gone(&app);
     assert_eq!(app.screen, Screen::CheckAddress);
+    // As a small panel's sidebar Scan opens it, with no card between.
+    let mut direct = beside(Screen::Home, (480, 640));
+    sidebar_scan(&mut direct);
+    read_address(&mut direct);
+    gone(&direct);
+    assert_eq!(direct.screen, Screen::CheckAddress);
+    assert!(kit::said(&app).contains("Receive · index 4"));
+    assert_eq!(kit::said(&app), kit::said(&direct));
+}
+
+#[test]
+fn scan_another_turns_the_panes_camera_back_on_after_an_address() {
+    let mut app = address_card(Screen::Home);
+    while app.poll_command().is_some() {}
+    app.press(Action::ReadAgain);
+    let sent: Vec<Command> = std::iter::from_fn(|| app.poll_command()).collect();
+    assert!(sent.contains(&Command::CameraOn), "the camera stayed off");
+    app.event(frame_event());
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(has(&texts, "Scan a QR code"), "{texts:?}");
+    assert!(!has(&texts, "Check this address"), "{texts:?}");
+    assert!(!unspaced(&mut app).contains(&kit::address(4)), "{texts:?}");
+    read_address(&mut app);
+    assert!(has(&app.drawn_texts(), "Check this address"));
+}
+
+#[test]
+fn close_and_escape_on_the_address_card_put_the_session_pane_back() {
+    for escape in [false, true] {
+        let mut app = address_card(Screen::Home);
+        if escape {
+            app.event(Event::Key(Key::Escape));
+        } else {
+            app.press(Action::Cancel);
+        }
+        let _ = app.frame();
+        gone(&app);
+        assert_eq!(app.screen, Screen::Home);
+        let texts = app.drawn_texts();
+        assert!(has(&texts, "This session"), "{escape} {texts:?}");
+        assert!(!unspaced(&mut app).contains(&kit::address(4)), "{texts:?}");
+    }
+}
+
+#[test]
+fn lock_leaves_no_address_card() {
+    let mut app = address_card(Screen::Home);
+    while app.poll_command().is_some() {}
+    locked(&mut app);
+    assert!(
+        app.scan().is_none(),
+        "the card is still held after the lock"
+    );
+    assert_ne!(app.sheet, Some(Sheet::Scan));
+    let texts = app.drawn_texts();
+    assert!(!has(&texts, "Check this address"), "{texts:?}");
+    assert!(!unspaced(&mut app).contains(&kit::address(4)), "{texts:?}");
 }
 
 #[test]
@@ -554,5 +653,31 @@ fn lock_leaves_no_scan_when_the_session_pane_scans() {
             "the scan is still held after the lock"
         );
         assert_ne!(app.sheet, Some(Sheet::Scan));
+    }
+}
+
+/// Draws what the last press changed and says how many changes faded in
+/// and how many were drawn at once for reduce motion.
+fn fades(app: &mut Faraday) -> (u32, u32) {
+    let _ = app.frame();
+    let c = app.take_fade_counts();
+    (c.started, c.reduced)
+}
+
+/// `docs/WORKSPACE.md` §6: the pane's content fades to the viewfinder and
+/// back, at once with reduce motion.
+#[test]
+fn the_pane_fades_to_the_viewfinder_and_back() {
+    for reduced in [false, true] {
+        let mut app = beside(Screen::Home, (1920, 1080));
+        if reduced {
+            app.press(Action::ReduceMotion(true));
+        }
+        let _ = fades(&mut app);
+        let want = if reduced { (0, 1) } else { (1, 0) };
+        app.press(Action::Scan);
+        assert_eq!(fades(&mut app), want, "to the viewfinder");
+        app.press(Action::Cancel);
+        assert_eq!(fades(&mut app), want, "back");
     }
 }

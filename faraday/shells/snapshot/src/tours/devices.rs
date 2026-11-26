@@ -296,5 +296,17 @@ pub(crate) fn scan_tour(t: &mut Tour) -> Result<(), String> {
         });
         t.shot(name)?;
     }
+    // An address read by the sidebar's Scan, shot where it stays in the
+    // session pane as its card (`docs/WORKSPACE.md` §4).
+    t.press(Action::Cancel);
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home")?;
+    t.press(Action::Scan);
+    t.app.event(Event::Scanned {
+        bytes: b"tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_vec(),
+    });
+    if t.app.sheet == Some(faraday_core::Sheet::Scan) {
+        t.shot("scan-address")?;
+    }
     Ok(())
 }

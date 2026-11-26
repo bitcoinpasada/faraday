@@ -661,6 +661,10 @@ pub struct ReadCard {
     pub facts: Vec<Text>,
     /// The ways over, the one filled last.
     pub ways: Vec<Way>,
+    /// The address the sidebar's Scan read in the session pane: the card
+    /// shows it whole, under the owner's three buttons
+    /// (`docs/WORKSPACE.md` §4).
+    pub(crate) address: Option<Text>,
     /// The code is not carried on ("Not kept · scan it again once the
     /// vault is open").
     pub not_kept: bool,

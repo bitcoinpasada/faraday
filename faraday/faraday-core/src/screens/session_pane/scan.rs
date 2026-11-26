@@ -6,7 +6,7 @@
 
 use super::{PAD, card_surface};
 use crate::drawing::View;
-use crate::screens::sheets::{read_card, read_card_leave, read_card_leaves, read_card_ways};
+use crate::screens::sheets::{read_card, read_card_leaves, read_card_ways, read_card_words};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -52,13 +52,14 @@ pub(super) fn content(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), room:
     ) + GAP;
     if let Some(card) = sc.card.as_ref() {
         let stick_in = !app.may_load_keys();
-        cy = read_card(ui, (x, cy - PAD, w), card, stick_in);
+        // The card's lines stand on the title's and the buttons' edge.
+        let at = (x + LIST_PAD, cy - PAD, w - 2.0 * LIST_PAD);
+        cy = read_card(ui, at, card, stick_in);
         let ways = read_card_ways(card, stick_in);
         if !ways.is_empty() {
             cy += crate::screens::button_rows(ui, cx, cy, cw, &ways) + GAP;
         }
-        let words = (EN.read_again, read_card_leave(card));
-        let leaves = read_card_leaves(words, stick_in);
+        let leaves = read_card_leaves(read_card_words(card), stick_in);
         cy += crate::screens::button_rows(ui, cx, cy, cw, &leaves);
         return cy + PAD - y;
     }

@@ -1090,6 +1090,10 @@ pub(super) fn read_card(
     for fact in &card.facts {
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, fact) + T::GAP;
     }
+    if let Some(address) = card.address.as_ref() {
+        let inks = (Role::OnSurface, Role::OnSurfaceVariant);
+        cy += ui.address_whole((x, cy, w), BODY_M.mono(), inks, address) + T::GAP;
+    }
     // Text read is masked behind its eye (DESIGN §4.10): a press shows
     // it, the next hides it; nothing is copied.
     if let Some(text) = card.masked.as_ref() {
@@ -1114,17 +1118,29 @@ pub(super) fn read_card(
 fn way_label(card: &crate::scan_read::ReadCard, way: &crate::scan_read::Way) -> Text {
     if *way == crate::scan_read::Way::Open && card.kef.as_ref().is_some_and(|h| h.sure) {
         Text::of(EN.kef_open_anyway)
+    } else if *way == crate::scan_read::Way::CheckAddress && card.address.is_some() {
+        Text::of(EN.read_go_this_address)
     } else {
         Text::of(&way.label())
     }
 }
 
 /// **Done** once the code is filed, **Cancel** before.
-pub(super) fn read_card_leave(card: &crate::scan_read::ReadCard) -> &'static str {
+fn read_card_leave(card: &crate::scan_read::ReadCard) -> &'static str {
     if card.filed.is_some() {
         EN.scan_done
     } else {
         EN.scan_cancel
+    }
+}
+
+/// The words of the card's two ways out: **Scan again** with Cancel or
+/// Done; **Scan another** with Close on the session pane's address card.
+pub(super) fn read_card_words(card: &crate::scan_read::ReadCard) -> (&'static str, &'static str) {
+    if card.address.is_some() {
+        (EN.read_scan_another, EN.nav_close)
+    } else {
+        (EN.read_again, read_card_leave(card))
     }
 }
 
@@ -1140,7 +1156,8 @@ fn row_width(ui: &Ui, labels: &[impl AsRef<str>]) -> f32 {
 /// and **Cancel**.
 fn read_card_foot_fits(ui: &Ui, w: f32, card: &crate::scan_read::ReadCard) -> bool {
     let ways: Vec<Text> = card.ways.iter().map(|way| way_label(card, way)).collect();
-    let leave = [EN.read_again, read_card_leave(card)];
+    let (again, leave) = read_card_words(card);
+    let leave = [again, leave];
     row_width(ui, &leave) + row_width(ui, &ways) <= w + T::GAP
 }
 
@@ -1195,7 +1212,7 @@ fn read_card_foot(
     stick_in: bool,
 ) {
     let ways = read_card_ways(card, stick_in);
-    let leave = read_card_leaves((EN.read_again, read_card_leave(card)), stick_in);
+    let leave = read_card_leaves(read_card_words(card), stick_in);
     let ww = ways
         .iter()
         .map(|(l, ..)| ui.measure_as(LABEL_L, l) + 2.0 * T::BUTTON_PAD + T::GAP)

@@ -379,18 +379,21 @@ impl Faraday {
     /// scanner and on Home's Scan the scanner ends and the page opens with
     /// its answer or its refusal; on any other scanner the read card names
     /// the address with **Check the address** as its way over, a refusal
-    /// its line.
+    /// its line. Where the sidebar's Scan stands in the session pane, an
+    /// address read is the pane's card first, with the address whole and
+    /// **Check this address** as its way over (`docs/WORKSPACE.md` §4).
     pub(crate) fn address_card_put(
         &mut self,
         c: &Compute,
         bytes: zeroize::Zeroizing<Vec<u8>>,
         read: Result<faraday_bip::bitcoin::Address, Text>,
     ) {
+        let pane = crate::screens::pane_scanning(self);
         let page = self
             .camera
             .scan()
             .is_some_and(|s| s.ask == crate::Ask::Address);
-        if page {
+        if page && !pane {
             drop(bytes);
             self.scan_close();
             return crate::address_check::show(self, c, read);
@@ -398,7 +401,14 @@ impl Faraday {
         let mut card = self.read_card(c, scan_read::Kind::Address, (None, "txt", bytes));
         match read {
             Err(why) => card.facts.push(why),
-            Ok(_) => card.ways = vec![scan_read::Way::CheckAddress],
+            Ok(addr) => {
+                card.ways = vec![scan_read::Way::CheckAddress];
+                if pane {
+                    let mut whole = Text::new();
+                    let _ = std::fmt::Write::write_fmt(&mut whole, format_args!("{addr}"));
+                    card.address = Some(whole);
+                }
+            }
         }
         self.read_card_put(card);
     }
@@ -1621,6 +1631,7 @@ impl Faraday {
             ways,
             not_kept,
             code,
+            address: None,
             masked,
             shown: false,
             named,
@@ -1752,6 +1763,7 @@ impl Faraday {
             Way::CheckAddress => {
                 if let Some(scan) = self.camera.scan.as_mut() {
                     scan.ask = crate::Ask::Address;
+                    scan.pane = None;
                 }
                 drop(text);
                 self.scan_not_taken(code);
@@ -2770,7 +2782,11 @@ impl Faraday {
             None => {
                 // An address goes to the address check's page, not filed.
                 if let Some(read) = self.address_read(&text) {
-                    if let Some(scan) = self.camera.scan.as_mut() {
+                    // The pane's card leaves the scanner as it was
+                    // opened: its way over turns it to the address.
+                    if !crate::screens::pane_scanning(self)
+                        && let Some(scan) = self.camera.scan.as_mut()
+                    {
                         scan.ask = crate::Ask::Address;
                     }
                     match read {
