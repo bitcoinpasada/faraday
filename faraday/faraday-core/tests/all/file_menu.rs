@@ -907,15 +907,18 @@ fn a_wallet_file_loaded_offers_no_load_but_back_up_and_spend_from_backup() {
 }
 
 #[test]
-fn a_wallet_file_loaded_offers_check_an_address_and_one_not_loaded_does_not() {
-    let mut app = with_wallet_file(false);
-    let menu = menu_of(&mut app, Row::In(0));
-    assert!(!menu.iter().any(|l| l == "Check an address"), "{menu:?}");
-    let mut app = with_wallet_file(true);
-    let menu = menu_of(&mut app, Row::In(0));
-    assert!(menu.iter().any(|l| l == "Check an address"), "{menu:?}");
-    choose(&mut app, "Check an address");
-    assert_eq!(app.screen, Screen::CheckAddress);
+fn a_wallet_file_offers_check_an_address_whether_or_not_it_is_loaded() {
+    for loaded in [false, true] {
+        let mut app = with_wallet_file(loaded);
+        let menu = menu_of(&mut app, Row::In(0));
+        assert!(
+            menu.iter().any(|l| l == "Check an address"),
+            "{loaded} {menu:?}"
+        );
+        choose(&mut app, "Check an address");
+        assert_eq!(app.screen, Screen::CheckAddress, "{loaded}");
+        assert_eq!(app.session.wallets.len(), 1, "{loaded}: loaded once");
+    }
 }
 
 #[test]
