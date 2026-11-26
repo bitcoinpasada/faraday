@@ -18,8 +18,8 @@ pub(crate) enum Page {
     Tools,
     Check,
     Wallets,
-    /// Files, on the wide layout: a file of In Faraday opens in the stick's
-    /// place.
+    /// Files: a file of In Faraday opens in the stick's place, and on a
+    /// small panel in the page's.
     Files,
 }
 
@@ -37,19 +37,26 @@ impl Page {
     }
 }
 
-/// Whether `page` opens a row in this window: not on the phone's layout,
-/// Home and Files only on the expanded rail (the rail's windows keep them
-/// as they are), and not while Home's search is typed (its results take
-/// the tile's place).
+/// Whether `page` is Files on a small panel (the Pi's menu or the phone's
+/// bar), where a file's details take the page's place.
+fn small_files(app: &Faraday, page: Page) -> bool {
+    page == Page::Files && matches!(app.nav(), crate::nav::Nav::Menu | crate::nav::Nav::Bar)
+}
+
+/// Whether `page` opens a row in this window: not on the one-column
+/// layouts but for Files on a small panel, Home and Files else only on the
+/// expanded rail (the rail's windows keep them as they are), and not while
+/// Home's search is typed (its results take the tile's place).
 fn takes_rows(app: &Faraday, page: Page) -> bool {
-    !app.is_compact()
-        && match page {
-            Page::Home => {
-                app.nav() == crate::nav::Nav::ExpandedRail && app.tools.home_find().is_empty()
+    small_files(app, page)
+        || !app.is_compact()
+            && match page {
+                Page::Home => {
+                    app.nav() == crate::nav::Nav::ExpandedRail && app.tools.home_find().is_empty()
+                }
+                Page::Files => app.nav() == crate::nav::Nav::ExpandedRail,
+                _ => true,
             }
-            Page::Files => app.nav() == crate::nav::Nav::ExpandedRail,
-            _ => true,
-        }
 }
 
 /// Whether Files draws the rows of In Faraday as ones that open details.
@@ -205,8 +212,10 @@ pub(crate) fn sync(app: &mut Faraday, tab: bool) {
         return;
     };
     let page = *page;
-    if app.is_compact()
-        || (matches!(page, Page::Home | Page::Files) && app.nav() != crate::nav::Nav::ExpandedRail)
+    if !small_files(app, page)
+        && (app.is_compact()
+            || (matches!(page, Page::Home | Page::Files)
+                && app.nav() != crate::nav::Nav::ExpandedRail))
     {
         app.wallets.row_open_lock();
         return;

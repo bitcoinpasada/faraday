@@ -798,14 +798,33 @@ fn files_leaving_a_flow_begun_from_the_details_returns_to_them() {
 }
 
 #[test]
-fn files_a_compact_window_and_the_rails_window_open_none() {
-    for width in [400, 800] {
-        let mut app = files_of(width, true);
-        assert!(!app.offers(Action::RowOpen(Row::File(0))), "{width}");
-        app.press(Action::RowOpen(Row::File(0)));
-        let _ = app.frame();
-        assert!(!app.offers(Action::RowClose), "{width}");
-    }
+fn files_the_rails_window_opens_none() {
+    let mut app = files_of(800, true);
+    assert!(!app.offers(Action::RowOpen(Row::File(0))));
+    app.press(Action::RowOpen(Row::File(0)));
+    let _ = app.frame();
+    assert!(!app.offers(Action::RowClose));
+}
+
+#[test]
+fn files_on_a_small_panel_a_rows_press_opens_the_details_and_back_returns() {
+    // Without a stick: the list has the room for the row.
+    let mut app = files_of(400, false);
+    assert!(app.offers(Action::RowOpen(Row::File(0))), "the row");
+    // The row's chevron, at its end.
+    let (x, y, w, h) = app.hit_box(Action::RowOpen(Row::File(0))).expect("the row");
+    touch(&mut app, (x + w / 2, y + h / 2));
+    assert!(app.offers(Action::RowClose), "the details are open");
+    assert!(
+        !app.offers(Action::RowOpen(Row::File(0))),
+        "the details stand in the list's place"
+    );
+    assert_eq!(app.screen, Screen::Files);
+    let (x, y) = app.back_offered().expect("a way back");
+    touch(&mut app, (x, y));
+    assert_eq!(app.screen, Screen::Files);
+    assert!(app.offers(Action::RowOpen(Row::File(0))), "the list again");
+    assert!(!app.offers(Action::RowClose));
 }
 
 #[test]

@@ -1925,21 +1925,27 @@ fn a_rows_main_button_leaves_a_narrow_row_so_its_name_keeps_room() {
     let mut app = at(360);
     let texts = app.drawn_texts();
     assert!(!texts.iter().any(|t| t == "Check a signer"), "{texts:?}");
-    // The dropped button is still one press away.
+    // The dropped button is still one press away: a small panel's row
+    // opens the file's details, which offer it.
     let k = app
         .inbox()
         .iter()
         .position(|i| i.name == psbt.0.as_str())
         .expect("the PSBT is not in the Inbox");
-    let (x, _) = app
-        .where_offered(Action::SignerCheck(
-            faraday_core::decode::check::SignerPress::File(false, k),
-        ))
-        .expect("pressing the row does not open the check");
+    let row = Action::RowOpen(faraday_core::Row::File(k));
+    let (x, _) = app.where_offered(row).expect("the row does not open");
     let (tx, _) = app
         .where_offered(Action::VisitInbox(k))
         .expect("the tick box is gone");
     assert!(tx < x, "the tick box is not left of the row");
+    app.press(row);
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::SignerCheck(
+            faraday_core::decode::check::SignerPress::File(false, k),
+        )),
+        "the details do not offer the check"
+    );
 }
 
 /// With a stick in, On the stick says what pulling it does next: here, a

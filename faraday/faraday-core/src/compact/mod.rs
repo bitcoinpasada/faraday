@@ -614,6 +614,13 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
     if let Some(head) = wallet_page_head(app) {
         return head;
     }
+    // A file's details on Files: back to Files, named by the file.
+    if app.screen == Screen::Files
+        && let Some(crate::row_open::Opened::File(k)) = crate::row_open::opened(app)
+        && let Some(item) = app.inbox.get(k)
+    {
+        return ((screen_name(Screen::Files), Action::RowClose), &item.name);
+    }
     let explore = app.explore.page();
     let name = match app.session.wallets.get(app.wallets.wallet()) {
         _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Addresses) => {

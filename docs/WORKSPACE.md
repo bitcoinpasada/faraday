@@ -642,11 +642,16 @@ window never scrolls as a whole.
    offers carry the icon their action has elsewhere (Sign, Check an address,
    Back up, Make a new wallet, Restore a wallet, Open a vault); an action with
    none has none, and a group with none has no gap for one. On Files, on the
-   expanded rail only (compact, the rail's windows and the Pi unchanged), a
-   file of In Faraday's Inbox opens its details in the stick's place, beside
-   the list, and the stick's card is not drawn while they stand (its state is
-   untouched, the chip stays in the top bar). The owner's rule (2026-11-25):
-   the box ticks, the rest of the row opens the details. Only the tick box
+   expanded rail and on a small panel (the Pi's panel and the phone-size
+   window; the narrow rail's windows unchanged), a file of In Faraday's
+   Inbox opens its details. On the expanded rail they stand in the stick's
+   place, beside the list, and the stick's card is not drawn while they
+   stand (its state is untouched, the chip stays in the top bar). On a small
+   panel (480 wide) the file's row ends in a chevron too (owner,
+   2026-11-25), and its details stand in the page's place, under the top bar
+   with its way back to Files and the file's name (the bar leaves out a
+   one-word name too long for it; the Facts under the group say it whole).
+   The owner's rule (2026-11-25): the box ticks, the rest of the row opens the details. Only the tick box
    ticks, in a press box of its own at the box; a press anywhere else of the
    row (the name, the line, the chevron) opens them and leaves the tick as it
    was; a row's button and its menu stay their own presses. Rows with no

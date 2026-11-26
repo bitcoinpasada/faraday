@@ -37,8 +37,8 @@ const PANES: Panes = Panes {
 /// Material's primary tabs and one card shows at a time.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use faraday_draw::tokens::{
-        FAB_H, PAGE_INSET, READING_VISIT_W, TAB_H, VISIT_GAP, VISIT_NOTICE_BUTTON_PAD,
-        VISIT_NOTICE_GAP, VISIT_NOTICE_H,
+        PAGE_INSET, READING_VISIT_W, TAB_H, VISIT_GAP, VISIT_NOTICE_BUTTON_PAD, VISIT_NOTICE_GAP,
+        VISIT_NOTICE_H,
     };
     let compact = ui.compact;
     // Where the container stands the pair: In Faraday at the left, the
@@ -49,9 +49,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         PANES.place(cw, false)
     };
-    // A file's details stand where the pair does and a file is open: the
-    // one predicate for the details, the bar's arrow and the file's name.
-    let details_stand = pair.is_some() && crate::row_open::opened(app).is_some();
+    // A file's details stand where the pair does, or on a small panel in
+    // the page's place, and a file is open: the one predicate for the
+    // details, the bar's arrow and the file's name.
+    let rows_open = compact || pair.is_some();
+    let details_stand = rows_open && crate::row_open::opened(app).is_some();
     // Else the two columns keep the width they read at, centred in
     // Files' room.
     let (room_x, cw_all) = (x0, cw);
@@ -75,6 +77,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         super::row_details::bar_when(app, ui, EN.files_files, details_stand) + GAP_SMALL
     };
+    // On a small panel a file's details take the page's place, under the
+    // bar that names the file, and end where the cards would.
+    if compact && details_stand {
+        let foot = foot_room(ui);
+        super::row_details::draw(app, ui, (x, y, width, (h - y - foot).max(0.0)));
+        return;
+    }
     // A stick in with nothing held, and the import's list not up: its files
     // can be written to and read. While the list stands, Faraday's own
     // controls are drawn as with no stick, for they would be refused.
@@ -149,16 +158,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         None if compact => (width, width),
         None => ((width - VISIT_GAP) / 2.0, (width - VISIT_GAP) / 2.0),
     };
-    // Where Scan floats over the foot (`foot_room`), the cards end above
-    // it; at the top of the rail or the sidebar it takes no room here, and
-    // the foot is the page margin the cards keep at their sides.
-    let fab = if ui.foot_room > 0.0 {
-        FAB_H + PAGE_INSET
-    } else if compact {
-        crate::compact::M
-    } else {
-        PAGE_INSET
-    };
+    let fab = foot_room(ui);
     // The notice's button can stand over the Scan button's corner: a gap
     // keeps its press box whole.
     let scan_gap = if notice.is_some() {
@@ -201,7 +201,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     if !compact || !app.visit.tab_stick {
-        let opens = pair.is_some() && crate::row_open::files_opens(app);
+        let opens = rows_open && crate::row_open::files_opens(app);
         in_faraday(app, ui, (x, y, colw, colh), (usable, opens));
     }
     if !compact || app.visit.tab_stick {
@@ -259,6 +259,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(open) = page {
         let bottom = fy + log_h + scan_gap + fab.max(PAGE_INSET);
         ui.region_close(open, (bottom - h).max(0.0));
+    }
+}
+
+/// What the cards leave under them. Where Scan floats over the foot
+/// (`foot_room`), they end above it; at the top of the rail or the sidebar
+/// it takes no room here, and the foot is the page margin the cards keep
+/// at their sides.
+fn foot_room(ui: &Ui) -> f32 {
+    use faraday_draw::tokens::{FAB_H, PAGE_INSET};
+    if ui.foot_room > 0.0 {
+        FAB_H + PAGE_INSET
+    } else if ui.compact {
+        crate::compact::M
+    } else {
+        PAGE_INSET
     }
 }
 
