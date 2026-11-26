@@ -303,6 +303,7 @@ pub(crate) fn contained(
     let bar_end = if compact { top } else { tokens::APP_BAR_H };
     let (shown_top, shown_end) = ((card_top - next.y).max(bar_end), (y - next.y).min(view_h));
     ui.flow_card = Some((x, shown_top, w, (shown_end - shown_top).max(0.0)));
+    ui.flow_card_raised = card.drawn.is_some();
 
     // Level with the card where the pair stands side by side.
     let top = if left {

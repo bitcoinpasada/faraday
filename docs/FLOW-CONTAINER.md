@@ -117,7 +117,9 @@ A flow hands the container, each frame, what only the flow knows:
 
 When the current step changes (a choice, Continue, Back, a row of Your
 choices), the old card fades out to the page's surface and the new one
-fades in from it, at the same place. As in Material's own fade through,
+fades in from it, at the same place; where the card is raised (F331), the
+card stays and its content fades out to the card's own fill and in from
+it. As in Material's own fade through,
 the whole fade runs on Material's full emphasized curve
 (`tokens::EASE_EMPHASIZED`), the outgoing part taking the first 35% of
 the eased progress (about the first 48 ms) and the incoming the rest

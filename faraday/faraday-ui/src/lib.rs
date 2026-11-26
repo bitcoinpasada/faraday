@@ -519,6 +519,9 @@ pub struct Ui<'a, A> {
     /// left edge, its top, and the column's width and height, in design
     /// units (`docs/FLOW-CONTAINER.md` §2). The fade through reads it.
     pub flow_card: Option<(f32, f32, f32, f32)>,
+    /// Whether that card is raised (F331): a step's fade then goes
+    /// through the card's own fill, not the page's surface.
+    pub flow_card_raised: bool,
     /// Where the session pane was drawn this frame, as `flow_card` is: the
     /// left edge, the top, the width and the height, in design units. A
     /// change of page glides it from its old place to its new one
@@ -701,6 +704,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             fab_at: None,
             foot_room: 0.0,
             flow_card: None,
+            flow_card_raised: false,
             pane: None,
             flow_work: None,
             flow_end: None,

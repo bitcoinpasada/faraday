@@ -100,6 +100,9 @@ pub(crate) struct Fade {
     /// Where the last frame drew the flow's card, in pixels: what a step's
     /// fade goes through the surface in. A rectangle, no image.
     card: Option<Rect>,
+    /// Whether the frame drawn last raised the flow's card: a step's fade
+    /// then goes through the card's fill, so the card stays.
+    card_raised: bool,
     /// Where the frame before drew it, when that was another place: a step
     /// opened at its top from a page scrolled had its old card elsewhere,
     /// and that goes out to the surface too. Cleared when a fade ends.
@@ -359,8 +362,9 @@ impl Fade {
 
     /// Where the frame being drawn put the flow's card, in pixels, or
     /// that it put none.
-    pub(crate) fn set_card(&mut self, card: Option<Rect>) {
+    pub(crate) fn set_card(&mut self, card: Option<Rect>, raised: bool) {
         self.card = card;
+        self.card_raised = raised;
     }
 
     /// The next frame is the screen at rest, not part of the way from
@@ -885,6 +889,19 @@ impl Faraday {
             && !self.vaults.sign_shown.is_empty()
     }
 
+    /// The colour a step's card goes out to and comes in from: the
+    /// raised card's own fill where the flow raised one, so its content
+    /// fades inside a card that stays; the page's surface otherwise, and
+    /// always for a change of page, which goes through the page's colour.
+    fn veil_colour(&self) -> faraday_draw::Color {
+        let role = if self.fade.card_raised && self.fade.page != Some(Kind::Through) {
+            Role::SurfaceContainerLow
+        } else {
+            Role::Surface
+        };
+        self.theme().role(role)
+    }
+
     /// After a frame is drawn in full on `canvas`: while a fade is under
     /// way, the new frame is kept aside and the canvas shows it part of
     /// the way from the old, and the frame asks for the next step, so the
@@ -897,7 +914,7 @@ impl Faraday {
         self.fade.secret_drawn = self.secret_typed() || self.secret_shown();
         // Whatever draws on the canvas after the frame paints as it calls.
         canvas.record_calls(false);
-        let surface = self.theme().role(Role::Surface);
+        let surface = self.veil_colour();
         self.fade.live_veil(canvas, surface, self.now_ms);
         let Some((before, at)) = &self.fade.from else {
             return;
@@ -945,7 +962,7 @@ impl Faraday {
         if self.canvas.is_none() || self.fade.from.is_none() {
             return;
         }
-        let surface = self.theme().role(Role::Surface);
+        let surface = self.veil_colour();
         if self.fade.through_on() && self.fade.surface.is_empty() {
             self.fade.surface = surface_image(self.fade.after.len(), surface);
         }

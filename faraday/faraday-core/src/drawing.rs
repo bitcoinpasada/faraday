@@ -921,9 +921,12 @@ impl Faraday {
                 self.fade
                     .keep_frost(frost_key, ui.frost.take().filter(|_| !ui.spoiled));
                 // The card's place, for a step's fade through the surface.
-                self.fade.set_card(ui.flow_card.take().map(|(x, y, w, h)| {
-                    faraday_draw::Rect::new(ui.px(x), ui.px(y), ui.px(w), ui.px(h))
-                }));
+                self.fade.set_card(
+                    ui.flow_card.take().map(|(x, y, w, h)| {
+                        faraday_draw::Rect::new(ui.px(x), ui.px(y), ui.px(w), ui.px(h))
+                    }),
+                    ui.flow_card_raised,
+                );
                 self.fade.set_pane(ui.pane.take().map(|(x, y, w, h)| {
                     faraday_draw::Rect::new(ui.px(x), ui.px(y), ui.px(w), ui.px(h))
                 }));
