@@ -93,12 +93,22 @@ impl Faraday {
         let c = self.compute();
         let held = self.held_keys_now(&c);
         self.note_text_files(&held);
-        let loaded: Vec<Fingerprint> = self.session.keys.all().map(|k| k.fingerprint).collect();
+        let loaded: Vec<faraday_keys::KeyId> = self.session.keys.all().map(|k| k.id).collect();
         self.message.sync_holds(&held, &loaded);
         self.session.set_waiting(held);
         self.session.set_waiting_inputs(self.waiting_inputs());
         self.untick_waiting_files();
         self.message_address(&c);
+    }
+
+    /// A lookup. All 32 bytes of what tells the loaded key `fp` from
+    /// another.
+    pub(crate) fn loaded_key_id(&self, fp: Fingerprint) -> Option<faraday_keys::KeyId> {
+        self.session
+            .keys
+            .all()
+            .find(|k| k.fingerprint == fp)
+            .map(|k| k.id)
     }
 
     /// A lookup. A signed message's file whose key waits for its backup is

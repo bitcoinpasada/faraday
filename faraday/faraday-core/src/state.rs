@@ -1108,6 +1108,9 @@ struct SignedFile {
     name: faraday_text::Text,
     sha: [u8; 32],
     key: faraday_bip::keys::Fingerprint,
+    /// All 32 bytes of what tells that key from another: another key with
+    /// the same fingerprint does not clear the hold. Public.
+    id: Option<faraday_keys::KeyId>,
     /// The key was found waiting for its backup, and has not been seen
     /// loaded and released since: the file stays held back while the key
     /// is not loaded, after a lock too ([`MessageArea::sync_holds`]).
@@ -1115,35 +1118,42 @@ struct SignedFile {
 }
 
 impl MessageArea {
-    /// Notes that `key` signed the file `name` of SHA-256 `sha`.
+    /// Notes that `key`, told whole by `id`, signed the file `name` of
+    /// SHA-256 `sha`.
     pub(crate) fn file_signed(
         &mut self,
         name: &str,
         sha: [u8; 32],
         key: faraday_bip::keys::Fingerprint,
+        id: Option<faraday_keys::KeyId>,
     ) {
-        if !self.signers(name, Some(sha)).any(|k| k == key) {
+        if !self
+            .signed_as(name, Some(sha))
+            .any(|f| f.key == key && f.id == id)
+        {
             self.files.push(SignedFile {
                 name: faraday_text::Text::of(name),
                 sha,
                 key,
+                id,
                 held: false,
             });
         }
     }
 
     /// Takes the keys held now and the keys loaded: a file whose key is
-    /// held is held back from here on, and one whose key is loaded and not
-    /// held, its backup done, is not.
+    /// held is held back from here on, and one whose very key is loaded
+    /// and not held, its backup done, is not. A file with no id noted has
+    /// no hold to keep.
     pub(crate) fn sync_holds(
         &mut self,
         held: &[faraday_bip::keys::Fingerprint],
-        loaded: &[faraday_bip::keys::Fingerprint],
+        loaded: &[faraday_keys::KeyId],
     ) {
         for f in &mut self.files {
             if held.contains(&f.key) {
-                f.held = true;
-            } else if loaded.contains(&f.key) {
+                f.held = f.id.is_some();
+            } else if f.id.is_some_and(|id| loaded.contains(&id)) {
                 f.held = false;
             }
         }
@@ -1175,17 +1185,20 @@ impl MessageArea {
         }
     }
 
-    /// What a lock keeps of the signed files: a line of SHA-256, key and
-    /// name each, an `h` after the key of a file held back. Nothing in it
-    /// is secret.
+    /// What a lock keeps of the signed files: a line of SHA-256, key, the
+    /// key's id and name each, an `h` after the key of a file held back.
+    /// Nothing in it is secret.
     pub(crate) fn files_encode(&self) -> Vec<u8> {
         let mut out = faraday_text::Text::new();
         for f in &self.files {
             out.push_str(&faraday_text::text!(
-                "{}\t{}{}\t{}\n",
+                "{}\t{}{}\t{}\t{}\n",
                 &*faraday_crypto::hex::encode_string(&f.sha),
                 &*faraday_crypto::hex::encode_string(&f.key.0),
                 if f.held { "h" } else { "" },
+                &*f.id.map_or_else(Default::default, |id| {
+                    faraday_crypto::hex::encode_string(&id.0)
+                }),
                 &*f.name
             ));
         }
@@ -1198,8 +1211,9 @@ impl MessageArea {
             return;
         };
         for line in text.lines() {
-            let mut parts = line.splitn(3, '\t');
-            let (Some(sha), Some(key), Some(name)) = (parts.next(), parts.next(), parts.next())
+            let mut parts = line.splitn(4, '\t');
+            let (Some(sha), Some(key), Some(id), Some(name)) =
+                (parts.next(), parts.next(), parts.next(), parts.next())
             else {
                 continue;
             };
@@ -1209,9 +1223,11 @@ impl MessageArea {
                 faraday_crypto::hex::decode_exact::<4>(key),
             ) {
                 let k = faraday_bip::keys::Fingerprint(k);
-                self.file_signed(name, s, k);
+                // With no id, no key could clear a hold: read as not held.
+                let id = faraday_crypto::hex::decode_exact::<32>(id).map(faraday_keys::KeyId);
+                self.file_signed(name, s, k, id);
                 for f in &mut self.files {
-                    if held && f.sha == s && f.key == k && *f.name == *name {
+                    if held && id.is_some() && f.sha == s && f.id == id && *f.name == *name {
                         f.held = true;
                     }
                 }
@@ -1578,7 +1594,7 @@ impl Faraday {
     /// A lookup. Whether `f` was held back and its key is not loaded to say
     /// that its backup is done.
     fn hold_stands(&self, f: &SignedFile) -> bool {
-        f.held && !self.session.keys.all().any(|k| k.fingerprint == f.key)
+        f.held && !self.session.keys.all().any(|k| Some(k.id) == f.id)
     }
 
     /// Costs what `key_held` costs for each key that signed `item`, and
@@ -1762,7 +1778,8 @@ impl Faraday {
                         // With the key that signed it: the file is held
                         // back while that key waits for its backup.
                         if let Some(key) = self.message_signer() {
-                            self.message.file_signed(&name, sha, key);
+                            let id = self.loaded_key_id(key);
+                            self.message.file_signed(&name, sha, key, id);
                         }
                         if let Some(m) = self.message.state.as_mut() {
                             m.out_name = Some(name.duplicate());
