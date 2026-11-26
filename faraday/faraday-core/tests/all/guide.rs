@@ -229,8 +229,8 @@ fn the_close_button_and_escape_put_the_pane_away() {
 fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
     let mut app = guide_on_settings(1920, 600);
     let kind = app
-        .hit_box(page_control(&app))
-        .expect("a section on the page");
+        .hit_box(Action::ModeSheet)
+        .expect("the Mode row, first on the page");
     let tab = app.hit_box(Action::GuideTabGuide).expect("the pane's tab");
     // Over the pane's text, under its tabs.
     let (x, y) = (tab.0 + tab.2 / 2, tab.1 + 200);
@@ -249,7 +249,7 @@ fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
         "the pane's tabs hold their place"
     );
     assert_eq!(
-        app.hit_box(page_control(&app)),
+        app.hit_box(Action::ModeSheet),
         Some(kind),
         "the page beside did not move"
     );

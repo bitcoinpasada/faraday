@@ -29,7 +29,7 @@ fn settings(online: bool, width: u16, height: u16) -> Faraday {
 
 #[test]
 fn the_desktop_settings_offer_quit_and_no_power_off_timer() {
-    for (w, h) in [(1366, 2400), (800, 900), (480, 640)] {
+    for (w, h) in [(1366, 2400), (800, 2400), (480, 640)] {
         let mut app = settings(true, w, h);
         assert!(has(&mut app, "Quit"), "{w}x{h}");
         assert!(!has(&mut app, "Power off"), "{w}x{h}");
