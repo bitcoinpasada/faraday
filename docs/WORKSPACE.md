@@ -1214,7 +1214,7 @@ between groups and only where the room requires it.
   line): the sentence, then the grouped address on its own lines under it.
 - **A typed address field** grows to the lines it needs, in groups of four.
 - Decode's wide table wraps an address wider than its column (built).
-- **Built:** Your choices' address row (the pane and the sheet; Sign a message's chosen address) and the Spend panel's first recipient (`Ui::address_whole`). Not built: Sign a message's list row, the lists of Check an address and Silent payments.
+- **Built:** Your choices' address row (the pane and the sheet; Sign a message's chosen address) the Spend panel's first recipient (`Ui::address_whole`), and Explore's Address row and Addresses list and Find results, in groups of four at every size. Not built: Sign a message's list row, the lists of Check an address and Silent payments.
 
 ## 19. What can be pressed, and its sign
 

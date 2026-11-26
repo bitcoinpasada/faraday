@@ -351,7 +351,8 @@ pub(super) fn warn_row(ui: &mut Ui, at: Cols, y: f32) -> f32 {
 /// height used.
 fn code_row(ui: &mut Ui, at: Cols, y: f32, label: &str, value: &str, code: Code) -> f32 {
     let Cols { x, px, pw, width } = at;
-    let text = grouped(ui.compact, value);
+    // An address is in groups of four at every size (WORKSPACE §18).
+    let text = grouped(ui.compact && !matches!(code, Code::ExploreAddress), value);
     let vw = pw - T::ROW_CHEVRON_ROOM;
     let laid = ui.wrapped_as(BODY_M.mono(), &text, vw);
     let th = laid.h;
