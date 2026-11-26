@@ -184,7 +184,7 @@ details only while a vault is open.
 | Account key file; key line (xprv, hex seed) | Use key | Use key, then the flows that take it |
 | Seed words | Add a key | Add a key; Restore; Spend from backup; Check a backup; Add to vault |
 | SLIP-39, codex32 or Seed XOR shares, enough to restore | Restore | Restore; Check a backup; Add a key; Add to vault |
-| The same, not enough | none | Check a backup; Add a key; Add to vault |
+| The same, not enough | none | Restore; Check a backup; Add a key; Add to vault |
 | Split sheet of a setup | Restore | Restore |
 | Vault file, locked | Unlock | Unlock |
 | Message file | Check | Check a signed message |
