@@ -34,6 +34,8 @@ The passphrase encrypts the code, and the same passphrase opens it again. Type i
 
 **Key:** kef-tool.code
 
-The code is shown with its version, rounds and id.
+The code is shown with its version, rounds, id, **Size** and **By hand**: that size's sheet, or **No** with **Largest** 37 × 37.
 
-**Check my code** opens the code again: type the passphrase in **Passphrase of the code**, **Check** decrypts the code with it, and a match shows **Checked**. A wrong passphrase says so and can be tried again; **Skip** closes the check. The card also states **Size** and **By hand**: the sheet of the code's size, or **No** with **Largest** 37 × 37 for a bigger code. **Copy by hand** shows a grid to copy block by block onto the sheet of its size, for a code of 37 × 37 or less, and **Show the code** returns to the code. The grid shows the squares every code of that size shares black; the rest are filled by hand, block by block, columns numbered and rows lettered. **Make another** returns to the passphrase. **Done** goes back to where the tool was opened.
+**Check my code** takes **Passphrase of the code**. **Check** opens the code with it and shows **Checked**; a wrong one can be retried. **Skip** closes the check. **Copy by hand** shows a grid to copy onto the sheet, columns numbered and rows lettered, the squares every code of that size shares already black. **Show the code** returns. **Make another code** returns to the passphrase. **Done** leaves.
+
+On a wide screen, **Take with you** lists the picture, if any, and file, ticked. Its button writes the ticked ones, after asking to lock. A removed file shows **Make the file**. Leaving closes the list, not removing files.

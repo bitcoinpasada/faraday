@@ -725,8 +725,9 @@ field to `Faraday`. Faraday Starter has none. It keeps nothing when left, so has
 what was typed is wiped, as New key's is (`docs/FLOWS.md`).
 
 It is a step flow of three cards: **Contents**, the first step (§15.3), **Code** (the bar, the
-code, **Check my code**, **Make another**). The picture and file go to the Outbox as it is made,
-and a toast names the file.
+code, **Check my code**, **Make another code**). The picture and file go to the Outbox as it is made,
+and a toast names the file. Where the pair of panes stands, the Code card has the take-away beside
+it, holding the two files (`docs/WORKSPACE.md` §15).
 
 | §6's contents | Where the text comes from | Offered |
 |---|---|---|
@@ -820,7 +821,7 @@ Refused, and the file saved. §5's numbered and BBQr parts are not written: whet
 as a KEF is not known (§13), and a code that may open nowhere is what a refusal is for. The largest
 code is 117 × 117 (`QrView::kef`, QR version 25), about 1,440 base43 characters, or about 980 bytes
 of envelope. It can only happen in the tool, with a long note or a wallet of many keys. The Code
-card then has no picture: `kef_code_too_big`, the file's name, **Check my code** and **Make another**.
+card then has no picture: `kef_code_too_big`, the file's name, **Check my code** and **Make another code**.
 
 **Too large to copy by hand** is a different thing, and not a refusal: 37 × 37 is the largest blank
 template (§15.5), and a larger code that fits one QR is made as any, its picture and file saved. A
