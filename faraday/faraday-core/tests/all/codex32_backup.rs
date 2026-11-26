@@ -1135,8 +1135,14 @@ fn drawn(app: &mut Faraday, string: &str) -> bool {
 
 /// Backing up a 2-of-2 wallet of two codex32 keys on `network`, with
 /// strings of both seeds typed back, skipped and made, and seed 1's
-/// codex32 item open with a string half typed.
-fn backing_up_codex32(network: faraday_bip::keys::Network, sets: &[Set; 2]) -> Faraday {
+/// codex32 item open with a string half typed. The wallet is a 2-of-2
+/// over the two sets' keys, with `third` a 2-of-3 with that account key,
+/// its key not loaded.
+fn backing_up_codex32(
+    network: faraday_bip::keys::Network,
+    sets: &[Set; 2],
+    third: Option<&str>,
+) -> Faraday {
     let c = testkit::compute();
     let mut app = on();
     testkit::move_to(&mut app.session, network).unwrap();
@@ -1151,7 +1157,8 @@ fn backing_up_codex32(network: faraday_bip::keys::Network, sets: &[Set; 2]) -> F
             .unwrap()
             .to_string()
     });
-    let wallet = format!("wsh(multi(2,{a}/<0;1>/*,{b}/<0;1>/*))");
+    let third = third.map_or_else(String::new, |p| format!(",{p}/<0;1>/*"));
+    let wallet = format!("wsh(multi(2,{a}/<0;1>/*,{b}/<0;1>/*{third}))");
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
             faraday_text::Text::of("two.txt"),
@@ -1215,7 +1222,7 @@ fn backing_up_codex32(network: faraday_bip::keys::Network, sets: &[Set; 2]) -> F
 #[test]
 fn remove_every_key_ends_the_codex32_strings_back_up_holds() {
     let sets = vector_sets();
-    let mut app = backing_up_codex32(testkit::NET, &sets);
+    let mut app = backing_up_codex32(testkit::NET, &sets, None);
     crate::common::remove_every_key(&mut app);
     assert_eq!(c32_held(&app), NOTHING_C32);
     assert_eq!(app.backup().unwrap().open, None, "the open item ends");
@@ -1243,17 +1250,32 @@ fn remove_every_key_ends_the_codex32_strings_back_up_holds() {
 #[test]
 fn removing_another_key_keeps_the_codex32_strings() {
     // Only Mainnet cautions of published words.
-    let mut app = backing_up_codex32(faraday_bip::keys::Network::Mainnet, &own_sets());
+    let network = faraday_bip::keys::Network::Mainnet;
+    let words = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+    let load_words = |app: &mut Faraday| {
+        app.press(Action::Nav(faraday_core::Screen::Home));
+        app.press(Action::Entry(None));
+        typed(app, words);
+        app.press(Action::EntryAdd);
+        assert_eq!(app.sheet, Some(faraday_core::Sheet::Published));
+    };
+    // The words' account key, the wallet's third.
+    let mut other = on();
+    testkit::move_to(&mut other.session, network).unwrap();
+    load_words(&mut other);
+    let kind = Spec::Multisig(faraday_bip::keys::MultisigScriptType::NativeSegwit, 0);
+    let third = other
+        .session
+        .keys
+        .key_text(&testkit::compute(), 0, &kind)
+        .unwrap()
+        .unwrap()
+        .to_string();
+    let mut app = backing_up_codex32(network, &own_sets(), Some(&third));
     let before = c32_held(&app);
-    // A third key whose words are published comes in, and is removed.
-    app.press(Action::Nav(faraday_core::Screen::Home));
-    app.press(Action::Entry(None));
-    typed(
-        &mut app,
-        "legal winner thank year wave sausage worth useful legal winner thank yellow",
-    );
-    app.press(Action::EntryAdd);
-    assert_eq!(app.sheet, Some(faraday_core::Sheet::Published));
+    // The third key comes in by its words, and is removed: one of the
+    // wallet's keys goes, the two with strings stay.
+    load_words(&mut app);
     app.press(Action::PublishedRemove);
     assert_eq!(app.session.keys.len(), 2);
     assert_eq!(c32_held(&app), before);
