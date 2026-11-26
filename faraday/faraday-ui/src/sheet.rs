@@ -438,8 +438,10 @@ pub fn buttons<A: Copy + PartialEq>(
 }
 
 /// [`buttons`], where the row stacks by `rule`'s words (one for each
-/// item) rather than the words drawn: a button whose words change keeps
-/// its row. [`buttons_height`] over the same `rule` is its height.
+/// item) rather than the words drawn, and a stacked button is at least as
+/// tall as its `rule` words need: a button whose words change keeps its
+/// row and its box. [`buttons_height`] over the same `rule`, each item's
+/// longest words, is its height.
 pub fn buttons_by<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
@@ -458,7 +460,7 @@ fn buttons_with<'a, A: Copy + PartialEq>(
     y: f32,
     w: f32,
     items: &[(&str, Style, A)],
-    rule: impl Iterator<Item = &'a str>,
+    rule: impl Iterator<Item = &'a str> + Clone,
 ) -> f32 {
     if items.is_empty() {
         return 0.0;
@@ -477,7 +479,7 @@ fn buttons_with<'a, A: Copy + PartialEq>(
     let share = (w - (n - 1.0) * GAP) / n;
     // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
     let bh = ui.button_height(BUTTON_H);
-    if buttons_fit(ui, w, items.len(), rule) {
+    if buttons_fit(ui, w, items.len(), rule.clone()) {
         for (i, &(label, style, action)) in items.iter().enumerate() {
             let bx = x + i as f32 * (share + GAP);
             ui.button(bx, y, Some(share), bh, label, style, action);
@@ -485,10 +487,13 @@ fn buttons_with<'a, A: Copy + PartialEq>(
         bh
     } else {
         let mut by = y;
-        for &(label, style, action) in items {
-            let (tall, lines) = stacked(ui, w, label);
+        for (&(label, style, action), held) in items.iter().zip(rule) {
+            let (mut tall, lines) = stacked(ui, w, label);
+            if held != label {
+                tall = tall.max(stacked(ui, w, held).0);
+            }
             if lines.is_empty() {
-                ui.button(x, by, Some(w), bh, label, style, action);
+                ui.button(x, by, Some(w), tall, label, style, action);
             } else {
                 let lines: Vec<&str> = lines.iter().map(|&(a, b)| label[a..b].trim_end()).collect();
                 ui.button_wrapped((x, by, w, tall), &lines, style, action);
