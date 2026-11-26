@@ -1182,7 +1182,7 @@ take-away is left.
 | Secure Boot (`secure_boot/mod.rs`) | the signed EFI image | the image goes to the outbox | the image ticked | none |
 | KeePass export (`bip85/mod.rs`, `vault/stretch.rs`) | a KDBX file, its key file (secret) | Save as a file | the KDBX file ticked; key file as a secret | Check the export (`vault_export_check`, opened with the KDBX file just written) |
 | Sign a message (`screens/message.rs`) | a message file, a QR | Make the file, Show as QR | the QR, the file ticked | Sign another message; Check a signed message (opens with the message file) |
-| Derive with BIP-85 (`bip85/screen.rs`) | SeedQR, a words file (secret) | Save as a file, Save into {}, Show the code, Done | secrets rule below | Derive another child (Child seeds and passwords again) |
+| Derive with BIP-85 (`bip85/screen.rs`) | one value, secret: child words, a private key (WIF or xprv), hex bytes or a password, as a text file when saved; no SeedQR or other code | Save into {} (or the way to a vault), Load as a key (words), Save as a file…, Another, Done | none: no take-away; the value keeps its secret sheet, and the flow ends as FLOW-CONTAINER.md §7 says | Derive another child (**Another**: Child seeds and passwords again) |
 | Silent payments (`silent/screen.rs`) | a text record, QR | Record as QR, DNS record as QR, Save into {} | the QR, the file ticked | Make another record |
 | Krux code (`kef_tool/screen.rs`) | PNG and file pair | its save | the pair ticked | Make another code |
 | Chart PDF (`chart_edit.rs`) | a PDF | into the outbox | the PDF ticked | Make another chart |
