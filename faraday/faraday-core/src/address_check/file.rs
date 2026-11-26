@@ -182,9 +182,12 @@ pub(crate) fn read(app: &mut Faraday, c: &Compute, at: usize) {
     }
     let found = faraday_codec::address_text::find(text.as_str());
     match found.addresses.as_slice() {
-        [] => super::refuse(app, Text::of(EN.address_check_none_in_file)),
+        [] => return super::refuse(app, Text::of(EN.address_check_none_in_file)),
         [one] => super::check_text(app, c, one),
         many => list(app, c, many, found.total),
+    }
+    if let Some(s) = app.tools.address_check.state.as_mut() {
+        s.from = Some(at);
     }
 }
 

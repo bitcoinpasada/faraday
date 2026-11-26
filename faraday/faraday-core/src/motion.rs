@@ -1350,6 +1350,11 @@ impl Faraday {
             Screen::Decode if crate::decode::flow::contained_decode(self) => {
                 self.decode.scroll_y().map(|_| Place::Decode)?
             }
+            Screen::CheckAddress if crate::address_check::flow::contained(self) => self
+                .tools
+                .address_check
+                .scroll_y()
+                .map(|_| Place::AddressCheck)?,
             Screen::CheckMessage if crate::screens::check_message::contained(self) => {
                 Place::CheckMessage
             }
@@ -1458,6 +1463,7 @@ impl Faraday {
             Place::Tools => y(self.tools.scroll_y()),
             Place::Invoice => y(self.tools.invoice.scroll_y()),
             Place::Decode => y(self.decode.scroll_y()),
+            Place::AddressCheck => y(self.tools.address_check.scroll_y()),
             Place::CheckMessage => y(Some(self.message.check_scroll_y())),
             Place::NonceCheck => y(self.decode.nonce_scroll_y()),
             Place::SeedCheck => y(self.tools.seed_check.scroll_y()),
@@ -1510,6 +1516,7 @@ impl Faraday {
             Place::Tools => self.tools.set_scroll_y(to),
             Place::Invoice => self.tools.invoice.set_scroll_y(to),
             Place::Decode => self.decode.set_scroll_y(to),
+            Place::AddressCheck => self.tools.address_check.set_scroll_y(to),
             Place::CheckMessage => self.message.set_check_scroll_y(to),
             Place::NonceCheck => self.decode.set_nonce_scroll_y(to),
             Place::SeedCheck => self.tools.seed_check.set_scroll_y(to),
@@ -1563,6 +1570,8 @@ enum Place {
     Tools,
     /// Decode a transaction's card, where it is drawn as a flow.
     Decode,
+    /// Check an address' card, where it is drawn as a flow.
+    AddressCheck,
     /// Check a signed message's card, where it is drawn as a flow.
     CheckMessage,
     /// The nonce check's card, where it is drawn as a flow.

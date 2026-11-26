@@ -862,6 +862,9 @@ impl Faraday {
             Screen::Decode if crate::decode::flow::contained_decode(self) => {
                 &crate::decode::flow::DECODE_STEPS
             }
+            Screen::CheckAddress if crate::address_check::flow::contained(self) => {
+                &crate::address_check::flow::ADDRESS_STEPS
+            }
             Screen::CheckMessage if crate::screens::check_message::contained(self) => {
                 &crate::screens::check_message::CHECK_MESSAGE_STEPS
             }

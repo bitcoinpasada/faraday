@@ -1,7 +1,10 @@
-//! `Screen::CheckAddress`: Check an address (`docs/DESIGN.md` §5): the
-//! outlined field, the ways in under it, then the result card or what
-//! the page says in its place. Drawing reads the state and works nothing
-//! out.
+//! `Screen::CheckAddress`: Check an address (`docs/DESIGN.md` §5). On a
+//! window that is not compact it is the flow's one card (`flow`): the
+//! ways in at the left, the outlined field and the result card on it. A
+//! compact panel draws the page: the field, the ways in under it, then the
+//! result card or what the page says in its place, as does the window
+//! while the scanner stands in its pane. Drawing reads the state and
+//! works nothing out.
 
 use super::AddressPress;
 use crate::drawing::View;
@@ -37,6 +40,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = app.address_check_state() else {
         return;
     };
+    if super::flow::contained(app) {
+        return card(app, ui, x0, cw, h);
+    }
     let (x, width) = if ui.compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
@@ -63,17 +69,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
 
-    // The field, its refusal as its supporting text.
-    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.address_check_field);
-    y += PAD + GAP_SMALL;
-    let here = Action::TypeHere(crate::edit::Here::CheckAddress);
-    let used = ui.typed_address(
-        (x, y, width),
-        s.typed(),
-        s.refusal().map(|t| t.as_str()),
-        (true, here),
-    );
-    y += used + GAP;
+    y += field(ui, s, (x, y, width));
 
     // The other ways in: the empty part or the files to choose from while
     // the page holds nothing, else each an icon and a label.
@@ -145,6 +141,34 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += icon_rows(ui, x, y, width, &ins);
     }
 
+    y += outcome(app, ui, s, (x, y, width));
+    crate::compact::screen::finish(app, ui, h, y - top + PAD);
+}
+
+/// The field under its label, its refusal as its supporting text.
+/// Returns the height used.
+fn field(ui: &mut Ui, s: &super::AddressCheckState, (x, y, width): (f32, f32, f32)) -> f32 {
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.address_check_field);
+    let under = y + PAD + GAP_SMALL;
+    let here = Action::TypeHere(crate::edit::Here::CheckAddress);
+    let used = ui.typed_address(
+        (x, under, width),
+        s.typed(),
+        s.refusal().map(|t| t.as_str()),
+        (true, here),
+    );
+    under - y + used + GAP
+}
+
+/// What the check says: what it waits for, a file's list or the answer's
+/// card with its ways over and the end. Returns the height used.
+fn outcome(
+    app: &View,
+    ui: &mut Ui,
+    s: &super::AddressCheckState,
+    (x, top, width): (f32, f32, f32),
+) -> f32 {
+    let mut y = top;
     if s.load_first() {
         y += ui.wrap_as(
             (x, y, width),
@@ -210,7 +234,58 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         y += ending(ui, (x, y, width), back_of_page(s));
     }
-    crate::compact::screen::finish(app, ui, h, y - top + PAD);
+    y - top
+}
+
+/// Check an address as the flow's one card: the pick at the left, the
+/// field and what the check says on the card
+/// (`docs/FLOW-CONTAINER.md` §2).
+fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    let Some(s) = app.address_check_state() else {
+        return;
+    };
+    let page = crate::flow::Page {
+        area: (x0, cw),
+        h,
+        foot_h: 0.0,
+        pin: None,
+        back: Some(app.named_back(back_of(app))),
+        heading: EN.address_check_title,
+        chip: None,
+        note: None,
+        chip_tap: None,
+        step: None,
+        moves: crate::ui::Moves::No,
+    };
+    let steps = &super::flow::ADDRESS_STEPS;
+    let Some(contained) = crate::trail::StepFlow::contained(steps) else {
+        return;
+    };
+    let scroll = s.scroll();
+    let (next, again, _) = {
+        let mut body = |ui: &mut Ui, step: u8, x: f32, y: f32, w: f32| -> f32 {
+            let w = ui.flow_work.map_or(w, |end| end - x).min(COLUMN_MAX);
+            let mut cy = y;
+            // Where the pair stands the pane holds the rows.
+            if step == super::flow::PICK && !crate::flow::pair_left(app, steps, ui.compact, cw) {
+                cy += crate::pick::draw_groups(ui, x, cy, w, &super::flow::pick_groups(app));
+            }
+            if s.is_empty() && super::file::waiting(app).is_empty() {
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    BODY_M,
+                    Role::OnSurfaceVariant,
+                    EN.address_check_no_address,
+                ) + GAP;
+            }
+            cy += field(ui, s, (x, cy, w));
+            cy += outcome(app, ui, s, (x, cy, w));
+            cy - y
+        };
+        let mut under = |_: &mut Ui, _: f32, _: f32, _: f32| 0.0;
+        crate::flow::contained(ui, app, contained, &page, scroll, &mut body, &mut under)
+    };
+    app.scroll(crate::drawing::Scrolled::AddressCheck, next, again);
 }
 
 /// The page's Another and Done actions.

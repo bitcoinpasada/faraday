@@ -1,12 +1,15 @@
-//! Check an address has a page of its own: an address typed into its
+//! Check an address, on the flow's one card or the compact panel's page: an address typed into its
 //! field or pasted is checked, a `bitcoin:` link read to its address, a
 //! refusal named under the field, a secret refused and the field
 //! emptied, and a scanned address lands on the page.
 
+use crate::common::{has, offered, through_fade};
 use faraday_bip::policy::WalletPolicy;
 use faraday_core::address_check::AddressPress;
+use faraday_core::edit::Here;
+use faraday_core::strings::EN;
 use faraday_core::{Action, Ask, Faraday, Screen, StorageEvent, testkit};
-use faraday_shell_api::{App, Event, FileKind, Key};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, FileKind, Key, SecureHardware};
 
 const ABANDON: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -247,4 +250,49 @@ fn a_descriptor_file_is_named_and_not_read_as_addresses() {
     let mut app = on_page();
     read_file(&mut app, 0);
     assert_eq!(said(&app), "A descriptor, not an address");
+}
+
+/// Where the frame last drawn offers `action`: its left and top, pixels.
+fn rect(app: &Faraday, action: Action) -> (u16, u16) {
+    let (x, y, ..) = app.hit_box(action).expect("the action is offered");
+    (x, y)
+}
+
+/// On a wide window the ways in are the pick at the left of the card, and
+/// they stay beside the result.
+#[test]
+fn a_wide_window_has_the_ways_in_at_the_left_and_the_result_on_the_card() {
+    let mut app = on_page();
+    assert!(has(&mut app, EN.invoice_way_type));
+    assert!(offered(&mut app, Action::AddressCheck(AddressPress::Scan)));
+    type_in(&mut app, &address(3));
+    through_fade(&mut app);
+    assert!(said(&app).contains("Receive · index 3"), "{}", said(&app));
+    assert!(has(&mut app, EN.decode_card_result));
+    let scan = rect(&app, Action::AddressCheck(AddressPress::Scan));
+    let again = rect(&app, Action::AddressCheck(AddressPress::Another));
+    assert!(scan.0 < again.0, "the result stands on the card");
+}
+
+/// The compact panel keeps the page: no pick, the ways in under the field.
+#[test]
+fn a_compact_panel_keeps_the_page() {
+    let mut app = on_page();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    through_fade(&mut app);
+    assert!(!has(&mut app, EN.invoice_way_type));
+    let field = rect(&app, Action::TypeHere(Here::CheckAddress));
+    let scan = rect(&app, Action::AddressCheck(AddressPress::Scan));
+    assert!(scan.1 > field.1, "the ways in stand under the field");
 }

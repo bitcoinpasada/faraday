@@ -1,4 +1,5 @@
-//! Check an address (`docs/DESIGN.md` §5, Check an address): a page with
+//! Check an address (`docs/DESIGN.md` §5, Check an address): a flow's
+//! one card, or a page on a compact panel, with
 //! a field for an address typed, pasted or scanned, searched in the
 //! loaded wallets and keys' standard accounts as a scan's address is, its
 //! result a card under the ways in. A `bitcoin:` link is read to its
@@ -13,6 +14,7 @@
 //! arrived and works nothing out.
 
 pub(crate) mod file;
+pub(crate) mod flow;
 pub(crate) mod pane;
 pub(crate) mod screen;
 
@@ -72,6 +74,10 @@ pub struct AddressCheckState {
     /// Where the button that opened the menu of files is, for the menu
     /// to stand under.
     files_at: Option<(i32, i32, i32, i32)>,
+    /// The Inbox place of the file whose address or list is on show.
+    from: Option<usize>,
+    /// How far the flow's card is scrolled, where the page is drawn as one.
+    scroll: crate::flow::Scroll,
 }
 
 impl AddressCheckState {
@@ -86,6 +92,8 @@ impl AddressCheckState {
             load_first,
             list: None,
             files_at: None,
+            from: None,
+            scroll: crate::flow::Scroll::default(),
         }
     }
 
@@ -97,6 +105,16 @@ impl AddressCheckState {
     /// The screen its back link returns to.
     pub fn back(&self) -> Screen {
         self.back
+    }
+
+    /// The Inbox place of the file whose address or list is on show.
+    pub(crate) fn from(&self) -> Option<usize> {
+        self.from
+    }
+
+    /// How far the flow's card is scrolled.
+    pub(crate) fn scroll(&self) -> crate::flow::Scroll {
+        self.scroll
     }
 
     /// Why the text was not checked.
@@ -173,6 +191,7 @@ impl AddressCheckState {
         self.ways.clear();
         self.load_first = false;
         self.list = None;
+        self.from = None;
     }
 
     /// The answer and the ways over, again from the look.
@@ -217,6 +236,25 @@ impl AddressCheckArea {
     /// The page's state, while it is open.
     pub(crate) fn state(&self) -> Option<&AddressCheckState> {
         self.state.as_ref()
+    }
+
+    /// How far the flow's card is scrolled, units.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|s| s.scroll.y)
+    }
+
+    /// The flow's card scrolled to `y` units.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(s) = self.state.as_mut() {
+            s.scroll.y = y;
+        }
+    }
+
+    /// The flow's card scrolled to `to`.
+    pub(crate) fn set_scroll(&mut self, to: crate::flow::Scroll) {
+        if let Some(s) = self.state.as_mut() {
+            s.scroll = to;
+        }
     }
 
     /// Wallet `gone` left the session list.

@@ -867,8 +867,14 @@ back ("Back to Check", F146). There is no row for a firmware file, a
 timestamp or a Lightning invoice.
 
 **Check an address** (the row 2 tool, also in Tools; Material 3 Text
-fields, Buttons, Menus and Cards, checked against those pages). It is
-a page of its own, under the top app bar
+fields, Buttons, Menus and Cards, checked against those pages). On a
+window that is not compact it is the flow's one card
+(`docs/FLOW-CONTAINER.md` §2), titled **Check an address**: the ways in
+are its pick, at the left where the pair stands (the held text files,
+**Type it**, **Scan**, **Paste**, **From a file**, and while no text
+file waits **Open Files** and **Bring in from stick**). The rest of this
+paragraph and the next ones describe the compact panel's page, which has
+the same field, result and ways over. The page is under the top app bar
 titled **Check an address**, in the reading column. At its top an outlined
 text field labelled **Address** (the address keyboard of Explore's Find an
 address, `faraday/faraday-core/src/explore/addresses.rs`, `KeyboardKind`,
