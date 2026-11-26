@@ -94,6 +94,7 @@ pub(crate) fn draw_results_alone(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32
     let content = top + tile_h + MARGIN_WIDE;
     app.scroll.content_h().set(content);
     ui.region_close(open, content - h);
+    ui.pair_span = Some((top, top + tile_h));
 }
 
 /// Draws the open row's details placed the same way, on Home: under
@@ -148,7 +149,9 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
         if crate::row_open::opened(app).is_some() {
             stacked_card(app, ui, (x0 + hx, top), hw);
             let rest = (h - MARGIN_WIDE - under).max(tile_h);
-            return crate::screens::row_details::draw(app, ui, (x0 + hx, under, hw, rest));
+            let drawn = crate::screens::row_details::draw(app, ui, (x0 + hx, under, hw, rest));
+            ui.pair_span = Some((top, under + rest));
+            return drawn;
         }
         let clip = ui.rect(x0, 0.0, left_of_guide, h);
         let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
@@ -158,6 +161,8 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
         let content = under + tile_h + MARGIN_WIDE;
         app.scroll.content_h().set(content);
         ui.region_close(open, 0.0);
+        // The guide's pane stands level with the stack.
+        ui.pair_span = Some((top, under + tile_h));
         return true;
     }
     let Some(p) = place_in_area(app, &panes, (ui.ox, cw), guide) else {

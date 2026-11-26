@@ -904,6 +904,36 @@ fn search_results_and_a_rows_details_stay_clear_of_the_guide() {
     nothing_under_the_pane(&mut app, "Home, a key's details");
 }
 
+#[test]
+fn beside_a_stacked_page_the_guides_pane_has_its_top_and_foot() {
+    use faraday_core::Screen;
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    app.press(Action::Nav(Screen::Check));
+    crate::common::through_fade(&mut app);
+    app.press(Action::Guide);
+    crate::common::through_fade(&mut app);
+    frame(&mut app);
+    frame(&mut app);
+    let (seen, guide) = Seen::of(&mut app);
+    assert!(
+        guide.1 + guide.3 + (faraday_draw::tokens::MARGIN_WIDE as usize) < 1080,
+        "the pane is the page's height, not the window's: {guide:?}"
+    );
+    // The page's column, read through its middle: this session's card and
+    // the tile under it, each casting a little shadow past itself.
+    let row = guide.1 + guide.3 / 2;
+    let right = (0..guide.0)
+        .rfind(|&x| seen.drawn(x, row))
+        .expect("the page's right edge");
+    let pane = seen.ends(guide.0 + guide.2 - 19);
+    let page = seen.ends(right - 18);
+    assert!(
+        pane.0.abs_diff(page.0) <= 6 && pane.1.abs_diff(page.1) <= 6,
+        "the guide's top and foot {pane:?}, the page's {page:?}"
+    );
+}
+
 /// Beside a pair the pane's arrow lets it down to the window's foot and
 /// folds it back to the pair's; it stays let down after the guide is
 /// closed and opened again.

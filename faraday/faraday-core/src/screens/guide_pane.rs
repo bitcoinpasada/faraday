@@ -23,14 +23,14 @@ use crate::ui::{Slot, Ui};
 
 /// Draws the guide's supporting pane for the page area at `x0`, `cw` wide,
 /// in a window `h` tall, at the one place every supporting pane stands
-/// (`hub_layout::guide_place`), with a pair's height where one was drawn.
+/// (`hub_layout::guide_place`), with the page's height where it was said.
 /// Reads the state.
 pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let (x, mut y, w, mut view) = super::hub_layout::guide_place((x0, cw, h));
-    // Beside a pair the pane is as tall as the pair, tops and feet level;
-    // beside any other page it has the window's height
-    // (`docs/WORKSPACE.md` §7.4). Its arrow lets it down to the window's
-    // height and folds it back.
+    // Beside a pair or a page of one column the pane is as tall as the
+    // page, tops and feet level; beside a page that says no height it has
+    // the window's (`docs/WORKSPACE.md` §7.4). Its arrow lets it down to
+    // the window's height and folds it back.
     let full = (y, view);
     let shorter = ui.pair_span.map(|(top, foot)| {
         let end = foot.min(h - T::MARGIN_WIDE);

@@ -287,6 +287,10 @@ pub(crate) fn draw(
     let content = y - top + MARGIN_WIDE;
     app.scroll.content_h().set(content);
     ui.region_close(open, content - (h - top));
+    if !compact {
+        // The guide's pane stands level with the column.
+        ui.pair_span = Some((PANE_TOP_BAR, y));
+    }
 }
 
 /// The sections from `at`, `width` wide, one after the other. A run of

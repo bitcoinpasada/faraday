@@ -273,11 +273,14 @@ Files', Wallets', Vaults', and Check an address's, Explore's and
 Lightning's where they stand as one) is placed in the whole room and
 moves left only as far as the pane needs; Tools' and Check's wide tile
 takes its narrower form where it does not fit beside the pane. A stacked
-or one-column page is laid out in the room left of the pane. Beside a
-pair the pane has the pair's top and foot; beside any other page it runs
-from `SUPPORT_PANE_TOP` to the margin above the window's foot
-(`docs/WORKSPACE.md` §7.4). Where the page makes the pane shorter than
-that, an arrow beside the close button lets the pane down to the
+or one-column page is laid out in the room left of the pane. Home's
+search results and a row's details keep the place they have with the
+guide shut and move left only as far as the pane needs, as a pair does.
+Beside a pair, a menu page standing as one column or stacked, and a
+flow's card, the pane has the page's top and foot, no lower than the
+margin above the window's foot; beside a page that says no height it
+runs from `SUPPORT_PANE_TOP` to that margin (`docs/WORKSPACE.md` §7.4).
+Where the page makes the pane shorter than that, an arrow beside the close button lets the pane down to the
 window's foot and folds it back; the pane stays as the person left it,
 across closing and opening the guide, and nothing else on the screen
 moves. The top bar's search and Home's pills stand where they do with the guide shut, placed from the bar's whole room (the pane stands under the bar), at every width; nothing else opens it, on any screen or size (owner,
