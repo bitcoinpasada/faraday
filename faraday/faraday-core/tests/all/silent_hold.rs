@@ -40,6 +40,11 @@ fn drawn(app: &mut Faraday) -> String {
     app.drawn_texts().join(" ")
 }
 
+/// `text` without its spaces: an address is drawn in groups of four.
+fn packed(text: &str) -> String {
+    text.replace(' ', "")
+}
+
 fn type_dns(app: &mut Faraday) {
     for (here, text) in [
         (Here::SilentName, "matt"),
@@ -58,7 +63,7 @@ fn the_page_shows_the_warning_for_the_address_and_its_dns_record_while_the_key_w
     type_dns(&mut app);
     let text = drawn(&mut app);
     assert!(text.contains(WARNING), "{text}");
-    assert!(!text.contains(&address[..24]), "{text}");
+    assert!(!packed(&text).contains(&address[..24]), "{text}");
     assert!(!text.contains("matt.user._bitcoin-payment"), "{text}");
     assert!(!text.contains("Show as QR"), "{text}");
     assert!(!text.contains("As a bitcoin: link"), "{text}");
@@ -90,7 +95,7 @@ fn the_wallet_card_and_its_descriptor_code_are_held_with_the_key() {
     app.press(Action::Nav(Screen::Wallets));
     let text = drawn(&mut app);
     assert!(text.contains(WARNING), "{text}");
-    assert!(!text.contains(&address[..24]), "{text}");
+    assert!(!packed(&text).contains(&address[..24]), "{text}");
     let c = testkit::compute();
     assert!(app.receive_held(&c, &app.session.wallets[0]));
     // A silent wallet's descriptor is its address: no code of it either,
@@ -138,13 +143,19 @@ fn the_silent_pages_choices_row_withholds_the_address_too() {
     app.press(Action::SAddWallet);
     app.press(Action::SWallet(0));
     let text = drawn(&mut app);
-    // The row keeps the start and end of an address: neither is shown.
-    assert!(!text.contains(&address[address.len() - 4..]), "{text}");
+    // Neither the start nor the end of the address is shown.
+    assert!(
+        !packed(&text).contains(&address[address.len() - 4..]),
+        "{text}"
+    );
     let fp = app.session.keys[0].fingerprint;
     testkit::release_made(&mut app, fp);
     app.press(Action::SWallet(0));
     let text = drawn(&mut app);
-    assert!(text.contains(&address[address.len() - 4..]), "{text}");
+    assert!(
+        packed(&text).contains(&address[address.len() - 4..]),
+        "{text}"
+    );
 }
 
 #[test]
@@ -284,7 +295,7 @@ fn the_vault_item_of_a_held_silent_wallet_shows_the_warning_for_its_record() {
     app.press(Action::Vault(V::SaveWallet(0)));
     let shown = crate::common::vault_wallet_item_text(&mut app);
     assert!(shown.contains(WARNING), "{shown}");
-    assert!(!shown.contains(&address[..24]), "{shown}");
+    assert!(!packed(&shown).contains(&address[..24]), "{shown}");
 }
 
 #[test]
@@ -295,7 +306,7 @@ fn the_backup_done_shows_the_address_again_and_a_key_not_made_here_never_held_it
     testkit::release_made(&mut app, fp);
     app.press(Action::SWallet(0));
     let text = drawn(&mut app);
-    assert!(text.contains(&address[..24]), "{text}");
+    assert!(packed(&text).contains(&address[..24]), "{text}");
     assert!(!text.contains(WARNING), "{text}");
     assert!(text.contains("Show as QR"), "{text}");
     let c = testkit::compute();
@@ -321,7 +332,7 @@ fn a_key_not_made_here_never_held_its_address() {
     assert!(!app.receive_held(&c, &app.session.wallets[0]));
     app.press(Action::SWallet(0));
     let text = drawn(&mut app);
-    assert!(text.contains(&address[..24]), "{text}");
+    assert!(packed(&text).contains(&address[..24]), "{text}");
     assert!(!text.contains(WARNING), "{text}");
     assert!(app.code_view(&c, Code::Descriptor(0)).is_ok());
 }
@@ -894,7 +905,7 @@ fn saving_a_held_silent_wallet_to_a_vault_stays_allowed_and_its_item_shows_the_a
     let fp = app.session.keys[0].fingerprint;
     testkit::release_made(&mut app, fp);
     let shown = crate::common::vault_wallet_item_text(&mut app);
-    assert!(shown.contains(&address[..24]), "{shown}");
+    assert!(packed(&shown).contains(&address[..24]), "{shown}");
     assert!(!shown.contains("does not match"), "{shown}");
 }
 

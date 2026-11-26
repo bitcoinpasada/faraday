@@ -64,6 +64,9 @@ pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
         return Vec::new();
     };
     let reached = s.key.is_some() || s.wallet.is_some();
+    // As the page: no part of an address a key waiting for its backup
+    // would receive on.
+    let waits = app.silent_waits_kept();
     (0..sstep::COUNT as u8)
         .map(|k| {
             let value = match k {
@@ -76,12 +79,10 @@ pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
                     .shown_kept(&app.session)
                     .and_then(|shown| shown.address)
                     .map(|a| {
-                        // As the page: no part of an address a key waiting
-                        // for its backup would receive on.
-                        if app.silent_waits_kept() {
+                        if waits {
                             EN.glance_back_up_before.to_string()
                         } else {
-                            String::from(&*crate::ui::short(&a))
+                            a.to_string()
                         }
                     }),
                 sstep::SCAN => reached.then(|| EN.silent_a_secret_shows.to_string()),
@@ -90,12 +91,14 @@ pub(super) fn rows(app: &crate::Faraday) -> Vec<flow::Row> {
                     None => EN.silent_needs_a_previous.to_string(),
                 }),
             };
-            crate::visible::choice_row(
+            let mut row = crate::visible::choice_row(
                 TITLES[usize::from(k)],
                 value.as_deref(),
                 k == sstep::KEY || k == sstep::ADDRESS,
                 (k, s.open == Some(k)),
-            )
+            );
+            row.address = k == sstep::ADDRESS && !waits;
+            row
         })
         .collect()
 }
@@ -138,8 +141,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
         sstep::ADDRESS if !app.silent_shown().key_here && s.wallet.is_some() => {
             // The wallet's own address needs no key, and is not checked
             // without it; labels need it.
-            let (a, role) = address_on_show(app);
-            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), role, &a) + GAP;
+            cy += address_on_show(app, ui, x, cy, w) + GAP;
             let fp = app
                 .silent
                 .named(&app.session)
@@ -199,9 +201,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 Action::SLabel(1),
             );
             cy += 52.0;
-            let (a, role) = address_on_show(app);
-            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), role, &a)
-                + faraday_draw::tokens::SILENT_LINE_GAP;
+            cy += address_on_show(app, ui, x, cy, w) + faraday_draw::tokens::SILENT_LINE_GAP;
             // As a receive address's code is not offered while it is held.
             let held = app.silent_held();
             let mut row = Vec::new();
@@ -314,20 +314,27 @@ fn ending(ui: &mut Ui, (x, y, w): (f32, f32, f32), back: crate::Screen, last: bo
     button_rows(ui, x, y, w, &row)
 }
 
-/// The address on show and the role it is drawn in: while its key made
-/// here waits for its backup, the warning a receive address is held back
-/// with, in its place.
-fn address_on_show(app: &View) -> (String, Role) {
+/// Draws the address on show whole, in groups of four, and returns its
+/// height. While its key made here waits for its backup, the warning a
+/// receive address is held back with stands in its place.
+fn address_on_show(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if app.silent_held() {
-        return (EN.glance_back_up_before.to_string(), Role::Warning);
+        return ui.wrap_as(
+            (x, y, w),
+            BODY_M.mono(),
+            Role::Warning,
+            EN.glance_back_up_before,
+        );
     }
-    (
-        app.silent_shown()
-            .address
-            .map(|a| a.to_string())
-            .unwrap_or_default(),
-        Role::OnSurface,
-    )
+    match app.silent_shown().address {
+        Some(a) => ui.address_whole(
+            (x, y, w),
+            BODY_M.mono(),
+            (Role::OnSurface.paint(), Role::OnSurfaceVariant.paint()),
+            a.as_str(),
+        ),
+        None => 0.0,
+    }
 }
 
 fn dns_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {

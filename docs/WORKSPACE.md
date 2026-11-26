@@ -1306,7 +1306,7 @@ between groups and only where the room requires it.
   line): the sentence, then the grouped address on its own lines under it.
 - **A typed address field** grows to the lines it needs, in groups of four.
 - Decode's wide table wraps an address wider than its column (built).
-- **Built:** Your choices' address row (the pane and the sheet; Sign a message's chosen address, the wallet's receive address at the number chosen, worked out at the press that chooses it and drawn only while the session still says what it said then), the Spend panel's first recipient (`Ui::address_whole`), and Explore's Address row and Addresses list and Find results, in groups of four at every size. Not built: Sign a message's list row, the lists of Check an address and Silent payments.
+- **Built:** Your choices' address row (the pane and the sheet; Sign a message's chosen address, the wallet's receive address at the number chosen, worked out at the press that chooses it and drawn only while the session still says what it said then), the Spend panel's first recipient (`Ui::address_whole`), Explore's Address row and Addresses list and Find results, and Silent payments' Address row in Your choices and its Address step, in groups of four at every size. Not built: Sign a message's list row, the lists of Check an address, and the address inside Silent payments' DNS record line.
 
 ## 19. What can be pressed, and its sign
 

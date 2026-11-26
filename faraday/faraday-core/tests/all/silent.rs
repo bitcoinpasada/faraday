@@ -46,6 +46,41 @@ fn drawn(app: &mut Faraday) -> String {
     app.drawn_texts().join(" ")
 }
 
+/// `text` without its spaces: an address is drawn in groups of four.
+fn packed(text: &str) -> String {
+    text.replace(' ', "")
+}
+
+/// How many times the current frame draws `address` whole in groups of
+/// four: its groups one after another, every character there.
+fn drawn_in_fours(app: &mut Faraday, address: &str) -> usize {
+    let chars: Vec<char> = address.chars().collect();
+    let groups: Vec<String> = chars.chunks(4).map(|g| g.iter().collect()).collect();
+    let texts: Vec<String> = app
+        .drawn_texts()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect();
+    texts.windows(groups.len()).filter(|w| *w == groups).count()
+}
+
+#[test]
+fn the_address_is_drawn_whole_in_groups_of_four_on_its_row_and_its_step() {
+    let c = faraday_core::testkit::compute();
+    let mut app = with_key();
+    app.press(Action::Silent);
+    let address = app.silent_address(&c).unwrap().to_string();
+    app.press(Action::SStep(faraday_core::silent::sstep::ADDRESS));
+    assert_eq!(
+        drawn_in_fours(&mut app, &address),
+        2,
+        "the row and the step"
+    );
+    // With another step open, the Address row alone names it.
+    app.press(Action::SStep(faraday_core::silent::sstep::KEY));
+    assert_eq!(drawn_in_fours(&mut app, &address), 1, "the row");
+}
+
 /// The first test key's silent payments record at `account`, its points
 /// derived at `at`, with the scan key replaced by `scan` when given.
 fn record_of(account: u32, at: u32, scan: Option<PublicKey>) -> SilentWallet {
@@ -629,14 +664,14 @@ fn a_record_loaded_before_its_key_shows_no_address_once_the_key_says_it_is_not_i
     assert!(!app.drawn_texts().iter().any(|t| t == "Here"), "{text}");
     assert!(!text.contains("Not checked"), "{text}");
     let address = bad.address();
-    assert!(!text.contains(&address[..16]), "{text}");
+    assert!(!packed(&text).contains(&address[..16]), "{text}");
     // Its row in the tile of the wallets (the tile where the list stood)
     // says so too, and shows no address, "Can spend" or key here.
     app.press(Action::Nav(Screen::WalletsStart));
     let text = drawn(&mut app);
     assert!(text.contains("Does not match its key"), "{text}");
     assert!(!text.contains("Can spend"), "{text}");
-    assert!(!text.contains(&address[..16]), "{text}");
+    assert!(!packed(&text).contains(&address[..16]), "{text}");
     // Its page: no address, no labels, no scan key.
     app.press(Action::SWallet(0));
     assert_eq!(app.screen, Screen::Silent);
@@ -1064,7 +1099,7 @@ fn a_record_that_differs_from_its_key_stays_without_an_address_on_the_pressed_ke
     assert_eq!(app.silent_record(&c), None);
     let text = drawn(&mut app);
     assert!(!text.contains("Show as QR"), "{text}");
-    assert!(!text.contains(&bad.address()[..16]), "{text}");
+    assert!(!packed(&text).contains(&bad.address()[..16]), "{text}");
 }
 
 #[test]
@@ -1235,7 +1270,7 @@ fn a_record_dropped_while_its_page_adds_a_key_ends_the_page_and_spares_the_other
     add_key_from_page(&mut app);
     assert_eq!(app.session.wallets.len(), 1);
     let text = drawn(&mut app);
-    assert!(!text.contains(&crafted.address()[..16]), "{text}");
+    assert!(!packed(&text).contains(&crafted.address()[..16]), "{text}");
     assert_ne!(app.screen, Screen::Silent);
     assert!(app.silent().is_none());
     // The other record keeps its labels.
@@ -1269,7 +1304,7 @@ fn a_wallets_page_follows_its_record_when_a_record_before_it_is_dropped() {
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.silent_wallet(), Some(&other));
     let text = drawn(&mut app);
-    assert!(!text.contains(&crafted.address()[..16]), "{text}");
+    assert!(!packed(&text).contains(&crafted.address()[..16]), "{text}");
 }
 
 #[test]
@@ -1438,7 +1473,7 @@ fn a_keys_address_under_another_fingerprint_stays_hidden_while_its_backup_waits_
     assert_eq!(app.silent_address(&c), None);
     assert_eq!(app.silent_record(&c), None);
     let text = drawn(&mut app);
-    assert!(!text.contains(&crafted.address()[..16]), "{text}");
+    assert!(!packed(&text).contains(&crafted.address()[..16]), "{text}");
     assert!(!text.contains("Show as QR"), "{text}");
 }
 
@@ -1622,7 +1657,7 @@ fn saving_a_record_that_differs_to_a_vault_is_refused_and_one_that_matches_is_sa
         0,
     )));
     let shown = crate::common::vault_wallet_item_text(&mut app);
-    assert!(shown.contains(&good.address()[..24]), "{shown}");
+    assert!(packed(&shown).contains(&good.address()[..24]), "{shown}");
     assert!(!shown.contains("does not match"), "{shown}");
 }
 
@@ -1639,14 +1674,14 @@ fn a_vault_item_whose_record_differs_from_the_loaded_key_says_so_and_shows_no_ad
         0,
     )));
     let shown = crate::common::vault_wallet_item_text(&mut app);
-    assert!(shown.contains(&bad.address()[..24]), "{shown}");
+    assert!(packed(&shown).contains(&bad.address()[..24]), "{shown}");
     add_key(&mut app);
     let shown = crate::common::vault_wallet_item_text(&mut app);
     assert!(
         shown.contains(&format!("does not match key {fp}")),
         "{shown}"
     );
-    assert!(!shown.contains(&bad.address()[..24]), "{shown}");
+    assert!(!packed(&shown).contains(&bad.address()[..24]), "{shown}");
     assert!(!shown.contains("Show as QR"), "{shown}");
 }
 
