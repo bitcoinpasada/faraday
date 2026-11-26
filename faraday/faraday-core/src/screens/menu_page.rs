@@ -317,18 +317,31 @@ fn faces<'a, 'b>(s: &'b Section<'a>) -> &'b [Face<'a>] {
 }
 
 /// The room a row's text has in a card `w` wide.
-fn row_room(face: &Face, w: f32) -> f32 {
+fn row_room(ui: &Ui, face: &Face, w: f32) -> f32 {
     let lead = match face.mark {
         Mark::None => 0.0,
         Mark::Beside(_) | Mark::Above(_) => MENU_ROW_ICON + LIST_PAD,
     };
-    w - 2.0 * LIST_PAD - lead - CHEVRON - LIST_PAD
+    w - 2.0 * LIST_PAD - lead - CHEVRON - LIST_PAD - tags_w(ui, face)
+}
+
+/// The width a row's tags take before its chevron, with the gap that
+/// keeps its name and line clear of them: nothing for a row without tags.
+fn tags_w(ui: &Ui, face: &Face) -> f32 {
+    if face.tags.is_empty() {
+        return 0.0;
+    }
+    face.tags
+        .iter()
+        .map(|tag| ui.measure_as(LABEL_S.mono(), tag) + MENU_TAG_PAD + MENU_TAG_GAP)
+        .sum::<f32>()
+        + GRID
 }
 
 /// A row's height in a card `w` wide: Material's two-line list item, taller
 /// where its name or line wraps.
 fn row_height(ui: &Ui, face: &Face, w: f32) -> f32 {
-    let room = row_room(face, w);
+    let room = row_room(ui, face, w);
     let name = ui.wrap_height_as(BODY_L, face.name, room);
     if face.line.is_empty() {
         return (name + 2.0 * LIST_PAD_V).max(LIST_1);
@@ -413,7 +426,7 @@ fn draw_row(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), face: &Face) {
         ui.icon(tx, iy, MENU_ROW_ICON, glyph, HOME_TILE_GLYPH, fg);
         tx += MENU_ROW_ICON + LIST_PAD;
     }
-    let room = row_room(face, w);
+    let room = row_room(ui, face, w);
     let name = ui.wrap_height_as(BODY_L, face.name, room);
     let line = if face.line.is_empty() {
         0.0
