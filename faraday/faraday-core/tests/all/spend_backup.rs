@@ -1937,10 +1937,163 @@ fn a_guess_by_spend_as_a_single_keeps_its_key_when_another_is_loaded() {
     load_on_home(&mut app, "zebra");
     assert_ne!(last_loaded(&app), a);
     app.press(Action::Nav(Screen::SpendBackup));
+    let _ = drawn(&mut app);
+    assert!(app.offers(Action::SpendBackup(F::NoMoney)));
     app.press(Action::SpendBackup(F::NoMoney));
     app.press(Action::SpendBackup(F::Passphrase(false)));
     assert_eq!(chosen_key(&app), a, "another key's wallet");
     assert_eq!(chosen_address(&app), kit_address("taproot"));
+}
+
+/// Published words (BIP-39's own vectors) that are not among Faraday's
+/// public samples, so Mainnet, where the caution is, lets them be kept.
+const LEGAL: &str = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+const LETTER: &str =
+    "letter advice cage absurd amount doctor acoustic avoid letter advice cage above";
+const ZOO: &str = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong";
+const LEGAL_18: &str = "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal will";
+
+fn on_mainnet() -> Faraday {
+    let mut app = shown_at(2000);
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
+    app
+}
+
+/// Type `words` on Home, up to the published-words caution.
+fn typed_on_home(app: &mut Faraday, words: &str) {
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    type_text(app, words);
+    app.press(Action::EntryAdd);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+}
+
+/// Type `words` on Home and answer the caution with **Remove**: the key
+/// never stays.
+fn load_on_home_and_remove(app: &mut Faraday, words: &str) {
+    let held = app.session.keys.len();
+    typed_on_home(app, words);
+    app.press(Action::PublishedRemove);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.keys.len(), held);
+}
+
+/// Another key removed leaves the guess, and its next way is made from
+/// its own key.
+#[test]
+fn another_key_removed_keeps_a_guess_by_spend_as_a_single() {
+    let mut app = on_mainnet();
+    typed_on_home(&mut app, LEGAL);
+    app.press(Action::PublishedKeep);
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::SeedWallet));
+    let a = chosen_key(&app);
+    let segwit = chosen_address(&app);
+    load_on_home_and_remove(&mut app, LETTER);
+    app.press(Action::Nav(Screen::SpendBackup));
+    let _ = drawn(&mut app);
+    assert!(app.spend_backup_guess().is_some());
+    assert!(app.offers(Action::SpendBackup(F::NoMoney)));
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(false)));
+    assert_eq!(chosen_key(&app), a, "another key's wallet");
+    let taproot = chosen_address(&app);
+    assert_ne!(taproot, segwit);
+    assert!(taproot.starts_with("bc1p"), "{taproot}");
+}
+
+/// A published key removed leaves a multisig wallet of other loaded
+/// keys, and a guess on one more key.
+#[test]
+fn another_key_removed_leaves_a_multisig_wallet_and_the_guess() {
+    let mut app = on_mainnet();
+    for words in [LETTER, ZOO] {
+        typed_on_home(&mut app, words);
+        app.press(Action::PublishedKeep);
+    }
+    // The multisig of the two, made from the card.
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    for words in [LETTER, ZOO] {
+        app.press(Action::SpendBackup(F::TypeWords));
+        type_text(&mut app, words);
+        app.press(Action::EntryAdd);
+        faraday_core::testkit::keep_published(&mut app);
+    }
+    app.press(Action::SpendBackup(F::NoDescription));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    assert_eq!(app.session.wallets.len(), 1, "no multisig was made");
+    let multi = app.session.wallets[0].id();
+    assert_eq!(app.session.slots(&app.session.wallets[0]).len(), 2);
+    // With no guess open, Spend as a single takes the last key loaded.
+    typed_on_home(&mut app, LEGAL);
+    app.press(Action::PublishedKeep);
+    let own = last_loaded(&app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::StartOver));
+    app.press(Action::SpendBackup(F::SeedWallet));
+    assert!(app.spend_backup_guess().is_some());
+    assert_eq!(chosen_key(&app), own, "the guess is not on the last key");
+    let single = app.spend_backup_wallet();
+    let address = chosen_address(&app);
+    let wallets = app.session.wallets.len();
+    load_on_home_and_remove(&mut app, LEGAL_18);
+    assert_eq!(app.session.wallets.len(), wallets);
+    assert!(app.session.wallets.iter().any(|w| w.id() == multi));
+    app.press(Action::Nav(Screen::SpendBackup));
+    let _ = drawn(&mut app);
+    assert!(app.spend_backup_guess().is_some());
+    assert_eq!(app.spend_backup_wallet(), single);
+    assert_eq!(chosen_address(&app), address);
+    assert!(app.offers(Action::SpendBackup(F::NoMoney)));
+}
+
+/// A guess moved to the passphrase key: Check the money on the tab, with
+/// the wallet of that key chosen.
+fn guessed_with_a_passphrase() -> Faraday {
+    let mut app = guessed_single();
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(true)));
+    for f in [0u8, 1] {
+        app.press(Action::SeedRead(Choice::Field(f)));
+        type_text(&mut app, "kept apart");
+    }
+    app.press(Action::SeedRead(Choice::WithPass));
+    assert_eq!(app.sheet, None);
+    app
+}
+
+#[test]
+fn a_guess_with_a_passphrase_keeps_its_key_when_another_is_loaded() {
+    let mut app = guessed_with_a_passphrase();
+    let p = chosen_key(&app);
+    load_on_home(&mut app, "zebra");
+    assert_ne!(last_loaded(&app), p);
+    app.press(Action::Nav(Screen::SpendBackup));
+    let _ = drawn(&mut app);
+    assert!(app.offers(Action::SpendBackup(F::NoMoney)));
+    app.press(Action::SpendBackup(F::NoMoney));
+    assert_eq!(chosen_key(&app), p, "another key's wallet");
+    let text = drawn(&mut app);
+    assert!(
+        text.contains("Trying: Taproot, with a passphrase · 3 of 5"),
+        "{text}"
+    );
+}
+
+#[test]
+fn removing_the_passphrase_key_ends_the_guess() {
+    let mut app = guessed_with_a_passphrase();
+    let wallet = app.spend_backup_wallet();
+    let address = chosen_address(&app);
+    crate::common::remove_every_key(&mut app);
+    load_on_home(&mut app, "bacon");
+    app.press(Action::Nav(Screen::SpendBackup));
+    assert!(app.spend_backup_guess().is_none());
+    app.press(Action::SpendBackup(F::NoMoney));
+    assert_eq!(app.spend_backup_wallet(), wallet);
+    assert_eq!(chosen_address(&app), address);
 }
 
 /// A guess from one typed seed, with a restored wallet chosen under Spend

@@ -1088,6 +1088,10 @@ impl Faraday {
     /// keys gone in one press. A guess made from this key, or whose
     /// wallet has it in a slot, goes too: its other kinds have no key to
     /// be made from.
+    ///
+    /// `own_gone` below (the guess's key is no longer loaded) with the
+    /// chosen wallet not holding `fp` is reached by no press sequence on
+    /// its own, so no test covers it alone.
     pub(crate) fn spend_backup_forget_key(&mut self, fp: Fingerprint) {
         let own_gone = self
             .spend_backup
