@@ -1606,22 +1606,29 @@ impl Faraday {
                 ));
             }
         };
+        // The signed message's picture is held back as its text file is,
+        // while the key that signed waits for its backup: its code is the
+        // one view of that title. A signature since dropped has no picture.
+        let signer = if v.title == EN.code_view_signed_message {
+            let Some(signer) = self.message.signer() else {
+                return self.toast(EN.message_waits_backup);
+            };
+            Some(signer)
+        } else {
+            None
+        };
         match v.png(&c) {
             Some((name, bytes)) => {
-                // The signed message's picture is held back as its text
-                // file is, while the key that signed waits for its backup:
-                // its code is the one view of that title.
-                let signed = (v.title == EN.code_view_signed_message)
-                    .then(|| self.message_signer())
-                    .flatten()
-                    .map(|key| (crate::sha256_of(&c, &bytes), key));
+                let signed = signer.map(|signer| (crate::sha256_of(&c, &bytes), signer));
                 self.put_outbox(&name, bytes);
-                if let Some((sha, key)) = signed {
+                if let Some((sha, (key, id))) = signed {
                     if let Some(item) = self.outbox.iter_mut().find(|i| i.name == name) {
                         item.sha = Some(sha);
                     }
-                    let id = self.message.signer();
-                    self.message.file_signed(&name, sha, key, id);
+                    self.message.file_signed(&name, sha, key, Some(id));
+                    // The record is new: a hold already on its key takes
+                    // it.
+                    self.sync_waiting();
                 }
                 self.toast_out(&name);
             }

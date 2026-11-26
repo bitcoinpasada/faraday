@@ -546,6 +546,62 @@ fn a_picture_made_with_the_signing_key_away_is_held_back() {
     assert_held_without_the_key(&mut next, &picture);
 }
 
+/// A signature outlives its wallet, and so does the record of who signed: a
+/// picture made of it after the wallet was removed, while the key waits for
+/// its backup, is not ticked and stays held in the next process.
+#[test]
+fn a_picture_made_after_the_wallet_was_removed_is_held_back() {
+    let (mut app, text) = signed_file();
+    app.press(Action::RemoveWallet(0));
+    assert!(app.session.wallets.is_empty());
+    hold(&mut app);
+    app.press(Action::Resume(Going::Message));
+    app.press(Action::MQr);
+    app.press(Action::QrPng);
+    if app.qr().is_some() {
+        app.press(Action::Cancel);
+    }
+    let picture = app
+        .outbox
+        .iter()
+        .map(|i| i.name.to_string())
+        .find(|n| n.ends_with(".png"))
+        .expect("the picture");
+    assert!(!app.visit().out.contains(picture.as_str()), "unticked");
+    // The text file goes, so the first row is the picture's.
+    app.press(Action::Nav(Screen::Files));
+    assert_eq!(app.outbox[0].name.as_str(), text);
+    app.press(Action::OutboxRemove(0));
+    if app.sheet.is_some() {
+        app.press(Action::OutboxDeleteHold);
+    }
+    assert_eq!(app.outbox.len(), 1);
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    let mut next = restarted(app);
+    assert_eq!(next.session.keys.all().count(), 0);
+    assert_held_without_the_key(&mut next, &picture);
+}
+
+/// A key held while the signed message's code is on show: the signature is
+/// dropped, its code goes with it, and no picture of it is made.
+#[test]
+fn a_code_on_show_goes_with_a_dropped_signature() {
+    let (mut app, text) = signed_file();
+    app.press(Action::MQr);
+    let _ = app.frame();
+    assert!(app.offers(Action::QrPng));
+    hold(&mut app);
+    assert!(testkit::message(&app).unwrap().signed.is_none());
+    assert!(app.qr().is_none(), "no code");
+    assert!(app.sheet.is_none(), "no sheet");
+    app.press(Action::QrPng);
+    assert_eq!(app.outbox.len(), 1, "no picture");
+    assert_eq!(app.outbox[0].name.as_str(), text);
+    // After a press, which draws anew.
+    let _ = app.frame();
+    assert!(!app.offers(Action::QrPng));
+}
+
 #[test]
 fn a_file_made_before_the_hold_is_held_back() {
     let (mut app, name) = signed_file();
