@@ -87,6 +87,7 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
             | Action::KNext
             | Action::Own(crate::fresh::page::Act::Skip)
             | Action::LKey(_)
+            | Action::KeyTool(crate::KeyTool::Lightning, _)
             | Action::LCln(Some(_))
             | Action::LResolve
             | Action::LFile(_)

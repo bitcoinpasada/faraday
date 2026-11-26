@@ -8,6 +8,17 @@ use crate::{
 use crate::{Faraday, Sheet, StorageCommand, address_check, check, invoice, kef_tool, stick};
 use faraday_shell_api::Command;
 
+/// A tool whose flow a key's details open with that key picked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyTool {
+    /// BIP-85: child seeds and passwords.
+    Derive,
+    /// Silent payments.
+    Silent,
+    /// The Lightning node key, as ldk-node reads it.
+    Lightning,
+}
+
 /// Everything a press can do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
@@ -627,6 +638,9 @@ pub enum Action {
     Explore,
     /// Open Explore on this loaded seed, by fingerprint.
     ExploreKey([u8; 4]),
+    /// Open this tool's flow with this loaded key, by fingerprint, picked;
+    /// leaving it returns to where it was pressed.
+    KeyTool(KeyTool, [u8; 4]),
     /// A press on a key's, wallet's or file's row of a menu page's pane: its details open in the page's second pane.
     RowOpen(crate::row_open::Row),
     /// Back from a row's details to the page.
@@ -1564,6 +1578,17 @@ impl Faraday {
             | Action::TTake => self.tools_act(action),
             Action::RowOpen(row) => crate::row_open::act(self, row),
             Action::RowClose => crate::row_open::close(self),
+            Action::KeyTool(tool, fp) if self.session.keys.position_of(fp).is_some() => {
+                match tool {
+                    KeyTool::Derive => self.bip85_open_on(Some(fp)),
+                    KeyTool::Silent => self.silent_open_on(fp),
+                    KeyTool::Lightning => {
+                        self.lightning_act(Action::Lightning);
+                        self.lightning_act(Action::LKey(fp));
+                    }
+                }
+            }
+            Action::KeyTool(..) => {}
             Action::ExploreKey(fp) => {
                 self.explore_act(Action::Explore);
                 self.explore_act(Action::XKey(fp));

@@ -5,12 +5,12 @@
 //! nothing out beyond the one file's shared list.
 
 use super::wallets::actions::{self, Offer};
-use crate::Action;
 use crate::drawing::View;
 use crate::row_open::Opened;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Region, Ui};
+use crate::{Action, KeyTool};
 use faraday_draw::tokens::{BODY_L, BODY_M, ELEVATION_SHEET, GRID, PAD, SHAPE_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::section_label;
@@ -46,18 +46,37 @@ pub(crate) fn bar_when(app: &View, ui: &mut Ui, page: &str, stands: bool) -> f32
 }
 
 /// What key `fp` offers, every action that can open with it picked, whether
-/// or not a wallet uses it: Explore it, Convert it (both in the order of
-/// Tools), Make a wallet from this key, Start a multisig wallet with this
-/// key and Restore.
-fn key_offers(fp: [u8; 4]) -> Vec<Offer> {
+/// or not a wallet uses it, in the order of Tools: Explore it, Derive from
+/// it, Convert it, its silent payments, its Lightning node key, Make a
+/// wallet from this key, Start a multisig wallet with this key, Restore,
+/// and Add to vault where the open vault can take it. A tool that would
+/// not take the key is left out.
+fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
     let convert = Action::Convert(crate::convert::ConvertAction::OpenOn(fp));
-    vec![
+    let tool = |label, tool| actions::offer(label, None, Action::KeyTool(tool, fp));
+    // The node key is made from BIP-39 words.
+    let has_words = app
+        .session
+        .keys
+        .all()
+        .any(|k| k.fingerprint.0 == fp && k.has_words());
+    let mut list = vec![
         actions::offer(
             EN.explore_explore,
             Some(Icon::Explore),
             Action::ExploreKey(fp),
         ),
+        tool(EN.catalog_child_seeds, KeyTool::Derive),
         actions::offer(EN.convert_way_in, offer_icon(convert), convert),
+    ];
+    // A key waiting for its backup has its silent payments address held.
+    if !app.key_held(faraday_bip::keys::Fingerprint(fp)) {
+        list.push(tool(EN.catalog_silent_payments, KeyTool::Silent));
+    }
+    if has_words {
+        list.push(tool(EN.catalog_lightning_node, KeyTool::Lightning));
+    }
+    list.extend([
         actions::offer(
             super::parts::FROM_KEY,
             Some(Icon::Wallet),
@@ -73,7 +92,15 @@ fn key_offers(fp: [u8; 4]) -> Vec<Offer> {
             offer_icon(Action::RestoreWallet),
             Action::RestoreWallet,
         ),
-    ]
+    ]);
+    if let Some(save) = super::session_pane::key_save(app, fp) {
+        list.push(actions::offer(
+            EN.add_to_vault_button,
+            offer_icon(save),
+            save,
+        ));
+    }
+    list
 }
 
 /// The icon an action carries elsewhere (a wallet's group, the first
@@ -114,7 +141,7 @@ fn file_offers(app: &View, k: usize) -> Vec<Offer> {
 fn body(app: &View, ui: &mut Ui, opened: Opened, (x, y): (f32, f32), w: f32) -> f32 {
     let (offers, facts) = match opened {
         Opened::Key(fp) => (
-            key_offers(fp),
+            key_offers(app, fp),
             super::session_pane::key_facts(app, fp).map(|(head, sub)| (head, sub, true)),
         ),
         Opened::File(k) => (

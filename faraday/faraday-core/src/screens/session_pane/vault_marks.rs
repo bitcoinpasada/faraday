@@ -18,6 +18,28 @@ fn the_vault(app: &View) -> Option<bool> {
     (open.len() == 1 && app.vaults.current_id().is_some()).then(|| open[0].read_only().is_none())
 }
 
+/// Whether session key `k` has what a vault keeps of a key.
+fn savable(app: &View, k: usize, has_words: bool) -> bool {
+    has_words || app.session.keys.holds_seed_bytes(k)
+}
+
+/// The Save of key `fp` into the open vault, on the terms of its row's
+/// mark: one vault open that can be written, the key one a vault keeps and
+/// its words not in it already.
+pub(crate) fn key_save(app: &View, fp: [u8; 4]) -> Option<Action> {
+    if !the_vault(app)? {
+        return None;
+    }
+    let (k, key) = app
+        .session
+        .keys
+        .all()
+        .enumerate()
+        .find(|(_, key)| key.fingerprint.0 == fp)?;
+    let words = app.vault_holds_seed_kept(app.vaults.current, k, false);
+    (!words && savable(app, k, key.has_words())).then_some(Action::Vault(V::SaveKey(k)))
+}
+
 /// Marks the key rows and the wallet rows of Vaults' pane. A row not held
 /// carries Save where the vault can be written, its own press kept as the
 /// row's `open`.
@@ -33,7 +55,6 @@ pub(super) fn mark(app: &View, keys: &mut [SessionRow], wallets: &mut [SessionRo
         // nowhere.
         let words = app.vault_holds_seed_kept(cur, k, false);
         let held = app.vault_holds_seed_kept(cur, k, true);
-        let savable = key.has_words() || app.session.keys.holds_seed_bytes(k);
         let mark = match (held, words) {
             (true, _) => EN.session_mark_in_a_vault,
             (false, true) => EN.session_mark_words_in_a_vault,
@@ -42,7 +63,7 @@ pub(super) fn mark(app: &View, keys: &mut [SessionRow], wallets: &mut [SessionRo
         put(
             row,
             mark,
-            !words && writable && savable,
+            !words && writable && savable(app, k, key.has_words()),
             Action::Vault(V::SaveKey(k)),
         );
     }

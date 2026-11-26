@@ -5,13 +5,16 @@
 //! flow begun from the details returns to them.
 
 use faraday_core::convert::ConvertAction as C;
+use faraday_core::lightning::NodeSource;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit::KindText;
-use faraday_core::{Action, Faraday, Row, Screen};
+use faraday_core::{Action, Faraday, KeyTool, Row, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const WORDS: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
                       abandon abandon about";
+const OTHER_WORDS: &str =
+    "legal winner thank year wave sausage worth useful legal winner thank yellow";
 
 fn desktop() -> Faraday {
     desktop_of(768)
@@ -1271,4 +1274,129 @@ fn a_used_keys_details_offer_another_form_with_the_key_picked() {
 fn a_used_keys_details_offer_explore() {
     let (app, _) = used_key_press(Action::ExploreKey);
     assert_eq!(app.screen, Screen::Explore);
+}
+
+#[test]
+fn a_keys_details_offer_add_to_vault_and_it_saves_that_key() {
+    use faraday_core::vault::VaultAction as V;
+    // Tall enough for the whole group.
+    let mut app = desktop_of(1400);
+    let fp = add_key(&mut app, WORDS);
+    let vault = faraday_core::testkit::test_vault().unwrap();
+    faraday_core::testkit::inbox_file(&mut app, "vault.kdbx", vault);
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(details_of(&mut app, fp));
+    assert!(
+        !app.offers(Action::Vault(V::SaveKey(0))),
+        "no vault is open"
+    );
+    app.press(Action::Vault(V::Open(0)));
+    for c in faraday_core::testkit::VAULT_PASSPHRASE.chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
+    // The unlock asks what to load from the vault: nothing.
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::RowOpen(Row::Key(fp)));
+    let save = Action::Vault(V::SaveKey(0));
+    assert!(shown(&mut app, save), "Add to vault");
+    let records = |app: &Faraday| {
+        let id = app.vaults().open[0].id;
+        app.vaults().store().contents_for_tests(id).len()
+    };
+    let before = records(&app);
+    app.press(save);
+    let _ = app.frame();
+    assert_eq!(records(&app), before + 1, "the vault has the key");
+    assert!(!app.offers(save), "offered again");
+}
+
+/// Back until the flow on `flow` is left: the key's details are there again.
+fn back_to_the_details(app: &mut Faraday, flow: Screen, fp: [u8; 4]) {
+    // Back steps back through the flow's cards, then leaves it.
+    for _ in 0..6 {
+        if app.screen != flow {
+            break;
+        }
+        let _ = app.frame();
+        let (x, y) = app.back_offered().expect("a way back");
+        touch(app, (x, y));
+    }
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(details_of(app, fp), "back in the key's details");
+}
+
+#[test]
+fn a_keys_details_offer_derive_with_the_key_picked() {
+    let (mut app, fp) = used_key_press(|fp| Action::KeyTool(KeyTool::Derive, fp));
+    assert_eq!(app.screen, Screen::Bip85);
+    assert_eq!(app.bip85().and_then(|b| b.key), Some(fp));
+    back_to_the_details(&mut app, Screen::Bip85, fp);
+}
+
+#[test]
+fn a_keys_details_offer_silent_payments_with_the_key_picked() {
+    let (mut app, fp) = used_key_press(|fp| Action::KeyTool(KeyTool::Silent, fp));
+    assert_eq!(app.screen, Screen::Silent);
+    assert_eq!(app.silent().and_then(|s| s.key), Some(fp));
+    back_to_the_details(&mut app, Screen::Silent, fp);
+}
+
+#[test]
+fn a_keys_details_offer_the_lightning_node_key_with_the_key_picked() {
+    let (mut app, fp) = used_key_press(|fp| Action::KeyTool(KeyTool::Lightning, fp));
+    assert_eq!(app.screen, Screen::Lightning);
+    let source = app.lightning().and_then(|l| l.source);
+    assert_eq!(source, Some(NodeSource::Key(fp)));
+    back_to_the_details(&mut app, Screen::Lightning, fp);
+}
+
+#[test]
+fn a_key_with_two_keys_loaded_opens_each_tool_on_the_one_whose_details_are_open() {
+    let (mut app, fp) = tools_with_key();
+    add_key(&mut app, OTHER_WORDS);
+    app.press(Action::RowOpen(Row::Key(fp)));
+    let tool = Action::KeyTool(KeyTool::Derive, fp);
+    assert!(shown(&mut app, tool));
+    app.press(tool);
+    assert_eq!(app.bip85().and_then(|b| b.key), Some(fp));
+}
+
+#[test]
+fn a_key_without_words_is_not_offered_the_lightning_node_key() {
+    let mut app = desktop();
+    let c = faraday_core::testkit::compute();
+    app.session.keys.add_seed(&c, &[7u8; 32], "").unwrap();
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(shown(&mut app, Action::KeyTool(KeyTool::Derive, fp)));
+    assert!(app.offers(Action::KeyTool(KeyTool::Silent, fp)));
+    assert!(!app.offers(Action::KeyTool(KeyTool::Lightning, fp)));
+}
+
+#[test]
+fn a_key_waiting_for_its_backup_is_not_offered_silent_payments() {
+    let (mut app, fp) = tools_with_key();
+    faraday_core::testkit::keep_published(&mut app);
+    let made = app.session.keys[0].fingerprint;
+    faraday_core::testkit::mark_made_here(&mut app, made);
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(shown(&mut app, Action::KeyTool(KeyTool::Derive, fp)));
+    assert!(!app.offers(Action::KeyTool(KeyTool::Silent, fp)));
 }

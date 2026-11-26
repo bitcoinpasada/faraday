@@ -29,6 +29,7 @@ pub(crate) use page_mode::{
 };
 pub(crate) use rows::key_facts;
 use rows::{Group, compact_rows, groups};
+pub(crate) use vault_marks::key_save;
 
 /// Home's card for the stacked pages: Home's rows at Home's width, `w`
 /// wide at `(x, y)`, whole (it does not scroll within). Returns its

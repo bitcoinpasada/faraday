@@ -1122,6 +1122,12 @@ impl Faraday {
         in_vaults.map(|r| r.labels).fold(handed, u32::max)
     }
 
+    /// Opens the flow with loaded key `fp` picked.
+    pub(crate) fn silent_open_on(&mut self, fp: [u8; 4]) {
+        self.silent.open_for(&self.session, self.screen, fp);
+        self.screen = Screen::Silent;
+    }
+
     /// The record of the wallet the flow is the page of.
     pub fn silent_wallet(&self) -> Option<&SilentWallet> {
         self.silent.wallet(&self.session)

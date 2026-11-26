@@ -637,8 +637,11 @@ window never scrolls as a whole.
    by its fingerprint, a wallet by its identity, a file by its name and
    size) in its own area; a key offers every action possible for it, whether or not a
    wallet uses it (a key a wallet uses can go into another): its details offer
-   Explore, Convert, Make a wallet from this key, Start a multisig wallet with
-   this key and Restore; a wallet's are its page; a file's are its shared list, then
+   Explore, Child seeds and passwords, Convert, Silent payments (not while the
+   key waits for its backup), Lightning node key (a key with words), Make a
+   wallet from this key, Start a multisig wallet with this key and Restore, and
+   Add to vault while one vault is open that can take it; a tool opens with
+   the key picked; a wallet's are its page; a file's are its shared list, then
    its kind and size as Files says them. A row
    with a button opens them on a press beside the button. The offers end in the chevron where they open a page or flow
    and not where they act at once (F332). A flow begun from the details

@@ -263,7 +263,7 @@ pub mod testkit;
 pub mod tools;
 pub mod wordlist;
 
-pub use action::{Action, ChoicesPress};
+pub use action::{Action, ChoicesPress, KeyTool};
 #[cfg(feature = "testkit")]
 pub use at_lock::Area;
 pub use compact::OskPress;

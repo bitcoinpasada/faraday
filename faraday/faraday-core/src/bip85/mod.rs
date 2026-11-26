@@ -534,6 +534,11 @@ impl Faraday {
     /// Opens the flow.
     pub(crate) fn bip85_open(&mut self) {
         let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
+        self.bip85_open_on(key);
+    }
+
+    /// Opens the flow with `key` picked, if one is given.
+    pub(crate) fn bip85_open_on(&mut self, key: Option<[u8; 4]>) {
         self.bip85.open(key, self.screen);
         self.screen = Screen::Bip85;
     }

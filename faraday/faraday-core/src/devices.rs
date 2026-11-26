@@ -612,6 +612,7 @@ impl Faraday {
                         | Action::SDescriptorOut(_)
                         | Action::SecretUnprotected
                         | Action::Bip85
+                        | Action::KeyTool(crate::KeyTool::Derive, _)
                         | Action::Vault(
                             V::Unlock | V::Show(_) | V::FocusPassphrase | V::PaperkeyQr
                         )
