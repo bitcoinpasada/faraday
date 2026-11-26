@@ -61,11 +61,21 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// The pick of a tool that takes codes: the held files its field takes,
-/// the one in the field marked, then Type it and Scan.
+/// the one in the field marked, then Type it and Scan. In Convert an xpub
+/// a watch-only key's row says the key and puts its xpub; a key with a
+/// seed has no row.
 pub(crate) fn pick(app: &crate::Faraday, t: &crate::tools::ToolsState) -> crate::flow::Pick {
     use faraday_draw::widgets::Icon;
     crate::pick::Decl::new(tool_name(t.tool))
         .files(app, |k, i| {
+            let key = (t.tool == Tool::ConvertKey)
+                .then(|| crate::tools::watch_only_key(i))
+                .flatten();
+            if let Some(key) = key {
+                let held = crate::tools::bare_xpub(&key) == t.typed.trim();
+                let take = crate::pick::Take::of(held, Action::TKey(k));
+                return Some(take.line(key.to_string()));
+            }
             crate::tools::file_fits(i.kind).then(|| {
                 let held = i.bytes.trim_ascii() == t.typed.trim().as_bytes();
                 crate::pick::Take::of(held, Action::TFile(k))

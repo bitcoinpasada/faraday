@@ -36,6 +36,22 @@ pub(crate) fn file_fits(kind: crate::wallet::FileKind) -> bool {
     matches!(kind, K::Wallet | K::Key | K::Text)
 }
 
+/// The watch-only key a held file is, as the file gives it: an account xpub
+/// file that holds one key. A file of several keys is none: a row puts one
+/// xpub. Costs a read of the file's key (a base58 decode).
+pub(crate) fn watch_only_key(item: &crate::item::Item) -> Option<Text> {
+    if item.kind != crate::wallet::FileKind::Key {
+        return None;
+    }
+    let mut keys = crate::create::read_keys(std::str::from_utf8(&item.bytes).ok()?);
+    if keys.len() == 1 { keys.pop() } else { None }
+}
+
+/// A key's xpub without its origin, which the converter does not read.
+pub(crate) fn bare_xpub(key: &str) -> &str {
+    key.rsplit_once(']').map_or(key, |(_, xpub)| xpub)
+}
+
 /// The calculators, in the order Tools lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
@@ -752,6 +768,7 @@ impl Faraday {
         match action {
             crate::Action::TScan => self.tools_scan(),
             crate::Action::TFile(i) => self.tools_file(i),
+            crate::Action::TKey(i) => self.tools_xpub(i),
             _ => self.tools.act(action),
         }
     }
@@ -784,6 +801,17 @@ impl Faraday {
         }
         let text = faraday_text::Text::from_utf8_lossy(&item.bytes);
         self.tools_fill(text.trim());
+    }
+
+    /// The xpub of the watch-only key at `i` in Files put in Convert an
+    /// xpub's field.
+    fn tools_xpub(&mut self, i: usize) {
+        if !(self.tools.state()).is_some_and(|t| t.tool == Tool::ConvertKey) {
+            return;
+        }
+        if let Some(key) = self.inbox.get(i).and_then(watch_only_key) {
+            self.tools_fill(bare_xpub(&key));
+        }
     }
 
     /// The field takes `text` in place of what it holds, or a toast says

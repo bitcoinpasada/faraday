@@ -1,7 +1,7 @@
 //! The calculators on Faraday's Tools screen: what is typed
 //! reaches the calculator, and the answers are the published ones.
 
-use crate::common::{has, offered, through_fade};
+use crate::common::{has, has_part, offered, through_fade};
 use faraday_bip::hashes::hashes;
 use faraday_bip::slip132::{KeyReading, key_facts};
 use faraday_codec::encodings::read_input;
@@ -496,6 +496,48 @@ fn a_tool_with_ways_in_has_them_as_the_pick_on_a_wide_window() {
         through_fade(&mut app);
         assert!(has(&mut app, EN.tools_way_type), "{which:?}");
     }
+}
+
+/// Convert an xpub's pick on a wide window: a watch-only key's row says the
+/// key with its origin and puts its xpub in the field, which converts.
+#[test]
+fn a_watch_only_keys_row_puts_its_xpub_in_the_converter() {
+    let keys = [0, 1].map(|n| testkit::key(n, "m/84h/1h/0h"));
+    let mut app = wide();
+    for (name, key) in ["first.txt", "second.txt"].into_iter().zip(&keys) {
+        testkit::inbox_file(&mut app, name, format!("{key}\n").into_bytes());
+    }
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    through_fade(&mut app);
+    for (at, key) in keys.iter().enumerate() {
+        assert!(has_part(&mut app, &key[..9]), "{key}");
+        assert!(offered(&mut app, Action::TKey(at)), "{key}");
+        app.press(Action::TKey(at));
+        let typed = testkit::tools(&app).unwrap().typed.to_string();
+        assert_eq!(Some(typed.as_str()), key.split_once(']').map(|k| k.1));
+        assert!(matches!(
+            key_facts(&typed, app.session.network()),
+            KeyReading::Public(_)
+        ));
+    }
+}
+
+/// A key with a seed has no row in Convert an xpub's pick: it has an xpub
+/// for every account, and a row puts one.
+#[test]
+fn a_key_with_a_seed_has_no_row_in_the_converters_pick() {
+    let mut app = wide();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, SEED, "", None).unwrap();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    through_fade(&mut app);
+    assert!(has(&mut app, EN.tools_way_type));
+    assert!(!has_part(&mut app, "73c5da0a"));
+    assert!(!has_part(&mut app, "73C5DA0A"));
+    assert!(!offered(&mut app, Action::TKey(0)));
+    assert!(!offered(&mut app, Action::TFile(0)));
 }
 
 /// A tool that is only typed into opens straight on its field: no pick.
