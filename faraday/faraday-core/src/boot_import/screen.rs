@@ -378,7 +378,7 @@ fn unlocking(app: &View, file: usize) -> String {
 /// height.
 fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
     let mut cy = y;
-    for (i, f) in v.files.iter().enumerate() {
+    for f in &v.files {
         let top = cy;
         let tw = w - 28.0;
         let height = ui.line_as(BODY_M.mono())
@@ -412,7 +412,7 @@ fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
             &f.line,
         ) + 2.0;
         if f.enabled {
-            ui.press_box(x - 4.0, top, w + 8.0, cy - top, ia(I::File(i)));
+            ui.press_box(x - 4.0, top, w + 8.0, cy - top, ia(I::File(f.id)));
         }
         cy += 10.0;
     }

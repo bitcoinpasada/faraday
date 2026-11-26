@@ -369,7 +369,10 @@ impl Faraday {
                     fill(EN.file_menu_delete_from_medium, &[self.medium.noun()]),
                     Action::File(FilePress::StickDelete(k)),
                 ));
-                out.push(details);
+                // Not while the import's list stands: Details reads the file.
+                if !self.import_tile_up() {
+                    out.push(details);
+                }
             }
         }
         out
@@ -377,6 +380,11 @@ impl Faraday {
 
     /// A press about a file row's ⋮.
     pub(crate) fn file_act(&mut self, p: FilePress) {
+        // Details hashes a file of the stick: nothing of the import's stick
+        // is read before Import (F328 point 2).
+        if matches!(p, FilePress::Details(Row::Stick(_))) && self.import_tile_up() {
+            return;
+        }
         let c = self.compute();
         // A choice in the menu leaves it.
         if matches!(
