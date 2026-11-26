@@ -7,8 +7,10 @@
 
 use super::{Foot, TakeAway};
 use crate::screens::visit::{ListRow, row};
+use crate::screens::{kind_line, size_text};
 use crate::strings::EN;
 use crate::ui::{Region, Slot, Style, Ui, pal::*};
+use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use faraday_draw::tokens::{self, BUTTON_H, CHOICES_INSET, LABEL_L};
 use faraday_text::Text;
@@ -25,6 +27,22 @@ pub(crate) struct Pane<'a> {
     pub(crate) top: f32,
     /// How far it is scrolled within itself.
     pub(crate) offset: f32,
+}
+
+/// A waiting file's second line: its kind and size, as Files writes them,
+/// but a picture is named as one.
+fn file_line(name: &str, kind: FileKind, bytes: usize) -> Text {
+    let png = name
+        .rsplit_once('.')
+        .is_some_and(|(_, ext)| ext.eq_ignore_ascii_case("png"));
+    if kind == FileKind::Other && png {
+        let mut line = Text::of(EN.take_away_kind_picture);
+        line.push_str(" · ");
+        line.push_str(&size_text(bytes as u64));
+        line
+    } else {
+        kind_line(kind, bytes)
+    }
 }
 
 /// What the button says and does.
@@ -69,6 +87,7 @@ impl Pane<'_> {
                     menu: None,
                     main: Some((Text::of(EN.show_as_qr), Style::Secondary, code.show)),
                     wrap: false,
+                    keep_end: false,
                     open: None,
                 },
             );
@@ -113,7 +132,7 @@ impl Pane<'_> {
                 let on = app.visit.out.contains(&**name);
                 waiting += 1;
                 ticked += usize::from(on);
-                let line = crate::screens::parts::kind_line(item.kind, item.bytes.len());
+                let line = file_line(&item.name, item.kind, item.bytes.len());
                 y += row(
                     ui,
                     (px, pw, y),
@@ -128,6 +147,7 @@ impl Pane<'_> {
                         menu: None,
                         main: None,
                         wrap: false,
+                        keep_end: true,
                         open: None,
                     },
                 );
@@ -151,6 +171,7 @@ impl Pane<'_> {
                         menu: None,
                         main: None,
                         wrap: false,
+                        keep_end: true,
                         open: None,
                     },
                 );
@@ -178,6 +199,7 @@ impl Pane<'_> {
                     menu: None,
                     main: Some((Text::of(label), Style::Secondary, file.make)),
                     wrap: false,
+                    keep_end: true,
                     open: None,
                 },
             );

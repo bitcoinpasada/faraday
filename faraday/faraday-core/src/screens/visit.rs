@@ -297,6 +297,9 @@ pub(crate) struct ListRow<'a> {
     pub(crate) main: Option<(Text, Style, Action)>,
     /// The name wraps onto more lines rather than ending in "…".
     pub(crate) wrap: bool,
+    /// A name that does not wrap and is too long is cut in the middle,
+    /// keeping its end, rather than at its end.
+    pub(crate) keep_end: bool,
     /// What a press on the row's body opens (its details), and whether
     /// they are open now: the row then shows the chevron, the tick box is
     /// its own press and the open row is marked.
@@ -420,7 +423,11 @@ pub(crate) fn row(ui: &mut Ui, (x, colw, ry): (f32, f32, f32), mut r: ListRow) -
         let lines = ui.wrapped_as(BODY_M.mono(), r.name, room);
         ui.draw_wrapped(at, ink, &lines);
     } else {
-        let name = ui.fit_as(BODY_M.mono(), r.name, room);
+        let name = if r.keep_end {
+            ui.fit_middle_as(BODY_M.mono(), r.name, room)
+        } else {
+            ui.fit_as(BODY_M.mono(), r.name, room)
+        };
         ui.text_as(at.0, at.1, BODY_M.mono(), ink, &name);
     }
     let line = ui.fit_as(BODY_S, r.line, colw - lead - 36.0 - dw - chk);
@@ -512,6 +519,7 @@ fn vault_row<'a>(app: &'a View, v: usize, line: &'a str) -> ListRow<'a> {
             Action::Vault(crate::vault::VaultAction::Show(v)),
         )),
         wrap: true,
+        keep_end: false,
         open: None,
     }
 }
@@ -773,6 +781,7 @@ fn in_faraday(
                     menu: Some(crate::file_menu::Row::Out(k)),
                     main: None,
                     wrap: false,
+                    keep_end: false,
                     open: None,
                 },
             );
@@ -834,6 +843,7 @@ fn in_faraday(
                 main: main_action(app, k, item)
                     .filter(|(.., a)| !(matches!(a, Action::LoadWallet(_)) && loads.contains(&k))),
                 wrap: false,
+                keep_end: false,
                 // Where details open, the body opens them and only the box
                 // ticks; the open one is marked.
                 open: opens.then_some((

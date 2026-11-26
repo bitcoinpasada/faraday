@@ -1665,6 +1665,46 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         out
     }
 
+    /// `s` cut in the middle to fit `max` units, so that its end (a file
+    /// name's extension and what stands before it) is kept: the longest
+    /// end that takes no more than half of what "…" leaves, "…" before
+    /// it, and before that the longest start that still fits. Nothing
+    /// when "…" alone does not fit. Two passes over its characters'
+    /// advances, as [`Ui::fit`] counts them.
+    pub fn fit_middle(&self, size: f32, w: W, s: &str, max: f32) -> Text {
+        let face = self.face(size, w);
+        let fits = |pen: u32| text::px_from_64(pen) as f32 / self.f <= max;
+        let whole: u32 = s.chars().map(|c| face.advance_64(c)).sum();
+        if fits(whole) {
+            return Text::of(s);
+        }
+        let ellipsis = face.advance_64('…');
+        if !fits(ellipsis) {
+            return Text::new();
+        }
+        let (mut tail, mut from) = (0u32, s.len());
+        for (i, c) in s.char_indices().rev() {
+            let wider = tail + face.advance_64(c);
+            if !fits(2 * wider + ellipsis) {
+                break;
+            }
+            (tail, from) = (wider, i);
+        }
+        let (mut pen, mut end) = (0u32, 0usize);
+        for (i, c) in s[..from].char_indices() {
+            pen += face.advance_64(c);
+            if !fits(pen + ellipsis + tail) {
+                break;
+            }
+            end = i + c.len_utf8();
+        }
+        let mut out = Text::with_room(end + '…'.len_utf8() + s.len() - from);
+        out.push_str(&s[..end]);
+        out.push('…');
+        out.push_str(&s[from..]);
+        out
+    }
+
     /// `s` wrapped to `width`. Returns the height used.
     #[allow(
         clippy::too_many_arguments,
@@ -2754,6 +2794,33 @@ mod tests {
             assert_eq!(Mode::from_id(theme.mode.id()), Some(theme.mode));
             assert_eq!(Contrast::from_id(theme.contrast.id()), Some(theme.contrast));
         }
+    }
+
+    #[test]
+    fn a_name_cut_in_the_middle_keeps_its_start_and_its_end() {
+        let mut canvas = Canvas::new(&DisplayInfo {
+            width: 640,
+            height: 480,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        });
+        let mut hits = Vec::new();
+        let ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+        let name = "backup-0123456789abcdef0123456789abcdef-code.png";
+        let whole = ui.measure(14.0, W::R, name);
+        assert_eq!(ui.fit_middle(14.0, W::R, name, whole).as_str(), name);
+        let cut = ui.fit_middle(14.0, W::R, name, whole / 2.0);
+        let (start, end) = cut.split_once('…').unwrap();
+        assert!(!start.is_empty() && name.starts_with(start), "{}", &*cut);
+        assert!(end.ends_with(".png") && name.ends_with(end), "{}", &*cut);
+        assert!(ui.measure(14.0, W::R, &cut) <= whole / 2.0, "{}", &*cut);
+        assert_eq!(ui.fit_middle(14.0, W::R, name, 0.0).as_str(), "");
     }
 
     /// `fit` as it was until 2026-10-21: one character off the end at a

@@ -67,13 +67,19 @@ fn shown(app: &mut Faraday, text: &str) -> bool {
     app.drawn_text_boxes().iter().any(|(t, _)| t == text)
 }
 
-/// The file rows drawn for the code's files: a name alone, whole or cut.
-fn rows(app: &mut Faraday) -> usize {
+/// The names drawn for the code's files, whole or cut in the middle.
+fn row_names(app: &mut Faraday) -> Vec<String> {
     let _ = app.frame();
     app.drawn_text_boxes()
         .iter()
-        .filter(|(t, _)| t.starts_with("krux-v20-") && !t.contains(' '))
-        .count()
+        .filter(|(t, _)| t.starts_with("krux-") && !t.contains(' '))
+        .map(|(t, _)| t.to_string())
+        .collect()
+}
+
+/// The file rows drawn for the code's files.
+fn rows(app: &mut Faraday) -> usize {
+    row_names(app).len()
 }
 
 fn stick_in(app: &mut Faraday) {
@@ -139,7 +145,27 @@ fn the_made_code_s_picture_and_file_are_in_the_take_away_ticked_and_written() {
         let mut made = names(&app);
         made.sort();
         assert_eq!(made.len(), 2, "{w}x{h}");
-        assert_eq!(rows(&mut app), 2, "{w}x{h}");
+        // The two names are cut in the middle and keep their own ends.
+        let drawn = row_names(&mut app);
+        assert_eq!(drawn.len(), 2, "{w}x{h}");
+        for name in &made {
+            let ext = &name[name.rfind('.').unwrap()..];
+            let own = |t: &&String| {
+                let (start, end) = t.split_once('…').unwrap_or((t, t));
+                name.starts_with(start) && name.ends_with(end) && end.ends_with(ext)
+            };
+            assert_eq!(drawn.iter().filter(own).count(), 1, "{name}: {drawn:?}");
+        }
+        let _ = app.frame();
+        let picture = format!("{} · ", EN.take_away_kind_picture);
+        assert_eq!(
+            app.drawn_text_boxes()
+                .iter()
+                .filter(|(t, _)| t.starts_with(&picture))
+                .count(),
+            1,
+            "{w}x{h}"
+        );
         assert!(shown(&mut app, EN.take_away_head), "{w}x{h}");
         assert!(!shown(&mut app, EN.flow_your_choices), "{w}x{h}");
         for name in &made {

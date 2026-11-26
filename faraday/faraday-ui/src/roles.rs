@@ -295,6 +295,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         self.fit(role.size, role.face.into(), s, max)
     }
 
+    /// `s` in `role` cut in the middle with an ellipsis to fit `max`,
+    /// its end kept ([`Ui::fit_middle`]).
+    pub fn fit_middle_as(&self, role: TypeRole, s: &str, max: f32) -> Text {
+        let role = self.stepped(role);
+        self.fit_middle(role.size, role.face.into(), s, max)
+    }
+
     /// How many lines [`Ui::wrap_as`] breaks `s` onto at `max` width:
     /// one at least.
     pub fn wrap_lines_as(&self, role: TypeRole, s: &str, max: f32) -> usize {

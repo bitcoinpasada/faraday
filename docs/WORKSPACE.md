@@ -1076,6 +1076,10 @@ sent. A file removed while the tool stays open shows a row with **Make the
 file**; leaving the tool drops its take-away, and the files stay in the
 Outbox.
 
+In every take-away a file's name too long for its row is cut in the middle,
+keeping its start and its end with "…" between, and a waiting picture's line
+reads **Picture** and its size.
+
 Not built: the other flows (the table below); "Written and checked" reached
 in the flow (the lock ends it first); the tick kept on opening Files and
 through the lock; the next steps in the pane; the pane settling back to its

@@ -225,19 +225,18 @@ fn a_removed_file_is_offered_under_the_name_it_is_made_under() {
     app.press(Action::Back);
     app.press(Action::MStep(faraday_core::mstep::SIGN));
     assert!(shown(&mut app, EN.message_make_the_file));
-    // The row may end the name in "…"; what it shows is the second's alone.
+    // The row may cut the name in "…"; what it shows is the second's alone.
     let names: Vec<String> = app
         .drawn_text_boxes()
         .iter()
-        .map(|(t, _)| t.trim_end_matches('…').to_string())
+        .map(|(t, _)| t.to_string())
         .filter(|t| t.starts_with("message-") && !t.contains(' '))
         .collect();
     assert!(!names.is_empty());
     for name in names {
-        assert!(
-            second.starts_with(&name) && !first.starts_with(&name),
-            "{name}"
-        );
+        let (start, end) = name.split_once('…').unwrap_or((&name, &name));
+        let of = |file: &str| file.starts_with(start) && file.ends_with(end);
+        assert!(of(&second) && !of(&first), "{name}");
     }
     app.press(Action::MOut);
     assert_eq!(app.outbox[1].name.as_str(), second);
