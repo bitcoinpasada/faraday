@@ -671,3 +671,201 @@ fn beside_a_pair_the_guides_pane_has_the_pairs_top_and_foot() {
         assert_eq!((guide.1 - bar, guide.3), (top, tall), "{screen:?}");
     }
 }
+
+/// The last frame's pixels, asked one at a time against the page's own
+/// colour, taken in the margin at the guide's right.
+struct Seen {
+    rgba: Vec<u8>,
+    width: usize,
+    page: [u8; 4],
+}
+
+impl Seen {
+    fn of(app: &mut Faraday) -> (Seen, (usize, usize, usize, usize)) {
+        let (x, y, w, h) = app.guide_rest_place().expect("the guide's pane");
+        let guide = (x as usize, y as usize, w as usize, h as usize);
+        let f = app.frame();
+        let mut seen = Seen {
+            rgba: f.rgba.to_vec(),
+            width: usize::from(f.width),
+            page: [0; 4],
+        };
+        seen.page = seen.at(guide.0 + guide.2 + 4, guide.1 + guide.3 / 2);
+        (seen, guide)
+    }
+
+    fn at(&self, x: usize, y: usize) -> [u8; 4] {
+        let i = (y * self.width + x) * 4;
+        self.rgba[i..i + 4].try_into().unwrap()
+    }
+
+    fn drawn(&self, x: usize, y: usize) -> bool {
+        self.at(x, y) != self.page
+    }
+
+    /// The first and the last row under the top app bar where column `x`
+    /// has the colour it has on `row`: a raised card's own surface, without
+    /// the shadow it casts past itself.
+    fn surface_ends(&self, x: usize, row: usize) -> (usize, usize) {
+        let colour = self.at(x, row);
+        let rows = self.rgba.len() / 4 / self.width;
+        let bar = faraday_draw::tokens::APP_BAR_H as usize;
+        let same = |&y: &usize| self.at(x, y) == colour;
+        let top = (bar..rows).find(same).expect("a top");
+        let foot = (bar..rows).rfind(same).expect("a foot");
+        (top, foot)
+    }
+
+    /// The first and the last row under the top app bar where column `x`
+    /// shows anything.
+    fn ends(&self, x: usize) -> (usize, usize) {
+        let rows = self.rgba.len() / 4 / self.width;
+        let bar = faraday_draw::tokens::APP_BAR_H as usize;
+        let top = (bar..rows).find(|&y| self.drawn(x, y)).expect("a top");
+        let foot = (bar..rows).rfind(|&y| self.drawn(x, y)).expect("a foot");
+        (top, foot)
+    }
+}
+
+/// The guide's pane and the pair at its left, each read down a column just
+/// inside its right edge: they begin and end on the same rows, and the
+/// pane stops short of the window's foot where the pair does.
+fn level_with_the_pair(app: &mut Faraday, what: &str) {
+    crate::common::through_fade(app);
+    frame(app);
+    frame(app);
+    let (seen, guide) = Seen::of(app);
+    let row = guide.1 + guide.3 / 2;
+    let right = (0..guide.0)
+        .rfind(|&x| seen.drawn(x, row))
+        .expect("the pair's right edge");
+    const IN: usize = 18;
+    assert_eq!(
+        seen.ends(guide.0 + guide.2 - 1 - IN),
+        seen.ends(right - IN),
+        "{what}: the guide's top and foot, the pair's"
+    );
+}
+
+/// A words key loaded.
+fn add_key(app: &mut Faraday) {
+    let c = faraday_core::testkit::compute();
+    let words =
+        faraday_keys::words::from_entropy(faraday_bip::bip39::Language::English, &[1; 16]).unwrap();
+    let words: Vec<&str> = words
+        .indices()
+        .iter()
+        .map(|&w| faraday_bip::bip39::Language::English.words()[usize::from(w)])
+        .collect();
+    app.session
+        .keys
+        .add_words(&c, &words.join(" "), "Seed", None)
+        .unwrap();
+}
+
+#[test]
+fn beside_files_the_guides_pane_is_as_tall_as_the_two_cards() {
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    app.press(Action::Nav(faraday_core::Screen::Files));
+    crate::common::through_fade(&mut app);
+    app.press(Action::Guide);
+    level_with_the_pair(&mut app, "Files");
+}
+
+#[test]
+fn beside_files_the_two_columns_stay_equal() {
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    app.press(Action::Nav(faraday_core::Screen::Files));
+    crate::common::through_fade(&mut app);
+    app.press(Action::Guide);
+    crate::common::through_fade(&mut app);
+    frame(&mut app);
+    let (seen, guide) = Seen::of(&mut app);
+    // Just above the cards' foot, where neither holds anything.
+    let (_, foot) = seen.ends(guide.0 + guide.2 / 2);
+    let row = foot - 6;
+    // Past the navigation at the window's left.
+    let rail = 240 + 16;
+    // The stretches of the row that show something, wider than a line.
+    let mut cards = Vec::new();
+    let mut from = None;
+    for x in rail..guide.0 {
+        match (seen.drawn(x, row), from) {
+            (true, None) => from = Some(x),
+            (false, Some(f)) => {
+                if x - f > 100 {
+                    cards.push(x - f);
+                }
+                from = None;
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(cards.len(), 2, "two cards side by side: {cards:?}");
+    assert!(cards[0].abs_diff(cards[1]) <= 1, "of one width: {cards:?}");
+}
+
+#[test]
+fn beside_a_flows_pair_the_guides_pane_is_as_tall_as_the_card() {
+    let kit = faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![("spend.psbt".to_string(), psbt)]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::StartSpend(0));
+    crate::common::through_fade(&mut app);
+    app.press(Action::Guide);
+    crate::common::through_fade(&mut app);
+    frame(&mut app);
+    frame(&mut app);
+    let (seen, guide) = Seen::of(&mut app);
+    let row = guide.1 + guide.3 / 2;
+    let right = (0..guide.0)
+        .rfind(|&x| seen.drawn(x, row))
+        .expect("the card's right edge");
+    let card = seen.surface_ends(right - 24, row);
+    let pane = seen.surface_ends(guide.0 + guide.2 - 24, row);
+    // Their rounded, softened edges differ by a row or two.
+    assert!(
+        card.0.abs_diff(pane.0) <= 3 && card.1.abs_diff(pane.1) <= 3,
+        "the card's {card:?}, the guide's {pane:?}"
+    );
+}
+
+#[test]
+fn beside_an_outlined_pair_the_guides_pane_has_the_outlines_top_and_foot() {
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    add_key(&mut app);
+    app.press(Action::Lightning);
+    crate::common::through_fade(&mut app);
+    app.press(Action::Guide);
+    level_with_the_pair(&mut app, "Lightning");
+}
+
+#[test]
+fn home_beside_the_guide_has_nothing_under_its_pane() {
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    add_key(&mut app);
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    crate::common::through_fade(&mut app);
+    app.press(Action::Guide);
+    crate::common::through_fade(&mut app);
+    frame(&mut app);
+    frame(&mut app);
+    let (seen, (x, y, _, h)) = Seen::of(&mut app);
+    // The strip just left of the pane is the page's own colour: no card
+    // runs on under the pane.
+    let under = (y..y + h).filter(|&row| seen.drawn(x - 4, row)).count();
+    assert_eq!(under, 0, "rows with a card running under the guide");
+}

@@ -163,6 +163,24 @@ impl Grid {
     }
 }
 
+/// The room of a page that stands as one column, from `x0`, `cw` wide: the
+/// frame gave the whole room where a pair might stand (`guide`), so one
+/// that stands as one column leaves the guide's pane its room here. A page
+/// that declares panes (`paned`) stands in Home's column.
+fn one_column((x0, cw): (f32, f32), guide: bool, paned: bool) -> (f32, f32) {
+    let cw = if guide {
+        cw - hub_layout::guide_room()
+    } else {
+        cw
+    };
+    if paned {
+        let (ox, area) = hub_layout::home_area(cw);
+        (x0 + ox, area)
+    } else {
+        (x0, cw)
+    }
+}
+
 /// Draws the page in the area `cw` wide from `x0`, `h` tall: the name in
 /// the top app bar, the search bar standing still (on a window too short
 /// for about three rows under it, scrolling with the page), the sections
@@ -218,9 +236,12 @@ pub(crate) fn draw(
         if !typed && hub_layout::draw(app, ui, (x0, cw, h), (page, sections), panes) {
             return;
         }
-        let (ox, area) = hub_layout::home_area(cw);
-        (x0, cw) = (x0 + ox, area);
     }
+    (x0, cw) = one_column(
+        (x0, cw),
+        app.guide_beside_pair(),
+        !compact && page.panes.is_some(),
+    );
     let (x, width) = page_span(compact, x0, cw);
     // On the wide layout the search stands in the top app bar
     // (`screens::bar_search`), so the page draws none.

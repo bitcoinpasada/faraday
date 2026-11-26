@@ -685,7 +685,7 @@ impl Faraday {
             && self.fade.from.is_none()
             && pane_toggle
             && !screen_change)
-            .then(|| (self.fade.guide, drawn_key.1.0));
+            .then_some((self.fade.guide, drawn_key.1.0));
         // A fade begun over one under way goes through a new surface.
         self.fade.surface = Vec::new();
         if self.fade.last_drawn.is_some() && !own_motion {

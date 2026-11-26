@@ -31,6 +31,20 @@ const PANES: Panes = Panes {
     narrow: Narrow::OneColumn,
 };
 
+/// The height the log's lines take under the cards; none where it is empty.
+fn log_height<T>(ui: &mut Ui, log: &[&(Text, T)], compact: bool, width: f32) -> f32 {
+    if log.is_empty() {
+        0.0
+    } else if compact {
+        log.iter()
+            .map(|(line, _)| ui.wrap_height_as(BODY_M, line, width) + GAP_SMALL)
+            .sum::<f32>()
+            + GAP_SMALL
+    } else {
+        VISIT_LOG_H
+    }
+}
+
 /// Files: the same two cards whether a stick is in or not, In Faraday and
 /// On the stick, from under the top app bar to the page's foot (F290).
 /// From expanded windows up they stand side by side; below that they are
@@ -110,16 +124,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The log's last two lines: side by side on a wide page, each wrapped
     // across the full width, one under the other, on a small panel.
     let log: Vec<_> = app.visit.log.iter().rev().take(2).collect();
-    let log_h = if log.is_empty() {
-        0.0
-    } else if compact {
-        log.iter()
-            .map(|(line, _)| ui.wrap_height_as(BODY_M, line, width) + GAP_SMALL)
-            .sum::<f32>()
-            + GAP_SMALL
-    } else {
-        VISIT_LOG_H
-    };
+    let log_h = log_height(ui, &log, compact, width);
     if compact {
         let on_stick = app.visit.tab_stick;
         let on_label = match stick.or_else(|| app.stick.get(app.visit.stick)) {
