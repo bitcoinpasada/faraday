@@ -227,6 +227,14 @@ pub(crate) struct WriteWait {
 }
 
 impl WriteWait {
+    /// The wait, to be kept: none when the stick's identity or a name
+    /// holds a control character, which could make a line of its own in
+    /// [`Self::encode`].
+    fn sound(self) -> Option<WriteWait> {
+        let control = |t: &Text| t.chars().any(char::is_control);
+        (!self.stick.iter().chain(&self.names).any(control)).then_some(self)
+    }
+
     /// What the next process keeps: the stick's identity on the first
     /// line (empty for none), "spend" or nothing on the second, then one
     /// file a line: its SHA-256 as 64 hex digits, a space, its name.
@@ -248,8 +256,9 @@ impl WriteWait {
         out
     }
 
-    /// What [`Self::encode`] kept; none when no file is left, or when any
-    /// file's line has no SHA-256: then nothing is written.
+    /// What [`Self::encode`] kept; none when no file is left, when any
+    /// file's line has no SHA-256, or when a line holds a control
+    /// character: then nothing is written.
     pub(crate) fn decode(bytes: &[u8]) -> Option<WriteWait> {
         let mut lines = bytes.split(|b| *b == b'\n');
         let stick = lines
@@ -263,13 +272,17 @@ impl WriteWait {
             .collect::<Option<Vec<_>>>()?
             .into_iter()
             .unzip();
-        (!names.is_empty()).then_some(WriteWait {
+        if names.is_empty() {
+            return None;
+        }
+        WriteWait {
             stick,
             label: Text::default(),
             spend,
             names,
             hashes,
-        })
+        }
+        .sound()
     }
 }
 
@@ -1216,13 +1229,16 @@ impl Faraday {
 
     /// Costs a SHA-256 pass over each named file that has none kept
     /// ([`crate::Item::hash`]). The SHA-256 of each file For the stick
-    /// that `names` names, in their order, for a [`WriteWait`].
-    fn waiting_hashes(&mut self, names: &[Text]) -> Vec<[u8; 32]> {
+    /// that `names` names, in their order, for a [`WriteWait`]; none
+    /// when a name has no file there.
+    fn waiting_hashes(&mut self, names: &[Text]) -> Option<Vec<[u8; 32]>> {
         let c = self.compute();
         names
             .iter()
-            .filter_map(|n| self.outbox.iter().find(|i| *i.name == **n))
-            .map(|i| i.hash(&c))
+            .map(|n| {
+                let item = self.outbox.iter().find(|i| *i.name == **n)?;
+                Some(item.hash(&c))
+            })
             .collect()
     }
 
@@ -1234,13 +1250,17 @@ impl Faraday {
         let stick = self
             .visit_stick_identity()
             .or_else(|| self.visit.sign_from().cloned())?;
-        (!names.is_empty()).then(|| WriteWait {
+        if names.is_empty() {
+            return None;
+        }
+        WriteWait {
             stick: Some(stick),
             label: Text::default(),
             spend: true,
-            hashes: self.waiting_hashes(&names),
+            hashes: self.waiting_hashes(&names)?,
             names,
-        })
+        }
+        .sound()
     }
 
     /// Costs a SHA-256 pass over each file of a waiting name that has none
@@ -1254,6 +1274,11 @@ impl Faraday {
         };
         if !self.clean() {
             // Given up: the Lock sheet asks first.
+            self.visit.set_write_waiting(None);
+            return;
+        }
+        if wait.names.len() != wait.hashes.len() {
+            // Which hash is whose is not known.
             self.visit.set_write_waiting(None);
             return;
         }
@@ -1342,13 +1367,20 @@ impl Faraday {
             // With no stick in nothing waits: the files stay For the
             // stick.
             let hashes = self.waiting_hashes(&names);
-            let wait = self.stick.get(self.visit.stick).map(|stick| WriteWait {
-                stick: Some(stick_identity(stick)),
-                label: Text::of(&stick.label),
-                spend: false,
-                hashes,
-                names,
-            });
+            let wait = self
+                .stick
+                .get(self.visit.stick)
+                .zip(hashes)
+                .and_then(|(stick, hashes)| {
+                    WriteWait {
+                        stick: Some(stick_identity(stick)),
+                        label: Text::of(&stick.label),
+                        spend: false,
+                        hashes,
+                        names,
+                    }
+                    .sound()
+                });
             self.visit.set_lock_to_write(wait);
             self.sheet = Some(Sheet::WriteOut);
             return;
@@ -2524,6 +2556,8 @@ impl crate::at_lock::AtLock for VisitArea {
 
 #[cfg(test)]
 mod tests {
+    use faraday_text::text;
+
     #[test]
     fn a_secret_file_is_not_put_in_the_outbox_beside_a_public_one() {
         let mut app = crate::testkit::started();
@@ -2535,5 +2569,71 @@ mod tests {
         assert_eq!(app.outbox.len(), before);
         app.put_item(crate::Item::new(&c, "note.txt", b"hello".to_vec()));
         assert_eq!(app.outbox.len(), before + 1);
+    }
+
+    /// Both makers keep a write only through `sound`; no press makes a
+    /// take-away's own file with such a name.
+    #[test]
+    fn a_name_or_stick_with_a_control_character_keeps_no_write() {
+        let wait = |stick: &str, name: &str| super::WriteWait {
+            stick: Some(faraday_text::Text::of(stick)),
+            names: vec![faraday_text::Text::of(name)],
+            hashes: vec![[0; 32]],
+            ..Default::default()
+        };
+        assert!(wait("id:one", "a.txt").sound().is_some());
+        for c in ['\n', '\r', '\t', '\0', '\u{85}'] {
+            assert!(wait("id:one", &text!("a{c}.txt")).sound().is_none());
+            assert!(wait(&text!("id:o{c}ne"), "a.txt").sound().is_none());
+        }
+    }
+
+    #[test]
+    fn a_kept_line_with_a_control_character_is_no_write() {
+        let hex = text!("{:064}", 0);
+        let hex = &*hex;
+        let decode = |s: faraday_text::Text| super::WriteWait::decode(s.as_bytes());
+        assert!(decode(text!("id:one\n\n{hex} a.txt")).is_some());
+        assert!(decode(text!("id:one\n\n{hex} a\r.txt")).is_none());
+        assert!(decode(text!("id:o\rne\n\n{hex} a.txt")).is_none());
+    }
+
+    #[test]
+    fn a_name_with_no_file_for_the_stick_has_no_hashes() {
+        let mut app = crate::testkit::started();
+        crate::testkit::outbox_file(&mut app, "a.txt", b"a");
+        let names = ["a.txt", "gone.txt"].map(faraday_text::Text::of);
+        assert!(app.waiting_hashes(&names[..1]).is_some());
+        assert!(app.waiting_hashes(&names).is_none());
+    }
+
+    #[test]
+    fn a_wait_with_its_lists_out_of_step_writes_nothing() {
+        let mut app = crate::testkit::started();
+        crate::testkit::outbox_file(&mut app, "a.txt", b"a");
+        crate::testkit::outbox_file(&mut app, "b.txt", b"b");
+        let names = ["a.txt", "b.txt"].map(faraday_text::Text::of);
+        let mut hashes = app.waiting_hashes(&names).unwrap();
+        hashes.truncate(1);
+        app.visit.set_write_waiting(Some(super::WriteWait {
+            stick: Some(faraday_text::Text::of("id:one")),
+            names: names.to_vec(),
+            hashes,
+            ..Default::default()
+        }));
+        while app.poll_storage().is_some() {}
+        app.storage(crate::StorageEvent::Sticks(vec![crate::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("one"),
+            label: faraday_text::Text::of("FIRST"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        }]));
+        while let Some(c) = app.poll_storage() {
+            assert!(!matches!(c, crate::StorageCommand::Write { .. }));
+        }
+        assert!(app.visit.write_waiting().is_none());
     }
 }

@@ -764,3 +764,20 @@ fn a_waiting_write_kept_by_name_only_writes_nothing() {
     next.storage(StorageEvent::Sticks(vec![stick_with(&[])]));
     assert!(writes(&mut next).is_empty());
 }
+
+/// The take-away keeps no write for a stick whose identity holds a
+/// newline.
+#[test]
+fn a_stick_identity_with_a_newline_keeps_no_take_away_write() {
+    let mut app = signed_at(1366, 768);
+    let mut stick = stick_with(&[]);
+    stick.id = faraday_text::Text::of("one\ntwo");
+    app.storage(StorageEvent::Sticks(vec![stick]));
+    app.press(Action::NotNow);
+    let _ = app.frame();
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    while app.poll_storage().is_some() {}
+    app.press(Action::Lock);
+    assert!(!keeps_a_write(&mut app));
+}
