@@ -73,8 +73,14 @@ pub(crate) fn draw_results(app: &View, ui: &mut Ui, area: (f32, f32, f32), panes
 /// flow underneath is not drawn, so a secret it shows is gone at once.
 pub(crate) fn draw_results_alone(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let body = |ui: &mut Ui, at: (f32, f32), w: f32| home_results(app, ui, at, w);
-    let (cx, w) = super::pair::pair(cw, app.guide_pane_shown())
-        .map_or_else(|| super::detail_alone(cw), |p| (p.card_x, p.card_w));
+    // The one card is the pair's outline: Your choices and the step.
+    let (cx, w) = super::pair::pair(cw, app.guide_pane_shown()).map_or_else(
+        || super::detail_alone(cw),
+        |p| {
+            let left = p.pane_x - PAD;
+            (left, p.card_x + p.card_w + PAD - left)
+        },
+    );
     let top = PANE_TOP_BAR;
     let tile_h = crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, w), &body));
     let clip = ui.rect(x0, 0.0, cw, h);
