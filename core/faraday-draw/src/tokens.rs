@@ -1159,6 +1159,13 @@ pub const VISIT_CHIP_PRESS_RISE: f32 = 8.0;
 /// Files' cards on a small panel: the room over a list for the controls
 /// that stood in the heading, which the tab now names.
 pub const VISIT_COMPACT_HEAD: f32 = 56.0;
+/// Files' Select all: from its box's left edge to its label.
+pub const VISIT_SELECT_LABEL_X: f32 = 28.0;
+/// Files' Select all in a card's heading: its label's end in from the
+/// card's right edge.
+pub const VISIT_SELECT_END: f32 = 24.0;
+/// Files' Select all: its middle, down from the heading's top.
+pub const VISIT_SELECT_MID: f32 = 31.0;
 /// Files' In Faraday card: a group's heading row in its list.
 pub const VISIT_GROUP_HEAD: f32 = 36.0;
 /// A visit card's side padding: where its controls and lines start and

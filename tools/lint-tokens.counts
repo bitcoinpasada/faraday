@@ -32,7 +32,7 @@ faraday/faraday-core/src/screens/settings.rs 15
 faraday/faraday-core/src/screens/sheets.rs 188
 faraday/faraday-core/src/screens/sidebar.rs 12
 faraday/faraday-core/src/screens/spend.rs 241
-faraday/faraday-core/src/screens/visit.rs 123
+faraday/faraday-core/src/screens/visit.rs 120
 faraday/faraday-core/src/screens/wallets.rs 116
 faraday/faraday-core/src/screens/wallets_start.rs 32
 faraday/faraday-core/src/seeds/screen.rs 62

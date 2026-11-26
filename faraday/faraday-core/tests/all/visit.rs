@@ -286,6 +286,46 @@ fn dragging_the_outbox_scrollbar_to_the_bottom_shows_its_last_file() {
 }
 
 #[test]
+fn the_pi_with_a_stick_shows_a_file_row_first_and_select_all_beside_write() {
+    // Three files, and a count of two digits, whose Write is wider.
+    for n in [3, 12] {
+        let mut app = with_outbox(with_stick_at(3, (480, 640, 286)), n, false);
+        // A wallet file in the Inbox, so the summary of what it holds
+        // stands.
+        let kit = faraday_core::testkit::kits().remove(0);
+        faraday_core::testkit::inbox_file(&mut app, "wallet.txt", kit.descriptor.into_bytes());
+        app.press(Action::Nav(Screen::Files));
+        app.press(Action::VisitTab(Column::Outbox));
+        let _ = app.frame();
+        let (_, row_y, _, row_h) = app.hit_box(Action::VisitOut(0)).expect("the first file");
+        let (all_x, all_y, all_w, all_h) = app.hit_box(Action::VisitOutAll).expect("Select all");
+        let (write_x, write_y, _, write_h) = app.hit_box(Action::VisitWrite).expect("Write");
+        let mid = all_y + all_h / 2;
+        assert!(mid > write_y && mid < write_y + write_h, "{n}: Write's row");
+        assert!(all_x + all_w <= write_x, "{n}: left of Write");
+        assert!(
+            row_y + row_h <= write_y.min(all_y),
+            "{n}: the file above them"
+        );
+    }
+}
+
+#[test]
+fn the_pi_with_a_stick_and_nothing_to_write_shows_an_inbox_file_first() {
+    let mut app = with_stick_at(3, (480, 640, 286));
+    for name in ["a.txt", "b.txt", "c.txt"] {
+        faraday_core::testkit::inbox_file(&mut app, name, b"notes".to_vec());
+    }
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::VisitTab(Column::Outbox));
+    let _ = app.frame();
+    let (_, row_y, _, row_h) = app.hit_box(Action::VisitInbox(0)).expect("the first file");
+    // Nothing is ticked, so Write is off: Select all stands on its row.
+    let (_, all_y, _, _) = app.hit_box(Action::VisitOutAll).expect("Select all");
+    assert!(row_y + row_h <= all_y, "the file above Write's row");
+}
+
+#[test]
 fn select_all_on_the_outbox_leaves_an_unprotected_secret_alone() {
     for display in [(1366, 768, 160), (480, 640, 286)] {
         let mut app = with_outbox(with_stick_at(3, display), 20, true);

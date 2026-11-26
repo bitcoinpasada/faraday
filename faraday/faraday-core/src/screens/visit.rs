@@ -17,7 +17,8 @@ use faraday_draw::tokens::{
     LIST_2, ROW, SHAPE_M, TITLE_M, TITLE_S, TOUCH, VISIT_BUTTON_PAD, VISIT_CARD_FOOT,
     VISIT_CARD_HEAD, VISIT_CHIP_EXTRA, VISIT_CHIP_PRESS_RISE, VISIT_CHIP_TOP, VISIT_COMPACT_HEAD,
     VISIT_COUNT_GAP, VISIT_FOOT_ROW, VISIT_GROUP_HEAD, VISIT_LOG_H, VISIT_NAME_MIN, VISIT_PAD,
-    VISIT_ROW_BUTTON_H, VISIT_TEXT_X, VISIT_TICK_BOX_X, VISIT_TITLE_X, VISIT_WRITE_FOOT,
+    VISIT_ROW_BUTTON_H, VISIT_SELECT_END, VISIT_SELECT_LABEL_X, VISIT_SELECT_MID, VISIT_TEXT_X,
+    VISIT_TICK_BOX_X, VISIT_TITLE_X, VISIT_WRITE_FOOT,
 };
 use faraday_draw::widgets::Icon;
 use faraday_text::Text;
@@ -638,10 +639,10 @@ fn in_faraday(
             },
         );
     }
-    if usable {
-        visit_select_all(ui, x + colw, y, visit_all_out(app), Action::VisitOutAll);
-    }
-    let head = match (compact, usable) {
+    let write = WriteButton::of(app, ui, (x, colw));
+    let fy = y + colh - VISIT_FOOT_ROW;
+    let beside = usable && select_all_in_the_card(app, ui, (x, y, colw), fy, &write);
+    let head = match (compact, usable && !beside) {
         (false, _) => VISIT_CARD_HEAD,
         (true, true) => VISIT_COMPACT_HEAD,
         // Below the card's rounded top corners, which a moved list would drag.
@@ -717,8 +718,10 @@ fn in_faraday(
     // they are drawn at.
     let foot = list_top + shift + track_h;
     let mut hidden = 0u64;
-    // What the Inbox gives, put together, then the open vaults.
-    if summary_h > 0.0 {
+    // What the Inbox gives, put together, then the open vaults. On a
+    // small panel with a stick in it follows the file rows instead.
+    let summary_last = compact && usable;
+    if summary_h > 0.0 && !summary_last {
         super::files::inbox_panel(app, ui, x + 12.0, ry, colw - 24.0);
         ry += summary_room;
     }
@@ -818,15 +821,9 @@ fn in_faraday(
             ry += ROW;
         }
     }
-    if app.outbox.is_empty() {
-        ui.text_mid_as(
-            (x + 22.0, ry, VISIT_GROUP_HEAD),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &Text::fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
-        );
-        ry += VISIT_GROUP_HEAD;
-    }
+    // On a small panel with a stick in, what waits to be written and the
+    // summary follow the file rows.
+    ry += nothing_waits(app, ui, (x, ry), !summary_last);
     // The Inbox under its heading.
     group_head(
         ui,
@@ -893,6 +890,12 @@ fn in_faraday(
         );
         ry += ROW;
     }
+    ry += nothing_waits(app, ui, (x, ry), summary_last);
+    if summary_h > 0.0 && summary_last {
+        super::files::inbox_panel(app, ui, x + 12.0, ry + GAP_SMALL, colw - 24.0);
+        hidden += below_foot(ry + summary_room, foot);
+        ry += summary_room;
+    }
     // What the last write wrote, under the lists (F235).
     if let Some(r) = app.visit.receipt().as_ref() {
         super::files::receipt_rows(
@@ -917,29 +920,15 @@ fn in_faraday(
         shift,
         hidden,
     );
-    let fy = y + colh - VISIT_FOOT_ROW;
     if usable {
-        let nout = visit_write_count(app);
-        let label = Text::fill(
-            EN.visit_write,
-            &[
-                &Text::num(nout as u64),
-                (if nout == 1 {
-                    EN.visit_file
-                } else {
-                    EN.visit_files
-                }),
-            ],
-        );
         if compact {
-            let bw = ui.measure_as(TITLE_S, &label) + 36.0;
             ui.button(
-                x + colw - 20.0 - bw,
+                write.x,
                 fy,
-                Some(bw),
+                Some(write.w),
                 BUTTON_H,
-                &label,
-                Style::Primary.when(nout > 0),
+                &write.label,
+                Style::Primary.when(write.n > 0),
                 Action::VisitWrite,
             );
         } else {
@@ -950,10 +939,80 @@ fn in_faraday(
                     y + colh - SHAPE_M - LIST_2,
                     colw - 2.0 * SHAPE_M,
                 ),
-                nout > 0,
+                write.n > 0,
             );
         }
     }
+}
+
+/// The small panel's Write button: its label, how many files it writes and
+/// where it stands, at the right of the card's foot.
+struct WriteButton {
+    label: Text,
+    n: usize,
+    x: f32,
+    w: f32,
+}
+
+impl WriteButton {
+    fn of(app: &View, ui: &Ui, (x, colw): (f32, f32)) -> Self {
+        let n = visit_write_count(app);
+        let word = if n == 1 {
+            EN.visit_file
+        } else {
+            EN.visit_files
+        };
+        let label = Text::fill(EN.visit_write, &[&Text::num(n as u64), word]);
+        let w = ui.measure_as(TITLE_S, &label) + 2.0 * BUTTON_PAD;
+        WriteButton {
+            label,
+            n,
+            x: x + colw - SHAPE_M - w,
+            w,
+        }
+    }
+}
+
+/// In Faraday's Select all, in a card `colw` wide at `(x, y)`: at the right
+/// of its heading. On a small panel it stands on Write's row (its top at
+/// `fy`), its box under the rows' boxes, so the file rows come first; a row
+/// too narrow for both keeps it over the list. True where it stands beside
+/// Write.
+fn select_all_in_the_card(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, colw): (f32, f32, f32),
+    fy: f32,
+    write: &WriteButton,
+) -> bool {
+    let lw = ui.measure_as(LABEL_L, EN.visit_select_all_select);
+    // The press box ends this far past the label's start.
+    let end = VISIT_SELECT_LABEL_X + lw + GRID;
+    let beside = ui.compact && x + VISIT_TEXT_X + end <= write.x;
+    let (sx, mid) = if beside {
+        (x + VISIT_TEXT_X, fy + BUTTON_H / 2.0)
+    } else {
+        let right = x + colw - VISIT_SELECT_END;
+        (right - lw - VISIT_SELECT_LABEL_X, y + VISIT_SELECT_MID)
+    };
+    visit_select_all(ui, sx, mid, visit_all_out(app), Action::VisitOutAll);
+    beside
+}
+
+/// In Faraday's line that nothing waits to be written, in the card at `x`,
+/// its top at `ry`, drawn where `here` says it stands. Returns its height,
+/// none where it is not drawn.
+fn nothing_waits(app: &View, ui: &mut Ui, (x, ry): (f32, f32), here: bool) -> f32 {
+    if !here || !app.outbox.is_empty() {
+        return 0.0;
+    }
+    ui.text_mid_as(
+        (x + VISIT_TEXT_X, ry, VISIT_GROUP_HEAD),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        &Text::fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
+    );
+    VISIT_GROUP_HEAD
 }
 
 /// Write as the last row of In Faraday on the wide layout: a tonal row
@@ -1631,12 +1690,12 @@ fn visit_inbox_tag(item: &crate::Item) -> (&'static str, crate::ui::Paint) {
     }
 }
 
-/// A stick visit column's "Select all", at the right of its heading: the
-/// card's right edge at `right`, its top at `y`.
-fn visit_select_all(ui: &mut Ui, right: f32, y: f32, all: bool, action: Action) {
+/// A stick visit column's "Select all": its box's left edge at `sx`, its
+/// middle at `mid`.
+fn visit_select_all(ui: &mut Ui, sx: f32, mid: f32, all: bool, action: Action) {
     let label = EN.visit_select_all_select;
     let lw = ui.measure_as(LABEL_L, label);
-    let sx = right - 24.0 - lw - 28.0;
+    let y = mid - VISIT_SELECT_MID;
     ui.checkbox(sx, y + 22.0, all, true);
     ui.text_mid_as(
         (sx + 28.0, y + 16.0, 30.0),

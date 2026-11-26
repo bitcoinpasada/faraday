@@ -675,7 +675,10 @@ window never scrolls as a whole.
    stick in (no box then, the whole row opens them) and rows already on the
    stick open them too. A file that asks before it ticks (a seed) asks at
    its box only. The files waiting to be written and the stick's own
-   rows are untouched. Not built: Vaults' details.
+   rows are untouched. With a usable stick in, a small panel's list shows its
+   file rows first, Select all beside Write (`docs/LAYOUT.md`, "The stick in
+   Files").
+   Not built: Vaults' details.
 2. **The pane as a flow's pick and Your choices** (§2), beside the step, as
    one card (§4).
 3. **Search results sit in a pane**, stacked first by the same rule: under

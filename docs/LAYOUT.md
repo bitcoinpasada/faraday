@@ -82,7 +82,11 @@ list does not scroll within it. At the top of In Faraday's list the Inbox's summ
 (wallets to load, keys, backups short of parts) stands open while it is
 short; past two wallets or a few kinds it is one line, an expandable row
 with Show, and Hide folds it again. An incomplete share's row says how many
-keys are in hand on its supporting line.
+keys are in hand on its supporting line. On compact and medium windows with a
+usable stick in, the file rows come first: the Inbox's summary follows them,
+as does the line that nothing waits to be written, and Select all stands on
+Write's row at the card's foot, left of the filled Write button (over the list
+where the row is too narrow for both).
 
 **What the sidebar lists** besides its tabs (no row for a flow in progress: the tab it is opened from carries their number as a badge; no "open" text on Vaults, its badge counts the vaults open; the loaded keys and wallets are on Home, `docs/HOME.md` §3) stays on the expanded rail. Where there is no expanded
 rail, it is **Home's box of what is loaded** (§4): one card with the same
