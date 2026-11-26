@@ -26,7 +26,7 @@ faraday/faraday-core/src/screens/home.rs 2
 faraday/faraday-core/src/screens/message.rs 26
 faraday/faraday-core/src/screens/parts.rs 200
 faraday/faraday-core/src/screens/randomness.rs 1
-faraday/faraday-core/src/screens/restore.rs 72
+faraday/faraday-core/src/screens/restore.rs 66
 faraday/faraday-core/src/screens/set_time.rs 25
 faraday/faraday-core/src/screens/settings.rs 15
 faraday/faraday-core/src/screens/sheets.rs 188
@@ -37,7 +37,7 @@ faraday/faraday-core/src/screens/wallets.rs 116
 faraday/faraday-core/src/screens/wallets_start.rs 32
 faraday/faraday-core/src/seeds/screen.rs 62
 faraday/faraday-core/src/silent/screen.rs 14
-faraday/faraday-core/src/spend_backup/screen.rs 318
+faraday/faraday-core/src/spend_backup/screen.rs 261
 faraday/faraday-core/src/tools/screen.rs 17
 faraday/faraday-core/src/transfer/screen.rs 17
 faraday/faraday-core/src/vanity/screen.rs 41

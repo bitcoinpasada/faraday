@@ -97,10 +97,6 @@ macro_rules! words_spend_backup {
     spend_backup_no_key_here: "No key here",
     /// Line in `loaded_compact`.
     spend_backup_an_open_vault: "An open vault holds a missing key · Open it to load it",
-    /// Text in `loaded_compact`.
-    spend_backup_spend_from_button: "Spend from it",
-    /// Text in `loaded_compact`.
-    spend_backup_open_button: "Open it",
     /// Section label in `loaded_compact`.
     spend_backup_keys_without_wallet: "Keys with no wallet loaded",
     /// Text in `loaded_compact`.
@@ -223,6 +219,8 @@ macro_rules! words_spend_backup {
     spend_backup_faraday_asks: "Faraday asks to lock first when {} goes in",
     /// Line in `opened`.
     spend_backup_spend_from_label: "Spend from",
+    /// Text in `wallet_rows`. `{}`: the keys' marker, `Session::shape(wl)`.
+    spend_backup_shape_and_keys: "{} · {}",
     /// Text in `opened`. `{}`: `Session::shape(wl)`, `here`, `slots.len()`.
     spend_backup_of_keys_here: "{} · {} of {} keys here",
     /// Line in `shortcut`.
