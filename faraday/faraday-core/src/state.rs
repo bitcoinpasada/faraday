@@ -1376,6 +1376,46 @@ impl Faraday {
         })
     }
 
+    /// A lookup. The wallets Sign a message offers, from the keys kept as
+    /// waiting: those with their key loaded ([`wallet::Session::message_wallets`])
+    /// whose key does not wait for its backup. For drawing and for what is
+    /// offered; a press asks [`Faraday::message_waits_now`].
+    pub(crate) fn message_offered(&self) -> Vec<usize> {
+        let mut wallets = self.session.message_wallets();
+        wallets.retain(|&w| !self.wallet_waits_kept(w));
+        wallets
+    }
+
+    /// A lookup. Whether what a message would be signed with, the address
+    /// picked (`at`) or else `wallet`, waits for its key's backup, from the
+    /// keys kept as waiting: for drawing.
+    pub(crate) fn message_waits(
+        &self,
+        at: Option<&crate::wallet::MessageAt>,
+        wallet: Option<usize>,
+    ) -> bool {
+        match at {
+            Some(at) => self.session.waiting().contains(&at.fingerprint),
+            None => wallet.is_some_and(|w| self.wallet_waits_kept(w)),
+        }
+    }
+
+    /// Costs what `receive_held` or `key_held` costs.
+    /// [`Faraday::message_waits`] for a press, worked out now.
+    pub(crate) fn message_waits_now(
+        &self,
+        c: &Compute,
+        at: Option<&crate::wallet::MessageAt>,
+        wallet: Option<usize>,
+    ) -> bool {
+        match at {
+            Some(at) => self.key_held(c, at.fingerprint),
+            None => wallet
+                .and_then(|w| self.session.wallets.get(w))
+                .is_some_and(|wl| self.receive_held(c, wl)),
+        }
+    }
+
     /// A lookup. The kept receive address of Sign a message while the
     /// session still says what it said when it was worked out; nothing
     /// otherwise (a wallet removed, added, changed or renamed, the network
