@@ -6,7 +6,7 @@
 //! are the pane's. A typed search's results take the tile's place the same
 //! way, on Home (the pane then holds Home's rows) and on Tools.
 
-use super::{Left, Panes, home_area, level};
+use super::{Left, Panes, guide_room, home_area, level};
 use crate::drawing::View;
 use crate::screens::catalog::home_results;
 use crate::screens::menu_page::{Page, Section, page_span, sections_height};
@@ -74,7 +74,10 @@ pub(crate) fn draw_results(app: &View, ui: &mut Ui, area: (f32, f32, f32), panes
 pub(crate) fn draw_results_alone(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let body = |ui: &mut Ui, at: (f32, f32), w: f32| home_results(app, ui, at, w);
     // The one card is the pair's outline: Your choices and the step.
-    let (cx, w) = super::pair::pair(cw, app.guide_pane_shown()).map_or_else(
+    // A flow's unit has the whole room and makes the pane's room here; any
+    // other flow's page is already beside the pane.
+    let guide = app.unit_on_show() && app.guide_pane_shown();
+    let (cx, w) = super::pair::pair(cw, guide).map_or_else(
         || super::detail_alone(cw),
         |p| {
             let left = p.pane_x - PAD;
@@ -108,7 +111,11 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
         return false;
     };
     let top = PANE_TOP_BAR;
-    let (hx, hw) = home_span(cw);
+    // A page stacked beside Guide's pane keeps to the room the pane
+    // leaves; a pair is placed in the whole room.
+    let guide = app.guide_beside_pair();
+    let left_of_guide = if guide { cw - guide_room() } else { cw };
+    let (hx, hw) = home_span(left_of_guide);
     let card_h = stacked_card_h(app, ui, hw);
     let tile_h = crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, hw), body));
     if let Some(under) = panes.stack(top, card_h, tile_h, h) {
@@ -119,7 +126,7 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
             let rest = (h - MARGIN_WIDE - under).max(tile_h);
             return crate::screens::row_details::draw(app, ui, (x0 + hx, under, hw, rest));
         }
-        let clip = ui.rect(x0, 0.0, cw, h);
+        let clip = ui.rect(x0, 0.0, left_of_guide, h);
         let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
         stacked_card(app, ui, (x0 + hx, top), hw);
         tile_surface(ui, (x0 + hx, under, hw, tile_h));
@@ -129,8 +136,7 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
         ui.region_close(open, 0.0);
         return true;
     }
-    // The room is the one Guide's pane leaves.
-    let Some(p) = panes.place(cw, false) else {
+    let Some(p) = panes.place(cw, guide) else {
         return false;
     };
     app.stood_apart();

@@ -36,10 +36,16 @@ pub(crate) fn scanning(app: &Faraday) -> bool {
 /// Where the pair stands, when the scanner is in a pane: the wide layout,
 /// the scanner up and the room holds the pair (`flow::pair`). A lookup.
 pub(crate) fn place(app: &Faraday, compact: bool, room: f32) -> Option<hub_layout::Place> {
-    if compact || !scanning(app) {
+    if !stands(app, compact) {
         return None;
     }
-    PANES.place(room, false)
+    PANES.place(room, app.guide_beside_pair())
+}
+
+/// Whether the page is one that stands as the pair, given the room. A
+/// lookup.
+pub(crate) fn stands(app: &Faraday, compact: bool) -> bool {
+    !compact && scanning(app)
 }
 
 /// Whether the pair stands in a `room`: the page's area is then the work

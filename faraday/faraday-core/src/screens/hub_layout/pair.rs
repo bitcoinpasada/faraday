@@ -67,16 +67,32 @@ pub(super) fn fill(room: f32) -> Option<Place> {
     })
 }
 
+/// `p` as it stands beside Guide's pane in a `room`: where it is when it
+/// leaves the pane's room at its right, else moved left as far as that
+/// needs; `None` where it does not fit at its width.
+pub(super) fn left_of_guide(p: Place, room: f32) -> Option<Place> {
+    let over = (p.card_x + p.card_w - (room - guide_room())).max(0.0);
+    (p.pane_x - over >= MARGIN_WIDE).then_some(Place {
+        pane_x: p.pane_x - over,
+        card_x: p.card_x - over,
+        ..p
+    })
+}
+
 /// The pair of two equal columns (Files): the room up to `READING_VISIT_W`,
 /// centred, a `PAGE_INSET` inside it at each side, the two columns a
 /// `VISIT_GAP` apart. `None` where the room is under the pair's least.
-pub(super) fn equal(room: f32) -> Option<Place> {
+pub(super) fn equal(room: f32, guide: bool) -> Option<Place> {
     if room < 2.0 * MARGIN_WIDE + FLOW_CARD_MIN + SPACER + CHOICES_PANE_MIN {
         return None;
     }
-    let reading = room.min(READING_VISIT_W);
+    // With Guide's pane the columns stand left of its room, narrowing and
+    // moving only as far as it needs.
+    let limit = if guide { room - guide_room() } else { room };
+    let edge = if guide { limit + PAGE_INSET } else { limit };
+    let reading = edge.min(READING_VISIT_W);
     let col = (reading - 2.0 * PAGE_INSET - VISIT_GAP) / 2.0;
-    let pane_x = (room - reading) / 2.0 + PAGE_INSET;
+    let pane_x = ((room - reading) / 2.0).min(edge - reading) + PAGE_INSET;
     Some(Place {
         card_x: pane_x + col + VISIT_GAP,
         card_w: col,
@@ -192,13 +208,13 @@ mod tests {
     #[test]
     fn equal_columns_are_as_wide_as_each_other_and_centred() {
         for room in [872.0, 1366.0, 1920.0, 3840.0] {
-            let p = equal(room).unwrap();
+            let p = equal(room, false).unwrap();
             assert_eq!(p.pane_w, p.card_w);
             assert_eq!(p.card_x, p.pane_x + p.pane_w + VISIT_GAP);
             let right = room - (p.card_x + p.card_w);
             assert!((right - p.pane_x).abs() < 0.01, "{room}");
         }
-        assert!(equal(800.0).is_none());
+        assert!(equal(800.0, false).is_none());
     }
 
     #[test]

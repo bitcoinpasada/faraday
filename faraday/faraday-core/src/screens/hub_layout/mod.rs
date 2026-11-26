@@ -110,11 +110,18 @@ impl Panes {
             return pair::list_detail(room);
         }
         if let Tile::Equal = self.tile {
-            return pair::equal(room);
+            return pair::equal(room, guide && holds_guide(room));
         }
         let guide = guide && holds_guide(room);
-        if let (Tile::Fill, false) = (self.tile, guide)
+        // A filled tile stands beside Guide's pane where it fits at that
+        // width; else the tile takes its narrower form.
+        if let Tile::Fill = self.tile
             && let Some(p) = pair::fill(room)
+            && let Some(p) = if guide {
+                pair::left_of_guide(p, room)
+            } else {
+                Some(p)
+            }
         {
             return Some(p);
         }

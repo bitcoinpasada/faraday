@@ -47,7 +47,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let pair = if compact {
         None
     } else {
-        PANES.place(cw, false)
+        PANES.place(cw, app.guide_beside_pair())
     };
     // A file's details stand where the pair does, or on a small panel in
     // the page's place, and a file is open: the one predicate for the

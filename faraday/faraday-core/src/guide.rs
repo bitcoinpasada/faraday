@@ -722,6 +722,31 @@ impl Faraday {
             && crate::glance::sheet::side_now(self).is_none()
     }
 
+    /// Whether the page on show is a pair that stands in the whole room
+    /// beside the navigation with Guide's pane at its right: the pair is
+    /// then placed in that room and moves only as far as the pane needs
+    /// (`docs/WORKSPACE.md` §7.4). Any other page is laid out in the room
+    /// the pane leaves. A flow's unit is [`Self::unit_place`]'s. A lookup.
+    pub(crate) fn guide_beside_pair(&self) -> bool {
+        use crate::Screen as S;
+        let compact = self.is_compact();
+        !compact
+            && !self.held
+            && self.guide_pane_shown()
+            && !self.unit_on_show()
+            && crate::screens::hub_layout::holds_guide(
+                self.window().width - crate::screens::SIDEBAR_W,
+            )
+            && match self.screen {
+                S::Home | S::Catalog | S::Check | S::WalletsStart => true,
+                S::Wallets | S::Vaults | S::Files => true,
+                S::CheckAddress => crate::address_check::pane::stands(self, compact),
+                S::Explore => crate::explore::pane::stands(self, compact),
+                S::Lightning => crate::lightning::pane::stands(self, compact),
+                _ => false,
+            }
+    }
+
     /// Puts the supporting pane away: by its close button, Escape, the
     /// mouse's back button, or the ? pressed again. The wheel and the
     /// arrow keys move the page again.

@@ -419,7 +419,8 @@ fn bar_head(app: &View, ui: &mut Ui, cw: f32) -> f32 {
     let back = app.named_back(crate::compact::page_head(app).0);
     let names_list = back.0 == EN.compact_wallets && matches!(back.1, Action::Nav(_));
     // The pair has no list beside the page: Back names the tile it returns.
-    let listed = crate::panes::screen::fits(cw) && super::wallets_pair::place(cw).is_none();
+    let listed = crate::panes::screen::fits(cw)
+        && super::wallets_pair::place(cw, app.guide_beside_pair()).is_none();
     super::bar_head(
         ui,
         (!(listed && names_list)).then_some(back),
@@ -492,7 +493,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 
     // On the pair the pane's Waiting group holds the waiting PSBT with Sign.
-    let paired = super::wallets_pair::place(cw);
+    let paired = super::wallets_pair::place(cw, app.guide_beside_pair());
     // An Inbox PSBT leads.
     let lead = match app.wallets.spend() {
         Some(s) => Some((

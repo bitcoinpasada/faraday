@@ -295,7 +295,7 @@ pub(crate) fn bar_head_back(app: &View, ui: &mut Ui, name: &str) -> f32 {
 /// Whether Check an address's scanner stands in a pane beside its card
 /// on the wide layout, in a window `full_w` wide. A lookup.
 fn scanner_in_pane(app: &View, full_w: f32) -> bool {
-    let guide = app.guide_pane_shown() && !app.unit_on_show();
+    let guide = app.guide_pane_shown() && !app.unit_on_show() && !app.guide_beside_pair();
     let nav = if app.held { 0.0 } else { SIDEBAR_W };
     let room = full_w - nav - if guide { hub_layout::guide_room() } else { 0.0 };
     crate::address_check::pane::place_in(app, room)
@@ -375,8 +375,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // page is laid out beside it and nothing of it is under the pane
         // (`docs/LAYOUT.md` §6).
         let pane = app.guide_pane_shown();
-        // A flow's unit makes its own room for the pane.
-        let beside = if pane && !app.unit_on_show() {
+        // A flow's unit and a page's pair make their own room for the pane.
+        let beside = if pane && !app.unit_on_show() && !app.guide_beside_pair() {
             hub_layout::guide_room()
         } else {
             0.0

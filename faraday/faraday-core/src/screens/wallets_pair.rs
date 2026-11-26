@@ -28,8 +28,8 @@ const PANES: Panes = Panes {
 };
 
 /// The pair's place in an area `cw` wide, none where the room holds less.
-pub(super) fn place(cw: f32) -> Option<Place> {
-    PANES.place(cw, false)
+pub(super) fn place(cw: f32, guide: bool) -> Option<Place> {
+    PANES.place(cw, guide)
 }
 
 /// The pane at the pair's left, `top` down, `h` tall.
@@ -47,7 +47,7 @@ pub(super) fn pane(app: &View, ui: &mut Ui, x0: f32, p: &Place, (top, h): (f32, 
 /// details in the tile's place, at the pair's place. False, drawing
 /// nothing, where no row is open or the room holds no pair.
 pub(super) fn draw_details(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> bool {
-    let Some(p) = place(cw) else {
+    let Some(p) = place(cw, app.guide_beside_pair()) else {
         return false;
     };
     if crate::row_open::opened(app).is_none() {
@@ -164,7 +164,7 @@ pub(super) fn way_rows(
 /// pinned at the tile's foot where it scrolls. False, drawing nothing,
 /// where the room holds no pair.
 pub(super) fn draw_start(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> bool {
-    let Some(p) = place(cw) else {
+    let Some(p) = place(cw, app.guide_beside_pair()) else {
         return false;
     };
     let (top, foot) = span(h);

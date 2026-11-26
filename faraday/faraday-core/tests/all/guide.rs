@@ -615,3 +615,39 @@ fn typing_a_glossary_word_in_tools_or_home_offers_it_and_a_press_opens_its_defin
     assert_eq!(app.guide().key, "glossary.quorum");
     assert!(faraday_core::testkit::home_find(&app).is_empty());
 }
+
+/// Where `action`'s control stands on `screen` of a window `width` wide,
+/// before the guide is opened there and with it open.
+fn beside_guide(width: u16, screen: faraday_core::Screen, action: Action) -> (u16, u16) {
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, width, 1440);
+    app.press(Action::Nav(screen));
+    crate::common::through_fade(&mut app);
+    // Twice: the bar's pills, which decide the tile's ways, are noted by
+    // the frame before.
+    frame(&mut app);
+    frame(&mut app);
+    let before = app.hit_box(action).expect("the control").0;
+    app.press(Action::Guide);
+    crate::common::through_fade(&mut app);
+    frame(&mut app);
+    frame(&mut app);
+    let pane = app.hit_box(Action::GuideTabGuide).expect("the pane");
+    let after = app.hit_box(action).expect("the control, beside the pane");
+    assert!(after.0 + after.2 <= pane.0, "{after:?} left of {pane:?}");
+    (before, after.0)
+}
+
+#[test]
+fn a_pair_that_leaves_the_guide_its_room_does_not_move_as_it_opens() {
+    use faraday_core::Screen;
+    let (before, after) = beside_guide(3840, Screen::Catalog, Action::Catalog(0));
+    assert_eq!(before, after);
+}
+
+#[test]
+fn a_pair_moves_left_where_the_guide_needs_the_room() {
+    use faraday_core::Screen;
+    let (before, after) = beside_guide(1920, Screen::WalletsStart, Action::Entry(None));
+    assert!(after < before, "{after} left of {before}");
+}

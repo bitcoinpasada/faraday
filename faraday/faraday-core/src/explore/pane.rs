@@ -21,11 +21,18 @@ const PANES: Panes = Panes {
 /// the wide layout, the Path page, a key loaded and the room holds the pair
 /// (`screens::hub_layout`). A lookup.
 pub(crate) fn place(app: &crate::Faraday, compact: bool, room: f32) -> Option<hub_layout::Place> {
-    if compact || app.explore.state().is_none_or(|e| e.page != Page::Path) {
+    if !stands(app, compact) {
         return None;
     }
-    app.session.keys.all().next()?;
-    PANES.place(room, false)
+    PANES.place(room, app.guide_beside_pair())
+}
+
+/// Whether the page is one that stands as the pair, given the room. A
+/// lookup.
+pub(crate) fn stands(app: &crate::Faraday, compact: bool) -> bool {
+    !compact
+        && app.explore.state().is_some_and(|e| e.page == Page::Path)
+        && app.session.keys.all().next().is_some()
 }
 
 /// Whether the pair stands in a `room`: the page's area is then the work

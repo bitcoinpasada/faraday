@@ -27,8 +27,8 @@ const PANES: Panes = Panes {
 };
 
 /// The pair's place in an area `cw` wide, none where the room holds less.
-fn place(cw: f32) -> Option<Place> {
-    PANES.place(cw, false)
+fn place(cw: f32, guide: bool) -> Option<Place> {
+    PANES.place(cw, guide)
 }
 
 /// The tile's vault cards from the list's top, `w` wide: height of all.
@@ -51,7 +51,7 @@ fn cards_h(app: &View, ui: &mut Ui, w: f32) -> f32 {
 /// at the list's foot where the list fits and pinned at the tile's foot
 /// where it scrolls. False, drawing nothing, where the room holds no pair.
 pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> bool {
-    let Some(p) = place(cw) else {
+    let Some(p) = place(cw, app.guide_beside_pair()) else {
         return false;
     };
     if ui.compact {
