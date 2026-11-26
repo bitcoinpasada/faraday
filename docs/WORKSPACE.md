@@ -188,14 +188,14 @@ details only while a vault is open.
 | Split sheet of a setup | Restore | Restore |
 | Vault file, locked | Unlock | Unlock |
 | Message file | Check | Check a signed message |
-| Text | none | Sign a message (a message wallet loaded); Check an address; Add to vault |
+| Text | none | Sign a message (a wallet it offers loaded: key loaded and not waiting for its backup); Check an address; Add to vault |
 | Krux code | Open | Open |
 | GPG public key that can be restored | Restore | Restore a GPG key |
 | Bitcoin Core wallet file | Read | Read a Bitcoin Core wallet |
 | Key with a seed | none | Explore; the flows that take a key with a seed |
 | Key no wallet uses | none | Make a wallet from this key; Explore; the flows that take it |
 | Key, watch-only | none | Explore; multisig; single-key wallet; Vanity address |
-| Wallet | none | Sign (while a PSBT of it waits); Back up; Spend from backup; Check an address; Sign a message |
+| Wallet | none | Sign (while a PSBT of it waits); Back up; Spend from backup; Check an address; Sign a message (not while its key waits for its backup) |
 | Wallet needing a key | Add a key | Add a key to the slot; as a wallet |
 | Flow in progress | Resume | Resume |
 
@@ -271,7 +271,7 @@ the foot (Wallets' right tile, above), so no wallet row repeats it (owner,
   | Check a signer | step 1 the PSBT sent; step 2 the pane lists held PSBTs again, the first dimmed, and Scan a PSBT |
   | My seed makes my wallet | keys with a seed, loaded wallets, held wallet and key files; the ways in |
   | Check an address | wallets, keys; Type a descriptor, Scan an address, A text file: the last two search every loaded wallet and key |
-  | Sign a message | a wallet; a multisig one dimmed "Single-key wallets only"; a single-key wallet is picked at once where there is one |
+  | Sign a message | a wallet; a multisig one dimmed "Single-key wallets only", one whose key waits for its backup dimmed "Its key waits for its backup"; a single-key wallet is picked at once where there is one |
   | Restore from SLIP-39, codex32 or Seed XOR; Check a backup in another form | held share, part and SeedQR files of the right kind where the flow takes a backup; the ways in |
   | Read a Bitcoin Core wallet; Check a signed message | held files of that kind; the ways in |
   | GPG key, Secure Boot keys | an open vault, or Make a new vault: they make their keys from fresh randomness and take no loaded key |

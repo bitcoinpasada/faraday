@@ -11,7 +11,7 @@ One card per step: the address, the message, the format and the signature. A sig
 
 **Key:** message.address
 
-Choose which wallet and which receive address signs. Only a single-key wallet whose key is held on this device is offered, each by its name.
+Choose which wallet and which receive address signs. Only a single-key wallet whose key is held on this device is offered, each by its name. A wallet whose key was made here and waits for its backup is not offered until the backup is done: its line reads "Its key waits for its backup", and nothing is signed or made with its address.
 
 The address is a receive address of the wallet, 0/0 at first; **-** and **+** step its index. Check an address offers **Sign a message with this address** on an address it finds in such a wallet, or in a standard account of a key you have loaded. A receive address of a wallet opens this screen with that wallet and index chosen. A change address, or an address of a key with no wallet, opens it showing that address with its path and no **-** or **+**; choosing a wallet then leaves it. Choosing another wallet or index clears a signature already made. Choosing a wallet opens the next card.
 
