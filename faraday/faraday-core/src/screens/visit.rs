@@ -203,9 +203,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             page = Some(ui.region_open(Region::page(clip).from_zero(app.list_offset)));
         }
     }
-    if pair.is_some() {
-        ui.pair_span = Some((y, y + colh));
-    }
     if !compact || !app.visit.tab_stick {
         let opens = rows_open && crate::row_open::files_opens(app);
         in_faraday(app, ui, (x, y, colw, colh), (usable, opens));

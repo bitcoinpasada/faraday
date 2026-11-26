@@ -386,7 +386,6 @@ impl RaisedCard {
             let foot = app.scroll.card_foot().get();
             let (left, right) = (from - tokens::PAD, to + tokens::PAD);
             hub_layout::card(ui, (left, top - tokens::PAD), (right, foot.min(clip_end)));
-            ui.pair_span = Some((top - tokens::PAD, foot.min(clip_end)));
             (foot, left, right)
         });
         RaisedCard { drawn }

@@ -707,26 +707,6 @@ fn a_pair_moves_left_where_the_guide_needs_the_room() {
     assert!(after < before, "{after} left of {before}");
 }
 
-/// Beside a pair the guide's pane is as tall as the pair: its top and its
-/// foot are the session pane's, which ends level with the tile.
-#[test]
-fn beside_a_pair_the_guides_pane_has_the_pairs_top_and_foot() {
-    use faraday_core::Screen;
-    for screen in [Screen::Catalog, Screen::WalletsStart] {
-        let mut app = faraday_core::testkit::started();
-        window(&mut app, 1920, 1080);
-        app.press(Action::Nav(screen));
-        app.press(Action::Guide);
-        crate::common::through_fade(&mut app);
-        frame(&mut app);
-        let (_, top, _, tall) = app.pane_place().expect("This session's pane");
-        let guide = app.guide_rest_place().expect("the guide's pane");
-        // The pane's place is counted from under the top app bar.
-        let bar = faraday_draw::tokens::APP_BAR_H as i32;
-        assert_eq!((guide.1 - bar, guide.3), (top, tall), "{screen:?}");
-    }
-}
-
 /// The last frame's pixels, asked one at a time against the page's own
 /// colour, taken in the margin at the guide's right.
 struct Seen {
@@ -759,19 +739,6 @@ impl Seen {
     }
 
     /// The first and the last row under the top app bar where column `x`
-    /// has the colour it has on `row`: a raised card's own surface, without
-    /// the shadow it casts past itself.
-    fn surface_ends(&self, x: usize, row: usize) -> (usize, usize) {
-        let colour = self.at(x, row);
-        let rows = self.rgba.len() / 4 / self.width;
-        let bar = faraday_draw::tokens::APP_BAR_H as usize;
-        let same = |&y: &usize| self.at(x, y) == colour;
-        let top = (bar..rows).find(same).expect("a top");
-        let foot = (bar..rows).rfind(same).expect("a foot");
-        (top, foot)
-    }
-
-    /// The first and the last row under the top app bar where column `x`
     /// shows anything.
     fn ends(&self, x: usize) -> (usize, usize) {
         let rows = self.rgba.len() / 4 / self.width;
@@ -782,23 +749,22 @@ impl Seen {
     }
 }
 
-/// The guide's pane and the pair at its left, each read down a column just
-/// inside its right edge: they begin and end on the same rows, and the
-/// pane stops short of the window's foot where the pair does.
-fn level_with_the_pair(app: &mut Faraday, what: &str) {
+/// The guide's pane runs from where every supporting pane starts to the
+/// usual margin above the window's foot, however tall the page beside it.
+fn full_height(app: &mut Faraday, what: &str) {
+    use faraday_draw::tokens::{APP_BAR_H, MARGIN_WIDE, SUPPORT_PANE_TOP};
     crate::common::through_fade(app);
     frame(app);
     frame(app);
-    let (seen, guide) = Seen::of(app);
-    let row = guide.1 + guide.3 / 2;
-    let right = (0..guide.0)
-        .rfind(|&x| seen.drawn(x, row))
-        .expect("the pair's right edge");
-    const IN: usize = 18;
+    let (_, y, _, h) = app.guide_rest_place().expect("the guide's pane");
     assert_eq!(
-        seen.ends(guide.0 + guide.2 - 1 - IN),
-        seen.ends(right - IN),
-        "{what}: the guide's top and foot, the pair's"
+        (y, y + h),
+        // The pane's place is counted from the window's top, over the bar.
+        (
+            (APP_BAR_H + SUPPORT_PANE_TOP) as i32,
+            1080 - MARGIN_WIDE as i32
+        ),
+        "{what}: the guide's top and foot"
     );
 }
 
@@ -819,13 +785,27 @@ fn add_key(app: &mut Faraday) {
 }
 
 #[test]
-fn beside_files_the_guides_pane_is_as_tall_as_the_two_cards() {
+fn beside_every_page_the_guides_pane_is_the_windows_full_height() {
+    use faraday_core::Screen;
     let mut app = faraday_core::testkit::started();
     window(&mut app, 1920, 1080);
-    app.press(Action::Nav(faraday_core::Screen::Files));
-    crate::common::through_fade(&mut app);
-    app.press(Action::Guide);
-    level_with_the_pair(&mut app, "Files");
+    for screen in [
+        Screen::Files,
+        Screen::Check,
+        Screen::Home,
+        Screen::Catalog,
+        Screen::WalletsStart,
+    ] {
+        app.press(Action::Nav(screen));
+        crate::common::through_fade(&mut app);
+        if app.guide_rest_place().is_none() {
+            app.press(Action::Guide);
+        }
+        full_height(&mut app, &format!("{screen:?}"));
+    }
+    add_key(&mut app);
+    app.press(Action::Lightning);
+    full_height(&mut app, "Lightning");
 }
 
 #[test]
@@ -839,7 +819,10 @@ fn beside_files_the_two_columns_stay_equal() {
     frame(&mut app);
     let (seen, guide) = Seen::of(&mut app);
     // Just above the cards' foot, where neither holds anything.
-    let (_, foot) = seen.ends(guide.0 + guide.2 / 2);
+    let right = (0..guide.0)
+        .rfind(|&x| seen.drawn(x, guide.1 + 100))
+        .expect("the pair's right edge");
+    let (_, foot) = seen.ends(right - 18);
     let row = foot - 6;
     // Past the navigation at the window's left.
     let rail = 240 + 16;
@@ -863,7 +846,7 @@ fn beside_files_the_two_columns_stay_equal() {
 }
 
 #[test]
-fn beside_a_flows_pair_the_guides_pane_is_as_tall_as_the_card() {
+fn beside_a_flows_pair_the_guides_pane_is_the_windows_full_height() {
     let kit = faraday_core::testkit::kits()
         .into_iter()
         .find(|k| k.id == "spending")
@@ -879,32 +862,7 @@ fn beside_a_flows_pair_the_guides_pane_is_as_tall_as_the_card() {
     app.press(Action::StartSpend(0));
     crate::common::through_fade(&mut app);
     app.press(Action::Guide);
-    crate::common::through_fade(&mut app);
-    frame(&mut app);
-    frame(&mut app);
-    let (seen, guide) = Seen::of(&mut app);
-    let row = guide.1 + guide.3 / 2;
-    let right = (0..guide.0)
-        .rfind(|&x| seen.drawn(x, row))
-        .expect("the card's right edge");
-    let card = seen.surface_ends(right - 24, row);
-    let pane = seen.surface_ends(guide.0 + guide.2 - 24, row);
-    // Their rounded, softened edges differ by a row or two.
-    assert!(
-        card.0.abs_diff(pane.0) <= 3 && card.1.abs_diff(pane.1) <= 3,
-        "the card's {card:?}, the guide's {pane:?}"
-    );
-}
-
-#[test]
-fn beside_an_outlined_pair_the_guides_pane_has_the_outlines_top_and_foot() {
-    let mut app = faraday_core::testkit::started();
-    window(&mut app, 1920, 1080);
-    add_key(&mut app);
-    app.press(Action::Lightning);
-    crate::common::through_fade(&mut app);
-    app.press(Action::Guide);
-    level_with_the_pair(&mut app, "Lightning");
+    full_height(&mut app, "a spend");
 }
 
 /// The strip just left of the guide's pane is the page's own colour on
@@ -964,76 +922,4 @@ fn search_results_and_a_rows_details_stay_clear_of_the_guide() {
     frame(&mut app);
     app.press(Action::RowOpen(faraday_core::Row::Key(fp)));
     nothing_under_the_pane(&mut app, "Home, a key's details");
-}
-
-#[test]
-fn beside_a_stacked_page_the_guides_pane_has_its_top_and_foot() {
-    use faraday_core::Screen;
-    let mut app = faraday_core::testkit::started();
-    window(&mut app, 1920, 1080);
-    app.press(Action::Nav(Screen::Check));
-    crate::common::through_fade(&mut app);
-    app.press(Action::Guide);
-    crate::common::through_fade(&mut app);
-    frame(&mut app);
-    frame(&mut app);
-    let (seen, guide) = Seen::of(&mut app);
-    assert!(
-        guide.1 + guide.3 + (faraday_draw::tokens::MARGIN_WIDE as usize) < 1080,
-        "the pane is the page's height, not the window's: {guide:?}"
-    );
-    // The page's column, read through its middle: this session's card and
-    // the tile under it, each casting a little shadow past itself.
-    let row = guide.1 + guide.3 / 2;
-    let right = (0..guide.0)
-        .rfind(|&x| seen.drawn(x, row))
-        .expect("the page's right edge");
-    let pane = seen.ends(guide.0 + guide.2 - 19);
-    let page = seen.ends(right - 18);
-    assert!(
-        pane.0.abs_diff(page.0) <= 6 && pane.1.abs_diff(page.1) <= 6,
-        "the guide's top and foot {pane:?}, the page's {page:?}"
-    );
-}
-
-/// Beside a page shorter than the window the pane's arrow lets its foot down
-/// to the window's, keeping its top, and folds it back to the page's; it stays let down
-/// after the guide is closed and opened again.
-#[test]
-fn the_guides_arrow_lets_its_pane_down_and_keeps_it_so() {
-    use faraday_core::Screen;
-    let mut app = faraday_core::testkit::started();
-    window(&mut app, 1920, 1080);
-    app.press(Action::Nav(Screen::Check));
-    crate::common::through_fade(&mut app);
-    let open = |app: &mut Faraday| {
-        app.press(Action::Guide);
-        crate::common::through_fade(app);
-        frame(app);
-        app.guide_rest_place().expect("the guide's pane")
-    };
-    let short = open(&mut app);
-    app.press(Action::GuideTall);
-    crate::common::through_fade(&mut app);
-    frame(&mut app);
-    let tall = app.guide_rest_place().expect("the guide's pane");
-    assert!(tall.3 > short.3, "let down: {tall:?} against {short:?}");
-    assert_eq!(tall.1, short.1, "the top stays: {tall:?} against {short:?}");
-    assert_eq!(
-        tall.1 + tall.3 + faraday_draw::tokens::MARGIN_WIDE as i32,
-        1080,
-        "{tall:?}"
-    );
-    app.press(Action::GuideClose);
-    frame(&mut app);
-    assert_eq!(open(&mut app), tall, "opened again, it is as it was left");
-    app.press(Action::GuideTall);
-    crate::common::through_fade(&mut app);
-    frame(&mut app);
-    assert_eq!(app.guide_rest_place(), Some(short), "folded back");
-    // Tools runs past the window's foot: nothing to let down, no arrow.
-    app.press(Action::Nav(Screen::Catalog));
-    crate::common::through_fade(&mut app);
-    frame(&mut app);
-    assert!(app.hit_box(Action::GuideTall).is_none());
 }

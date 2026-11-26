@@ -58,8 +58,8 @@ page that does not stack is measured as a pair.
   (`Faraday::guide_beside_pair`, `place(room, true)`): it moves left only
   as far as the pane needs, and a filled tile takes the flow pair's width
   where it does not fit; any other page is laid out in the room the pane
-  leaves. Each pair drawn says its top and foot (`Ui::pair_span`), and
-  Guide's pane stands level with them.
+  leaves. Guide's pane is the window's full height within the margins,
+  whatever the page's height.
 - `holds_guide(room)`: whether the room holds a flow's pair at its narrowest
   with Guide's pane beside it.
 - `home_area(room)`: the area Home's column has, where a page stands that has

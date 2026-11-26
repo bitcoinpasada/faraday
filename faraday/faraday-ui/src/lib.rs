@@ -527,11 +527,6 @@ pub struct Ui<'a, A> {
     /// change of page glides it from its old place to its new one
     /// (`docs/MOTION.md` §3.5). Set by whoever draws the pane.
     pub pane: Option<(f32, f32, f32, f32)>,
-    /// Where the pair or the one column this frame drew starts and ends,
-    /// top and foot, in the page's units: the guide's pane beside it stands
-    /// level with it (`docs/WORKSPACE.md` §7.4). `None` where the page says
-    /// none. Set by whoever draws it.
-    pub pair_span: Option<(f32, f32)>,
     /// Where the guide's pane was drawn this frame, as `pane` is. Set by
     /// whoever draws it.
     pub guide_drawn: Option<(f32, f32, f32, f32)>,
@@ -714,7 +709,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             flow_card: None,
             flow_card_raised: false,
             pane: None,
-            pair_span: None,
             guide_drawn: None,
             flow_work: None,
             flow_end: None,

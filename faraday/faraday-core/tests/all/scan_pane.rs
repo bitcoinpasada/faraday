@@ -385,11 +385,6 @@ fn the_guide_beside_the_scan_scrolls_by_wheel() {
     app.event(frame_event());
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::Scan));
-    // The pane is as tall as the scan's page, too short for the contents:
-    // its arrow lets it down.
-    app.press(Action::GuideTall);
-    app.settle();
-    let _ = app.frame();
     let (x, y) = app
         .where_offered(Action::GuidePage(0))
         .expect("the guide's contents stand beside the scan");

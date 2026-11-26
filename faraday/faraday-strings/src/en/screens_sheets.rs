@@ -390,11 +390,6 @@ macro_rules! words_screens_sheets {
     /// The close button's label in the guide's supporting pane
     /// (`screens/guide_pane.rs`).
     guide_close: "Close",
-    /// The supporting pane's arrow, beside a page that makes the pane
-    /// shorter than the window: lets it down to the window's height.
-    guide_expand: "Expand",
-    /// The same arrow once the pane is let down: folds it back.
-    guide_collapse: "Collapse",
     /// The first tab of the guide sheet and of the supporting pane (§8.2).
     guide_tab_how: "Cryptography",
     /// The head of the Starter's sheet of blocks (§8.4).

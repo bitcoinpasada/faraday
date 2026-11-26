@@ -58,7 +58,6 @@ pub(crate) fn lines(ui: &mut Ui, (at, top, end): (f32, f32, f32), pair: Option<(
     divider(ui, at, top, end);
     if let Some(((left, right), limit)) = pair {
         let (from, to) = (top - OUTLINE_ABOVE, (end + tokens::PAD).min(limit));
-        ui.pair_span = Some((from, to));
         outline(ui, (left - tokens::PAD, from), (right + tokens::PAD, to));
     }
 }

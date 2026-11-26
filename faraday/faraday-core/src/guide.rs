@@ -854,17 +854,6 @@ impl Faraday {
         self.guide_place();
     }
 
-    /// Whether the guide's pane is let down to the window's height beside
-    /// a page that would make it shorter. A lookup.
-    pub fn guide_pane_tall(&self) -> bool {
-        self.guide.tall()
-    }
-
-    /// The pane's arrow pressed: it is let down or folded back.
-    pub(crate) fn guide_tall(&mut self) {
-        self.guide.toggle_tall();
-    }
-
     /// The guide's state: the page on show and its scroll.
     pub fn guide(&self) -> &GuideState {
         self.guide.state()
@@ -883,10 +872,6 @@ pub(crate) struct GuideArea {
     /// the screen's key is another, the pane shows it. Empty while the
     /// pane is not open.
     followed: &'static str,
-    /// The pane is let down to the window's height beside a page that
-    /// would make it shorter (its arrow, `screens/guide_pane.rs`). Kept
-    /// as the person left it, across closing and opening the guide.
-    tall: bool,
 }
 
 /// Holds nothing a lock wipes: the guide's page.
@@ -1006,17 +991,6 @@ impl GuideArea {
     }
 
     /// The pane is put away.
-    /// Whether the pane is let down to the window's height. A lookup.
-    pub(crate) fn tall(&self) -> bool {
-        self.tall
-    }
-
-    /// The pane's arrow: lets it down to the window's height, or folds it
-    /// back to the page's.
-    pub(crate) fn toggle_tall(&mut self) {
-        self.tall = !self.tall;
-    }
-
     pub(crate) fn close_pane(&mut self) {
         self.pane = false;
         self.followed = "";
