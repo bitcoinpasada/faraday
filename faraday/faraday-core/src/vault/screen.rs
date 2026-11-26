@@ -580,7 +580,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// The third line of a vault's row: where it is, its size and cost while
 /// open; once locked, what it held when last seen open, else nothing.
-pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Text {
+pub(crate) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Text {
     let line = if f.open.is_some() {
         text!(
             "{where_} · {} · {}",

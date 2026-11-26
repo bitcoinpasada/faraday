@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: Home's card with its groups (F323, `docs/SESSION-PANE.md`), the flow pair as one card (F324), a change of page at the Speed and in the Motion style (F318) and the flat section cards of the menu pages (F317) are on main; the rest is not built: the session pane as the one view of what is loaded and going on, on the menu pages and in every flow, the page as panes, and the rest of the motion (§6).
-**Open:** To build: the session pane's form in Restore and Spend from a backup (only their rows are the pane's; the pane itself is not drawn there), in Save to a vault, the backup board and Silent, and the checkbox row for loaded keys where a step takes several (built for Restore's share files and for the loaded keys of its open slot; Who signs fills one key at a time, §2; Home's card in groups, the modes of Tools, Check and Wallets and the pick of the other flows, which declare what they take and refuse into the pane, are built, `docs/SESSION-PANE.md`), the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), and details on Vaults (§2, §7; Tools, Check, Wallets, Home and Files have them), 
+**Open:** To build: the session pane's form in Restore and Spend from a backup (only their rows are the pane's; the pane itself is not drawn there), in Save to a vault, the backup board and Silent, and the checkbox row for loaded keys where a step takes several (built for Restore's share files and for the loaded keys of its open slot; Who signs fills one key at a time, §2; Home's card in groups, the modes of Tools, Check and Wallets and the pick of the other flows, which declare what they take and refuse into the pane, are built, `docs/SESSION-PANE.md`), the pick becoming Your choices at the left in a flow with wide content (the wallet chip as the first row is built where the pair stands) and the backup board, the flow pair's one card there (§4, §6), and details for the key and wallet rows of Vaults' pane (§2, §7; a vault's own are built), 
 Tools' and Check's pane at the flow's place at 1920 wide and wider (§4; its drawing cost is not measured), "No seed held" on a watch-only key in the seed tools' picks (§2; no key loads watch-only yet), the rest of the heights (F331: Settings' raised card at level 1; the Check an address and Explore pairs, which still draw the outline and no fill; a step's fade, which goes through the page's surface inside the raised card, §3, §6), the Scan button under Settings, the viewfinder in the pane of the flows other than Check an address, its form over a folded strip and its popout (§4), the backup board's insides and codex32 from dice (§7), the flow's one card for the one-page checks (§2; the Tools calculators stand on it), the timings on the Pi that §6 and §8 name, the take-away in the flows other than Sign a message and the Krux code tool (§15), the kept place of a tool or check left before its end, as a flow in progress (§16), starting with files on the boot stick (§17) addresses shown whole (§18) and one sign for each kind of press (F332, §19); what of these is built is in the sections. Not decided: the Pi's default Motion, until its timings (§8).
 
 "This session", Home's raised card, becomes the session pane, Faraday's hub: everything about
@@ -677,8 +677,15 @@ window never scrolls as a whole.
    its box only. The files waiting to be written and the stick's own
    rows are untouched. With a usable stick in, a small panel's list shows its
    file rows first, Select all beside Write (`docs/LAYOUT.md`, "The stick in
-   Files").
-   Not built: Vaults' details.
+   Files"). A vault has details too: on Vaults' pair a press
+   on its card above the buttons (which stay their own presses) opens them
+   in the tile's place, and on Files its file's row does. "What you can do"
+   is one list with Files' row menu: Unlock while it is locked (not while a
+   stick is in), and for an open one View contents, Load wallets with keys
+   where some are left to load, and Lock. The facts, read without opening
+   it: the file's name, how the list of vaults names it and its state,
+   where it is, and what is known of what it holds. Not built: details for
+   the key and wallet rows of Vaults' pane.
 2. **The pane as a flow's pick and Your choices** (§2), beside the step, as
    one card (§4).
 3. **Search results sit in a pane**, stacked first by the same rule: under

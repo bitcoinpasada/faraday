@@ -24,6 +24,7 @@ pub(crate) fn title(app: &View) -> Option<String> {
         }
         Opened::Wallet(i) => app.session.wallets.get(i)?.name.to_string(),
         Opened::File(k) => app.inbox.get(k)?.name.to_string(),
+        Opened::Vault(i) => app.vault_files().get(i)?.name.to_string(),
     })
 }
 
@@ -154,21 +155,73 @@ fn offer_icon(action: Action) -> Option<Icon> {
         Action::Backup(_) => Some(Icon::Shield),
         Action::CreateWallet => Some(Icon::Flag),
         Action::RestoreWallet | Action::RestoreSeedFile(_) => Some(Icon::Wallet),
-        Action::Vault(VaultAction::Open(_)) => Some(Icon::Lock),
+        Action::Vault(VaultAction::Open(_)) | Action::LockAsk => Some(Icon::Lock),
+        Action::Vault(VaultAction::LoadWithKeys(_)) => Some(Icon::Wallet),
         _ => None,
     }
 }
 
+/// What vault `at` of the list of vaults offers: its shared list.
+fn vault_offers(app: &View, at: usize) -> Vec<Offer> {
+    let files = app.vault_files();
+    let Some(f) = files.get(at) else {
+        return Vec::new();
+    };
+    let wallets = f
+        .open
+        .map(|o| app.vault_wallets_with_keys(o))
+        .unwrap_or_default();
+    offers_of(crate::items::vault_list(app, f, at, &wallets))
+}
+
+/// Vault `at`'s facts, read without opening it: its file's name, then how
+/// the list of vaults names it, its state, where it is and what is known
+/// of what it holds.
+fn vault_facts(app: &View, at: usize) -> Option<(String, String, bool)> {
+    let files = app.vault_files();
+    let f = files.get(at)?;
+    let look = crate::vault::panes_screen::look(app, f);
+    let where_ = if f.in_outbox {
+        app.medium.for_box()
+    } else {
+        app.medium.from_box()
+    };
+    let known = String::from(&*crate::vault::screen::list_line(app, f, where_));
+    let mut parts = vec![look.title, look.state];
+    // An open vault's line says where it is itself.
+    if f.open.is_none() {
+        parts.push(where_.to_string());
+        parts.push(String::from(&*super::size_text(f.len as u64)));
+    }
+    parts.push(known);
+    parts.retain(|p| !p.is_empty());
+    parts.dedup();
+    Some((f.name.to_string(), parts.join(" · "), false))
+}
+
+/// The place in the list of vaults of the vault held file `k` is.
+fn vault_of_file(app: &View, k: usize) -> Option<usize> {
+    let item = app.inbox.get(k)?;
+    (item.kind == crate::FileKind::Vault)
+        .then(|| crate::vault::vault_at(&app.vault_files(), item))
+        .flatten()
+}
+
+fn offers_of(list: Vec<(String, Action)>) -> Vec<Offer> {
+    list.into_iter()
+        .map(|(label, action)| actions::offer(&label, offer_icon(action), action))
+        .collect()
+}
+
 /// What held file `k` offers: its shared list.
 fn file_offers(app: &View, k: usize) -> Vec<Offer> {
+    if let Some(at) = vault_of_file(app, k) {
+        return vault_offers(app, at);
+    }
     let found = std::cell::OnceCell::new();
     let loaded_at = |k: usize| found.get_or_init(|| app.inbox_found()).loaded_at_file(k);
     let enough = |k: usize| found.get_or_init(|| app.inbox_found()).shares_enough(k);
-    crate::items::offer(app, k, &|seen| app.spends_from(seen), &loaded_at, &enough)
-        .list
-        .into_iter()
-        .map(|(label, action)| actions::offer(&label, offer_icon(action), action))
-        .collect()
+    offers_of(crate::items::offer(app, k, &|seen| app.spends_from(seen), &loaded_at, &enough).list)
 }
 
 /// The group, then the facts, from `(x, y)`, `w` wide. Returns the height.
@@ -177,6 +230,11 @@ fn body(app: &View, ui: &mut Ui, opened: Opened, (x, y): (f32, f32), w: f32) -> 
         Opened::Key(fp) => (
             key_offers(app, fp),
             super::session_pane::key_facts(app, fp).map(|(head, sub)| (head, sub, true)),
+        ),
+        Opened::Vault(i) => (vault_offers(app, i), vault_facts(app, i)),
+        Opened::File(k) if vault_of_file(app, k).is_some() => (
+            file_offers(app, k),
+            vault_of_file(app, k).and_then(|at| vault_facts(app, at)),
         ),
         Opened::File(k) => (
             file_offers(app, k),

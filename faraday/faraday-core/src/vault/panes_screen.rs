@@ -177,7 +177,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = p.top;
     let mut y = top;
     match files.get(at) {
-        Some(f) => y += card(app, ui, (dx, y, w), at, f) + MARGIN_WIDE,
+        Some(f) => y += card(app, ui, (dx, y, w), (at, false), f) + MARGIN_WIDE,
         None => {
             let muted = Role::OnSurfaceVariant;
             y += ui.wrap_as((dx, y, w), BODY_M, muted, EN.vault_no_vault_in_files) + GAP;
@@ -192,18 +192,23 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.region_close(open, y - top - (h - p.top));
 }
 
+/// The room around what a vault's card holds.
+pub(crate) const CARD_PAD: f32 = 2.0 * GAP + GAP / 2.0;
+
 /// Vault `i`'s card in the detail: its lock, title and file, what it
 /// held or where it is, its state, and Unlock, or View contents and Lock.
+/// Where a press on it opens its details (`opens`), its title row ends in
+/// the chevron.
 /// Returns its height.
 pub(crate) fn card(
     app: &View,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
-    i: usize,
+    (i, opens): (usize, bool),
     f: &vault::VaultFile,
 ) -> f32 {
     let l = look(app, f);
-    let pad = 2.0 * GAP + GAP / 2.0;
+    let pad = CARD_PAD;
     let (ix, iw) = (x + pad, w - 2.0 * pad);
     let muted = Role::OnSurfaceVariant;
     let where_ = if f.in_outbox {
@@ -230,7 +235,11 @@ pub(crate) fn card(
     let mut cy = y + pad;
     crate::ui::icon_tile(ui, (ix, cy, TOUCH, SHAPE_M), Icon::Lock, 20.0, l.icon);
     let tx = ix + TOUCH + 2.0 * GAP;
-    let tw = iw - TOUCH - 2.0 * GAP;
+    let mut tw = iw - TOUCH - 2.0 * GAP;
+    if opens {
+        ui.row_chevron(ix + iw, cy, TOUCH, Role::OnSurfaceVariant);
+        tw -= TOUCH;
+    }
     let t = ui.fit_as(TITLE_M, &l.title, tw);
     ui.text_as(tx, cy, TITLE_M, Role::OnSurface, &t);
     let name = ui.fit_as(BODY_S.mono(), &f.name, tw);

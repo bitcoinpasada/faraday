@@ -5,6 +5,7 @@
 //! pane's details later. Built where a menu opens, never per draw.
 
 use crate::strings::EN;
+use crate::vault::VaultWallet;
 use crate::wallet::PsbtSeen;
 use crate::{Action, Faraday, FileKind, Item, Screen};
 
@@ -242,17 +243,57 @@ fn wallet(app: &Faraday, k: usize, item: &Item, loaded: Option<usize>) -> Offer 
     }
 }
 
-/// A vault file that is locked: Unlock, the press its own row makes.
+/// A vault file: its vault's list. A locked one's Unlock is the row's
+/// button.
 fn vault(app: &Faraday, item: &Item) -> Offer {
     let files = app.vault_files();
     match crate::vault::vault_at(&files, item) {
-        // Never while a stick is in: the row waits until it is pulled.
-        Some(at) if files[at].open.is_none() && app.stick.is_empty() => Offer::with_button(vec![(
-            EN.inbox_actions_unlock.to_string(),
-            Action::Vault(crate::vault::VaultAction::Open(at)),
-        )]),
-        _ => Offer::none(),
+        Some(at) if files[at].open.is_none() => {
+            Offer::with_button(vault_list(app, &files[at], at, &[]))
+        }
+        Some(at) => Offer::without_button(vault_list(app, &files[at], at, &[])),
+        None => Offer::none(),
     }
+}
+
+/// "What you can do" with vault file `f`, `at` in the list of vaults: the
+/// one list, of its details and of Files' row menu. Locked, Unlock; open,
+/// View contents, Load wallets with keys where `wallets` (the open vault's)
+/// leave one chosen to load, and Lock.
+pub(crate) fn vault_list(
+    app: &Faraday,
+    f: &crate::vault::VaultFile,
+    at: usize,
+    wallets: &[VaultWallet],
+) -> Vec<Pick> {
+    let open = Action::Vault(crate::vault::VaultAction::Open(at));
+    let Some(o) = f.open else {
+        // Never while a stick is in: it waits until the stick is pulled.
+        return if app.stick.is_empty() {
+            vec![(EN.inbox_actions_unlock.to_string(), open)]
+        } else {
+            Vec::new()
+        };
+    };
+    let mut list = vec![(EN.vault_view_contents.to_string(), open)];
+    list.extend(load_wallets(wallets, o));
+    list.push((EN.vault_lock.to_string(), Action::LockAsk));
+    list
+}
+
+/// Load the chosen wallets of open vault `v` with their keys: none where
+/// none is left that is chosen. An open vault's row menu and its list.
+pub(crate) fn load_wallets(wallets: &[VaultWallet], v: usize) -> Option<Pick> {
+    let pending: Vec<_> = wallets.iter().filter(|w| !w.done).collect();
+    let chosen = pending.iter().filter(|w| w.chosen).count();
+    let label = match (chosen, pending.len()) {
+        (0, _) => return None,
+        (1, 1) => EN.vault_load_wallet_keys.to_string(),
+        (1, _) => EN.vault_load_1_wallet.to_string(),
+        (n, _) => crate::strings::fill(EN.vault_load_wallets, &[&n.to_string()]),
+    };
+    let load = Action::Vault(crate::vault::VaultAction::LoadWithKeys(v));
+    Some((label, load))
 }
 
 /// A key file or key line: Use key.

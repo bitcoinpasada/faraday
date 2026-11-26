@@ -9,7 +9,9 @@ use faraday_bip::keys::Fingerprint;
 use faraday_core::convert::ConvertAction as C;
 use faraday_core::lightning::NodeSource;
 use faraday_core::seeds::SeedsAction as S;
+use faraday_core::strings::EN;
 use faraday_core::testkit::KindText;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Code, Faraday, KeyTool, Row, ScanPurpose, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
@@ -233,6 +235,68 @@ fn leaving_a_flow_begun_from_the_details_returns_to_them() {
     touch(&mut app, (x, y));
     assert_eq!(app.screen, Screen::Catalog);
     assert!(details_of(&mut app, fp), "the details, as they were");
+}
+
+const PHRASE: &str = "details phrase";
+
+/// A 1366 by 768 window holding one locked vault file, on Vaults.
+fn vaults_with_a_vault() -> Faraday {
+    let mut app = desktop();
+    let file = faraday_core::testkit::kdbx_vault("Main", PHRASE, 1, Vec::new()).unwrap();
+    faraday_core::testkit::inbox_file(&mut app, "main.kdbx", file);
+    app.press(Action::Nav(Screen::Vaults));
+    let _ = app.frame();
+    app
+}
+
+fn drawn(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_texts().iter().any(|t| t == text)
+}
+
+#[test]
+fn a_sealed_vaults_row_opens_its_details_and_back_returns_the_page() {
+    let mut app = vaults_with_a_vault();
+    assert!(shown(&mut app, Action::RowOpen(Row::Vault(0))));
+    assert!(!app.offers(Action::RowClose));
+    app.press(Action::RowOpen(Row::Vault(0)));
+    assert_eq!(app.screen, Screen::Vaults);
+    assert!(drawn(&mut app, EN.row_details_facts));
+    assert!(app.offers(Action::Vault(V::Open(0))), "Unlock");
+    assert!(!app.offers(Action::LockAsk), "nothing to lock");
+    assert!(
+        !drawn(&mut app, EN.vaults_make_a_vault),
+        "in the tile's place"
+    );
+    app.press(Action::RowClose);
+    assert!(drawn(&mut app, EN.vaults_make_a_vault), "the page again");
+    assert!(!app.offers(Action::RowClose));
+}
+
+#[test]
+fn an_open_vaults_details_offer_its_contents_and_lock() {
+    let mut app = vaults_with_a_vault();
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    crate::common::type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert!(!app.vaults().open.is_empty(), "unlocked");
+    app.press(Action::Nav(Screen::Vaults));
+    assert!(shown(&mut app, Action::RowOpen(Row::Vault(0))));
+    app.press(Action::RowOpen(Row::Vault(0)));
+    assert!(drawn(&mut app, EN.row_details_facts));
+    assert!(drawn(&mut app, EN.vault_view_contents));
+    assert!(app.offers(Action::Vault(V::Open(0))), "View contents");
+    assert!(app.offers(Action::LockAsk), "Lock");
+    app.press(Action::Vault(V::Open(0)));
+    assert_eq!(app.screen, Screen::VaultContents);
 }
 
 /// A wallet file held, on Tools: its row carries Load.

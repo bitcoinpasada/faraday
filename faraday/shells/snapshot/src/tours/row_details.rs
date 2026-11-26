@@ -103,5 +103,27 @@ pub(crate) fn row_details_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::VisitInbox(note));
     t.shot("rowdetails-files-tick-on")?;
     t.press(Action::RowOpen(Row::File(note)));
-    t.shot("rowdetails-files-tick-on-details")
+    t.shot("rowdetails-files-tick-on-details")?;
+    // A locked vault's details: on Vaults' pair, and from its row on Files.
+    t.press(Action::RowClose);
+    t.sticks(false);
+    let vault = testkit::kdbx_vault("Work", "work passphrase", 0x77, Vec::new())
+        .map_err(|e| format!("{e:?}"))?;
+    testkit::inbox_file(&mut t.app, "work.kdbx", vault);
+    t.press(Action::Nav(Screen::Vaults));
+    // One column opens none there: the frame is then the page.
+    t.press(Action::RowOpen(Row::Vault(0)));
+    t.shot("rowdetails-vaults-vault")?;
+    t.press(Action::Nav(Screen::Files));
+    if t.app.offers(Action::RowClose) {
+        t.press(Action::RowClose);
+    }
+    let at = t
+        .app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "work.kdbx")
+        .ok_or("no work.kdbx")?;
+    t.press(Action::RowOpen(Row::File(at)));
+    t.shot("rowdetails-files-vault")
 }

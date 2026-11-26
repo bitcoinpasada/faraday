@@ -18,6 +18,8 @@ pub(crate) enum Page {
     Tools,
     Check,
     Wallets,
+    /// Vaults: a vault of the pair's tile opens in the tile's place.
+    Vaults,
     /// Files: a file of In Faraday opens in the stick's place, and on a
     /// small panel in the page's.
     Files,
@@ -32,6 +34,7 @@ impl Page {
             Screen::Check => Some(Page::Check),
             Screen::Wallets | Screen::WalletsStart => Some(Page::Wallets),
             Screen::Files => Some(Page::Files),
+            Screen::Vaults => Some(Page::Vaults),
             _ => None,
         }
     }
@@ -86,6 +89,8 @@ pub enum Row {
     Wallet(usize),
     /// A held file, by its place in the Inbox.
     File(usize),
+    /// A vault, by its place in the list of vaults.
+    Vault(usize),
 }
 
 /// The item as kept.
@@ -94,6 +99,7 @@ pub(crate) enum RowItem {
     Key([u8; 4]),
     Wallet(WalletId),
     File { name: String, len: usize },
+    Vault(String),
 }
 
 /// The item found now, by its place.
@@ -102,6 +108,7 @@ pub(crate) enum Opened {
     Key([u8; 4]),
     Wallet(usize),
     File(usize),
+    Vault(usize),
 }
 
 /// What is open and where the page was scrolled before it opened.
@@ -164,6 +171,11 @@ pub(crate) fn opened(app: &Faraday) -> Option<Opened> {
             .iter()
             .position(|it| it.name.as_str() == name && it.bytes.len() == *len)
             .map(Opened::File),
+        RowItem::Vault(name) => app
+            .vault_files()
+            .iter()
+            .position(|f| f.name.as_str() == name)
+            .map(Opened::Vault),
     }
 }
 
@@ -179,6 +191,10 @@ pub(crate) fn act(app: &mut Faraday, row: Row) {
             name: it.name.to_string(),
             len: it.bytes.len(),
         }),
+        Row::Vault(i) => app
+            .vault_files()
+            .get(i)
+            .map(|f| RowItem::Vault(f.name.to_string())),
     };
     let Some(item) = item else {
         return;

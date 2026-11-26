@@ -14,7 +14,9 @@ use crate::strings::EN;
 use crate::ui::Ui;
 use crate::ui::pal::*;
 use crate::vault::VaultAction as V;
-use faraday_draw::tokens::{BODY_L, ELEVATION_SHEET, GAP, LIST_PAD, PAD, SHAPE_M, TITLE_M};
+use faraday_draw::tokens::{
+    BODY_L, BUTTON_H, ELEVATION_SHEET, GAP, LIST_PAD, PAD, SHAPE_M, TITLE_M,
+};
 use faraday_draw::widgets::Icon;
 
 /// Vaults' panes: the session pane in Vaults' mode and the tile, at the
@@ -41,7 +43,9 @@ fn cards_h(app: &View, ui: &mut Ui, w: f32) -> f32 {
         files
             .iter()
             .enumerate()
-            .map(|(i, f)| crate::vault::panes_screen::card(app, ui, (0.0, 0.0, w), i, f) + GAP)
+            .map(|(i, f)| {
+                crate::vault::panes_screen::card(app, ui, (0.0, 0.0, w), (i, true), f) + GAP
+            })
             .sum()
     })
 }
@@ -58,7 +62,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> boo
         return false;
     }
     let back = crate::vault::screen::vaults_back(app);
-    super::bar_head(ui, back, EN.vault_vaults);
+    // A vault's details bring their own way back, to the page.
+    match crate::row_open::opened(app) {
+        Some(_) => super::row_details::bar(app, ui, EN.vault_vaults),
+        None => super::bar_head(ui, back, EN.vault_vaults),
+    };
     let (top, foot) = span(h);
     let tile_h = (foot - top).max(0.0);
     let groups = page_groups(app, Mode::Vaults);
@@ -68,6 +76,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> boo
         (app.scroll.home_box_offset(), app.scroll.home_band_offset()),
         &groups,
     );
+    let tx = x0 + p.card_x;
+    if super::row_details::draw(app, ui, (tx, top, p.card_w, tile_h)) {
+        return true;
+    }
     let inner = p.card_w - 2.0 * PAD;
     let head = ui.line_as(TITLE_M) + GAP;
     let body = cards_h(app, ui, inner);
@@ -82,7 +94,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> boo
     let ways_h = ways_height((ways.0.len(), ways.1));
     let below = if ways_h > 0.0 { GAP + ways_h } else { 0.0 };
     let fit = 2.0 * PAD + head + body + below;
-    let tx = x0 + p.card_x;
     ui.shadow(tx, top, p.card_w, tile_h, SHAPE_M, ELEVATION_SHEET);
     ui.fill(
         tx,
@@ -126,7 +137,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> boo
         let mut list = ListPane::begin_moving(app, ui, (ix, ly, inner, view));
         for (i, f) in files.iter().enumerate() {
             let (x, _, y) = list.at();
-            let ch = crate::vault::panes_screen::card(app, ui, (x, y, inner), i, f);
+            let ch = crate::vault::panes_screen::card(app, ui, (x, y, inner), (i, true), f);
+            // Above its buttons, which stay their own presses, the card
+            // opens the vault's details.
+            let above = ch - crate::vault::panes_screen::CARD_PAD - BUTTON_H;
+            let open = Action::RowOpen(crate::row_open::Row::Vault(i));
+            ui.press_box(x, y, inner, above, open);
             list.advance(ch + GAP);
         }
         list.end(ui);

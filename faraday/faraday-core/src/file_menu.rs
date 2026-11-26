@@ -290,14 +290,29 @@ impl Faraday {
                         .get_or_init(|| self.inbox.found(&self.session, |i| self.found_in(&c, i)))
                         .shares_enough(k)
                 };
-                let list = crate::items::offer(
-                    self,
-                    k,
-                    &|seen| self.session.spends_from(&c, seen),
-                    &loaded_at,
-                    &enough,
-                )
-                .list;
+                let files = self.vault_files();
+                let vault = (self.inbox[k].kind == FileKind::Vault)
+                    .then(|| crate::vault::vault_at(&files, &self.inbox[k]))
+                    .flatten();
+                let list = match vault {
+                    Some(at) => {
+                        let wallets = files[at]
+                            .open
+                            .map(|o| self.vault_wallets_with_keys(&c, o))
+                            .unwrap_or_default();
+                        crate::items::vault_list(self, &files[at], at, &wallets)
+                    }
+                    None => {
+                        crate::items::offer(
+                            self,
+                            k,
+                            &|seen| self.session.spends_from(&c, seen),
+                            &loaded_at,
+                            &enough,
+                        )
+                        .list
+                    }
+                };
                 out.extend(list);
                 out.push(details);
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));
@@ -343,22 +358,8 @@ impl Faraday {
             }
             Row::Vault(v) => {
                 let c = self.compute();
-                let pending: Vec<_> = self
-                    .vault_wallets_with_keys(&c, v)
-                    .into_iter()
-                    .filter(|w| !w.done)
-                    .collect();
-                let chosen = pending.iter().filter(|w| w.chosen).count();
-                let label = match (chosen, pending.len()) {
-                    (0, _) => return out,
-                    (1, 1) => EN.vault_load_wallet_keys.to_string(),
-                    (1, _) => EN.vault_load_1_wallet.to_string(),
-                    (n, _) => fill(EN.vault_load_wallets, &[&n.to_string()]),
-                };
-                out.push((
-                    label,
-                    Action::Vault(crate::vault::VaultAction::LoadWithKeys(v)),
-                ));
+                let wallets = self.vault_wallets_with_keys(&c, v);
+                out.extend(crate::items::load_wallets(&wallets, v));
             }
             Row::Stick(k) => {
                 if !self
