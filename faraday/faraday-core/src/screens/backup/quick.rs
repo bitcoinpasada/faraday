@@ -58,7 +58,8 @@ fn write_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup() else {
         return 0.0;
     };
-    let Some(key) = app.session.keys.info(b.key) else {
+    let at = b.key_at(&app.session.keys);
+    let Some((at, key)) = at.and_then(|k| Some((k, app.session.keys.info(k)?))) else {
         return 0.0;
     };
     let word_count = usize::from(key.word_count.unwrap_or(0));
@@ -117,7 +118,7 @@ fn write_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         // words' grid is long.
         let seedqr = app.copy_forms(b, 0).seedqr;
         cy += seedqr_block(app, ui, (x, cy, w), seedqr, key.language);
-        cy += super::super::parts::seed_word_grid(app, ui, (x, cy, w), b.key);
+        cy += super::super::parts::seed_word_grid(app, ui, (x, cy, w), at);
     }
     cy + T::GAP - y
 }

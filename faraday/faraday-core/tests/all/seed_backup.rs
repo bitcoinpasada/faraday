@@ -577,7 +577,7 @@ fn a_matched_copy_check_marks_that_seed_only() {
         app.backup().unwrap().open,
         Some(faraday_core::plan::Item::Copy(i as usize))
     );
-    assert_eq!(app.backup().unwrap().key, k1);
+    assert_eq!(app.backup().unwrap().key_at(&app.session.keys), Some(k1));
     app.press(Action::BReveal);
     app.press(Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));

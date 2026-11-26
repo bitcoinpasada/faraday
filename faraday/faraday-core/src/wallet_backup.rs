@@ -624,8 +624,10 @@ pub struct BackupState {
     pub shown: bool,
     /// The column's scroll.
     pub scroll: flow::Scroll,
-    /// The session key whose seed is shown, by index into the session.
-    pub key: usize,
+    /// The key the backup is on, by its id: its place in the session is
+    /// [`BackupState::key_at`]'s to say. None where the seed it is on is
+    /// not loaded.
+    pub key: Option<faraday_keys::KeyId>,
     /// The words are shown.
     pub reveal: bool,
     /// Compact SeedQR rather than standard.
@@ -765,6 +767,16 @@ pub struct BackupState {
     /// The plan keeps seed 0's Krux code on paper beside the words: the
     /// short path has its card.
     pub quick_code: bool,
+}
+
+impl BackupState {
+    /// Where the key the backup is on is in `keys`; none when it is not
+    /// loaded: removed, or never here. A key is told by its id, so no key
+    /// that takes its place stands in for it.
+    pub fn key_at(&self, keys: &faraday_keys::Keys) -> Option<usize> {
+        let id = self.key?;
+        keys.all().position(|k| k.id == id)
+    }
 }
 
 /// A wallet, a slot and whether it is the BIP 129 record: which account
@@ -973,6 +985,37 @@ impl WalletBackupArea {
         self.drop_shown();
     }
 
+    /// A key was taken off the session, `keys` what is left: the open
+    /// item ends, with what it showed, held and had typed, and the Krux
+    /// code forms of the keys gone with it. Where the backup's key is
+    /// gone too, so are its Seed XOR parts and the short path; where it
+    /// stays, both stay, the short path on its open card. The codex32 set
+    /// is not touched: with its item open, the item stays. The Krux code
+    /// forms are put away first ([`kef::dropped`]).
+    pub(crate) fn key_removed(&mut self, keys: &faraday_keys::Keys) {
+        self.kef_drop_gone(keys);
+        if let Some(b) = self.state.as_mut() {
+            if !matches!(b.open, Some(plan::Item::Codex32(_))) {
+                b.open = None;
+            }
+            b.seen = None;
+            b.reveal = false;
+            b.check = None;
+            b.check_at = None;
+            b.which = None;
+            b.scanned = None;
+            if b.key_at(keys).is_none() {
+                b.paper = None;
+                b.paper_ok = 0;
+                b.paper_skip = false;
+                b.quick = false;
+                b.quick_shown = false;
+            }
+        }
+        self.drop_shown();
+        self.quick_keeps_open();
+    }
+
     /// Wallet `gone` left the session list: the places kept move up, and
     /// whether the backup under way was of it (it must end).
     pub(crate) fn wallet_left(&mut self, gone: usize) -> bool {
@@ -1058,8 +1101,23 @@ impl WalletBackupArea {
         }
     }
 
+    /// Another seed picked, the key with id `key`: nothing shown, checked
+    /// or split for the one before stays.
+    pub(crate) fn pick_key(&mut self, key: Option<faraday_keys::KeyId>) {
+        let Some(b) = self.state.as_mut() else {
+            return;
+        };
+        b.key = key;
+        b.reveal = false;
+        b.check = None;
+        b.check_at = None;
+        b.which = None;
+        b.scanned = None;
+        b.paper = None;
+    }
+
     /// A press that changes only the checklist's own state: a question
-    /// opened, the wallet list, a seed, its words shown, its paper form
+    /// opened, the wallet list, its words shown, its paper form
     /// hidden, the SeedQR's kind, a pinned row, the template's words.
     pub(crate) fn edit(&mut self, action: Action) {
         let Some(b) = self.state.as_mut() else {
@@ -1076,15 +1134,6 @@ impl WalletBackupArea {
                 b.naming = None;
             }
             Action::BWallets => b.pick = !b.pick,
-            Action::BKey(k) => {
-                b.key = k;
-                b.reveal = false;
-                b.check = None;
-                b.check_at = None;
-                b.which = None;
-                b.scanned = None;
-                b.paper = None;
-            }
             Action::BReveal => {
                 // Show the seed ends the check and wipes what was typed;
                 // the check starts again from word 1.
@@ -1435,9 +1484,14 @@ impl WalletBackupArea {
     }
 
     /// Opens checklist item `n`, or closes them all, showing seed `key`
-    /// where it has one; the public files item's More options open when
-    /// `more`.
-    pub(crate) fn open_item(&mut self, n: Option<plan::Item>, more: bool, key: Option<usize>) {
+    /// where it has one; a seed's own item whose seed is not loaded is on
+    /// no key. The public files item's More options open when `more`.
+    pub(crate) fn open_item(
+        &mut self,
+        n: Option<plan::Item>,
+        more: bool,
+        key: Option<faraday_keys::KeyId>,
+    ) {
         if let Some(b) = self.state.as_mut() {
             // A passphrase item opens, and closes, with it hidden; a step
             // left puts away what it showed (F104).
@@ -1489,10 +1543,18 @@ impl WalletBackupArea {
             }
             b.scroll.follow = true;
             b.check = None;
-            if let Some(k) = key
-                && b.key != k
-            {
-                b.key = k;
+            let seeds_own = matches!(
+                n,
+                Some(
+                    plan::Item::Copy(_)
+                        | plan::Item::Passphrase(_)
+                        | plan::Item::Codex32(_)
+                        | plan::Item::Parts(_)
+                        | plan::Item::KefCode(_)
+                )
+            );
+            if (key.is_some() || seeds_own) && b.key != key {
+                b.key = key;
                 b.reveal = false;
                 b.scanned = None;
                 b.paper = None;
@@ -1501,11 +1563,11 @@ impl WalletBackupArea {
     }
 
     /// The seeds' files item shows seed `k`, where it is open.
-    pub(crate) fn file_key(&mut self, k: usize) {
+    pub(crate) fn file_key(&mut self, k: faraday_keys::KeyId) {
         if let Some(b) = self.state.as_mut()
             && b.open == Some(plan::Item::SeedFiles)
         {
-            b.key = k;
+            b.key = Some(k);
         }
     }
 
@@ -1944,9 +2006,10 @@ impl Faraday {
             let Some(plan::Item::Copy(open)) = b.open else {
                 return None;
             };
-            let lang = self.session.keys.info(b.key)?.language;
+            let at = b.key_at(&self.session.keys)?;
+            let lang = self.session.keys.info(at)?.language;
             (self.screen == Screen::Backup && b.reveal && b.check.is_none())
-                .then_some((b.key, open, b.compact, lang))
+                .then_some((at, open, b.compact, lang))
         });
         let Some((k, open, compact, lang)) = want else {
             return self.backup.drop_shown();
@@ -1977,6 +2040,10 @@ impl Faraday {
                 }
             }
             Action::BQuick(q) => self.quick_act(q, c),
+            Action::BKey(k) => {
+                let id = self.session.keys.info(k).map(|k| k.id);
+                self.backup.pick_key(id);
+            }
             Action::Backup(i) => {
                 // A quick backup left half way reopens on its screen.
                 if self
@@ -1989,7 +2056,10 @@ impl Faraday {
                 }
                 if i < self.session.wallets.len() {
                     let keys = self.backup_keys(i);
-                    let first_key = keys.first().copied().unwrap_or(0);
+                    let first_key = keys
+                        .first()
+                        .and_then(|&k| self.session.keys.info(k))
+                        .map(|k| k.id);
                     let shape = self.plan_shape_now(i);
                     // The plan this wallet's last backup saved into an
                     // open vault, as it was; else the board open on The
@@ -2072,7 +2142,6 @@ impl Faraday {
             }
             Action::BQ(_)
             | Action::BWallets
-            | Action::BKey(_)
             | Action::BReveal
             | Action::BPaperHide
             | Action::BCompact(_)
@@ -2199,7 +2268,8 @@ impl Faraday {
                 let fp = self
                     .backup
                     .state()
-                    .and_then(|b| self.session.keys.info(b.key))
+                    .and_then(|b| b.key_at(&self.session.keys))
+                    .and_then(|k| self.session.keys.info(k))
                     .map(|k| k.fingerprint);
                 if let Some(fp) = fp {
                     let mut scan = ScanState::default();
@@ -2245,8 +2315,8 @@ impl Faraday {
                         .into_iter()
                         .find(|&k| !self.seed_file_made(stem, &self.session.keys[k]))
                 });
-                if let Some(k) = next {
-                    self.backup.file_key(k);
+                if let Some(k) = next.and_then(|k| self.session.keys.info(k)) {
+                    self.backup.file_key(k.id);
                 }
                 self.offer_seed();
             }
@@ -2390,10 +2460,9 @@ impl Faraday {
         // set, compared by its fingerprint.
         let parts = match b.paper.as_ref() {
             Some(p) => p.len(),
-            None => self
-                .session
-                .keys
-                .info(b.key)
+            None => b
+                .key_at(&self.session.keys)
+                .and_then(|k| self.session.keys.info(k))
                 .and_then(|k| k.xor.as_ref())
                 .map_or(0, |x| x.parts.len()),
         };
@@ -2412,7 +2481,7 @@ impl Faraday {
         let b = self.backup.state()?;
         self.backup_seed_list_now(b.wallet)
             .iter()
-            .position(|(_, k)| *k == Some(b.key))
+            .position(|(_, k)| k.is_some() && *k == b.key_at(&self.session.keys))
     }
 
     /// Costs a PBKDF2 and an elliptic-curve multiplication. The words
@@ -2427,10 +2496,9 @@ impl Faraday {
         let Some(chk) = b.check.as_ref() else {
             return;
         };
-        let want = self
-            .session
-            .keys
-            .info(b.key)
+        let want = b
+            .key_at(&self.session.keys)
+            .and_then(|k| self.session.keys.info(k))
             .and_then(|k| k.xor.as_ref())
             .and_then(|x| x.parts.get(i).copied());
         let seed = self.part_seed();
@@ -2522,7 +2590,7 @@ impl Faraday {
         if matches!(b.open, Some(plan::Item::Passphrase(_))) {
             return Some(WordCheck::passphrase());
         }
-        let key = self.session.keys.info(b.key)?;
+        let key = self.session.keys.info(b.key_at(&self.session.keys)?)?;
         let count = usize::from(key.word_count?);
         let keyed = forms::on_screen(key.language) || self.compact;
         Some(WordCheck::new(key.language, count, keyed))
@@ -2559,12 +2627,15 @@ impl Faraday {
         if let Some(i) = chk.part {
             return self.part_check_after(i);
         }
-        let Some(key) = self.session.keys.info(b.key) else {
+        let Some(at) = b.key_at(&self.session.keys) else {
+            return;
+        };
+        let Some(key) = self.session.keys.info(at) else {
             return;
         };
         let fp = key.fingerprint.0;
         let mut typed = chk.indices();
-        let Some(found) = self.session.keys.words_match(&c, b.key, &typed) else {
+        let Some(found) = self.session.keys.words_match(&c, at, &typed) else {
             typed.zeroize();
             return;
         };
@@ -2647,11 +2718,14 @@ impl Faraday {
         let Some(chk) = b.check.as_ref().filter(|c| c.passphrase) else {
             return;
         };
-        let Some(key) = self.session.keys.info(b.key) else {
+        let Some(at) = b.key_at(&self.session.keys) else {
+            return;
+        };
+        let Some(key) = self.session.keys.info(at) else {
             return;
         };
         let fp = key.fingerprint.0;
-        let matched = self.session.keys.passphrase_matches(b.key, chk.text());
+        let matched = self.session.keys.passphrase_matches(at, chk.text());
         if matched {
             self.backup.passphrase_matched(fp);
             self.backups_passphrase_checked(fp);
@@ -2664,7 +2738,8 @@ impl Faraday {
     pub(crate) fn paper_key(&self) -> bool {
         self.backup
             .state()
-            .and_then(|b| self.session.keys.info(b.key))
+            .and_then(|b| b.key_at(&self.session.keys))
+            .and_then(|k| self.session.keys.info(k))
             .is_some_and(|k| k.has_words())
     }
 
@@ -2674,7 +2749,8 @@ impl Faraday {
     fn paper_other_list(&self) -> bool {
         self.backup
             .state()
-            .and_then(|b| self.session.keys.info(b.key))
+            .and_then(|b| b.key_at(&self.session.keys))
+            .and_then(|k| self.session.keys.info(k))
             .is_some_and(|k| k.language != Language::English)
     }
 
@@ -2695,13 +2771,17 @@ impl Faraday {
         else {
             return self.toast(EN.no_randomness);
         };
-        let Some(b) = self.backup.state() else {
+        let Some(at) = self
+            .backup
+            .state()
+            .and_then(|b| b.key_at(&self.session.keys))
+        else {
             return;
         };
         let Ok(lines) =
             self.session
                 .keys
-                .seed_xor(&c, b.key, parts, &draw, faraday_keys::Reveal::PaperForm)
+                .seed_xor(&c, at, parts, &draw, faraday_keys::Reveal::PaperForm)
         else {
             return;
         };
@@ -2721,7 +2801,11 @@ impl Faraday {
     /// placed stays as a kept old part. False, with a toast and nothing
     /// changed, when the plan cannot keep the old set.
     fn paper_xor_count(&mut self, c: &Compute, lines: &[Text]) -> bool {
-        let Some((key, wallet)) = self.backup.state().map(|b| (b.key, b.wallet)) else {
+        let Some((Some(key), wallet)) = self
+            .backup
+            .state()
+            .map(|b| (b.key_at(&self.session.keys), b.wallet))
+        else {
             return false;
         };
         let Some(fp) = self.session.keys.info(key).map(|k| k.fingerprint.0) else {
@@ -3049,6 +3133,7 @@ impl Faraday {
                         .any(|(_, f)| self.outbox.iter().any(|i| i.name == f.as_str()))
                 })
             });
+        let key = key.and_then(|k| self.session.keys.info(k).map(|k| k.id));
         self.backup.open_item(n, more, key);
         kef::opened(self);
     }
@@ -3916,9 +4001,8 @@ impl crate::flow::Contained for BackupPlanSteps {
 
 /// How many Seed XOR parts the key the backup is on has counted.
 pub(crate) fn part_count(app: &Faraday, b: &BackupState) -> usize {
-    app.session
-        .keys
-        .info(b.key)
+    b.key_at(&app.session.keys)
+        .and_then(|k| app.session.keys.info(k))
         .and_then(|k| k.xor.as_ref())
         .map_or(0, |x| x.parts.len())
 }

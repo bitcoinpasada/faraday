@@ -969,7 +969,8 @@ fn scan_another(app: &mut Faraday) {
 
 fn misses(app: &Faraday) -> u8 {
     let b = app.backup().unwrap();
-    b.misses_of(app.session.keys[b.key].fingerprint.0)
+    let at = b.key_at(&app.session.keys).expect("the open seed");
+    b.misses_of(app.session.keys[at].fingerprint.0)
 }
 
 /// A 12-word seed's SeedQR copy item, with a camera, the seed hidden so
@@ -1386,4 +1387,339 @@ fn text_seen(app: &mut Faraday, text: &str) -> bool {
         });
     }
     false
+}
+
+// ---- Back up after a key is removed ----
+
+/// A key typed in from Home; published words are kept for testing.
+fn typed_key(app: &mut Faraday, words: &str) {
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Entry(None));
+    for c in words.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    testkit::keep_published(app);
+}
+
+/// Backing up a 2-of-2 wallet of [`FORUM`] (seed 0) and [`GOOD`] (seed 1),
+/// the checklist made and seed `item`'s copy open, its words shown, on
+/// `network`.
+fn backing_up_two(item: usize) -> Faraday {
+    backing_up_two_on(item, testkit::NET)
+}
+
+fn backing_up_two_on(item: usize, network: faraday_bip::keys::Network) -> Faraday {
+    let c = testkit::compute();
+    let mut app = shown_on(1366, 800, 160);
+    testkit::move_to(&mut app.session, network).unwrap();
+    typed_key(&mut app, FORUM);
+    typed_key(&mut app, GOOD);
+    assert_eq!(app.session.keys.len(), 2);
+    let kind =
+        faraday_keys::texts::Spec::Multisig(faraday_bip::keys::MultisigScriptType::NativeSegwit, 0);
+    let [a, b] = [0, 1].map(|i| {
+        app.session
+            .keys
+            .key_text(&c, i, &kind)
+            .unwrap()
+            .unwrap()
+            .to_string()
+    });
+    let wallet = format!("wsh(multi(2,{a}/<0;1>/*,{b}/<0;1>/*))");
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("two.txt"),
+            wallet.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::load_wallet(&mut app, 0);
+    app.press(Action::Backup(0));
+    testkit::backup_as(&mut app, plan::Preset::Paper);
+    app.press(Action::BChecklist);
+    if app.backup().and_then(|b| b.open) == Some(Item::Templates) {
+        app.press(Action::BNext(Item::Templates));
+    }
+    open_copy(&mut app, item);
+    show_the_seed(&mut app);
+    app
+}
+
+fn open_copy(app: &mut Faraday, item: usize) {
+    let n = Item::Copy(item);
+    if app.backup().and_then(|b| b.open) != Some(n) {
+        app.press(Action::BStep(n));
+    }
+}
+
+fn show_the_seed(app: &mut Faraday) {
+    let _ = app.frame();
+    if !app.backup().is_some_and(|b| b.reveal) {
+        app.press(Action::BReveal);
+    }
+    let _ = app.frame();
+}
+
+fn resume_backup(app: &mut Faraday) {
+    app.press(Action::Resume(faraday_core::in_progress::Going::Backup));
+    app.settle();
+    let _ = app.frame();
+}
+
+/// Nothing of a copy item is left: none open, nothing shown, no check.
+#[track_caller]
+fn assert_ended(app: &Faraday) {
+    let b = app.backup().expect("the backup stays under way");
+    assert_eq!(b.open, None, "the open item ends");
+    assert!(!b.reveal, "nothing is shown");
+    assert!(b.check.is_none(), "no check is open");
+    assert!(b.paper.is_none(), "no Seed XOR part is held");
+    assert!(!b.quick_shown, "the short path has shown nothing");
+    assert!(!testkit::backup_seed_held(app), "no seed is held to draw");
+}
+
+fn fingerprint_of(words: &str) -> [u8; 4] {
+    let mut app = shown_on(1366, 800, 160);
+    typed_key(&mut app, words);
+    app.session.keys[0].fingerprint.0
+}
+
+#[test]
+fn remove_every_key_ends_backups_open_item() {
+    // Seed 0's copy open; the keys come back in the other order.
+    let mut app = backing_up_two(0);
+    crate::common::remove_every_key(&mut app);
+    assert_ended(&app);
+    typed_key(&mut app, GOOD);
+    typed_key(&mut app, FORUM);
+    resume_backup(&mut app);
+    let b = app.backup().unwrap();
+    assert!(!b.reveal && b.check.is_none(), "nothing without a press");
+}
+
+#[test]
+fn check_my_copy_after_a_removal_records_only_the_items_own_key() {
+    let (a, b) = (fingerprint_of(FORUM), fingerprint_of(GOOD));
+    // The item open, the keys typed after the removal, and the words
+    // typed into Check my copy where it is offered.
+    let cases: [(usize, &[&str], &str); 4] = [
+        // Another key where the item's was.
+        (0, &[GOOD], GOOD),
+        // The item's place is past the one key loaded.
+        (1, &[FORUM], FORUM),
+        // The other key where the item's was.
+        (1, &[GOOD, FORUM], FORUM),
+        (0, &[GOOD, FORUM], GOOD),
+    ];
+    let mut offered_in = 0;
+    for (item, after, typed) in cases {
+        let own = [a, b][item];
+        let mut app = backing_up_two(item);
+        crate::common::remove_every_key(&mut app);
+        for words in after {
+            typed_key(&mut app, words);
+        }
+        resume_backup(&mut app);
+        open_copy(&mut app, item);
+        show_the_seed(&mut app);
+        if offered(&mut app, Action::BCheck) {
+            offered_in += 1;
+            app.press(Action::BCheck);
+            testkit::type_words(&mut app, typed);
+        }
+        let checked = &app.backup().unwrap().checked;
+        assert!(
+            checked.iter().all(|(fp, _)| *fp == own),
+            "item {item}, {} keys after: another key's copy recorded: {checked:02x?}",
+            after.len()
+        );
+    }
+    assert!(offered_in >= 1, "Check my copy was offered in {offered_in}");
+}
+
+/// The item's own key, loaded again at another place, is the one its copy
+/// is checked against.
+#[test]
+fn the_items_key_loaded_again_at_another_place_is_the_one_checked() {
+    let a = fingerprint_of(FORUM);
+    let mut app = backing_up_two(0);
+    crate::common::remove_every_key(&mut app);
+    typed_key(&mut app, GOOD);
+    typed_key(&mut app, FORUM);
+    resume_backup(&mut app);
+    open_copy(&mut app, 0);
+    assert!(offered(&mut app, Action::BCheck));
+    app.press(Action::BCheck);
+    testkit::type_words(&mut app, FORUM);
+    let checked = &app.backup().unwrap().checked;
+    assert!(
+        !checked.is_empty() && checked.iter().all(|(fp, _)| *fp == a),
+        "{checked:02x?}"
+    );
+}
+
+#[test]
+fn removing_a_published_key_ends_backups_open_item() {
+    // Only Mainnet cautions of published words.
+    let mut app = backing_up_two_on(1, faraday_bip::keys::Network::Mainnet);
+    // A third key whose words are published comes in, and is removed.
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Entry(None));
+    for c in "legal winner thank year wave sausage worth useful legal winner thank yellow".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    app.press(Action::PublishedRemove);
+    assert_eq!(app.session.keys.len(), 2);
+    assert_ended(&app);
+}
+
+#[test]
+fn remove_every_key_ends_the_quick_backup() {
+    let mut app = shown_on(1366, 800, 160);
+    typed_key(&mut app, FORUM);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    let quick = faraday_core::wallet_backup::quick::Quick::Open(0);
+    app.press(Action::BQuick(quick));
+    app.press(Action::BQuick(
+        faraday_core::wallet_backup::quick::Quick::Show,
+    ));
+    assert!(app.backup().is_some_and(|b| b.quick && b.reveal));
+    crate::common::remove_every_key(&mut app);
+    assert_ended(&app);
+    assert!(!app.backup().unwrap().quick, "Back up starts afresh");
+}
+
+/// A third key whose words are published comes in from Home, and is
+/// removed from its sheet (only Mainnet cautions of published words).
+fn add_and_remove_a_published_key(app: &mut Faraday) {
+    let held = app.session.keys.len();
+    app.press(Action::Nav(faraday_core::Screen::Home));
+    app.press(Action::Entry(None));
+    for c in "legal winner thank year wave sausage worth useful legal winner thank yellow".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert_eq!(app.sheet, Some(Sheet::Published));
+    app.press(Action::PublishedRemove);
+    assert_eq!(app.session.keys.len(), held);
+}
+
+fn parts_held(app: &Faraday) -> Option<Vec<String>> {
+    let parts = app.backup()?.paper.as_ref()?;
+    Some(parts.iter().map(|p| p.to_string()).collect())
+}
+
+/// The parts come from fresh randomness: made again they are another set.
+#[test]
+fn removing_another_key_keeps_the_seed_xor_split_of_one_that_stays() {
+    let mut app = shown_on(1366, 800, 160);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+            [0x40 + i; 32],
+        )));
+    }
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
+    typed_key(&mut app, FORUM);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    app.press(Action::Backup(0));
+    app.press(Action::BXor(3));
+    let parts = parts_held(&app).expect("no split");
+    add_and_remove_a_published_key(&mut app);
+    assert_eq!(parts_held(&app), Some(parts), "the split is lost");
+    crate::common::remove_every_key(&mut app);
+    assert_ended(&app);
+}
+
+/// The quick paper backup of [`FORUM`] alone, on Mainnet, on its first
+/// screen.
+fn quick_on_mainnet() -> Faraday {
+    let mut app = shown_on(1366, 800, 160);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+            [0x40 + i; 32],
+        )));
+    }
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Mainnet).unwrap();
+    typed_key(&mut app, FORUM);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    app.press(Action::BQuick(
+        faraday_core::wallet_backup::quick::Quick::Open(0),
+    ));
+    assert!(app.backup().is_some_and(|b| b.quick), "not the short path");
+    app
+}
+
+#[test]
+fn removing_another_key_keeps_the_short_path_and_the_words_matched() {
+    use faraday_core::wallet_backup::quick::Quick;
+    let mut app = quick_on_mainnet();
+    // With a camera, the SeedQR's scan is left after the words match.
+    cameras(&mut app);
+    app.press(Action::BQuick(Quick::SeedQr));
+    app.press(Action::BQuick(Quick::Wrote));
+    testkit::type_words(&mut app, FORUM);
+    let matched = app.backup().unwrap().checked.clone();
+    assert!(!matched.is_empty(), "the words did not match");
+    add_and_remove_a_published_key(&mut app);
+    app.press(Action::Backup(0));
+    let b = app.backup().unwrap();
+    assert!(b.quick && b.quick_shown, "the short path is lost");
+    assert_eq!(b.checked, matched, "the matched words are lost");
+    assert_eq!(b.open, Some(Item::Copy(0)), "its card is not the open one");
+    assert!(!b.reveal && b.check.is_none(), "nothing without a press");
+}
+
+#[test]
+fn the_short_paths_krux_code_is_checked_after_another_key_is_removed() {
+    use faraday_core::kef_form::KefAct;
+    use faraday_core::kef_tool::KefToolAction as K;
+    use faraday_core::wallet_backup::quick::Quick;
+    let mut app = quick_on_mainnet();
+    app.press(Action::BQuick(Quick::Code));
+    app.press(Action::BQuick(Quick::Show));
+    app.press(Action::BQuick(Quick::Wrote));
+    testkit::type_words(&mut app, FORUM);
+    app.press(Action::BQuick(Quick::Next));
+    let type_in = |app: &mut Faraday, text: &str| {
+        for c in text.chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+    };
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Rounds)));
+    for _ in 0..8 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_in(&mut app, "10000");
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(&mut app);
+    add_and_remove_a_published_key(&mut app);
+    app.press(Action::Backup(0));
+    assert!(
+        app.backup().is_some_and(|b| b.quick && b.quick_code),
+        "the short path or its code is lost"
+    );
+    app.press(Action::KefTool(K::Backup(KefAct::Check)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Compare)));
+    testkit::settle(&mut app);
+    assert!(
+        app.backup_item_done_now(&testkit::compute(), Item::KefCode(0)),
+        "the code cannot be checked"
+    );
 }

@@ -1071,7 +1071,10 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
                 let drawn = item_next(app, ui, x, cy, w, item);
                 return cy + (if drawn { 48.0 } else { 8.0 }) - y;
             }
-            let key = &app.session.keys[b.key];
+            let Some(at) = b.key_at(&app.session.keys) else {
+                return cy - y;
+            };
+            let key = &app.session.keys[at];
             let word_count = usize::from(key.word_count.unwrap_or(0));
             // The seed's copies and the forms they take: the grid is drawn
             // for a SeedQR copy only (`docs/WALLETS.md` §13).
@@ -1114,7 +1117,7 @@ fn backup_body(app: &View, ui: &mut Ui, item: Item, x: f32, y: f32, w: f32) -> f
             // The seed is not drawn while the typed check is open.
             if b.reveal && b.check.is_none() {
                 let lang = key.language;
-                cy += super::parts::seed_word_grid(app, ui, (x, cy, w), b.key);
+                cy += super::parts::seed_word_grid(app, ui, (x, cy, w), at);
                 cy += seedqr_block(app, ui, (x, cy, w), forms.seedqr, lang);
                 cy += paper_section(app, ui, x, cy, w);
             }
@@ -1368,7 +1371,10 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup() else {
         return 0.0;
     };
-    let Some(key) = app.session.keys.info(b.key) else {
+    let Some(key) = b
+        .key_at(&app.session.keys)
+        .and_then(|k| app.session.keys.info(k))
+    else {
         return 0.0;
     };
     let mut cy = y;
@@ -1621,7 +1627,8 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup() else {
         return 0.0;
     };
-    let Some(key) = app.session.keys.info(b.key) else {
+    let at = b.key_at(&app.session.keys);
+    let Some((at, key)) = at.and_then(|k| Some((k, app.session.keys.info(k)?))) else {
         ui.wrap_as(
             (x, y, w),
             BODY_S,
@@ -1663,7 +1670,7 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The passphrase is not drawn while the check is open.
     if b.reveal && b.check.is_none() {
         if key.has_passphrase {
-            let shown = app.reveal(b.key, Reveal::Passphrase);
+            let shown = app.reveal(at, Reveal::Passphrase);
             cy += ui.wrap_as((x, cy, w), BODY_L.mono(), Role::OnSurface, &shown) + 16.0;
         } else {
             cy += ui.wrap_as(
@@ -1718,13 +1725,16 @@ fn item_action(app: &View, n: Item) -> (String, Action) {
         // (`docs/WALLETS.md` §13).
         Item::Copy(i) => {
             use crate::plan::CopyOf;
-            let words_left = app.session.keys.info(b.key).is_none_or(|k| {
-                let fp = k.fingerprint.0;
-                let has = |f| b.checked.contains(&(fp, f));
-                app.copy_checks(b, i, k).typed
-                    && !(has(CopyOf::WORDS)
-                        || (!app.copy_forms(b, i).words && has(CopyOf::SEED_QR)))
-            });
+            let words_left = b
+                .key_at(&app.session.keys)
+                .and_then(|k| app.session.keys.info(k))
+                .is_none_or(|k| {
+                    let fp = k.fingerprint.0;
+                    let has = |f| b.checked.contains(&(fp, f));
+                    app.copy_checks(b, i, k).typed
+                        && !(has(CopyOf::WORDS)
+                            || (!app.copy_forms(b, i).words && has(CopyOf::SEED_QR)))
+                });
             let action = if words_left {
                 Action::BCheck
             } else {
@@ -1924,9 +1934,8 @@ fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: Item) -> f32 {
         return 0.0;
     };
     let missed = app.backup().is_some_and(|b| {
-        app.session
-            .keys
-            .info(b.key)
+        b.key_at(&app.session.keys)
+            .and_then(|k| app.session.keys.info(k))
             .is_some_and(|k| b.misses_of(k.fingerprint.0) >= crate::copy_check::MISSES)
     });
     if !(missed && keep_words_offered(app, i)) {
@@ -2261,10 +2270,8 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         None => {
             // Seed XOR's parts draw the system's randomness
             // (`docs/OWN-RANDOMNESS.md` §8.1 row 11).
-            if app
-                .session
-                .keys
-                .info(b.key)
+            if b.key_at(&app.session.keys)
+                .and_then(|k| app.session.keys.info(k))
                 .is_some_and(|k| k.language != faraday_bip::bip39::Language::English)
             {
                 // Seed XOR's parts are restored on the English list only.
@@ -2277,10 +2284,8 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 return cy - y;
             }
             cy += crate::screens::randomness::row(app, ui, (x, cy, w));
-            if app
-                .session
-                .keys
-                .info(b.key)
+            if b.key_at(&app.session.keys)
+                .and_then(|k| app.session.keys.info(k))
                 .is_some_and(|k| k.xor.is_some())
             {
                 // A key with a set: a second split replaces it
@@ -2308,7 +2313,10 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let line = fill(EN.paper_section_parts, &[&parts.len().to_string()]);
             ui.text_as(x, cy, LABEL_L, Role::Warning, &line);
             cy += ui.advance_as(LABEL_L, 26.0);
-            if let Some(key) = app.session.keys.info(b.key) {
+            if let Some(key) = b
+                .key_at(&app.session.keys)
+                .and_then(|k| app.session.keys.info(k))
+            {
                 let line = fill(
                     EN.paper_section_part_is,
                     &[&parts.len().to_string(), &key.fingerprint.to_string()],
@@ -2402,10 +2410,17 @@ fn xor_not_taken(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let seeds = app.backup_seed_list(b.wallet);
-    let Some(seed) = seeds.iter().position(|(_, k)| *k == Some(b.key)) else {
+    let Some(seed) = seeds
+        .iter()
+        .position(|(_, k)| k.is_some() && *k == b.key_at(&app.session.keys))
+    else {
         return 0.0;
     };
-    match app.session.keys.info(b.key).and_then(|k| k.xor.as_ref()) {
+    match b
+        .key_at(&app.session.keys)
+        .and_then(|k| app.session.keys.info(k))
+        .and_then(|k| k.xor.as_ref())
+    {
         Some(f) if crate::plan::sets::keeps_own_xor(&b.answers, seed, f) => {
             not_taken(ui, x, y, w, EN.paper_xor_not_taken)
         }
@@ -2422,11 +2437,16 @@ fn old_shares(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let seeds = app.backup_seed_list(b.wallet);
-    let Some(seed) = seeds.iter().position(|(_, k)| *k == Some(b.key)) else {
+    let Some(seed) = seeds
+        .iter()
+        .position(|(_, k)| k.is_some() && *k == b.key_at(&app.session.keys))
+    else {
         return 0.0;
     };
     let mut cy = y;
-    let info = app.session.keys.info(b.key);
+    let info = b
+        .key_at(&app.session.keys)
+        .and_then(|k| app.session.keys.info(k));
     let kept: Vec<_> = crate::wallet_backup::kept_old_shares(b)
         .into_iter()
         .enumerate()
@@ -2500,7 +2520,10 @@ fn old_parts(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let seeds = app.backup_seed_list(b.wallet);
-    let Some(seed) = seeds.iter().position(|(_, k)| *k == Some(b.key)) else {
+    let Some(seed) = seeds
+        .iter()
+        .position(|(_, k)| k.is_some() && *k == b.key_at(&app.session.keys))
+    else {
         return 0.0;
     };
     let kept: Vec<_> = crate::wallet_backup::kept_old(b)

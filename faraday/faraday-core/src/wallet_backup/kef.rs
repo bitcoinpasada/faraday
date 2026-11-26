@@ -76,6 +76,15 @@ impl WalletBackupArea {
         }
     }
 
+    /// Drops the forms of the seeds whose key is no longer loaded. A
+    /// code already made stays in the record, which a form made afresh
+    /// takes it up from.
+    pub(super) fn kef_drop_gone(&mut self, keys: &faraday_keys::Keys) {
+        if let Some(b) = self.state.as_mut() {
+            b.kef.retain(|(_, f)| f.source_here(keys));
+        }
+    }
+
     fn kef_seeds(&self) -> Vec<usize> {
         self.state
             .as_ref()
@@ -340,7 +349,7 @@ fn new_form(app: &Faraday, c: &Compute, i: usize) -> Option<KefForm> {
     let bytes = usize::from(info.word_count?) * 4 / 3;
     Some(KefForm::new(
         Source::Seed {
-            index: key,
+            key: info.id,
             bytes,
             fingerprint: true,
         },

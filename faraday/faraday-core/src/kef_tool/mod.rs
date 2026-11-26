@@ -233,9 +233,10 @@ fn begin_key(app: &mut Faraday, i: usize) {
     };
     let bytes = usize::from(info.word_count.unwrap_or(0)) * 4 / 3;
     let fingerprint = true;
+    let id = info.id;
     let mut form = KefForm::new(
         Source::Seed {
-            index: i,
+            key: id,
             bytes,
             fingerprint,
         },

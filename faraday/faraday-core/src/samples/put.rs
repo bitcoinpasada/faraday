@@ -875,7 +875,8 @@ impl Faraday {
         let set = self.put_on()?;
         let b = self.backup.state()?;
         let chk = b.check.as_ref().filter(|c| !c.passphrase)?;
-        let fp = self.session.keys.info(b.key)?.fingerprint.0;
+        let at = b.key_at(&self.session.keys)?;
+        let fp = self.session.keys.info(at)?.fingerprint.0;
         english_keys(set)
             .find(|(_, k)| {
                 (k.plain == Some(fp) || k.with_passphrase == Some(fp)) && word_count(k) == chk.count

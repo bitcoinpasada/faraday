@@ -12,12 +12,19 @@ use crate::strings::EN;
 use crate::vault::TextBox;
 use crate::worker::kef::KefStart;
 use crate::worker::kef_make::{self, IdChoice, Made, MakeStart, Options, Saved};
+use faraday_keys::KeyId;
 use faraday_keys::kef::{DEFAULT_ID_LEN, ID_MAX, LONG_ID_LEN};
 use faraday_shell_api::Key;
 use faraday_text::Text;
 use zeroize::Zeroizing;
 
 pub(crate) mod screen;
+
+/// The place in the session's list of the key with id `key`, while it is
+/// loaded.
+fn key_place(app: &Faraday, key: KeyId) -> Option<usize> {
+    app.session.keys.all().position(|k| k.id == key)
+}
 
 /// The dice entry's tag: the form has one passphrase.
 const DICE_TAG: usize = 0;
@@ -27,8 +34,9 @@ pub enum Source {
     /// Seed `index`'s entropy, `bytes` long (16 or 32); `fingerprint` says
     /// the fingerprint of its words alone is offered as the id.
     Seed {
-        /// The seed's place in the session's keys.
-        index: usize,
+        /// The seed's key, by its id: its place in the session's list is
+        /// looked up at each use, as places move when a key is removed.
+        key: KeyId,
         /// The entropy's length.
         bytes: usize,
         /// Whether the words' own fingerprint is offered as the id.
@@ -226,6 +234,15 @@ impl KefForm {
                 .dice
                 .open()
                 .is_some_and(|(_, rolls, _)| !rolls.text.is_empty())
+    }
+
+    /// Whether the form's contents are still here: a text always, a seed
+    /// while its key is loaded.
+    pub(crate) fn source_here(&self, keys: &faraday_keys::Keys) -> bool {
+        match &self.source {
+            Source::Seed { key, .. } => keys.all().any(|k| k.id == *key),
+            Source::Text(_) => true,
+        }
     }
 
     /// A form for `source`; `paper` where the code is also copied by hand,
@@ -854,14 +871,16 @@ impl KefForm {
         match answer {
             Ok(opened) => {
                 let same = match &self.source {
-                    Source::Seed { index, .. } => {
+                    Source::Seed { key, .. } => {
                         let c = app.compute();
-                        faraday_keys::kef::seed_matches(
-                            &app.session.keys,
-                            &c,
-                            *index,
-                            &opened.plaintext,
-                        )
+                        key_place(app, *key).is_some_and(|i| {
+                            faraday_keys::kef::seed_matches(
+                                &app.session.keys,
+                                &c,
+                                i,
+                                &opened.plaintext,
+                            )
+                        })
                     }
                     Source::Text(t) => opened.plaintext.as_slice() == t.as_bytes(),
                 };
@@ -960,7 +979,10 @@ impl KefForm {
         self.error = None;
         let pass = Zeroizing::new(self.pass.as_str().as_bytes().to_vec());
         let started = match &self.source {
-            Source::Seed { index, .. } => app.kef_make_seed(*index, pass, &self.options),
+            Source::Seed { key, .. } => match key_place(app, *key) {
+                Some(i) => app.kef_make_seed(i, pass, &self.options),
+                None => Err(MakeStart::NotOffered),
+            },
             Source::Text(t) => app.kef_make_text(pass, t.duplicate(), &self.options),
         };
         match started {

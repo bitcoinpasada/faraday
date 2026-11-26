@@ -26,10 +26,15 @@ fn app_with_seed() -> Faraday {
     app
 }
 
+/// The id of [`app_with_seed`]'s key.
+fn seed_id() -> faraday_keys::KeyId {
+    app_with_seed().session.keys.info(0).unwrap().id
+}
+
 fn seed_form() -> KefForm {
     KefForm::new(
         Source::Seed {
-            index: 0,
+            key: seed_id(),
             bytes: 32,
             fingerprint: true,
         },
@@ -122,7 +127,7 @@ fn the_options_line_reads_the_choices_and_the_side_on_paper() {
     let mut app = app_with_seed();
     let mut form = KefForm::new(
         Source::Seed {
-            index: 0,
+            key: seed_id(),
             bytes: 32,
             fingerprint: false,
         },
@@ -320,7 +325,7 @@ fn cancel_during_compare_stops_it() {
 fn seed_form_of(bytes: usize) -> KefForm {
     KefForm::new(
         Source::Seed {
-            index: 0,
+            key: seed_id(),
             bytes,
             fingerprint: false,
         },

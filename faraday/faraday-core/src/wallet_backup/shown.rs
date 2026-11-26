@@ -4,7 +4,7 @@
 use super::WalletBackupArea;
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
-use faraday_keys::Keys;
+use faraday_keys::{KeyId, Keys};
 use faraday_text::{Text, text};
 
 /// The seed shown on the copy page, worked out once when the eye opened
@@ -13,8 +13,9 @@ use faraday_text::{Text, text};
 /// dropped the moment the seed is hidden, the page is left or the
 /// session locks; drawing only reads it.
 pub(super) struct SeedShown {
-    /// The key shown, by index into the session.
-    key: usize,
+    /// The key shown, by its id: a key that takes its place in the
+    /// session is another.
+    key: KeyId,
     /// Each word's number as four digits, empty where the list has no
     /// such word, as wiping text.
     numbers: Vec<Text>,
@@ -39,7 +40,7 @@ impl WalletBackupArea {
     }
 
     /// Whether a seed is held for drawing.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn shown_held(&self) -> bool {
         self.shown.is_some()
     }
@@ -62,13 +63,16 @@ impl WalletBackupArea {
         compact: bool,
         seedqr: bool,
     ) {
-        let held = self.shown.as_ref().filter(|h| h.key == k);
+        let Some(id) = keys.info(k).map(|k| k.id) else {
+            return self.drop_shown();
+        };
+        let held = self.shown.as_ref().filter(|h| h.key == id);
         let has_qr =
             held.is_some_and(|h| h.qr.as_ref().map(|(m, _)| *m) == seedqr.then_some(compact));
         if has_qr {
             return;
         }
-        let numbers = match self.shown.take().filter(|h| h.key == k) {
+        let numbers = match self.shown.take().filter(|h| h.key == id) {
             Some(h) => h.numbers,
             None => {
                 let words = keys.reveal(k, faraday_keys::Reveal::CopyByHand);
@@ -94,7 +98,7 @@ impl WalletBackupArea {
             })
             .flatten();
         self.shown = Some(Box::new(SeedShown {
-            key: k,
+            key: id,
             numbers,
             qr,
         }));

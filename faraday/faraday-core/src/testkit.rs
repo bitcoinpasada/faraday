@@ -2091,12 +2091,13 @@ pub fn type_passphrases(app: &mut crate::Faraday) {
         }
         let pass = {
             let b = app.backup().expect("a backup is open");
-            let key = app.session.keys.info(b.key).expect("the open seed");
+            let at = b.key_at(&app.session.keys).expect("the open seed");
+            let key = app.session.keys.info(at).expect("the open seed");
             assert!(key.has_passphrase, "a key with a passphrase");
             Text::of(
                 &app.session
                     .keys
-                    .reveal(b.key, faraday_keys::Reveal::Passphrase),
+                    .reveal(at, faraday_keys::Reveal::Passphrase),
             )
         };
         app.press(Action::BCheck);
@@ -2113,12 +2114,13 @@ pub fn type_copy(app: &mut crate::Faraday) {
     use crate::Action;
     let words = {
         let b = app.backup().expect("a backup is open");
-        let key = app.session.keys.info(b.key).expect("the open seed");
+        let at = b.key_at(&app.session.keys).expect("the open seed");
+        let key = app.session.keys.info(at).expect("the open seed");
         assert!(key.has_words(), "a seed with words");
         Text::of(
             &app.session
                 .keys
-                .reveal(b.key, faraday_keys::Reveal::CopyByHand),
+                .reveal(at, faraday_keys::Reveal::CopyByHand),
         )
     };
     app.press(Action::BCheck);
@@ -2490,6 +2492,16 @@ pub fn restore_backups(app: &mut crate::Faraday, bytes: &[u8]) {
 /// included.
 pub fn secret_typed(app: &crate::Faraday) -> bool {
     app.secret_typed()
+}
+
+/// Whether Back up holds a seed for drawing.
+pub fn backup_seed_held(app: &crate::Faraday) -> bool {
+    app.backup.shown_held()
+}
+
+/// Whether Back up holds a Krux code form for seed `i`.
+pub fn backup_kef_form_held(app: &crate::Faraday, i: usize) -> bool {
+    app.backup.kef_form(i).is_some()
 }
 
 /// Whether the Krux code sheet shows a code's opened contents, as a note

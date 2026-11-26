@@ -314,7 +314,10 @@ impl Faraday {
         let Some(b) = self.backup.state() else {
             return;
         };
-        let (k, compact) = (b.key, b.compact);
+        let Some(k) = b.key_at(&self.session.keys) else {
+            return;
+        };
+        let compact = b.compact;
         let (Some(key), Some(wallet)) = (
             self.session.keys.info(k),
             self.session.wallets.get(b.wallet),

@@ -2884,7 +2884,8 @@ impl Faraday {
             return false;
         }
         let pin = self.backup.state().and_then(|b| {
-            let words = self.session.keys.info(b.key)?.word_count?;
+            let at = b.key_at(&self.session.keys)?;
+            let words = self.session.keys.info(at)?.word_count?;
             let n = crate::copy_check::seedqr_side(words, b.compact);
             Some(crate::copy_check::pin_on(b, n))
         });

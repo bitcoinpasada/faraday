@@ -1460,3 +1460,74 @@ fn with_a_stick_attached_rolled_dice_are_not_used_and_options_gives_no_focus() {
         Some("Keys load only with no stick attached")
     );
 }
+
+/// Every key removed, then another key typed and seed A after it, so that
+/// A comes back at another place than it had.
+fn keys_back_in_another_order(app: &mut Faraday) {
+    crate::common::remove_every_key(app);
+    for seed in [2, 1] {
+        app.press(Action::Nav(faraday_core::Screen::Home));
+        app.press(Action::Entry(None));
+        type_text(app, &testkit::test_words(testkit::TEST_SEEDS[seed].0));
+        app.press(Action::EntryAdd);
+        testkit::keep_published(app);
+    }
+    assert_eq!(app.session.keys.len(), 2);
+    app.press(Action::Resume(faraday_core::in_progress::Going::Backup));
+    app.settle();
+    let _ = app.frame();
+}
+
+#[test]
+fn a_code_made_after_the_keys_come_back_in_another_order_is_of_the_items_seed() {
+    let mut app = at_the_checklist();
+    let a = app.session.keys[0].fingerprint.0;
+    open_item(&mut app, Item::KefCode(0));
+    keys_back_in_another_order(&mut app);
+    open_item(&mut app, Item::KefCode(0));
+    // The envelope's id is the fingerprint of the words encrypted.
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Id(
+        faraday_core::kef_form::IdKind::Fingerprint,
+    ))));
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    make(&mut app);
+    let file = app
+        .outbox
+        .iter()
+        .find(|i| i.name.ends_with(".kef"))
+        .expect("the code's file");
+    let envelope = faraday_keys::kef::unwrap(&file.bytes).unwrap();
+    let hex: String = a.iter().map(|b| format!("{b:02x}")).collect();
+    assert_eq!(
+        &*envelope.id,
+        hex.as_bytes(),
+        "the code is of another seed's words"
+    );
+    check_with(&mut app, "a passphrase");
+    assert!(done(&app));
+}
+
+#[test]
+fn a_code_made_before_the_keys_come_back_in_another_order_is_checked_as_its_own() {
+    let mut app = at_the_checklist();
+    open_item(&mut app, Item::KefCode(0));
+    make(&mut app);
+    keys_back_in_another_order(&mut app);
+    open_item(&mut app, Item::KefCode(0));
+    app.settle();
+    check_with(&mut app, "a passphrase");
+    assert!(done(&app), "the code is compared with another seed");
+}
+
+#[test]
+fn remove_every_key_drops_the_krux_code_forms() {
+    let mut app = at_the_checklist();
+    open_item(&mut app, Item::KefCode(0));
+    assert!(testkit::backup_kef_form_held(&app, 0));
+    crate::common::remove_every_key(&mut app);
+    assert!(
+        !testkit::backup_kef_form_held(&app, 0),
+        "the form of a key gone stays"
+    );
+}
