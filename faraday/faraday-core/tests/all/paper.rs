@@ -20,10 +20,29 @@ fn typed(app: &mut Faraday, text: &str) {
 /// Test key 1 and the Spending wallet over it, with the system's
 /// randomness answered.
 pub(crate) fn backing_up() -> Faraday {
-    backing_up_with(|app| typed(app, &testkit::test_words(testkit::TEST_SEEDS[0].0)))
+    let mut app = supplied();
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            faraday_text::Text::of("spending-wallet.txt"),
+            kit.descriptor.into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::load_wallet(&mut app, 0);
+    add_key(&mut app, |app| {
+        typed(app, &testkit::test_words(testkit::TEST_SEEDS[0].0))
+    });
+    app.press(Action::Backup(0));
+    app
 }
 
-fn backing_up_with(enter: impl FnOnce(&mut Faraday)) -> Faraday {
+/// A started app with its display and the system's randomness answered.
+fn supplied() -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -40,24 +59,14 @@ fn backing_up_with(enter: impl FnOnce(&mut Faraday)) -> Faraday {
     for i in 0..6u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x70 + i; 32])));
     }
-    let kit = testkit::kits()
-        .into_iter()
-        .find(|k| k.id == "spending")
-        .unwrap();
-    app.storage(StorageEvent::Restored {
-        inbox: faraday_core::files_from(vec![(
-            faraday_text::Text::of("spending-wallet.txt"),
-            kit.descriptor.into_bytes(),
-        )]),
-        outbox: Vec::new(),
-        kept: Vec::new(),
-    });
-    testkit::load_wallet(&mut app, 0);
-    app.press(Action::Entry(None));
-    enter(&mut app);
-    app.press(Action::EntryAdd);
-    app.press(Action::Backup(0));
     app
+}
+
+/// Add a key, with the key typed by `enter`.
+fn add_key(app: &mut Faraday, enter: impl FnOnce(&mut Faraday)) {
+    app.press(Action::Entry(None));
+    enter(app);
+    app.press(Action::EntryAdd);
 }
 
 fn added_from(form: u8, parts: &[&str]) -> [u8; 4] {
@@ -83,11 +92,13 @@ fn added_from(form: u8, parts: &[&str]) -> [u8; 4] {
 #[test]
 fn a_spanish_key_is_given_no_seed_xor_paper() {
     use faraday_bip::bip39::{Language, Mnemonic};
+    use std::str::FromStr;
     let entropy: Vec<u8> = (0u8..16)
         .map(|i| i.wrapping_mul(37).wrapping_add(11))
         .collect();
     let es = Mnemonic::from_entropy(Language::Spanish, &entropy).unwrap();
-    let mut app = backing_up_with(|app| {
+    let mut app = supplied();
+    add_key(&mut app, |app| {
         let at = faraday_core::forms::LANGUAGES
             .iter()
             .position(|l| *l == Language::Spanish)
@@ -103,8 +114,23 @@ fn a_spanish_key_is_given_no_seed_xor_paper() {
         }
     });
     assert_eq!(app.session.keys[0].language, Language::Spanish);
-    // Not a key of the wallet, so the backup is on it only once picked.
-    app.press(Action::BKey(0));
+    // A one-key wallet over it, so Back up opens on it as its first key.
+    let c = testkit::compute();
+    let fp = app.session.keys[0].fingerprint;
+    let path = faraday_bip::bitcoin::bip32::DerivationPath::from_str("m/84'/1'/0'").unwrap();
+    let x = app.session.keys.xpub_at(&c, 0, &path).unwrap();
+    let hex = String::from_utf8_lossy(&fp.to_hex()).into_owned();
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Spanish",
+            &format!("wpkh([{hex}/84'/1'/0']{x}/<0;1>/*)"),
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("reads");
+    app.press(Action::Backup(w));
     app.press(Action::BXor(3));
     assert!(app.backup().unwrap().paper.is_none());
     assert_eq!(
