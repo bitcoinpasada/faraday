@@ -1022,7 +1022,7 @@ it names FLOW-CONTAINER.md and MENU-PAGE.md); it is not changed before.
   pane or times a page change itself, as it holds the menu page and flow
   containers, and that no card stands outside a pane.
 - **The section card** (built, `docs/MENU-PAGE.md`): a group of a pane.
-- **The scanner frame** (built for Check an address' **Scan an address** on the wide layout, `screens/scan_frame.rs`, `address_check/pane.rs`; the scanner sheet draws the same frame): the camera's picture, the found code's outline, brackets, state line and parts bar in a pane at the left of the card where the pair stands. The scan state is the sheet's own, so there is one camera and every way the sheet ends a scan ends this one (`docs/SCANNING.md` §7.1). The popout, the other scans and the sidebar's Scan are not built.
+- **The scanner frame** (built for Check an address' **Scan an address** on the wide layout, `screens/scan_frame.rs`, `address_check/pane.rs`; the scanner sheet draws the same frame): the camera's picture, the found code's outline, brackets, state line and parts bar in a pane at the left of the card where the pair stands. The scan state is the sheet's own, so there is one camera and every way the sheet ends a scan ends this one (`docs/SCANNING.md` §7.1). The sidebar's Scan stands in the session pane instead (§4, `docs/SESSION-PANE.md` §2). The popout and the other scans are not built.
 
 **What a page may draw** (owner, 2026-11-22; F322). A page draws only
 chrome, up to two panes plus the guide, sheets, and the toast and the

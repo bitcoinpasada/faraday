@@ -101,6 +101,23 @@ keys cannot be loaded. A press on the rest of the row opens the wallet.
 Vaults' wallet rows have Save instead, and the cards of the phone and the Pi
 keep one press a row.
 
+### The scan in the pane
+
+While the sidebar's Scan runs on a page whose last frame stood the pane,
+on a wide layout with no camera to choose between, the pane's place shows
+the scan (`session_pane/scan.rs`, `docs/WORKSPACE.md` §4): "Scan a QR code",
+the camera's picture with Paste, the samples and Cancel, or after a read the
+card with its ways. It is the pane's own mode on Tools, Check, Wallets and
+Vaults, and a card in the place of Home's. A card taller than the pane is
+cut and scrolls within it. The page beside it stays live: a change of page,
+or any sheet the page opens, ends the scan and wipes what was read. A read
+card is kept under the idle warning, and under the sheet its own Scan again
+raises with a stick in or a device held (Pull, Devices, or the Lock that
+takes their place). A stick taken in under Pull opens Files, so the
+camera then comes back in the scan sheet there. Where the pane is not drawn (a compact window, a page
+without it, two cameras) the scan stands in the scan sheet, and it moves
+there if the window changes so while it runs.
+
 ### Where it stands, for the change of page
 
 The one drawer of the pane's surface (`card_surface`) reports its rectangle

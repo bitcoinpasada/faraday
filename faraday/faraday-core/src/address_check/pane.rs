@@ -95,15 +95,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, p: hub_layout::Place, y: f3
 /// the page is live beside it, so a press that leaves the page or puts
 /// another sheet up ends the scan as the sheet's own Cancel does: the
 /// camera goes off and the frame, what was seen and the card go with the
-/// scan state. A read card under another sheet is left to it
-/// (`Faraday::read_card_tidy`). A scan that ended itself (Cancel, a code
-/// read) has nothing left.
+/// scan state. A read card is kept only under a sheet that waits over it
+/// (`Faraday::read_card_waits`); any other sheet the page opens ends it,
+/// so nothing of it is held behind a sheet unrelated to it. A scan that
+/// ended itself (Cancel, a code read) has nothing left.
 pub(crate) fn left(app: &mut Faraday, from: Screen) {
     let Some(scan) = app.camera.scan() else {
         return;
     };
-    let under = scan.card.is_some() && app.sheet.is_some();
-    if app.screen != from || (app.sheet != Some(Sheet::Scan) && !under) {
+    let waits = scan.card.is_some() && app.read_card_waits();
+    if app.screen != from || (app.sheet != Some(Sheet::Scan) && !waits) {
         app.camera.close();
         if app.sheet == Some(Sheet::Scan) {
             app.sheet = None;

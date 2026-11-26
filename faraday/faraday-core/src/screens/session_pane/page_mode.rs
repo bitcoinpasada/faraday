@@ -259,9 +259,16 @@ pub(crate) fn draw(
 ) -> f32 {
     card_surface(ui, (x, y, w, h));
     app.camera.pane_stands(app.screen);
+    // A read card taller than the pane is cut and scrolls, as the groups do.
     if scan::on(app) {
-        scan::content(app, ui, (x, y, w), h);
-        return 0.0;
+        let clip = ui.rect(x, y, w, h);
+        let mark = ui.presses_mark();
+        let open = ui.region_open(Region::scrolled(Slot::HomeBox, clip, offset));
+        let used = scan::content(app, ui, (x, y, w), h);
+        ui.clip_presses_since(mark, clip);
+        let max = (used - h).max(0.0);
+        ui.region_close(open, max);
+        return max;
     }
     let head_h = ui.line_as(TITLE_M) + GRID;
     ui.text_as(

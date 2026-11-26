@@ -5,7 +5,7 @@
 
 use super::address_page as kit;
 use faraday_core::{Action, Ask, Faraday, Screen, Sheet};
-use faraday_shell_api::{App, Command, Event, Key};
+use faraday_shell_api::{App, Command, Event, Key, TouchPhase};
 
 fn frame_event() -> Event {
     Event::CameraFrame {
@@ -436,6 +436,27 @@ fn sidebar_scan(app: &mut Faraday) {
     let _ = app.frame();
 }
 
+/// Whether the sidebar beside the page takes a press: a frosted sheet
+/// leaves nothing of the frame to press.
+fn page_live(app: &mut Faraday) -> bool {
+    let _ = app.frame();
+    app.offers(Action::Nav(Screen::Catalog))
+}
+
+fn stick(app: &mut Faraday, on: bool) {
+    let sticks = if on {
+        vec![crate::common::Disk::empty("s1", "STICK").info()]
+    } else {
+        Vec::new()
+    };
+    app.storage(faraday_core::StorageEvent::Sticks(sticks));
+    let _ = app.frame();
+}
+
+fn has_card(app: &Faraday) -> bool {
+    app.scan().is_some_and(|s| s.card.is_some())
+}
+
 fn has(texts: &[faraday_text::Text], want: &str) -> bool {
     texts.iter().any(|t| t == want)
 }
@@ -465,6 +486,7 @@ fn a_read_with_a_card_shows_it_in_the_pane() {
             );
         }
         assert!(!has(&texts, "This session"), "{screen:?} {texts:?}");
+        assert!(page_live(&mut app), "{screen:?} the page is covered");
         app.press(Action::Cancel);
         let _ = app.frame();
         gone(&app);
@@ -595,6 +617,7 @@ fn scan_again_turns_the_panes_camera_back_on() {
     assert!(has(&texts, "Scan a QR code"), "{texts:?}");
     assert!(!has(&texts, "Scan again"), "{texts:?}");
     assert!(!has(&texts, "This session"), "{texts:?}");
+    assert!(page_live(&mut app), "the page is covered");
 }
 
 #[test]
@@ -605,6 +628,8 @@ fn the_cards_way_over_leaves_the_pane() {
     app.press(Action::ReadGo(0));
     let _ = app.frame();
     assert_ne!(app.sheet, Some(Sheet::Scan));
+    assert!(app.scan().is_none(), "the code is still held");
+    assert_eq!(app.screen, Screen::CreateVault);
 }
 
 #[test]
@@ -634,6 +659,7 @@ fn a_page_with_no_session_pane_keeps_the_scan_sheet() {
     sidebar_scan(&mut app);
     let texts = app.drawn_texts();
     assert!(has(&texts, "Scan a QR code"), "{texts:?}");
+    assert!(!page_live(&mut app), "the sheet leaves the page live");
     let gone = before.iter().filter(|t| !texts.contains(t)).count();
     assert!(gone * 2 >= before.len(), "{texts:?}");
 }
@@ -648,12 +674,137 @@ fn lock_leaves_no_scan_when_the_session_pane_scans() {
             while app.poll_command().is_some() {}
         }
         locked(&mut app);
-        assert!(
-            app.scan().is_none(),
-            "the scan is still held after the lock"
-        );
-        assert_ne!(app.sheet, Some(Sheet::Scan));
+        nothing_of_the_scan(&mut app);
     }
+}
+
+/// A read card is held only under the sheets that wait over it: another
+/// sheet the live page opens ends the scan at once.
+#[test]
+fn a_sheet_the_page_opens_ends_a_scan_with_a_card_up() {
+    let mut app = beside(Screen::Home, (1920, 1080));
+    sidebar_scan(&mut app);
+    read_totp(&mut app);
+    assert!(has_card(&app));
+    while app.poll_command().is_some() {}
+    app.press(Action::PowerAsk);
+    assert_eq!(app.sheet, Some(Sheet::Power));
+    assert!(
+        app.scan().is_none(),
+        "the code is held under the Power sheet"
+    );
+    cameras_off(&mut app);
+    app.press(Action::Cancel);
+    let _ = app.frame();
+    gone(&app);
+    assert!(has(&app.drawn_texts(), "This session"));
+}
+
+/// A process that has held no secret is asked to pull the stick; one that
+/// read a secret's card is asked to lock. The card waits under either. The
+/// stick taken in for the pull opens Files, which has no session pane: the
+/// camera comes back in the sheet there. The locked one stays in the pane.
+#[test]
+fn the_card_waits_under_scan_agains_sheet_and_the_camera_comes_back() {
+    for (secret, sheet) in [(false, Sheet::Pull), (true, Sheet::Lock)] {
+        let mut app = beside(Screen::Home, (1920, 1080));
+        sidebar_scan(&mut app);
+        if secret {
+            read_totp(&mut app);
+        } else {
+            read_address(&mut app);
+        }
+        stick(&mut app, true);
+        app.press(Action::ReadAgain);
+        let _ = app.frame();
+        assert_eq!(app.sheet, Some(sheet));
+        assert!(has_card(&app), "{sheet:?} the card did not wait");
+        while app.poll_command().is_some() {}
+        stick(&mut app, false);
+        let sent: Vec<Command> = std::iter::from_fn(|| app.poll_command()).collect();
+        assert!(sent.contains(&Command::CameraOn), "{sheet:?} {sent:?}");
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        app.event(frame_event());
+        let stays = if secret { Screen::Home } else { Screen::Files };
+        assert_eq!(app.screen, stays);
+        assert_eq!(page_live(&mut app), secret, "{sheet:?}");
+        assert!(has(&app.drawn_texts(), "Scan a QR code"));
+    }
+}
+
+#[test]
+fn a_change_of_page_with_a_card_up_ends_the_sidebar_scan() {
+    let mut app = address_card(Screen::Home);
+    while app.poll_command().is_some() {}
+    app.press(Action::Nav(Screen::Catalog));
+    let _ = app.frame();
+    gone(&app);
+    cameras_off(&mut app);
+    let texts = app.drawn_texts();
+    assert!(!has(&texts, "Check this address"), "{texts:?}");
+    assert!(!unspaced(&mut app).contains(&kit::address(4)), "{texts:?}");
+}
+
+#[test]
+fn the_idle_warning_stands_over_the_pane_and_is_put_away_to_it() {
+    const MIN: u64 = 60_000;
+    let mut app = beside(Screen::Home, (1920, 1080));
+    sidebar_scan(&mut app);
+    read_totp(&mut app);
+    app.event(Event::Tick { now_ms: 0 });
+    app.event(Event::Tick {
+        now_ms: 29 * MIN + 30_000,
+    });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    assert!(has_card(&app), "the card did not wait under the warning");
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x: 2, y: 2, phase });
+    }
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(has_card(&app));
+    assert!(
+        page_live(&mut app),
+        "the card did not come back to the pane"
+    );
+    assert!(has(&app.drawn_texts(), "Make a new vault"));
+}
+
+#[test]
+fn a_stick_arriving_while_the_pane_scans_waits_for_the_scans_end() {
+    let mut app = beside(Screen::Home, (1920, 1080));
+    sidebar_scan(&mut app);
+    stick(&mut app, true);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert_eq!(app.screen, Screen::Home);
+    assert!(app.scan().is_some());
+    assert!(page_live(&mut app));
+    while app.poll_command().is_some() {}
+    app.press(Action::Cancel);
+    let _ = app.frame();
+    assert!(app.scan().is_none());
+    cameras_off(&mut app);
+    assert_eq!(app.screen, Screen::Files, "the stick waited for the scan");
+}
+
+#[test]
+fn a_window_going_compact_sends_the_panes_scan_to_the_sheet() {
+    let mut app = beside(Screen::Home, (1920, 1080));
+    sidebar_scan(&mut app);
+    assert!(page_live(&mut app));
+    while app.poll_command().is_some() {}
+    display(&mut app, 480, 640, 160);
+    app.event(frame_event());
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(app.scan().is_some());
+    assert!(!page_live(&mut app), "the page is live beside no pane");
+    assert!(has(&app.drawn_texts(), "Scan a QR code"));
+    assert!(
+        std::iter::from_fn(|| app.poll_command()).all(|c| c != Command::CameraOff),
+        "the camera went off"
+    );
 }
 
 /// Draws what the last press changed and says how many changes faded in

@@ -305,7 +305,12 @@ pub(crate) fn scan_tour(t: &mut Tour) -> Result<(), String> {
     t.app.event(Event::Scanned {
         bytes: b"tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_vec(),
     });
-    if t.app.sheet == Some(faraday_core::Sheet::Scan) {
+    // A small panel has no session pane: its sidebar Scan opens the check
+    // with no card.
+    if !t.app.is_compact() {
+        if !t.app.scan().is_some_and(|s| s.card.is_some()) {
+            return Err("the address read by the sidebar's Scan made no card".into());
+        }
         t.shot("scan-address")?;
     }
     Ok(())

@@ -2109,6 +2109,18 @@ impl Faraday {
         }
     }
 
+    /// Whether the sheet on show is one the read card waits under: the
+    /// one its Scan again asked for with a stick in or a device held
+    /// (Pull, Devices, or the Lock that took their place). A lookup.
+    pub(crate) fn read_card_waits(&self) -> bool {
+        let pulled = matches!(self.visit.pull(), Some(Action::ReadAgain));
+        match self.sheet {
+            Some(Sheet::Pull | Sheet::Lock) => pulled,
+            Some(Sheet::Devices) => matches!(self.devices.after, Some(Action::ReadAgain)),
+            _ => false,
+        }
+    }
+
     /// Cancel while the read card's Scan again waits under the Pull or
     /// device sheet goes back to nothing: the code it showed is wiped.
     pub(crate) fn read_again_cancel(&mut self) {
