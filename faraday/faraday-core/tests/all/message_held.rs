@@ -9,6 +9,7 @@ use faraday_core::catalog::Go;
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::scan_read::Way;
 use faraday_core::strings::EN;
+use faraday_core::vault::VaultAction;
 use faraday_core::work::Work;
 use faraday_core::{
     Action, Ask, Code, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, testkit,
@@ -18,8 +19,11 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware}
 
 /// A key of the test words with its single-key wallet.
 fn app() -> Faraday {
+    with_the_key(testkit::started())
+}
+
+fn with_the_key(mut app: Faraday) -> Faraday {
     let c = testkit::compute();
-    let mut app = testkit::started();
     app.session = testkit::session();
     app.session
         .keys
@@ -216,7 +220,10 @@ fn a_flow_left_half_way_signs_once_the_key_is_backed_up() {
 /// Sign a message signed with the key not held, its file For the stick and
 /// ticked, on a screen wide enough for Files' rows.
 fn signed_file() -> (Faraday, String) {
-    let mut app = app();
+    signed_file_in(app())
+}
+
+fn signed_file_in(mut app: Faraday) -> (Faraday, String) {
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
@@ -290,8 +297,11 @@ fn visit_writes(app: &mut Faraday, name: &str, tick: bool, waits: bool) -> Vec<S
     }]));
     // The stick arrives with what it can take ticked: untick all, then
     // Select all.
-    if !app.visit().out.is_empty() {
-        app.press(Action::VisitOutAll);
+    // With only some ticked the first press ticks the rest.
+    for _ in 0..2 {
+        if !app.visit().out.is_empty() {
+            app.press(Action::VisitOutAll);
+        }
     }
     assert!(app.visit().out.is_empty(), "all unticked");
     app.press(Action::VisitOutAll);
@@ -325,15 +335,24 @@ fn held_back_until_backed_up(mut app: Faraday, name: &str, a_code: bool) {
     assert!(!code_shown(&mut app));
 
     testkit::outbox_file(&mut app, "other.txt", b"other");
-    // The lock and the restart: the next process knows who signed it.
+    // The lock and the restart: no key is loaded, and the file is held.
     let mut next = restarted(app);
+    assert_eq!(next.session.keys.all().count(), 0);
+    assert_held_without_the_key(&mut next, name);
+
+    // The write answered and the stick out, the key loaded again, still
+    // waiting, and then backed up.
+    next.storage(StorageEvent::Written {
+        stick: faraday_text::Text::of("one"),
+        name: faraday_text::Text::of("other.txt"),
+        wrote_as: faraday_text::Text::of("other.txt"),
+    });
+    while next.poll_storage().is_some() {}
+    next.storage(StorageEvent::Sticks(Vec::new()));
+    while next.poll_storage().is_some() {}
+    load_the_key(&mut next);
     testkit::mark_made_here(&mut next, fp);
     assert!(row_says_it_waits(&mut next));
-    assert!(!code_shown(&mut next));
-    let written = visit_writes(&mut next, name, true, true);
-    assert!(written.iter().any(|n| n == "other.txt"), "{written:?}");
-    assert!(!written.iter().any(|n| n == name), "{written:?}");
-
     testkit::release_made(&mut next, fp);
     // The refusal's toast says the same words: its time runs out first.
     next.event(Event::Tick {
@@ -351,8 +370,88 @@ fn held_back_until_backed_up(mut app: Faraday, name: &str, a_code: bool) {
         assert!(next.qr().is_none());
         assert_eq!(next.toast_text(), None);
     }
-    let written = visit_writes(&mut next, name, true, false);
+    // A process that has had a key loaded locks before it writes: the next
+    // one has none, and the hold is gone from what the lock kept.
+    let mut last = restarted(next);
+    assert!(!row_says_it_waits(&mut last));
+    let written = visit_writes(&mut last, name, true, false);
     assert!(written.iter().any(|n| n == name), "{written:?}");
+}
+
+fn load_the_key(app: &mut Faraday) {
+    let c = testkit::compute();
+    app.session
+        .keys
+        .add_words(
+            &c,
+            &testkit::test_words(testkit::TEST_SEEDS[0].0),
+            "Bacon",
+            None,
+        )
+        .expect("the key");
+}
+
+/// With no key loaded: the held file `name`, first in Files, says it waits,
+/// takes no tick, is no code, and a stick visit writes `other.txt` and not
+/// it.
+fn assert_held_without_the_key(app: &mut Faraday, name: &str) {
+    assert!(row_says_it_waits(app));
+    assert!(!app.visit().out.contains(name), "unticked");
+    app.press(Action::VisitOut(0));
+    assert!(!app.visit().out.contains(name), "no tick");
+    assert!(!code_shown(app));
+    let written = visit_writes(app, name, true, true);
+    assert!(written.iter().any(|n| n == "other.txt"), "{written:?}");
+    assert!(!written.iter().any(|n| n == name), "{written:?}");
+}
+
+/// An open vault's record of the key's words, its backup pending, holds the
+/// key only while it is loaded: Remove every key leaves the file held.
+#[test]
+#[allow(clippy::disallowed_methods)] // a test vault's own record of the words
+fn a_held_file_stays_held_after_remove_every_key() {
+    use faraday_vault::records::{self, field, kind};
+    const PHRASE: &str = "correct horse battery staple";
+    let c = testkit::compute();
+    let file = crate::common::vault_of("Main", PHRASE, 0x41, Vec::new());
+    let mut app = crate::common::process(vec![("main.kdbx".into(), file)], Vec::new(), Vec::new());
+    crate::common::keep_time(&mut app);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(VaultAction::Open(0)));
+    testkit::vault_speed(&mut app, Some(180));
+    crate::common::unlock(&mut app, PHRASE);
+    let (mut app, name) = signed_file_in(with_the_key(app));
+    let id = app.vaults().open[0].id;
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
+        .unwrap();
+    testkit::vault_edit(&mut app, id, |s| {
+        s.insert(
+            id,
+            faraday_vault::Record::new(kind::KEY)
+                .with(field::KEY, &records::words_payload(&m))
+                .with(field::KEY_FLAGS, &[records::BACKUP_PENDING]),
+        )
+    });
+    app.event(Event::Tick { now_ms: 1 });
+    assert!(row_says_it_waits(&mut app));
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    app.press(Action::RemoveKeys);
+    app.press(Action::RemoveKeysHold);
+    assert_eq!(app.session.keys.all().count(), 0);
+    assert!(row_says_it_waits(&mut app));
+    app.press(Action::VisitOut(0));
+    assert!(!app.visit().out.contains(name.as_str()), "no tick");
+    assert!(!code_shown(&mut app));
+    // Select all leaves it. This process has had a key, so Write asks for
+    // a lock first and sends nothing.
+    let written = visit_writes(&mut app, &name, true, true);
+    assert!(!written.contains(&name), "{written:?}");
+    app.press(Action::Cancel);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    while app.poll_storage().is_some() {}
+    let mut next = restarted(app);
+    assert_held_without_the_key(&mut next, &name);
 }
 
 #[test]
