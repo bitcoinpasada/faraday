@@ -16,6 +16,12 @@ Files is one page whether a stick is attached or not: **In Faraday** holds every
 
 **Write** at the foot of **In Faraday** writes the ticked files to the stick. At the foot of **On the stick**, **Import 3 files** copies the ticked files in and **Import and load** copies them in and loads them once the stick is pulled; a line under the list says what pulling the stick will do next. Pulling the stick keeps you on Files.
 
+## A file's details
+
+**Key:** files.details
+
+On a wide window a press on a file of **In Faraday** opens its details where **On the stick** stands: what you can do with the file first, then its kind and size. The file's row is marked, the back arrow in the top bar returns the stick as it was, and so do Escape and **Files** in the menu. A press on another file shows that file instead. The tick box at the left of a row only ticks the file, and a press anywhere else on the row opens its details without changing the tick; its button and its ⋮ menu do what they say. On a small window or a narrow one a press on a row ticks it as before.
+
 ## The stick
 
 **Key:** files.stick

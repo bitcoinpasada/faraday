@@ -1179,7 +1179,13 @@ impl Faraday {
     fn act_noted(&mut self, action: Action) {
         let on_entry = self.screen == Screen::Entry;
         let in_pane = crate::address_check::pane::scanning(self);
-        self.act_dealt(action);
+        // Files' tab with a file's details open only closes them: the
+        // page's ticks and scroll stay as they were.
+        if matches!(action, Action::Nav(Screen::Files)) && crate::row_open::files_open(self) {
+            crate::row_open::close(self);
+        } else {
+            self.act_dealt(action);
+        }
         if in_pane {
             crate::address_check::pane::left(self);
         }

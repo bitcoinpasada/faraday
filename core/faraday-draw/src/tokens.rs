@@ -245,6 +245,10 @@ pub const STICK_FIGURE_W: f32 = 168.0;
 
 /// Standard list row height.
 pub const ROW: f32 = 56.0;
+
+/// Files' row: the left edge of its tick box's touch-sized press, from the
+/// row's left edge (the box's centre is 31 in).
+pub const VISIT_TICK_BOX_X: f32 = 31.0 - TOUCH / 2.0;
 /// How far in a multi-choice row's label starts: past its checkbox.
 pub const LIST_INDENT: f32 = 40.0;
 /// A step-card column's inset from its area, each side.

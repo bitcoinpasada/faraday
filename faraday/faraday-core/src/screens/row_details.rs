@@ -31,7 +31,15 @@ pub(crate) fn title(app: &View) -> Option<String> {
 /// arrow (the page's name, a press returning the page) and the item's name.
 /// Returns the bar's height.
 pub(crate) fn bar(app: &View, ui: &mut Ui, page: &str) -> f32 {
-    match title(app) {
+    bar_when(app, ui, page, true)
+}
+
+/// The same bar where the details stand only if `stands`: a page whose room
+/// may not hold them (Files, with the guide pane taking room) passes the
+/// predicate that draws them, so the arrow and the name come with the
+/// details and never without.
+pub(crate) fn bar_when(app: &View, ui: &mut Ui, page: &str, stands: bool) -> f32 {
+    match title(app).filter(|_| stands) {
         Some(name) => super::bar_head(ui, Some((page, Action::RowClose)), &name),
         None => super::bar_head(ui, None, page),
     }

@@ -1,6 +1,7 @@
 //! The row opened on a menu page (`docs/WORKSPACE.md` §7 point 1): a press
 //! on a key's, a wallet's or a held file's row of the session pane on Tools,
-//! Check, Wallets or the wide layout's Home opens the item in the page's second pane instead of
+//! Check, Wallets or the wide layout's Home, and a file of In Faraday on the
+//! wide layout's Files, opens the item in the page's second pane instead of
 //! leaving the page. This is the one state of it: which page, which item.
 //! The item is kept by what it is (a key by its fingerprint, a wallet by its
 //! identity, a file by its name and size), never by a place that shifts when
@@ -17,6 +18,9 @@ pub(crate) enum Page {
     Tools,
     Check,
     Wallets,
+    /// Files, on the wide layout: a file of In Faraday opens in the stick's
+    /// place.
+    Files,
 }
 
 impl Page {
@@ -27,19 +31,37 @@ impl Page {
             Screen::Catalog => Some(Page::Tools),
             Screen::Check => Some(Page::Check),
             Screen::Wallets | Screen::WalletsStart => Some(Page::Wallets),
+            Screen::Files => Some(Page::Files),
             _ => None,
         }
     }
 }
 
 /// Whether `page` opens a row in this window: not on the phone's layout,
-/// and Home only on the expanded rail (the rail's windows keep Home as it
-/// is), and not while Home's search is typed (its results
-/// take the tile's place).
+/// Home and Files only on the expanded rail (the rail's windows keep them
+/// as they are), and not while Home's search is typed (its results take
+/// the tile's place).
 fn takes_rows(app: &Faraday, page: Page) -> bool {
     !app.is_compact()
-        && (page != Page::Home
-            || (app.nav() == crate::nav::Nav::ExpandedRail && app.tools.home_find().is_empty()))
+        && match page {
+            Page::Home => {
+                app.nav() == crate::nav::Nav::ExpandedRail && app.tools.home_find().is_empty()
+            }
+            Page::Files => app.nav() == crate::nav::Nav::ExpandedRail,
+            _ => true,
+        }
+}
+
+/// Whether Files draws the rows of In Faraday as ones that open details.
+pub(crate) fn files_opens(app: &Faraday) -> bool {
+    app.screen == Screen::Files && takes_rows(app, Page::Files)
+}
+
+/// Whether a file's details are open on Files, which is on show.
+pub(crate) fn files_open(app: &Faraday) -> bool {
+    app.screen == Screen::Files
+        && matches!(area(app).open, Some((Page::Files, _)))
+        && opened(app).is_some()
 }
 
 /// Whether Home's card draws its rows as ones that open details.
@@ -183,7 +205,9 @@ pub(crate) fn sync(app: &mut Faraday, tab: bool) {
         return;
     };
     let page = *page;
-    if app.is_compact() || (page == Page::Home && app.nav() != crate::nav::Nav::ExpandedRail) {
+    if app.is_compact()
+        || (matches!(page, Page::Home | Page::Files) && app.nav() != crate::nav::Nav::ExpandedRail)
+    {
         app.wallets.row_open_lock();
         return;
     }

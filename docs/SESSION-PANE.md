@@ -46,9 +46,9 @@ in its Keys group (`screens/session_pane/page_mode.rs`, `Mode::Wallets`).
 
 A row with a button stands so: the button under the row's lines at the text's
 start, as the PSBT's Sign does, its own press. Where the page has the pane's
-details (Tools, Check, Wallets on a window that is not compact, Home on the wide layout) a held file's
+details (Tools, Check, Wallets on a window that is not compact, Home on the wide layout; Files draws its own rows of the Inbox so, `docs/WORKSPACE.md` §7 point 1) a held file's
 row, a PSBT's included, opens its details on a press anywhere else of the row
-and ends in the chevron too; a flow in progress's row has none of its own
+(on Files the tick box only ticks, the rest of the row opens) and ends in the chevron too; a flow in progress's row has none of its own
 press. On the phone and the Pi the button is the row's only press. Every lead's button stands so (Carry on, Finish, Unlock, Write,
 Open, Sign), in the Waiting group, one column, never across the card.
 

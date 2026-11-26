@@ -69,6 +69,7 @@ impl Pane<'_> {
                     menu: None,
                     main: Some((Text::of(EN.show_as_qr), Style::Secondary, code.show)),
                     wrap: false,
+                    open: None,
                 },
             );
         }
@@ -110,6 +111,7 @@ impl Pane<'_> {
                         menu: None,
                         main: None,
                         wrap: false,
+                        open: None,
                     },
                 );
                 continue;
@@ -132,6 +134,7 @@ impl Pane<'_> {
                         menu: None,
                         main: None,
                         wrap: false,
+                        open: None,
                     },
                 );
                 continue;
@@ -158,6 +161,7 @@ impl Pane<'_> {
                     menu: None,
                     main: Some((Text::of(label), Style::Secondary, file.make)),
                     wrap: false,
+                    open: None,
                 },
             );
         }
