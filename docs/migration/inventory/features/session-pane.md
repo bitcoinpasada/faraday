@@ -75,6 +75,7 @@ The pane that shows what the session holds: keys, wallets, files held, flows in 
   - The xpub rows only when `account_key` returns one (`:~131-136`).
   - An open vault omits where and size (`:~192-195`).
 - Scan frame (`faraday/faraday-core/src/screens/scan_frame.rs`): no outline when a dimension is zero (`:~50-52`); green once read, warning colour otherwise (`:~70-74`); the found outline only while `sc.frames - at <= SEEN_FRAMES` (10, `faraday/faraday-core/src/qr_view.rs:~266`) (`:~30-31`).
+- Vaults' pane marks, one vault open (screens/session_pane/vault_marks.rs:47-73): a key is "in a vault" when a key record holds its seed (words or master seed) and its passphrase as loaded (or none where it has none); "words in a vault" when the seed is held without that passphrase; otherwise "not saved". Save (the vault's own SaveKey) is offered only for "not saved" keys the vault can keep, on a writable vault; a key held with a different passphrase gets no Save (faraday-keys/src/vault/reveals.rs:107-133).
 
 ## Domain calls
 
@@ -92,7 +93,6 @@ None. (eb0be84dd, a split sheet's row in this pane with no button, sits under th
 ## Doubts
 
 - `KeyWallet(fp, 1)` uses a literal 1 (`faraday/faraday-core/src/screens/session_pane/rows.rs:~180, ~330`); its meaning is not stated.
-- `faraday/faraday-core/src/screens/session_pane/vault_marks.rs` offers Save when `words` is false even if the vault holds the key with its passphrase; intent not known.
 - `faraday/faraday-core/src/screens/session_pane/scan.rs:~26-27` checks the same fact twice (`camera.pane_seen` and `scan().pane`).
 - `camera.pane_stands` writes during drawing, against "drawing reads"; whether it is real state is undecided.
 - The ranking comment at `faraday/faraday-core/src/screens/session_pane/page_mode.rs:~88-92` is stale.

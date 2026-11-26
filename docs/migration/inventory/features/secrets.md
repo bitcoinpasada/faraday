@@ -51,6 +51,7 @@ typed passphrase on sixteen screens and sheets.
 - The fields built on `PassField` (`Where`, `faraday/faraday-core/src/pass_field/mod.rs:~304-363`): Potential (Inbox possible wallet), Aezeed (Lightning), Entry (Add a key), SeedRead, KefRead, Slot (Make a new wallet's key slot), NewKey, SeedCheck, KefTool, BackupKef, CoreWallet, CopyCheck, GlanceCheck, Unlock, VaultCreate, VaultPrompt.
 - Other secret text types confirmed as `SecretText`: `WordCheck.typed` (`faraday/faraday-core/src/copy_check.rs:19-24`), `EntryState.typed` (`faraday/faraday-core/src/state.rs:28-49`, `299`).
 - An unprotected secret goes to the Outbox as `Item::new(.., bytes.to_vec())` (`faraday/faraday-core/src/secrets.rs:722-726`). `Item::new` moves the `Vec` into `Zeroizing` with no copy (`faraday/faraday-core/src/item.rs:93-94`), and `Item`'s `Debug` prints no bytes (`faraday/faraday-core/src/item.rs:59-68`). The Outbox `Item` is `at_lock::Public` (`faraday/faraday-core/src/item.rs:56-57`) and is kept across a lock by design (`faraday/faraday-core/src/storage_api.rs:686-690`).
+- The passphrase fields on `PassField` are the 16 rows of `pass_field::Where` (Potential, Aezeed, Entry, SeedRead, KefRead, Slot, NewKey, SeedCheck, KefTool, BackupKef, CoreWallet, CopyCheck, GlanceCheck, Unlock, VaultCreate, VaultPrompt), in seven kinds: Bip39, KefMake and Lightning take printable ASCII, KefRead, Vault, Kdbx and CoreWallet any non-control character; most bytes are the BIP-39 maximum, the Krux make maximum and 1024 for a Core wallet, none for the rest (`faraday/faraday-core/src/pass_field/mod.rs:23-62`, `:307-365`).
 
 ## Reach
 
@@ -61,6 +62,7 @@ typed passphrase on sixteen screens and sheets.
 - The passphrase field is used by Unlock, Create a vault and the vault prompt (`vault-unlock`, `vault-list-create`, `vault-contents`), Add a key, New key, Lightning, the Krux code forms, the Core wallet tool, Check my copy, At a glance, the seed check.
 
 ## Rules and refusals
+- A text that classifies as a secret file is named by its kind: words, a codex32 string, entries, a wallet with secrets; any other secret kind (a key line, a Core wallet file) is named a private key (faraday/faraday-core/src/text_check.rs:94-104).
 
 - Exposure per file kind (`faraday/faraday-core/src/secrets.rs:~27-54`): Vault, Kdbx, KdbxOther, KruxCode are sealed; Entries, Words, SeedPart, KeyLine, SecretWallet, KeyWithSecret, CoreWallet are secret; the others are public.
 - Secrets sheet:
@@ -135,7 +137,7 @@ None. The word lists come from `faraday-bip`.
 | 25d6eda26 | The caution "Never type a seed that holds real bitcoin here." was drawn across the bottom edge; Unlock showed it while nothing could be typed; Demo's sample-passphrase hint showed at once | The caution stands under the passphrase field; Unlock does not show it while nothing can be typed |
 | d102b3c33 | Use faraday, offered by an empty passphrase field even when the other field held typed text, could write over what the person typed | Use faraday is offered on an empty field only while the other field is empty too |
 | bbbe17f44 | The two typed passphrases were compared with a non-constant-time comparison; the hidden passphrase's bullets were not a wiping text | A comparison that decides access is constant time (lengths may show); secret text is held in wiping buffers |
-| e5eeecc2a | A non-ASCII letter typed into a passphrase field was accepted | A passphrase is printable ASCII; other letters are refused and the field says so |
+| e5eeecc2a | A non-ASCII letter typed into a passphrase field was accepted | A BIP-39, Krux-making or Lightning passphrase takes printable ASCII only and the field says so for any other letter; vault, KeePass, Krux-reading and Core wallet passphrases take any non-control character (`faraday/faraday-core/src/pass_field/mod.rs:46-51`) |
 | 1b0bc0bd7 | A words-only copy still offered a SeedQR picture beside the words in Save as a file | SeedQR is offered only where the plan copies the seed as SeedQR |
 | d5e312cf7 | A stick file that reads as a secret (seed, TOTP, wallet, SeedQR picture) was copied in plain on the wrong stick | Secret files come into a plain copy only on the person's own stick |
 | 630c39de3 | The published-seed caution's keep list counted as cryptographic, and the loaded-key check did not answer the caution | Published test seeds raise the caution and only that |
@@ -158,9 +160,7 @@ None. The word lists come from `faraday-bip`.
 - Rows 5bd9bcc00, 636cac6a2, d3a1fe6e4, bc4b2a364 and 7ed76a00b were given under `lock` and moved here.
 - Rows left out as outside the inventory's scope (copies of secrets in freed memory or on the stack, wipe on unwind): 853e92165, 651fc00a5 and 6b7e8096b, whose compact entry field and SLIP-39 deal parts are locals, not app state.
 - bbbe17f44 is described from its commit message only; its file list was not inspected. 8aa52fad5's file list was not checked. c70cdd9c7 may only have removed duplication, not a live leak.
-- e5eeecc2a (history) says a passphrase is printable ASCII; the code at the frozen commit keeps that only for the Bip39, KefMake and Lightning kinds; the Vault, Kdbx, KefRead and CoreWallet kinds take any non-control character (`faraday/faraday-core/src/pass_field/mod.rs:~45-51`).
 - The passphrase field rules come from a direct read of `faraday/faraday-core/src/pass_field/` for this file; only `faraday/faraday-core/src/pass_field/mod.rs:114-124` is inventory-verified.
-- `faraday/faraday-core/src/text_check.rs:~101` maps every other secret file kind to `Kind::Wif` (a catch-all); whether that is intended is not stated.
 - `check` -> `tokens` -> `ur_part` -> `check` has no depth cap in code; input is bounded by `MAX_TEXT`; the termination argument is unverified.
 - `outbox_secret` takes an `OutReason` it discards (`let _ = why;`, `faraday/faraday-core/src/secrets.rs:503`): a dead parameter.
-- Fields not yet moved onto `PassField` keep their own state and are handled where they are (module doc, `faraday/faraday-core/src/pass_field/mod.rs:~7-10`); which ones those are is not listed by the inventory.
+- The module doc of `faraday/faraday-core/src/pass_field/mod.rs:7-10` says fields not yet moved keep their own state; no typed-passphrase field outside the 16 `Where` rows was found by reading the code (the other `SecretText` fields are keys, seeds, paperkey lines, dice, amounts or text, not passphrases).

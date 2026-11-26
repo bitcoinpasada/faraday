@@ -85,6 +85,7 @@ A lock in the Demo replaces the app with a fresh one in the same window.
 - Preview: `Command::PreviewSize` sets a preview size in dp (`faraday/shells/demo/src/lib.rs:~126-128`, `~202-205`). It is offered at start as `Event::PreviewOffered` (`faraday/shells/demo/src/main.rs:~182-184`, `~443-446`), but not in panel mode.
 - The icon is `faraday/shells/starter/assets/icon.png`. The Windows resources come from `faraday/shells/demo/build.rs`, which includes `faraday/faraday-core/src/names.rs` and `faraday/build/windows/resources.rs`.
 - A count of fades is printed to stderr (`faraday/shells/demo/src/main.rs:~362-384`).
+- With `--timings` the Demo prints a once-a-second "fades" line (started, reduced, steps, median and worst gap, bands, size) on stderr after the frame's timings line; no release check (`faraday/shells/demo/src/main.rs:362-384`).
 
 ## State and lock
 
@@ -100,6 +101,7 @@ A lock in the Demo replaces the app with a fresh one in the same window.
   - It keeps `boxes`, `preview`, `attached`, `stop` and the listing thread.
   - `restarted` feeds the new app `boxes.restore()`, a clone of the in-memory Inbox, Outbox and kept list. It rescans, clears `listed` and `cameras`, and sends them again.
 - The secrets of the old app go with the old app. The kept boxes stay through a lock. The Demo is a test area: what it holds is test data.
+- A lock keeps, from the old app, only its mode (`Mode::Demo` brings the demo samples again); the host keeps the boxes, the attached sticks, the preview size, the clipboard and the listings; the input counts are not carried (`faraday/shells/demo/src/lib.rs:317-335`, `:425-444`).
 
 ## Reach
 
@@ -168,6 +170,7 @@ A lock in the Demo replaces the app with a fresh one in the same window.
   - "Unselect all" while any is ticked, else "Select all" (`~1375-1379`).
   - A wallet label that is `None` shows empty (`~1397-1398`).
 - The Use a sample chip on the empty Add a key word grid sits in cell 1 after its number, and keeps every numbered cell. The Demo passphrase chip draws no caret until the person presses in or types (history fixes).
+- The vault prompt's `faraday` chip is offered only where `prompt_chip()` holds, which is not for the KeePass export or its check (`Purpose::Kdbx`, `KdbxCheck`; `faraday` is under their minimum); the chip's press (`demo_pass_chip`, demo.rs:318) tests only that the session is Practice (demo.rs:306-313, 284-289).
 
 ## Domain calls
 
@@ -239,10 +242,6 @@ These are compiled into `faraday_samples::SAMPLES`, which the Demo sets as its s
 - The file changed by 223c1c330 is not confirmed.
 - Only the `SIDE_PANEL_TOP` uses are confirmed as the fix in ce8c45ae7.
 - c9c0e9199 and da9321358 were read from their commit messages only.
-- Earlier notes said a Demo lock "clears pending commands". The code shows only pictures and lists cleared, and no clearing of pending commands was found in `restart`.
-- Not read: what `Demo::restart` carries from the old app, beyond the boxes.
-- The fade count print in `faraday/shells/demo/src/main.rs:~362-384` is not gated by `is_release()`. Whether `Core` gates it is unclear.
 - `--size` has no range check. What a size of 0 does depends on `Core`.
 - A doc line at `faraday/shells/demo/src/main.rs:~66` says the stick app starts on mainnet, while the Demo is on testnet.
-- Practice's `demo_pass_chip` for the vault prompt does not itself check the KeePass purposes. It relies on the chip not being drawn there (`prompt_chip`).
 - The host's public lookups for drivers and test scripts have no user-facing effect: `record_ink`, `ink`, `canvas_bytes`, `strip_texts`, `strip_actions_for`, `where_offered`, `offered_area`, `menu_area`, `app_area`, `sheet_area`, `list_scrolled`, `open_menu_at_rest`.

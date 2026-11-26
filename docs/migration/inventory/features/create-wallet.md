@@ -30,7 +30,7 @@ Logic: `faraday/faraday-core/src/create.rs`, `faraday/faraday-core/src/cstep.rs`
 - KIND 0, QUORUM 1, KEYS 2, CHECK 3;
 - WHERE 5, STICKS 6, VAULTS 7, HOW_MANY 8;
 - BACKUP_FORM 9, COUNT 10;
-- there is no 4.
+there is no 4; the cards a Make-a-new-wallet flow lists are only KIND, QUORUM or BACKUP_FORM, KEYS and CHECK (faraday/faraday-core/src/create.rs:131-140, faraday/faraday-core/src/backup_flow/wallet.rs:2463-2499). WHERE, STICKS, VAULTS and HOW_MANY are added only when `into_vaults()` holds, and it is always false (faraday/faraday-core/src/create.rs:1131-1133). `CSTEPS` names those five numbers 4 to 8 with empty strings (faraday/faraday-core/src/screens/create.rs:20-32).
 
 The cards show:
 - Kind. There is a More kinds row.
@@ -136,6 +136,7 @@ Check
 - `CreateVaults` is built per frame in Drawing, with fingerprints and labels only.
 - Keys made on the card are the New key flow's (see keygen-flow). The idle warning puts seed words, SeedQR and passphrase away once (fix 4f273508a).
 - A key removed from the session is taken out of the flow's counts (fix 083d29bc5).
+Once the wallet is made (`built` set) the Kind card's rows and the Quorum steppers are drawn disabled and the cards stay listed (Back stops at Check); the handlers of `CM` and `CN` do not themselves check `built` (faraday/faraday-core/src/screens/create.rs:171-188, 233-250, faraday/faraday-core/src/create.rs:1567-1585, 2698-2701).
 
 ## Reach
 
@@ -155,7 +156,7 @@ Check
 ## Rules and refusals
 
 Kinds and shape
-- Kind codes (`faraday/faraday-core/src/create.rs:~120-179`): nine kinds; codes 0 to 7 and 9 are valid; 8 is refused; 10 is read as Single key plus Codex32.
+Kind codes (faraday/faraday-core/src/create.rs:116-179): nine kinds; `from_code` reads 0 to 7 and 9 and gives none for any other number, 8 included (a kind since removed); `from_kept_code` reads 10 (`OLD_SHARES_CODE`) as Single key, native SegWit, with the backup form Codex32.
 - Multisig has 2..=15 keys (`max_keys` 15, `faraday/faraday-core/src/create.rs:293-296`).
 - CN clamps (`faraday/faraday-core/src/create.rs:1576-1585`). A kind change clamps (`~1533`).
 - m is clamped to 1..=n. For MuSig2 (`all_sign`) it is forced to n (`faraday/faraday-core/src/create.rs:1534, 1569`). MuSig2 and all-sign kinds choose only the key count (`faraday/faraday-core/src/screens/create.rs:~236-238`).
@@ -300,9 +301,6 @@ None.
   - 9f65d0e6a (the policy compiler);
   - the Convert half of 6007cfeb7.
 - Rows moved here from restore-wallet: cd2e42596 and 083d29bc5.
-- The two sources disagree on the card numbers. One says `cstep` has cards 5 to 10 with no 4. The other says the drawing has "five unused numbers 4-8 that draw blank" (`faraday/faraday-core/src/screens/create.rs:~20-32`). The cards past CHECK appear to be drawn by the board, not by this screen. Not settled.
-- Kind code 8 refused and 10 read as Single key plus Codex32 (`faraday/faraday-core/src/create.rs:~120-179`) is unconfirmed.
-- Whether the UI hides `CStep`, `CM` and `CN` once a wallet is made is unclear.
 - A possible panic: `faraday/faraday-core/src/screens/create.rs:451` slices the cosigner text as `&t[1..9.min(t.len())]`. An empty string would give `1..0`, and non-ASCII at byte 1 or 9 would split a character. Whether `Source::Cosigner` text can be either was not traced.
 - Possibly dead: `create_keys_opened` is empty (`faraday/faraday-core/src/create.rs:~1957`), `into_vaults` is always false (`~1128`), `still_fits` is always true (`~2794`). `_room` is unused (`faraday/faraday-core/src/screens/create.rs:~57`).
 - The `expect` at `faraday/faraday-core/src/screens/create.rs:~156` relies on the dispatcher checking first.

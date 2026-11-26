@@ -72,6 +72,7 @@ area's whole state.
 - The memory dialog and memory steps: `vault-seal`.
 
 ## Rules and refusals
+- A new vault's file name is the typed name reduced to ASCII letters, digits, `-` and `_` (whitespace becomes `-`, other characters are dropped, at most `NAME_MAX` characters, Windows device names refused), then the first of `name.kdbx`, `name-2.kdbx` to `name-99.kdbx` free in the Inbox and Outbox by file name and by key file name, else `name-100.kdbx` (faraday/faraday-core/src/vault/area.rs:3331-3360; vault/mod.rs:2652-2671).
 
 - Create is hidden on the list and on the panes when `app.vaults.back_to` is set: no second vault is started in the way back's place (`faraday/faraday-core/src/vault/screen.rs:362`, `653`; `faraday/faraday-core/src/vault/panes_screen.rs:~147-148`).
 - With no vault file in Files, Vaults opens New vault; Back returns to where Vaults was pressed (fix c1603fb1f).
@@ -103,6 +104,7 @@ area's whole state.
 - Dice (`faraday/faraday-core/src/vault/dice.rs`): rolls are refused unless `may_load_keys()` (`~74`); the roller unless `roller_offered()` (`~79`); Use fills only an existing passphrase field with a non-empty phrase (`~93-96`); Faraday Demo replaces rolled words with the public `demo::PASSPHRASE`, 0 bits (`~92-101`); fallback cost `(0, 64, 3)` (`~133`).
 - `CName` has no `may_load` check, unlike `CFocus` (`faraday/faraday-core/src/vault/act_create.rs:~111-113`).
 - The unlock time estimate is worked out on the worker, not the drawing thread (fix d03f74d36).
+- A new Create form starts on `SIZES[0]` (Light, 64 MiB, 3 passes) with machines 0 (other PCs) and 4 (Pi Zero 2 W) ticked (`faraday/faraday-core/src/vault/area.rs:2163-2173`, `3658-3678`); the weakest ticked machine sets the memory limit (`weakest_of`, `faraday/faraday-core/src/vault/area.rs:3215-3228`), so the other Pis need no tick. `memory: 512` is only the custom size's value, used when the preset is `CUSTOM` (`faraday/faraday-core/src/vault/area.rs:3007`, `faraday/faraday-core/src/vault/act_create.rs:104-107`).
 
 ## Domain calls
 
@@ -137,8 +139,6 @@ area's whole state.
 
 - The two rows given to this feature were left out as not about it: 8d5708ed9 (a compile fix of the Argon QR Vault window build and a lint) and c2495cf13 (the QR vault tool's note seal). The rows above were given under Inside a vault and moved here.
 - c5eb530e4 and 456e22c51 are flagged in history as decision changes as much as repairs.
-- `CreateForm::default` memory 512 vs the `starting` doc's "64 MiB" (the preset carries it); `SIZES[0]` ("every PC and Pi") ticks only machine indices 0 and 4.
-- `free_vault_name`'s `-100` fallback is not checked for a clash. `vault_stem` drops non-ASCII letters with no message.
 - The line numbers of the list and Create screens, `faraday/faraday-core/src/vault/mod.rs` actions and `faraday/faraday-core/src/vault/act_create.rs` were not re-verified by the inventory.
 - Two parts of the inventory gave different ranges for `free_vault_name` (`~2642-2658` and `2652-2674`); the confirmed one is used.
 - `faraday/faraday-core/src/vault/area.rs:~1385` mentions free memory read "a process on macOS" (macOS is not developed).

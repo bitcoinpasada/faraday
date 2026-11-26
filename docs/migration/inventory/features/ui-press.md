@@ -58,6 +58,9 @@ faded list and tip anchors, and pixels of the canvas.
 - `drop_presses_inside` and `cover_presses` touch only `hits`, not `reach` (`faraday/faraday-ui/src/press.rs:265-292`).
 - The held-secret exception (no pressed layer while `held && is_pressed`, `faraday/faraday-ui/src/lib.rs:1964`) never applies in the app: `hit_held` is compiled only under `#[cfg(test)]` (`faraday/faraday-ui/src/lib.rs:1981-1988`), its only caller is `faraday/faraday-ui/src/read_tests.rs:546`; a held secret gets the normal pressed layer.
 - Every press is drawn through faraday-ui's press constructor, so its state layer and focus ring are always drawn (history, 9ce43bb3a).
+- Presses under a covering surface: `drop_presses_inside` (a pane over a page) and `cover_presses` (a surface at a page's foot) edit the hits only (faraday-ui/src/press.rs:265-292); at the frame's end `Pointer::set_hits` keeps a touch target only while its control is still among the hits as drawn (faraday-core/src/pointer.rs:120-124), so a covered or cut control loses its target and its place in the Tab order.
+`Unpressed::HeldSecret` is the press of every eye (show or hide a secret): hover and focus only, no pressed layer; `press_unpressed` does not read which case it is (faraday/faraday-ui/src/press.rs:156-173, faraday/faraday-core/src/compact/mod.rs:523-534, called from compact/mod.rs:509, vault/screen/secret.rs:46, explore/screen.rs:439, keygen/dice_strip.rs:482, vault/screen.rs:245). Only the `Ui.held` path is dead.
+`Plain::Page` has no user and no size test: `press_plain` takes it as `Plain::Body` (`hit_drawn`); the quarter-of-the-screen rule is `hit`'s alone, which gives a state layer and ring only to a rect under a quarter of the screen (faraday/faraday-ui/src/press.rs:61-71, 176-182, faraday/faraday-ui/src/lib.rs:1958-1971).
 
 ## Domain calls
 
@@ -75,12 +78,9 @@ None.
 | hash | what was broken | rule restored |
 |---|---|---|
 | 9ce43bb3a | Several presses (backup board zones, codex32 sheet boxes and worksheet cells, codex32 backup chips, randomness area, others across core and the Starter) drew part of a press state layer or none: no hover, focus or pressed layer and no focus ring. | Every press is drawn with faraday-ui's press constructor, so its state layer and focus ring are always drawn. |
+| 2be654675 | At the older press sites (Home's tiles and lead card, Tools' tiles, Wallets' start cards and rows, the small panel's Home, the bar's eye, Files' stick chip, Select all and ticking rows, a Kind card's rows, the backup board's + stick, + place, stick boxes, place name and x buttons, the Starter's rows and checklist) the press's hover, focus and pressed layers were drawn over the content; the files' ⋮ showed two focus rings. | A press's state layer sits between a control's container and its content (Material: Interaction states); a chip with a press draws it through `Ui::chip_press`; the files' ⋮ draws only the one ring every press draws (`faraday/faraday-ui/src/lib.rs:2463`, `faraday/faraday-core/src/menu.rs:113-125`). |
 
 ## Doubts
 
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- Where "a quarter of the window or more" for `Plain::Page` is enforced is not found (`faraday/faraday-ui/src/press.rs:~64-70`).
-- Whether reach entries under a covering surface stay pressable: `drop_presses_inside` and `cover_presses` leave `reach` untouched (`faraday/faraday-ui/src/press.rs:265-292`); not settled.
-- `Unpressed::HeldSecret` exists as a case but its only path in the app is dead (see Rules).
-- Two fix rows about press state-layer order and a double focus ring (2be654675, e271ea80e) were filed under buttons and choice controls (`ui-controls`); they are about presses and are named in that file's Doubts, not carried here.
 - Line numbers in this file are from one pass of the inventory and were not re-checked except those written without `~`.

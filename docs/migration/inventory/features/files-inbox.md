@@ -174,6 +174,7 @@ Files page:
 - Same-file mark: a faint green box and a check at the row end, so not colour alone (`faraday/faraday-core/src/screens/visit_same.rs:1-3`); used at `faraday/faraday-core/src/screens/visit.rs:415, 1281` and `faraday/faraday-core/src/screens/files.rs:547`. Compact drops the tag on such rows (`faraday/faraday-core/src/screens/visit.rs:~388-390`).
 - Vaults pair: never stacks and has no pair in a narrow room (`PANES` stacks false, narrow `OneColumn`, `faraday/faraday-core/src/screens/vaults_pair.rs:24-29`); returns false in compact (`~16-18`) and where no pair fits (`~13-15`); vault cards are pinned at the tile foot when they do not fit (`~68-78`).
 - A stick's directory listing is read once; entries after the end are not shown; names are bounded (history fix d7492bfc2).
+- Delete files (`faraday/faraday-core/src/stick/wipe.rs`): the sheet chooses Files, Free space or Whole partition; Whole takes one or two passes (`:43-63`, `:263-267`); a vault, a `.kdbx`, a `.keyx` or a key file used this power-on among the chosen files, and Free and Whole always, make the button a hold (`:189-232`); nothing the boot import still reads is deleted or zeroed (`:271-288`); a Whole wipe or a failure of one before its first answer drops the backup flow's written-copy records for that stick (`:393-404`, `:455-467`); the ask and a zeroing end when their stick is gone (`:479-496`).
 
 ## Domain calls
 
@@ -224,7 +225,6 @@ None.
 
 - Rows left out as not about this feature: a7c9aed6c and 578f5021a (the boot import's Import button words; carried in `boot-import`); f797db66b and 1c57be5b2 (a loaded key's details and Restore from them); 396b4f0c5 (the top bar name and action labels at 480 wide). The Argon2 cgroup part of 919b82756 belongs to vault unlock.
 - d5fd12b64 and dad3b6c94 came with the stick shell's rows and are carried here.
-- `faraday/faraday-core/src/stick/wipe.rs` (zeroing and the delete ask) was read by no report; its rules are known only from fix rows.
 - An earlier report said Import is offered "only when no vault is open"; the code says the opposite (a vault must be open). The correction is carried.
 - Line numbers in `faraday/faraday-core/src/screens/visit.rs` and most of `faraday/faraday-core/src/screens/files.rs` come from one report each and were not re-read; only the ones marked plainly were checked.
 - `inbox_actions` (`faraday/faraday-core/src/screens/files.rs:~1340-1361`) always returns `note = None`: apparently a dead return.

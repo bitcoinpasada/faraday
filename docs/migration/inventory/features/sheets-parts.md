@@ -22,6 +22,7 @@ The sheets drawn over screens (lock, power, idle, devices, scan, QR, new input, 
   - Empty-tool card `nothing_to_work_on` (`:~2297`), `ending` (`:~2378`). Busy bars `working_bar`, `busy_bar` (`:~23-49`).
   - Caution lines `never_real_seed`, `never_below`, `keys_read_as_us_line`.
 - Shared helpers (`faraday/faraday-core/src/ui.rs`): `container_of` (`:~26`), `icon_tile` (`:~41`), `fill_pressed` (`:~55`); trait `CoreUi` with `fit_secret` (`:~86-118`, shortens with `…` and returns a wiping `SecretText`), `slider` (`:~94, ~131-177`), `no_passphrase` (`:~98, ~218`, the "No passphrase" pill).
+- The sheets opened from `faraday/faraday-core/src/screens/mod.rs:504-585` (74 variants; modules as in screen-frame's map) and which press outside closes them (`:469-494`): Lock, Import, UnlockLoad, OlderCopy, SaveAlso, VaultPassphrase, VaultMemory, CopyTo, SaveKeeps, Trim, KeyFile, NewInput, BoardMenu, WalletConfirm, Account and Register have their own outside action; WordList, IdleWarn, Zeroing and Published have none; the rest use `Cancel`.
 
 ## Actions
 
@@ -111,6 +112,7 @@ The sheets drawn over screens (lock, power, idle, devices, scan, QR, new input, 
   - The dice pad is one row of six if the touch size fits, else two rows of three (`:~1702-1706`).
   - The seed word grid is 4 columns wide, 2 on compact (`:~2252-2288`).
 - Since the history fixes: every sheet opens at its top each time it opens, on wide and compact layouts.
+- Literals in screens/parts.rs: "-" and "+" on the offset steppers (parts.rs:1648, 1672), "UTC" before an offset on the zone button and the stepper value (parts.rs:1621, 1652), and the six-dot mask for a masked entry value (parts.rs:1114, 1342, 1344). The strings lint (tools/lint-strings.sh) allows them.
 
 ## Domain calls
 
@@ -132,9 +134,7 @@ None.
 
 ## Doubts
 
-- Which `Sheet` variant opens which function here is decided in `faraday/faraday-core/src/screens/mod.rs:~503-585`; the mapping was not recorded sheet by sheet.
 - Stale doc: the `lock_ask_sheet` doc sits above `qr_speed_labels` (`faraday/faraday-core/src/screens/sheets.rs:~594-598`).
-- Literal strings outside `EN`: `"-"` and `"+"` (`faraday/faraday-core/src/screens/parts.rs:~1648-1652`), `"UTC"` (`faraday/faraday-core/src/screens/parts.rs:~1625, ~1673`), the `"••••••"` mask (`faraday/faraday-core/src/screens/parts.rs:~1111, ~1342`). Whether these count under the strings rule is not decided.
 - `EntryCandidate(n as u8)` would truncate past 255 candidates (`faraday/faraday-core/src/screens/parts.rs:~1456`); arithmetic at `faraday/faraday-core/src/screens/parts.rs:~1935, ~1993` is unchecked but out of reach for QR sizes.
 - `QR_PARTS[1]` is the default part size (`faraday/faraday-core/src/screens/sheets.rs:~1340`), a magic index.
 - c7f92d46c is mostly a Secure Boot change; only the sheet-scroll part is a fix of this feature.

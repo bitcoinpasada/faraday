@@ -104,6 +104,7 @@ Steps
 - Used by the backup's public files: `restore::checked_config` and `restore::sheets_rebuild`. Used by the backup through `restore::repeats_a_seed` (`faraday/faraday-core/src/wallet_backup.rs:183`).
 
 ## Rules and refusals
+- Restore's pool of shares is cached under one key, a 64-bit hash (low bit set) of the shares chosen, the Inbox and vault edit counts and the open vault ids; one pool is kept and a different key recomputes it (faraday/faraday-core/src/restore.rs:1632-1663; drawing/kept.rs:188-209).
 
 Description and configuration (`faraday/faraday-core/src/restore.rs`)
 - Derivation text (`~48-63`, `~89-91`):
@@ -239,7 +240,6 @@ None of its own. The multisig configs and wallet files of `faraday/faraday-core/
   - 2f7768c51 (codex32 worksheet);
   - 67856c674 (GPG key restore).
 - One source gave the key cap as 16. The code says 15 (`core/faraday-bip/src/multisig_config.rs:50`), and 15 is written here.
-- The pool cache key is a 64-bit `DefaultHasher` value. Its collision behaviour was not examined.
 - `sheets_rebuild`'s `1 << n` is unbounded for n ≥ 32. In practice `MAX_KEYS` bounds it.
 - Dead or test-only:
   - `restore_share_texts` is used by tests only;

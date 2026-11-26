@@ -37,6 +37,7 @@ no screen or sheet of its own besides the scan.
 - No clipboard or printing.
 
 ## State and lock
+- The backup area's `holds()` counts the Krux code form, the seed on show and the copy check's typed words; the checklist's codex32 `Strings` (typed back, made, held) are not counted, and a lock drops them with the backup state (faraday/faraday-core/src/wallet_backup.rs:5283-5297, 957-960).
 
 - `Strings` (`faraday/faraday-core/src/codex32_backup/mod.rs:~124-167`, `Default`, no `Drop` of its own): `seed`, `made: Vec<(usize, Text)>` (secret), `at`, `typed: Text` (secret), `found`, `skip_ask`, `qr: Option<QrMatrix>` (secret), `shut`, `block`, `rows`, `held: Vec<Text>` (secret), `rebuilds`, `proven`, `aside` (secret), `set: SetStep`, `note`. `proved_strings` (`~180`) and `set_aside` (`~220`) copy secret strings into new vectors. Created by `Strings::new` (`~171`).
 - Also secret in the handlers (`faraday/faraday-core/src/backups/mod.rs`): the codex32 parts, a new string, the fix list and the stick bytes (`~2762`, `~2996-3013`, `~3223-3278`, `~3508-3523`); `held`, `pending`, `good`, `texts`, `left` and `typed` in the set state; the round's string from `entry.state()` (`~3698`).
@@ -113,7 +114,6 @@ None.
 
 ## Doubts
 
-- `holds()` of the backup area does not count a `Strings` holding typed or made codex32 strings, so such a string alone would not raise the lock's "secret held" prompt; the lock still drops it.
 - `c32_exist`'s `clamp` would panic if its lower bound exceeded `MAX_SHARES`; not verified whether that can happen.
 - `next_index` (`faraday/faraday-core/src/codex32_backup/mod.rs:~738`) has no caller in the code read. Narrowing `unwrap_or(0)` conversions are silent (`faraday/faraday-core/src/codex32_backup/screen.rs:~222`, `~307-313`, `~404`, `~513`, `~537`).
 - Possible panics with unverified callers: `session.keys[key]` at `faraday/faraday-core/src/backups/mod.rs:~3306`, `~3309`.

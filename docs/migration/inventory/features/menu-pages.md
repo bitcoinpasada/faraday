@@ -60,7 +60,7 @@ Home and the other menu pages (Tools, Check, Wallets start, Files, Vaults, Setti
 - Menu page container:
   - Panes only when not compact and nothing typed (`faraday/faraday-core/src/screens/menu_page.rs:~234-239`).
   - Typed results stand in the tile's place only with the search in the top bar and not compact (`:~218-224`).
-  - Section card columns: `fit.clamp(1, MENU_CARD_COLUMNS).min(cards)`; a page with `fixed_columns` uses exactly one column (`faraday/faraday-core/src/screens/menu_page.rs:498-506`).
+- Section card columns: `fit.clamp(1, MENU_CARD_COLUMNS).min(cards)`; a page with `fixed_columns` set uses exactly one column whatever the number (the Pi's panel Home passes `Some(2)` and draws one column; faraday/faraday-core/src/screens/menu_page.rs:498-506, faraday/faraday-core/src/compact/mod.rs:868).
   - The card split picks the division of closest heights, earlier column first (`:~569-644`).
   - Tags drop where they meet the text (`:~465-489`).
   - A row that does not open uses disabled ink and takes no press (`:~420-431`). A warning face's line is `Role::Warning` (`:~459-463`).
@@ -78,6 +78,8 @@ Home and the other menu pages (Tools, Check, Wallets start, Files, Vaults, Setti
   - A tile that does not open is drawn disabled and takes no press (`faraday/faraday-core/src/screens/catalog.rs:~390-438`).
   - Word hits draw only `Hit::Word` (`:~92-93`); results only `Hit::Tile` (`:~223-225`); no match shows `catalog_no_tool_matches` (`:~209-218`); tags that do not fit are cut (`:~461-463`).
 - Since the history fixes: on the small panel Home's name scrolls with the page, and the page scrolls far enough to show Lock and Power off in full above the Scan button.
+- The Settings search matches a card's words from `drawn` (screens/settings/rows.rs:14-85), a hand-kept list. Not in it, though drawn: the keys-loaded line, the ignored-inputs line, the randomness status line, the two "remembered" count lines, the self-test result lines and "Run again", and the institute note (screens/settings.rs:218-260, 290, 410-449, 476-495, 613-615).
+- Wallets start (`faraday/faraday-core/src/screens/wallets_start.rs`): five ways in (Make a new wallet, Restore an existing wallet, Spend from a backup, Add a key, Make a new key) (`:16-48`); with no wallet, no open vault, no unfinished create and no spend the ways are the page, with the first locked vault file's Unlock line (`:141-209`); on the small panel, keys in no wallet are listed after the wallets, each with a From this key button (`:96-115`, `:157-166`); wallets are ordered ready first and each says does not match, another key can spend, can spend, n of m here, or watch only (`:223-370`). The wide start pair shows four ways (not Make a new key) (`faraday/faraday-core/src/screens/wallets_pair.rs:99-113`).
 
 ## Domain calls
 
@@ -96,8 +98,5 @@ None.
 
 ## Doubts
 
-- `fixed_columns`: the doc at `faraday/faraday-core/src/screens/menu_page.rs:~70-72` says the Pi's panel Home places two to a row. The Pi menu passes `Some(2)` (`faraday/faraday-core/src/compact/mod.rs:~868`), yet `section_cards`, the only code that reads the field, draws one column whenever it is set. Stale doc or inverted code; not decided.
-- The Settings search words omit some drawn strings (`settings_loaded`, `settings_ignored_until`, remembered, self-test, `own_status`); a likely gap.
 - Stale doc comments: `faraday/faraday-core/src/screens/home.rs:~104-109`; `faraday/faraday-core/src/screens/catalog.rs:~126-127, ~261-263`.
 - Row left out as not about these pages: 857d5cf80 (the desktop host's own menu kept keys and pointer away from the app).
-- `faraday/faraday-core/src/screens/wallets_start.rs` (the Wallets start page) was read by no one.

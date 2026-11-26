@@ -42,6 +42,8 @@ None. It drives the real screens through presses.
   - `use_network` refuses a second, different network in one test.
 - `faraday/faraday-core/examples/interop.rs` refuses: an unknown test wallet id, an address count that is not a number, a wallet that does not arrive in the Inbox, a PSBT that does not read, a spend that does not open, nothing signed, nothing in the Outbox.
 - Test-only items in production files: `back_offered` under `testkit` (`faraday/faraday-core/src/trail.rs:~570-574`); `edit_answers` and others under `cfg(any(test, feature = "testkit"))`.
+- `testkit::test_efi()` builds the test boot program in code (a 1024-byte PE32+ file, one `.text` section holding a return, `faraday/faraday-core/src/testkit.rs:1742-1775`); it equals `tools/vectors/release-sums/BOOTX64.EFI` byte for byte, and the kit's file list names it `BOOTX64.EFI` beside the signed sums (`faraday/faraday-core/src/testkit.rs:630-634`).
+- The kit's public fixtures are plain text (`String`) and name no secret type; seeds and what is made from them stay in the parent module (`faraday/faraday-core/src/testkit/plain.rs:1-8`); `KindText` allows the disallowed key types only because the kit is in no shipped binary (`faraday/faraday-core/src/testkit/public.rs:5-8`). The shown-secret budget tests hold that a shown secret is worked out once per press, frames work out nothing, and hiding, leaving, the idle warning and a lock drop it (`faraday/faraday-core/src/work/budget/shown.rs:1-856`); the signer-check and compare tests hold that only the press completing the second card does costly work (`faraday/faraday-core/src/work/budget/signer.rs:1-217`).
 
 ## Domain calls
 
@@ -49,7 +51,8 @@ None. It drives the real screens through presses.
 
 ## Fixtures
 
-None.
+- `tools/vectors/release-sums/release-key.asc`, `SHA256SUMS` and `SHA256SUMS.asc`, included at compile time (`faraday/faraday-core/src/testkit.rs:1717-1737`) as the test release key, the signed sums and the signature; the same folder holds `BOOTX64.EFI`, `other-key.asc`, the other signature files, `variants/`, `sequoia/` and `faraday-0.1.7/`, read by `faraday/faraday-pgp/tests/verify.rs`, `faraday/faraday-pgp/tests/verify_refusals.rs`, `faraday/faraday-sb/tests/release.rs` and `faraday/faraday-core/tests/all/secure_boot_sign.rs`.
+- The ten test wallets of `kits()` (`faraday/faraday-core/src/testkit/plain.rs:75-177`), as id, name, descriptor, cosigner seed, fee in sat: savings Savings `wsh(sortedmulti(2,3 keys))` at `m/48'/1'/0'/2'` 1, 2140; spending Spending `wpkh` at `m/84'/1'/0'` none, 1410; taproot Taproot `tr` at `m/86'/1'/0'` none, 1540; nested Nested SegWit `sh(wpkh)` at `m/49'/1'/0'` none, 1660; legacy Legacy `pkh` at `m/44'/1'/0'` none, 2260; vault-nested Nested multisig `sh(wsh(sortedmulti(2,…)))` at `m/48'/1'/0'/1'` 1, 2560; vault-legacy Legacy multisig `sh(sortedmulti(2,…))` at `m/45'/1'/0'` 2, 3380; taproot-multisig Taproot multisig `tr(NUMS,sortedmulti_a(2,…))` at `m/48'/1'/0'/3'` 1, 1820; inheritance Inheritance `wsh(or_d(pk,and_v(v:pkh,older(52560))))` at `m/48'/1'/1'/2'` none, 1980; tree Taproot tree `tr(key,{and_v(v:pk,older(4320)),pk})` at `m/86'/1'/1'` none, 1540. Each is written to the test stick as `<id>-wallet.txt` (`# <name>: test wallet over the dummy test seeds`, then the descriptor).
 
 ## Fixes
 
@@ -57,10 +60,6 @@ None.
 
 ## Doubts
 
-- The kit includes at compile time `tools/vectors/release-sums/release-key.asc`, `SHA256SUMS` and `SHA256SUMS.asc` (`faraday/faraday-core/src/testkit.rs:~1723-1737`); these paths are not in the kept fixture list.
-- The budget tests name `tools/vectors/psbt/{signer-core-sent,signer-core-signed,bump-core-original}.psbt`, also not in the kept fixture list.
-- `BOOTX64.EFI` is named but not included.
 - Line numbers inside `faraday/faraday-core/src/testkit.rs` were approximate in the report.
-- Not read: `faraday/faraday-core/src/testkit/plain.rs`, `faraday/faraday-core/src/testkit/public.rs` (beyond their names), `faraday/faraday-core/src/work/budget/signer.rs` (`mod compare`), most of `faraday/faraday-core/src/work/budget/shown.rs`.
 - The interop vectors under `faraday/faraday-core/tests/vectors/interop/` are read by faraday-core's integration tests (`faraday/faraday-core/tests/all/interop.rs`, `faraday/faraday-core/tests/all/interop_outcomes.rs`), not by the kit or `faraday/faraday-core/examples/interop.rs`; they are listed with the features those tests cover.
 - `faraday/faraday-core/src/work/budget/signer.rs` and `faraday/faraday-core/src/work/budget/shown.rs` are under `faraday/faraday-core/src/`.

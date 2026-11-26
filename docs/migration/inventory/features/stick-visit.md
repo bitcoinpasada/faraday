@@ -59,6 +59,7 @@ stick in, from the Files page (`Screen::Files`), and from flows that write
 - `outbox_free_name` and `free_name` live here (`faraday/faraday-core/src/stick/visit_taken.rs:~114`, `~95`).
 
 ## Rules and refusals
+- Visit from Add a key goes to Files with the stick present whether or not a secret is held (the key file loads at the pull); a visit from any other screen goes only when no secret is held (faraday/faraday-core/src/stick/visit_taken.rs:2019-2038).
 
 Arrival and removal (`faraday/faraday-core/src/stick/events.rs`)
 
@@ -107,6 +108,7 @@ Save to a stick and signing sheets (`faraday/faraday-core/src/vault/screen/save.
 Crafted sticks
 
 - A FAT16 volume claiming more clusters than FAT16 holds is not offered; a truncated cluster number is refused as corrupt; an oversized vault part is removed unread (fix 466494b01).
+- Files page body (`faraday/faraday-core/src/screens/visit.rs`): the Outbox lists Public, vaults sealed under a passphrase and unprotected secrets in that order, each with a count (`:546-576`); an Outbox file is greyed and untickable while it is in a backup in progress or a signed message waits for its key's backup (`:783-818`); an Inbox file is greyed and tagged as held when its copy is already on the box (`:844-872`); tags: sealed Ok, public OnSurfaceVariant, may be secret Warning, secret Error (`:1697-1706`); Select all chooses the settings, every Outbox file except unprotected secrets, in a backup or waiting, and every public or sealed Inbox file listed (`:1613-1628`); the primary Import button reads Import and sign when exactly one PSBT is chosen, else Import and load (`:1544-1584`); with a stick in the main action of a vault row never unlocks it (`:1517-1526`); the pull line says keys copied for Import and load, a vault to unlock once the stick is out (only while no secret is held), or that the written files are on the stick and checked (`:1487-1515`); with a stick in and a secret held the On the stick card says to Lock and offers Lock (`:1454-1485`).
 
 ## Domain calls
 
@@ -144,7 +146,5 @@ None.
 
 - Left out of Fixes, as about the boot finder and USB authorisation rather than this feature: c83dbbd28 (the boot-stick finder ran as root for its whole search), 88421cf04 (the finder read other devices and files; the Pi could miss a late card), a6c3e33b2 (a USB device plugged in after boot stayed authorised if the command line lost its USB word).
 - Fixes 7e7cfa757 and 948e491e8 have symptoms inferred from the commit, not read in full. 466494b01 also covers plan limits that belong to the backup plan.
-- `VisitFrom(Screen::Entry)` has no `holds_secret` check, unlike `VisitFrom(back)`; whether that is meant is not known.
-- `faraday/faraday-core/src/screens/visit.rs` (the Files page body) was not read in full; the visit's drawing rules beyond those cited are missing.
 - Two files share a name: `faraday/faraday-core/src/screens/visit_same.rs` (drawing) and `faraday/faraday-core/src/stick/visit_same.rs` (logic, `SameFiles`).
 - Test modules were not read; no fixture is named for this feature (`stick::settings::FILE` is a name only).

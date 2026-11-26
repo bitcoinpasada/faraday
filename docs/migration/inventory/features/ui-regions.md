@@ -51,7 +51,7 @@ None outside the app's state.
 - Fade band clamped to `view.h / 4 + 1` (`faraday/faraday-ui/src/lib.rs:~870`); fade sizes `EDGE_FADE`, `EDGE_FADE_COMPACT`, `EDGE_FADE_LOW_COMPACT`, alpha `EDGE_FADE_ALPHA`; the top bar tint uses `APP_BAR_TINT_SHARE` (`faraday/faraday-ui/src/lib.rs:~830-848`).
 - Frost: scale 8 units, at least 4 px, blur 2 (`faraday/faraday-ui/src/lib.rs:~915-917`); dimmed by `Scrim` at `SCRIM_ALPHA` (`faraday/faraday-ui/src/lib.rs:~916`).
 - High contrast: no shadows (`faraday/faraday-ui/src/lib.rs:~940`, `faraday/faraday-ui/src/lib.rs:~955`), no edge fades (`faraday/faraday-ui/src/lib.rs:~861`), scroll bar at full alpha (`faraday/faraday-ui/src/lib.rs:~785-788`).
-- Top edge fade is not drawn with nothing under it (history, 74fc0bda0; filed elsewhere, see Doubts).
+- The top edge fade is drawn only when `fade_top = under_bar || slot != Slot::Page || in_sheet || view.y > 0` (`faraday/faraday-ui/src/region.rs:484`; `edge_fades` takes `(fade_top, top_into)`, `faraday/faraday-ui/src/lib.rs:856,882-886`).
 
 ## Domain calls
 
@@ -64,9 +64,10 @@ None.
 
 ## Fixes
 
-None given to this feature.
+| hash | what was broken | rule restored |
+|---|---|---|
+| 74fc0bda0 | A page that begins at the top of the frame with no bar over it drew a top edge fade where there is nothing to fade under. | The top fade is drawn only when `fade_top = under_bar || slot != Page || in_sheet || view.y > 0` (`faraday/faraday-ui/src/region.rs:484`, `faraday/faraday-ui/src/lib.rs:882-886`). |
 
 ## Doubts
 
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- A fix row on the top edge fade (74fc0bda0, "top edge fade drawn with nothing under it", in `faraday/faraday-ui/src/lib.rs` and `faraday/faraday-ui/src/region.rs`) appears in the inventory's spot checks but its row was not given to this feature; its full wording is not here.

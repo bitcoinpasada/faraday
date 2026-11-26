@@ -71,6 +71,7 @@ These are in `faraday/faraday-core/src/public_files.rs`:
 - The secret sheet (`secrets`) carries the `SpDescriptor` kind.
 
 ## Rules and refusals
+- Removing a place from a backup flow's plan hands its slots' public files to the first slot (faraday/faraday-core/src/backup_flow/steps.rs:479-482), except a seed's own file, which leaves the plan with its stick (backup_flow/mod.rs:1510). The flow keeps at least `min_places` stick places (2; 1 for a wallet), so a first slot always exists (steps.rs:438). No path here removes a file from the Inbox.
 
 Making files (`faraday/faraday-core/src/public_files.rs`)
 - `from_wire` takes only the values in `ROWS` (`faraday/faraday-core/src/public_kind.rs:49-70`).
@@ -97,6 +98,7 @@ Which stick carries a key's public files (`faraday/faraday-core/src/backup_flow/
   - a SeedQR;
   - a passphrase file;
   - a codex32 string kept as a file.
+The count of Specter DIY picture names and of its frames agree: both use `faraday_qr::specter::encode(text, QR_PARTS[1])` past one code, and a text no longer than a part is one unnumbered code (faraday/faraday-qr/src/send.rs:188-197, faraday/faraday-core/src/public_files.rs:246-258, 275).
 
 ## Domain calls
 
@@ -117,7 +119,5 @@ None. See Doubts.
 ## Doubts
 
 - The three fix rows given to this feature were moved to wallets: 1590a5825, d89080ffc and b0010427e. They concern SLIP-132 versions and BSMS records being read when a wallet file loads, not the files made here.
-- Two encoders count Specter parts: `specter::encode` and `send::parts_frames`. No check shows that they agree.
 - Every line number in `faraday/faraday-core/src/public_files.rs` and `faraday/faraday-core/src/backup_flow/wallet_files.rs` is unconfirmed.
 - The silent-wallet QR rule's line in the Backup screen is approximate. It is probably in `faraday/faraday-core/src/public_files.rs`, not at `faraday/faraday-core/src/screens/backup.rs:~1668-1675`.
-- Public files left without a slot (`faraday/faraday-core/src/backup_flow/steps.rs:~478-482`) are not attached to a slot and not removed from the Inbox. Whether they stay visible in Files is unclear.

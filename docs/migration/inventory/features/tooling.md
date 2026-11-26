@@ -14,7 +14,7 @@ None.
 ## Effects
 
 - Build output in `out/` and `target/`.
-- Images: boot and data FAT volumes per board (`faraday/image/overlay/boards/{pi02w,pi3,x86_64-uefi}/genimage.cfg`).
+- Images: boot and data FAT volumes per board (`faraday/image/boards/{pi3,x86_64-uefi}/genimage.cfg`); the Pi 3 image also starts the Zero 2 W (`faraday/builds.toml:101-110`).
 - A release: every image listed with a release name in `faraday/builds.toml`, plus its boot programs.
 - Cross-check records naming the tree they ran on (`tools/crosscheck/record.py`, `tools/crosscheck/stamp.py`).
 
@@ -40,13 +40,13 @@ Rules the fixes below restored, with the file that holds each today. No line num
 - The image build container carries the tools its scripts call (`faraday/image/Dockerfile`, `faraday/image/stick-finish.py`).
 - Release staging (`faraday/tools/stage-release.sh`):
   - Publishes every built image listed in `faraday/builds.toml` with a release name (checked by `tools/lint-builds.py`).
-  - Reads the desktop app's build ID from its `--version` line ("Faraday Desktop BUILD").
-  - Accepts a cross-check record that names a tree a release commit can have; refuses other differences, and refuses a record whose result line says an OVMF run failed.
+- Reads each image's build ID: a GPT image from its bytes, an MBR image from `faraday-build.txt` on its boot partition; all must match and equal VERSION unless `--any-build`; Faraday Demo is not staged (`faraday/tools/stage-release.sh:41-44`, `:190-214`).
+- Accepts a cross-check record that names the tree of HEAD (the manifest left out); refuses another tree and refuses a record whose result line is not `result: every answer agreed` (`faraday/tools/stage-release.sh:253-259`).
 - Windows programs: the delay-loaded imports are exactly dwmapi and uxtheme; propsys is loaded by name from System32 (`faraday/shells/window/src/system32.rs`, `faraday/build/windows/`); every delay-import slot is checked writable.
 - Parsers of device input (faraday-bip, faraday-codec, faraday-fat, faraday-psbt) build with overflow checks in release, so an overflow stops the app rather than reading at a wrong bound.
 - Locked builds: the lockfiles name the published, unyanked versions; the fuzz workspaces' lockfiles match the main workspace's dependencies, so they build with `--locked` (`Cargo.lock`, `faraday/fuzz/Cargo.lock`, `fuzz/Cargo.lock`, `supply-chain/imports.lock`).
 - Fuzzing: the seed-parts target copies a SLIP-39 share through `Share::duplicate` (`fuzz/fuzz_targets/seed_parts.rs`). The corpus export writes crashes only under `fuzz/artifacts/<target>/` (`tools/fuzz-corpus-export.sh`).
-- CI (`.github/workflows/check.yml`, `.github/workflows/targeted.yml`, `.github/actions/setup/action.yml`, `.github/actions/setup/apt-install.sh`):
+- CI (`.github/workflows/check.yml`, `.github/workflows/targeted.yml`, `.github/workflows/fuzz.yml` (by hand: every fuzz target compiled once, run in parts from a corpus, joined by `tools/fuzz-join.py`, coverage map for a full run), `.github/actions/setup/action.yml`, `.github/actions/setup/apt-install.sh`, `.github/actions/save-deps/action.yml`):
   - Each package step has a time limit and three tries; the package install falls back to a second public mirror.
   - Test jobs unpack the build archive into `target/` where the build compiled; `target/` is a folder on the larger disk, not a link.
   - The warm job lists doc tests with `cargo test --doc -- --list`; runs started by hand run the warm job's commands (`tools/warm-compile.sh`).
@@ -117,7 +117,6 @@ None.
 
 ## Doubts
 
-- No code report covered the build, CI or tooling files; this file rests on the history's fix rows and on the existence of the files named. No line numbers were checked.
 - The exact files of cdc30232c (the four parsers' `Cargo.toml`s) and of ef4ee7148 (the fuzz lockfiles) were not confirmed.
 - Two `stage-release.sh` paths appear in the history; only `faraday/tools/stage-release.sh` exists today.
 - 1717ea831 named `faraday/fuzz/fuzz_targets/seed_parts.rs`; the target is at `fuzz/fuzz_targets/seed_parts.rs` today.

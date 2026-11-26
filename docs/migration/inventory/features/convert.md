@@ -58,8 +58,10 @@ Tools (back name Tools, `Screen::Catalog`) and from Explore on a key
 - Uses `convert::set`, `copy_check`, `secrets`, `secret_text`, `wallet::{fp_text, key_line}`, `codex32::{taken, taken_ids}`, `fresh::{TAKE_MAX, fresh_bytes}`, `backup_flow::seedqr_picture`, `vault::screen::secret::{secret_with, code_with}`, `compact::kv`, `pick`, `flow`, `trail::StepFlow`, `at_lock`, `ways_in::CONVERT_FROM`, `forms::{Form::Slip39, language_name, slip39_completion}`, `stick::{refuses_secret, refuses_secret_key, keys_load}`, `edit::Here`, `explore_hide`, `lightning_for_convert`, `vault_key_load`, `session.keys`, `session.wallets`.
 - Drawing borrows `convert_held`, `convert_part` and `convert_shown_text` (`faraday/faraday-core/src/drawing/allowed.rs:~50-66`).
 - Documented in `docs/SEED-CONVERSION.md` and `docs/VAULT.md` §7.
+- `convert::set::record` is called by `Faraday::record_made` after a set's files go to the vault (`faraday/faraday-core/src/secrets.rs:475`) or to the Outbox past the secret sheet (`faraday/faraday-core/src/secrets.rs:718`), and by the backup flow's Seed XOR count step when the key has no XOR set yet (`faraday/faraday-core/src/wallet_backup.rs:2851`).
 
 ## Rules and refusals
+- A SeedQR or CompactSeedQR result is shown only after the drawn code is decoded back and reads as the same seed; a code that does not decode, decodes to more than one, or reads as another seed is refused with the one text "did not read back as the same wallet" (faraday/faraday-core/src/convert/mod.rs:1456, 1499-1523, 1032).
 
 Choosing
 - With more than one key loaded, none is chosen at Open (`faraday/faraday-core/src/convert/mod.rs:~1669`). `OpenOn` and `Key` refuse a fingerprint not in `session.keys`; `OpenOn` then changes no screen (`~1674-1676`, `~1688`).
@@ -121,6 +123,4 @@ None.
 
 ## Doubts
 
-- An unreadable scanned SeedQR reports as "not same wallet"; the message may mislead.
 - `ROWS` predicates, `Target::checks` and `file_for` line numbers were not re-checked exactly.
-- Who calls `set::record` was not read.

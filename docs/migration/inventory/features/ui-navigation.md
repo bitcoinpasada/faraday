@@ -61,6 +61,7 @@ App bar:
 - Mode pill `MODE_PILL_HEIGHT` centred on the title line and clamped inside the bar (`faraday/faraday-ui/src/nav/app_bar.rs:~135`).
 - Actions: icon in a `TOUCH` target at the right end (`faraday/faraday-ui/src/nav/app_bar.rs:~257-277`); on = SecondaryContainer fill and OnSecondaryContainer icon; `more` dots at `GAP_SMALL` radius over 2 steps (`faraday/faraday-ui/src/nav/app_bar.rs:~309-318`).
 - Fill: Surface, or SurfaceContainer when scrolled (`faraday/faraday-ui/src/nav/app_bar.rs:~147-152`); at High contrast `app_bar_fill`, else a bar-tone wash by the scroll offset (`fill_behind`, `faraday/faraday-ui/src/nav/app_bar.rs:~34`); no rule below the bar (`faraday/faraday-ui/src/nav/app_bar.rs:~49`, `faraday/faraday-ui/src/nav/mod.rs:~9-12`).
+The flows-in-progress mark is a Primary pill with OnPrimary ink on the bar's and the collapsed rail's icons (faraday/faraday-ui/src/nav/mod.rs:127-147), and Bitcoin orange with a white count in the expanded rail's row (faraday/faraday-ui/src/nav/rail.rs:104-146).
 
 ## Domain calls
 
@@ -79,5 +80,4 @@ None given to this feature.
 ## Doubts
 
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- The flows count is drawn in different colours by item type (Primary in a bar item, badge orange in a rail row); a doc says "the same orange". The difference is confirmed in code; which is meant is not known.
 - `Warning` appears in this slice in tests only.

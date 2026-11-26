@@ -14,7 +14,7 @@ makes a new GPG key and restores one.
 - GPG key form and revocation form in the form pane (revocation detected by field index 3, `faraday/faraday-core/src/vault/screen.rs:~2481`); Save reads "Make the key" or "Make the revocation". Make a revocation asks GnuPG's reasons (fix bd1a3959d).
 - Sign pane (`sign_pane`, `faraday/faraday-core/src/vault/screen.rs:~2693`) and `Sheet::GpgSign` ("Sign with {key}"): tick files (`GpgTick`, `GpgTickAll`); `SignText(i)` shows a small text file's text before the hold (`~2827-2830`); a QR/PNG per signature named with the first 8 bytes of the file hash (`2753`); a "signed" tag when the Outbox holds `<file>.asc` (`~2746-2749`); Sign is primary only when a file is ticked (`~2844`); only the hold on the sign sheet signs (`~2835-2836`).
 - GPG Restore button in Vault contents' GPG keys category (`backup_flow::gpg_restore::contents_button`, `faraday/faraday-core/src/vault/screen.rs:~2018-2022`).
-- GPG restore sheet `Sheet::GpgRestore` and the restore flow's Make card (`gpg_restore_screen::make_body`, `faraday/faraday-core/src/backup_flow/screen.rs:~1241-1243`). In Practice, restore, sheet, from and scan are dimmed (`faraday/faraday-core/src/backup_flow/steps.rs:~2384`).
+- GPG restore sheet `Sheet::GpgRestore` and the restore flow's Make card (`gpg_restore_screen::make_body`, `faraday/faraday-core/src/backup_flow/screen.rs:~1241-1243`). In Practice, sheet, from and restore are drawn dimmed (`faraday/faraday-core/src/demo.rs:~61-63`) and the press of those and of scan is dropped (`faraday/faraday-core/src/backup_flow/steps.rs:2382-2384`).
 - Paperkey QR (`V::PaperkeyQr`).
 
 ## Actions
@@ -67,6 +67,8 @@ makes a new GPG key and restores one.
   - Paperkey lines: `push` accepts hex, spaces and one colon (`faraday/faraday-core/src/backup_flow/gpg_restore.rs:286-298`).
   - `gpg_restore_finish` needs every needed vault open and the key built from the lines (`faraday/faraday-core/src/backup_flow/steps.rs:~2412-2428`).
   - Not in Practice (`~2384`).
+- A GPG key needs a name or an email: both empty after trim is refused with one text ("a key needs a name"), checked at the flow's Make press before the clock is asked (`faraday/faraday-core/src/backup_flow/steps.rs:2165-2168`) and again in `gpg_build` (`faraday/faraday-core/src/vault/mod.rs:3149`, its only caller `faraday/faraday-core/src/backup_flow/steps.rs:2224`). The user ID is the name, `<email>` or `name <email>`.
+- Restore from a paperkey (`faraday/faraday-core/src/backup_flow/gpg_restore.rs`): the sheet lists Inbox files that are GPG armoured public keys, readable first and the rest dimmed with the refusal (`:141-169`); a line takes hex digits, spaces and one colon only (`:286-304`) and ends by itself at 2 times the expected bytes plus 6 digits, 22 bytes a line, fewer on the last data line, none on the CRC line (`:280-312`); a CRC mismatch on a line that ended by itself only means it runs on, while Next or Enter shows it (`:324-341`); a paperkey code read by camera replaces the typed lines at once (`:346-354`); Restore the key is refused with a button to the vault when an open vault already holds a GPG record with that fingerprint (`:564-579`), and needs every plan vault open and `may_load_keys` (`faraday/faraday-core/src/backup_flow/steps.rs:2412-2427`). Sheet, From, Restore and Scan do nothing where the app makes no secrets (`faraday/faraday-core/src/backup_flow/steps.rs:2384`). The typed lines are wiped at a lock and on dropping the flow, and asked for again after (`faraday/faraday-core/src/backup_flow/gpg_restore.rs:583-588`, `faraday/faraday-core/src/backup_flow/area.rs:372-389`). The certificate's signatures by other keys are set aside, not kept, and the result says how many (`faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs:257-272`).
 
 ## Domain calls
 
@@ -92,9 +94,7 @@ None.
 
 ## Doubts
 
-- The code of `faraday/faraday-core/src/backup_flow/gpg_restore.rs` and `faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs` was only partly read by the inventory (the `push` rule and `restore_wipe`); the restore flow's other rules are missing.
 - The vault-side GPG lines in `faraday/faraday-core/src/vault/mod.rs` were not re-verified by the inventory.
-- Whether the "name or email" refusal in `faraday/faraday-core/src/vault/mod.rs:~3149` and the backup flow's "both empty" refusal (`faraday/faraday-core/src/backup_flow/steps.rs:2165`) are the same rule seen from two places, or two different rules, is not settled.
 - `GpgReason` is clamped to 3 without the count of reasons being visible.
 - da6c56035's file list shows only `faraday/faraday-core/src/vault/mod.rs`. bd1a3959d's file list was not fully read.
 - `gpg::SKEW` is unused in `faraday/faraday-core/src/gpg.rs` itself; `gpg_renew` uses it.

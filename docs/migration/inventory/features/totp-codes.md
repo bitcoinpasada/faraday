@@ -58,6 +58,7 @@ button and an entry's code row), and its rows open the entry in the vault.
 - Progress clamped to 0..1, minimum bar 6 dp (`faraday/faraday-core/src/codes/screen.rs:~126-134`). Scan is filled-primary only with no rows and no query (`~209-213`, `~264-268`). Compact: the time row is hidden while search has focus; no buttons in the search view (`~239-282`).
 - TOTP input (`faraday/faraday-vault/src/totp.rs`): a Steam otpauth URI (`encoder=steam` or `encoder=STEAM`) is Unreadable and no code is read from it (fixes 83a6a67e5, 5c3897094); a repeated key-URI parameter is ambiguous and not read; parameter names are read only in lower case without percent-escapes (fix 62d9f8c1d); every TOTP form is read (see `vault-unlock`, fix 5836c4d64).
 - An entry's TOTP field left unchanged stays as it was even if it does not read; a changed one is checked as any typed input (`faraday/faraday-core/src/vault/mod.rs:~2129-2160`; fix 5c3897094). A value that is not a TOTP key is refused with `vaults_not_a_totp_key`; a scanned text that is not a setup code gives `vaults_not_a_totp_setup` (see `vault-contents`).
+- A counter-based (HOTP) entry's detail shows the badge "HOTP", a literal at vault/screen/codes.rs:65; the Codes screen takes the same word from `EN.codes_hotp` (codes/screen.rs:148).
 
 ## Domain calls
 
@@ -86,5 +87,4 @@ None.
 - Rows left out: e50c59a3c (the by-hand copy grid of a Krux code; not one-time codes); 6b6f01d22 (held keys' address and key codes and the power-off hold) was moved to `lock`.
 - 92e00f6f0's file list was partly cut.
 - `faraday/faraday-core/src/codes/mod.rs:~118-119`: the doc of `Given` is stale ("Set the time" is not a case); `faraday/faraday-core/src/codes/screen.rs:~227` has an unused `h`. Who calls `codes_rows` (the non-held path, one HMAC per row) is not known.
-- "HOTP" is hard-coded English (`faraday/faraday-core/src/vault/screen/codes.rs:~65`).
 - Code line numbers in `codes/` other than `140-146` are not inventory-verified.

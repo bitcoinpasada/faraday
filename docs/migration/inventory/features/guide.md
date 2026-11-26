@@ -40,6 +40,7 @@ The guide: the ? (Guide) button on every screen, which opens the guide at the se
 - Nothing under the side pane takes a press (`faraday/faraday-core/src/screens/guide_pane.rs:~31-33`).
 - The sheet's rules (tabs, held guide, Done) are listed in `sheets-parts`.
 - Since the history fixes: a press on the contents' Find on a one-column layout focuses it and brings the keyboard up; tab names wrap at word breaks.
+- The How blocks of a screen are found by the `Screen` variant's Debug name held in a 24-byte buffer (guide.rs:561-568, 1085-1104); every variant name is 14 bytes or less. Only Spend has an open step that sorts and filters its blocks (`how_step`, guide.rs:602-610); on any other screen all of its blocks are offered.
 
 ## Domain calls
 
@@ -58,6 +59,5 @@ None.
 
 ## Doubts
 
-- `how_screen_name` returns "" for a variant name over 24 bytes; `how_step` filters only Spend.
 - `GuideAt::Opening` looks unused.
 - Row left out as not about the guide: 61f745906 (the Learn text on a word list's edit distance, and a dealt FROST share in the backup flow).

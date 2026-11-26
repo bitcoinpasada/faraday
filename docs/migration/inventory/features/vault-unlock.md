@@ -67,6 +67,7 @@ usually with the Load sheet over it (see `vault-contents`).
 - Uses the passphrase field (`secrets`) and `unlock_keys::draw`.
 
 ## Rules and refusals
+- A vault made with a chosen key file reads the file's parts again for an unlock waiting on it; if that read fails the vault is made without parts and no message is shown (faraday/faraday-core/src/vault/stretch.rs:565-567, 625-629).
 
 - `vault_unlock_check` (`faraday/faraday-core/src/vault/mod.rs:1212-1246`), in this order:
   1. `!may_load_keys()`: `vaults_remove_to_unlock` with the medium noun. `may_load_keys` is "self-test passed and no stick in the way" (`faraday/faraday-core/src/inputs.rs:1095`), so the same line also shows before the self-test has passed.
@@ -130,5 +131,4 @@ usually with the Load sheet over it (see `vault-contents`).
 - 7c001ec3c may be a behaviour change more than a repair (its wording says "lands").
 - 5836c4d64 also amends an earlier decision on refusing KDBX contents.
 - The Unlock screen and `faraday/faraday-core/src/vault/mod.rs` action line numbers are not inventory-verified.
-- `faraday/faraday-core/src/vault/stretch.rs:~563-566`: a key file that fails to read gives `parts = None` with no message through `.ok()`; the vault is kept with no key parts.
 - `faraday/faraday-core/src/vault/mod.rs:~1126-1138`: the match arms for `Work::Unlock/Create/Kdbx/KdbxCheck` look unreachable (only `FlowMake` runs there).

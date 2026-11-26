@@ -263,6 +263,10 @@ Explore: screen (`faraday/faraday-core/src/explore/screen.rs`)
 - The passphrase row shows only when the key has one (`~477-480`).
 - The pane shows only on the wide Path page with a session key (`faraday/faraday-core/src/explore/pane.rs:~34-35`).
 - The Wallet made dialog shows only if the made index still exists (`faraday/faraday-core/src/explore/made.rs:~18-24`).
+- Find an address's field takes typed ASCII alphanumerics only, up to 90 characters, with no secret check (explore/addresses.rs:554-571); a paste is checked for a secret by the caller and refused with its reason, and is refused if over 90 characters or not alphanumeric (addresses.rs:577-594). The query is dropped with Explore's state when the screen is left (explore/mod.rs:413-415) and at lock (explore/mod.rs:669-671).
+- `account_of` (explore/addresses.rs:289-309): no account for a first level of 45 (hardened or not) or hardened 48; otherwise the path minus its last two levels where it ends Normal 0|1 then Normal i, whatever the purpose (so 44'/0'/0'/0/5 and m/0/1 alike); or the whole path where it is non-empty and every level is hardened; else none.
+- The Files menu offers Text, Wallet and Other kinds, newest first, so that a wallet description is refused by name ("A descriptor, not an address") and a non-text file is said not to be text (address_check/file.rs:105-112, 164-175); the page's own waiting list holds Text files only (file.rs:127-137).
+A look ends when the loaded wallets are no longer the ones it began in: a different count, or a different `WalletId` (the policy's descriptor hash) at any place. The indices already looked at are kept as looked, the look runs no further, and a find already made stays (faraday/faraday-core/src/address_find/look.rs:154-172).
 
 ## Domain calls
 
@@ -301,8 +305,4 @@ None. Explore's sample comes from `crate::samples::put`.
   - def14f1d9 and 09a325d4b (Decode and Check a signer);
   - e1063a469 (Your choices, Sign a message and Spend);
   - 893a358af (Spend review rows).
-- 093de8e21 says a look ends when the wallets' checksums change. Later wallet identity is by `WalletId` (see wallets). Which one `faraday/faraday-core/src/address_find/look.rs` compares now was not read.
-- Explore's `query` is a plain `String`. Typed text there is not checked for secrets, only paste is. The query is dropped with the state on leaving and at lock.
-- `account_of` treats any path ending `…/0|1/i` as an account, whatever the purpose. It refuses unhardened 45, though BIP-45 is hardened. The intent is unclear.
-- The address-check Files menu offers a Wallet file and then refuses it. Whether that is intended is unclear.
 - `explore_reading` and `explore_list` can run a first derivation during a frame. That is work done while drawing.

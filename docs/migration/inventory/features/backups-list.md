@@ -77,9 +77,11 @@ Dated checks
 
 Kept-state decode (`faraday/faraday-core/src/backups/mod.rs`)
 
-- Lines that do not read are skipped silently: `spot` needs `at`, `tag` and an open record (`~494-496`); a `kef` line has 7, 9 or 10 fields (`455`), padded with "0" to 10, flags "0" or "1", hex exact, side a u16; `check` count must parse; `id` needs hex4 and hex32; `pass` needs hex4; `wid`, `marks` and `plan` attach only to the last `backup` line.
+- Lines that do not read are skipped silently: `spot` needs `at`, `tag` and an open record (`~494-496`); a `kef` line has 7, 9 or 10 fields after its tag (`454-460`; 8, 11 or more, and fewer than 7 drop the line), padded with "0" to 10; the doc at `450-453` counts the tag (eight = 7, ten = 9), and the writer writes 10 (`422-436`), flags "0" or "1", hex exact, side a u16; `check` count must parse; `id` needs hex4 and hex32; `pass` needs hex4; `wid`, `marks` and `plan` attach only to the last `backup` line.
 - `kept_field` replaces tab, LF, CR and US with spaces (`~231`).
 - Tag rank `worse`: Secret over Sealed over Public (`~221`); `at_read` and `tag_read` refuse unknown strings; `at_text` maps `At::Stick(p,_)` to `place{p}` (`~244-246`).
+- A place's name is never in the kept bytes (`encode`, `faraday/faraday-core/src/backups/mod.rs:~405-440`); the RAM-only `Dated.line` and `Held` (`faraday/faraday-core/src/backups/mod.rs:69-74`, `555-568`) do hold it, as `place_line` writes it (`faraday/faraday-core/src/backups/mod.rs:198-218`), and are lost at a lock or power-off unless written to a vault's notes.
+- Drawing (`faraday/faraday-core/src/backups/screen.rs`): a place row presses to its checklist item only for a loaded wallet whose line has a place (`:202-206`); a wallet with no plan shows the no-plan line in place of rows (`:136-144`); with no wallet the page offers Make a new wallet and Restore (`:157-176`); the compact page turns wallets with Previous and Next, Disabled at the ends, shown only when more than one wallet and the page is not beside the list pane (`:284-320`).
 
 ## Domain calls
 
@@ -117,8 +119,5 @@ None.
 
 - Left out of Fixes, as not about the Backups list: 98b1be3af (Words and SeedQR form pills on the board were under the touch floor; fits `backup-board`); 7c75edc79 and bce9b3c9c (a seed's Krux code picture and `.kef` file in Files get one stem, and a second wallet's code goes beside the first; fit `krux-codes`); 24995bfad (a SLIP-39 group threshold of 1 with more than one group is refused; fits the SLIP-39 set code in faraday-plan and faraday-vault).
 - Rows kept here that fit `wallet-backup` as well: f4653d345, d4d8e11eb, fa702dbd4, eb8395720, 5df98df9c, d17295cd3.
-- The `kef` kept line: the doc text says eight fields, a comment (`faraday/faraday-core/src/backups/mod.rs:~526-528`) says a line without the hash is dropped, and the code accepts 7, 9 or 10 fields.
-- The module doc (`faraday/faraday-core/src/backups/mod.rs:~1-10`) and `Dated` (`~78`) say names never go into kept checks, but `Dated.line` and `Held` carry a place line that starts with the place's name (RAM only).
-- `faraday/faraday-core/src/backups/mod.rs` lines 1-60 were seen only in a truncated preview; the drawing in `faraday/faraday-core/src/backups/screen.rs` was read once.
 - Doc misplaced at `faraday/faraday-core/src/backups/mod.rs:~4149-4156`.
 - Test modules were not read; no fixture is named for this feature.

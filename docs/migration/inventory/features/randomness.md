@@ -62,6 +62,7 @@ and the Lock sheet, and from Settings.
 - See `docs/OWN-RANDOMNESS.md` §2.2-2.3 for the person's own randomness and `docs/CODEX32.md` §5.6 for the rollers.
 
 ## Rules and refusals
+- A change of display scale re-lays out the screen and drops the entropy requests that layout added; entropy requests already queued stay (faraday/faraday-core/src/stick/settings.rs:481-492; drawing.rs:988-1022; fresh.rs:517-524).
 
 Session randomness
 - Presses that draw system randomness wait for the seed and answers (`draws_system_randomness`, `faraday/faraday-core/src/fresh.rs:~931-970`): KNext at the SLIP-39 Enter step, codex32 Suggest, BXor, SignHere with a MuSig2 round, the vault's CGo, SbEnrol, SbHoldSign and PromptGo for KeePass at or above the minimum, the flow's Make, and BC32 MakeNew.
@@ -115,6 +116,7 @@ Create a vault dice (`faraday/faraday-core/src/dice_entry/mod.rs`)
 ## Fixtures
 
 None.
+- `tools/vectors/entropy/dice.json` (the dice answers other tools print: a commitment and five vectors, hashed, six-as-zero and word selection), read by `core/faraday-entropy/tests/dice_vectors.rs` and `faraday/faraday-samples/tests/all/guide_key.rs`; Practice's dice sample is the string `dice_rolls` baked into `faraday/faraday-samples/src/data.rs:697` by `faraday/faraday-samples/examples/regenerate.rs:645-652` from its first "words" vector; the app reads no file.
 
 ## Fixes
 
@@ -130,5 +132,3 @@ None.
 
 - `Skip`, `Another` and `Area` of Add randomness fall to `_ => {}` in `act()`; `Act::Roll(f)` and the card `Rank`/`Suit` are not range-checked in the page. Unconfirmed whether this is reachable.
 - The Spend open steps 5, 6 and 9 are bare numbers with no names.
-- A dice sample file for Practice, `tools/vectors/entropy/dice.json`, is named in the samples' docs but is not in the kept fixture list.
-- Whether `faraday/faraday-core/src/stick/settings.rs` `layout_scale` dropping a newly added `Command::RequestEntropy` (`faraday/faraday-core/src/stick/settings.rs:~483-491`) is intended is unclear.

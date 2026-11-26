@@ -31,7 +31,7 @@ How pages move: finger pans and flicks, the wheel, rubber-band stretch at the en
 - Settings sections open at their top; a list pane starts at its top; Backups opens on its first wallet (`:~903-920`). Sheets start at their top each time they open (`:~769-774`).
 - `Fade` (`faraday/faraday-core/src/fade.rs`) keeps pixel copies of the frames it blends (`from`, `after`, `surface`, `frost`). `Fade::end` clears all but `frost`; `display_changed` clears `frost`. Marked `Public`.
 - A frame that showed a secret (`secret_drawn`, `step_secret`, `secret_shown`) is not kept for a fade: the next change is drawn at once, or a live fade redraws both cards from state (`faraday/faraday-core/src/fade.rs:~600-615, ~748, ~874-890`).
-- A lock does not clear `Fade` or `Scroll` (confirmed at `faraday/faraday-core/src/fade.rs:164, 193-205, 395`). Every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`), so neither outlives it.
+A lock does not clear `Fade` or `Scroll` (confirmed at `faraday/faraday-core/src/fade.rs:164, 193-205, 395`). Every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`), so neither outlives it. `Scroll` keeps only the motion, the sheet's, pane's, sidebar's, Home box's, Waiting band's, stick list's and Your choices' offsets; a page's offset is kept by its screen's own state (`Faraday::screen_offset`, faraday/faraday-core/src/motion.rs:485-539, 1286-1296).
 - `Out` is declared to hold nothing a lock wipes.
 - `Out.storage_out` is served before the lock's restart or rebuild (`faraday/shells/stick/src/main.rs:1726-1741`, `faraday/faraday-storage/src/lib.rs:896-932`). Anything left goes with the app, and its `Files` bytes wipe as they drop (`faraday/faraday-core/src/storage_api.rs:11-12`).
 
@@ -50,6 +50,7 @@ How pages move: finger pans and flicks, the wheel, rubber-band stretch at the en
 - Codex32 worksheet follow keeps the work in view after entry, stops on a person's own move, and does nothing while a card opens or closes (`faraday/faraday-core/src/motion.rs:~1107-1232`).
 - Moved frames (`faraday/faraday-core/src/moved.rs`): a scroll step moves rows already drawn and paints only the rows it exposes. A frame is reused only for the same screen, slot, theme, scale, text size and size (`:~75`). A composition that does not compose gives a whole frame (`:~168`). Speed feature only.
 - Glide (`faraday/faraday-core/src/glide.rs`): pure arithmetic. `through` fades the old page out while `e < STEP_FADE_OUT`; rectangles are interpolated. No state.
+- Painting in bands (`faraday/faraday-core/src/fade/bands.rs`): at most 4 bands, at least 64 rows each; a fade's blend splits only over 256 Ki pixels per band; a band's panic is the frame's panic (`:1-20`, `:71-79`); a frame is recorded and replayed in bands only with more than one band (`:62-69`).
 
 ## Domain calls
 
@@ -71,8 +72,6 @@ None.
 
 ## Doubts
 
-- Which is authoritative after a lock, the `Scroll` offsets or the screens' own offsets, is not known.
 - `own_motion` in `faraday/faraday-core/src/fade.rs:~629` is always false (a dead toggle).
 - `faraday/faraday-core/src/moved.rs` has `cfg(test)` counters in non-test code.
-- `faraday/faraday-core/src/fade/bands.rs` was read by no one.
 - Rows left out as not about motion: dfdf7341c (the secret sheet's "Stays in the Outbox" row), b96e16ed6 (an Outbox file replacing another of the same name), 4a4df10e1 (a completed spend's part-signed PSBT left in the Outbox). They came under the command queue's heading.

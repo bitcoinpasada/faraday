@@ -54,6 +54,7 @@ Tool (`KefToolAction`)
 - `made` draws a `QrView::kef` base43 QR with a version, count and id label; bytes `Zeroizing`; SHA-256 through `sha256_whole` (`faraday/faraday-core/src/worker/kef_make.rs`).
 
 ## State and lock
+- The Krux read's timed run: `kef_timing` is true only while one is out; its answer, also a stopped run's, always arrives and clears it, and a rate is kept only for a run that finished with a nonzero time. The flag and the rate (a time in milliseconds) stay across a lock (faraday/faraday-core/src/seeds/mod.rs:493-509; seeds/kef.rs:261-267, 283-286; worker/kef.rs:78-98).
 
 Read
 - `KefRead` (`faraday/faraday-core/src/seeds/kef.rs:~102-125`): `pass: PassField`, `forms: Vec<Zeroizing<Vec<u8>>>` (passphrase forms to try), `offered: Option<Zeroizing<Vec<u8>>>`, `shown: Option<Text>` (the note text or hex), `eye`, `sure`. `holds_secret()` = pass, forms, shown or offered.
@@ -89,6 +90,9 @@ All areas: a lock then restarts the process (`faraday/faraday-core/src/vault/sea
 - Documented in `docs/KEF.md` (§6, §9, §15.1-15.3).
 
 ## Rules and refusals
+- From Files, reading a Krux code is refused with no message while a stick is in the way or the self-test has not passed (faraday/faraday-core/src/seeds/kef.rs:345-348); from the scanner's read card the Open way waits for the stick (scan_key.rs:1716); the Krux scan purpose opens the sheet with no such check (seeds/kef.rs:322-330).
+- Stopping a Krux seal or open always makes its job stale, so a late answer is not applied; the stored answers are cleared at a lock and at the stop (faraday/faraday-core/src/compute.rs:250-255, 354-358, 396-444; worker/kef.rs:168-180).
+- A Krux code seal that is refused for a reason other than count, id length, empty text, passphrase, duplicate or NUL end says the version is refused (faraday/faraday-core/src/worker/kef_make.rs:208-219); a stopped seal's answer is dropped (compute.rs:354-357, 262-270).
 
 Read (`faraday/faraday-core/src/seeds/kef.rs`)
 - An iteration count above 550,000 needs a second Open (`COUNT_ASKED`, `26`).
@@ -134,6 +138,7 @@ Tool (`faraday/faraday-core/src/kef_tool/`)
 - Typed text is limited to `COMPRESS_MAX`; control characters are refused (`~549-550`).
 - The take-away row only when hashes are present (`~628-643`).
 - Options opens only on the KefTool screen (`~412`).
+- Reading tries the passphrase as typed, then its NFC and NFD forms when it holds a non-ASCII character and they differ (at most three, each a full PBKDF2) (`faraday/faraday-kef/src/lib.rs:122-149`); with Hex on it tries the one decoded byte string, an empty passphrase tries one empty string (`faraday/faraday-core/src/seeds/kef.rs:440-475`).
 
 ## Domain calls
 
@@ -167,13 +172,8 @@ Tool (`faraday/faraday-core/src/kef_tool/`)
 ## Doubts
 
 - Row 93ba09294 left out: outside the inventory's scope.
-- `kef_timing` and `kef_rate` survive a lock; a timed run that never answers would leave `kef_timing` true (whether the worker always answers was not read).
-- `Cancelled` and every other `Refused(_)` map to the version refusal text (`faraday/faraday-core/src/worker/kef_make.rs:~215`); whether Cancel reaches it is unclear.
-- `stop` does not drop an answer that arrives later; `sealed_done` stores it; whether the caller discards it is unclear.
 - `WordsFingerprint` is converted outside `faraday/faraday-core/src/worker/kef_make.rs`; `MakeStart` has no constructor there.
 - The comment at `faraday/faraday-core/src/worker/kef.rs:~4-5` says no screen reaches these jobs yet; the backup board and Tools do.
-- Reading a Krux file is gated by `may_load_keys` while scanning is not; whether the file path is reachable otherwise is unclear.
 - `Header.high`/`sure` in `faraday/faraday-core/src/seeds/kef.rs` and `KefAct::Show` in the Ask stage look unused.
-- `reading_passphrases` (which passphrase forms are tried) is in faraday-keys and was not read.
 - Line numbers in the form and tool marked `~` were found off by up to 40 lines where checked.
 - The inventory gave no line numbers for the read-sheet rules from the hex passphrase through the file kinds in `faraday/faraday-core/src/seeds/kef.rs`; only the file is named.

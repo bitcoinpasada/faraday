@@ -45,6 +45,7 @@ Make a new wallet, and a vault's contents.
 - Quick: `Quick::{Open, Card, Show, Wrote, Done, Template, SeedQr, Code, Next, Copy, More}`.
 - Krux code (`faraday/faraday-core/src/wallet_backup/kef.rs`): `KefAct::NotOnPaper`, `ScanCopy`, dice presses, typing (only on `Screen::Backup`), Escape closes Options only.
 - Flow presses for a wallet: `flow_plan_press` (`P::Q`, `P::Next`, `P::Answer`, `P::Omit(n)`, `faraday/faraday-core/src/backup_flow/wallet.rs:~2557-2585`); `flow_wallet_edit` (`~2858-2944`) and `flow_wallet_add_place` (`~2947-2952`); "Add a passphrase" on the plan's check lines (`plan_add_passphrase`, `~2959-2990`) sets `Screen::Create` on the Keys card; `WalletLock` (`wallet_lock_write`, `~996-1213`); `WalletMake`.
+- Quick SeedQR (`faraday/faraday-core/src/wallet_backup.rs:5207-5217`): with a plan map, puts the seed's SeedQR on it first (refusal stops the action); then `quick_seedqr` sets the SeedQR answer, the Write step, clears scan and check, reveals the seed (`faraday/faraday-core/src/wallet_backup/quick.rs:91-107`) and the plan is saved.
 
 ## Effects
 
@@ -58,6 +59,7 @@ Make a new wallet, and a vault's contents.
 - Toasts. No clipboard or printing (sheets are printed from the Starter).
 
 ## State and lock
+- Picking another seed in the checklist clears what was shown, checked, scanned or split for the one before; the parts matched (`paper_ok`) are read only while parts are on screen, and the SeedQR scan misses are kept per seed fingerprint (faraday/faraday-core/src/wallet_backup.rs:1115-1126, 1859, 1878).
 
 - `WalletBackupArea` (`faraday/faraday-core/src/wallet_backup.rs:~389-400`) holds `state: Option<BackupState>` and `shown`.
 - `BackupState` (`faraday/faraday-core/src/wallet_backup.rs:~196-371`): wallet, stage (`BStage::{Plan, Checklist}`), question, plan answers, place names (vault only), open item, `reveal`, typed check (`check: Option<WordCheck>`), `scanned`, copy records (`checked`, `misses`, `kef_misses`, codex32 `c32`, `c32_checked`, `c32_skipped`, `c32_base`, `c32_made`), Seed XOR parts `paper: Option<Held<Vec<Text>>>` with `paper_ok`, `paper_skip`, `parts_checked`, old parts kept, vault records (`before`, `prior`, `extras`, `no_load`), quick flags, `keeps`, `board`, `edits`, `then_item`, `sent`, `shown: Option<Box<SeedShown>>`, `xpub_names` (public), `more_ways` (public).
@@ -80,6 +82,8 @@ Make a new wallet, and a vault's contents.
 - Writes the Backups record (`backups_sync`, `backups-list`).
 
 ## Rules and refusals
+- A wallet's share record is made from the loaded wallet, else from a wallet record, plan record or description file in an open vault or Files that reads as the same id; where none is found or the throwaway read fails, no record is made and no message is shown (faraday/faraday-core/src/backup_flow/wallet_files.rs:365-430). A held share token of unknown wallet id matches by a 64-character id of the same number (wallet_files.rs:340-357).
+- Making Seed XOR parts again for a key that already has a set: refused with "no more old parts" when the plan has no old set for the seed or cannot keep another old set (faraday/faraday-core/src/wallet_backup.rs:2872-2875).
 
 Checklist and plan
 
@@ -179,6 +183,8 @@ Seed files on sticks
 Wallet share records
 
 - `wallet_ids_of` (`faraday/faraday-core/src/backup_flow/wallet_files.rs:~274-316`) takes ids from one source at a time (loaded wallets, open vault records, then untrusted files); `share_held_before` (`~340-357`) by tokens `s{cs}:{num}`, `s{id}:{num}`, and a 64-character fallback (a length check only); `wallet_share_record` (`~365-440`) returns the refusal `backup_sheets_rebuild_another` when the sheets do not rebuild the wallet, and clamps share number and count to `u8::MAX`.
+- The split sheets show when the answer `split` is on and `wallet_backup::splits(wallet)` holds; the title (`faraday/faraday-core/src/screens/backup.rs:133`) reads that predicate through `shape.splits` (`faraday/faraday-core/src/wallet_backup.rs:4244`), the body and action read it directly (`faraday/faraday-core/src/screens/backup.rs:1211`, `1713-1717`): one predicate for one wallet. The title's key count is `keys_n - omit.min(m - 1)` (`faraday/faraday-core/src/screens/backup.rs:142`), never below 1 while m is at most n.
+- The wallet done card shows Lock and Power off (Quit when online) on every card but the one reached from Create (`from != From::Create`, `faraday/faraday-core/src/screens/backup.rs:~853-865`); a Restore of a key made here shows them too. Lock opens the Lock sheet.
 
 ## Domain calls
 
@@ -210,14 +216,8 @@ None.
 
 ## Doubts
 
-- The split predicate has two sources: `item_title` uses `a.split && shape.splits` (`faraday/faraday-core/src/screens/backup.rs:~133`) while the body and action use `wallet_backup::splits(wallet)` (`~1211`, `~1712-1717`). Whether they can disagree was not checked. `faraday/faraday-core/src/screens/backup.rs:~142` `keys_n - a.omit.min(...)` may underflow if `keys_n < omit`.
-- The comment on the wallet done card says Lock and Power off are hidden while a key made here is held, but a restore whose key was made here still shows them (`faraday/faraday-core/src/screens/backup.rs:~736`, `~856`).
-- `paper_old_too_many`'s text fits only the "too many" case, though it also fires when the plan has no old set.
-- `pick_key` keeps `paper_ok` and the misses; whether that is meant is not known.
-- `quick_seedqr` sets the SeedQR answer on every quick path; its comment says the caller puts a Krux map's SeedQR there.
 - The line numbers of the public-files rule for a held silent-payments wallet were not confirmed; the rule is probably in `public_files`.
 - Unchecked arithmetic: `audit` uses `1u32 << n` (overflow for n of 32 or more) and `structural` uses `n - 17` and `n - 8` (underflow for tiny n); callers are presumed to bound n.
-- `wallet_share_record` swallows a failed throwaway-session parse (`.ok()?`) with no message. `share_held_before`'s 64-character fallback is a length check only.
 - `expect`s on the dispatcher having checked first: `faraday/faraday-core/src/screens/backup.rs:~1007-1008`, `~2202`, `~1800`; `flows.all[i]` at `faraday/faraday-core/src/backup_flow/wallet.rs:~1426-1427`.
 - Stale or garbled comments: `faraday/faraday-core/src/wallet_backup.rs:~3592-3594`, `~4043-4044`, `~4336-4339`; `faraday/faraday-core/src/screens/backup.rs:~1361-1369`; `faraday/faraday-core/src/backup_flow/wallet_screen.rs:~1-6` mentions cards Restore gains that are not in the file.
 - Decisions named in comments: F129 ("Save without encryption?" hold), F240 (a wallet made from another has no backup-form card), F254 (a throwaway session builds a share record with no sheet), F285 (Seed XOR), F293 (old SLIP-39 shares), F62 (load at unlock).

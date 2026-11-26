@@ -208,6 +208,7 @@ checkout; all files are in `faraday/shells/snapshot/src/tours/`.
   fingerprint `[0x5d,0x38,0x83,0x76]`
   (`faraday/shells/snapshot/src/tours/default.rs:~745`); vault speeds 100
   and 180 through `testkit::vault_speed`.
+- No tour relies on stick state across a restart: `silent` uses no stick, `spend` and `first` attach theirs after the lock (`faraday/shells/snapshot/src/tours/silent.rs:44`, `:74`, `faraday/shells/snapshot/src/tours/spend.rs:12`, `:33`, `faraday/shells/snapshot/src/tours/first.rs:119-146`).
 
 ## Reach
 
@@ -316,14 +317,16 @@ Read from the source tree but not on the kept fixture list (located by
 `CARGO_MANIFEST_DIR` or `include_bytes!` paths, so the tours depend on the
 source tree):
 
-- `tools/vectors/core-wallet/encrypted.dat` (core-wallet)
+- `tools/vectors/core-wallet/encrypted.dat` (core-wallet, `faraday/shells/snapshot/src/tours/core_wallet.rs:16`)
 - `tools/vectors/paperkey/` (`gpg-unprotected.asc`, `tools/vectors/paperkey/gpg-unprotected.txt`,
   `gpg-rsa3072.asc`; gpg-restore)
-- `tools/vectors/opentimestamps/` (ots)
-- `tools/vectors/psbt/` (signer)
-- `tools/vectors/kdbx/` (vaultstates)
+- `tools/vectors/opentimestamps/examples/different-blockchains.txt`, `different-blockchains.txt.ots` and `headers/455605.hex` (ots-check, `faraday/shells/snapshot/src/tours/ots_check.rs:11-29`)
+- `tools/vectors/psbt/signer-core-sent.psbt`, `signer-core-signed.psbt`, `signer-proprietary-added.psbt`, `demo-regtest.psbt`, `signer-random-nonce.psbt`, `bump-core-original.psbt`, `bump-core-replacement.psbt`, `bump-core-original.tx` (signer, `faraday/shells/snapshot/src/tours/signer.rs:32-59,150,154`)
+- `tools/vectors/kdbx/pykeepass-aes-argon2id-gzip.kdbx` and `pykeepass-chacha20-argon2id-plain-history.kdbx`, by include_bytes (vaultstates, `faraday/shells/snapshot/src/tours/vault_states.rs:266,276`; foreign passphrase "kdbx vector passphrase")
 - `tools/vectors/kef/` (named as the source of the Krux code inlined in
   `faraday/shells/snapshot/src/tours/kef.rs:12-14`)
+- `tools/vectors/slip39` and `tools/vectors/bip93` are named in comments of `faraday/shells/snapshot/src/tours/convert.rs:206` and `faraday/shells/snapshot/src/tours/codex32.rs:18` only; those tours hold the codes as literals and read no file there.
+- Sample data: `faraday_samples::SAMPLES` is the set a shell ships and most tours use (`faraday/shells/snapshot/src/tours/desktop.rs:52-53`, `faraday/shells/snapshot/src/tours/host.rs:36-38`); `testkit::demo_samples()` is the smaller set the core's own tests use (the `SAMPLE_WORDS` handouts), used by the tours in `faraday/shells/snapshot/src/tours/desktop.rs:23` and `faraday/shells/snapshot/src/tours/transfer.rs:35` (`faraday/faraday-core/src/testkit.rs:183-195`).
 
 ## Fixes
 
@@ -334,11 +337,7 @@ None.
 - Only about 20 rows were checked against the code by the inventory; the
   rest of the walk descriptions rest on single reports. The "defined at"
   lines and the registry kinds were checked against the checkout.
-- `tools/vectors/` files the tours read are not on the kept fixture list; a
-  rewrite of the tours needs them or copies.
-- No tour enforces a window size; `rowdetails`, `files-wide` and
-  `vaultsheets` docs assume a non-compact or wide window. Which sizes the
-  lint recipes run is not covered here.
+- No tour enforces a window size; `rowdetails`, `files-wide` and `vaultsheets` assume a non-compact or wide window in their docs, yet the touch-target lint runs every tour at 240x320, 480x640, 1024x600 and 1280x800 (`faraday/shells/snapshot/src/targets.rs:79-90`, `:164-190`).
 - Doc and code differ in places, unresolved: `faraday/shells/snapshot/src/tours/pass_seeds.rs:~14-21` doc
   mentions a boot stick but the code does no stick action; `faraday/shells/snapshot/src/tours/m3.rs:~1-7` doc
   mentions segmented buttons; the `kept` unprotected claim relies on
@@ -346,9 +345,6 @@ None.
   (`faraday/shells/snapshot/src/tours/devices.rs:~199-204`); `faraday/shells/snapshot/src/tours/vault_sheets.rs` doc comments "Costs a map of the
   plan" look copied; `faraday/shells/snapshot/src/tours/host.rs:~190-191` doc mentions a sample action that is
   not pressed; the site tour's doc says Mainnet but the code does not switch.
-- Two sample sources: `testkit::demo_samples()` (`faraday/shells/snapshot/src/tours/desktop.rs:~23`) and
-  `faraday_samples::SAMPLES` (`faraday/shells/snapshot/src/tours/desktop.rs:~52`, `faraday/shells/snapshot/src/tours/host.rs:~36-45`); which is
-  canonical is unclear.
 - `faraday/shells/snapshot/src/tours/vaults_pair.rs:~118-126` read-only tamper closure differs from
   `faraday/shells/snapshot/src/tours/vault_states.rs:~117-124` when the `<Value>1</Value>` marker is missing.
 - The `vaultstates` filler size `slot - used + 1_000` is usize arithmetic and
@@ -358,5 +354,3 @@ None.
   `C32::Skip` presses have no stated meaning.
 - The meaning of `inbox_file_at` index 1 in `band` is unclear.
 - `codex32correct` draws screens the app may not reach.
-- Whether tours rely on stick state across a restart (`silent`, `spend`,
-  `first`) was not checked; `restart` does not re-send the sticks.

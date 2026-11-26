@@ -56,9 +56,10 @@ None.
 
 ## Fixes
 
-None.
+| hash | what was broken | rule restored |
+|---|---|---|
+| 1761268bd | A word grid showed a caret in every empty cell after the one being typed into. | The caret shows only in the cell being typed into: a cell with no word yet shows one only when it is the current cell (`faraday/faraday-core/src/screens/parts.rs:1220-1221`). |
 
 ## Doubts
 
 - The `INVISIBLE` table is fixed to Unicode 16.0 and will drift from later Unicode versions.
-- A history note names a commit that put a caret in every empty word-grid cell (1761268bd); its row was not given to this feature.

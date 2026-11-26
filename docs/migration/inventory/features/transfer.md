@@ -149,6 +149,7 @@ Line numbers are in `faraday/faraday-core/src/transfer/mod.rs` unless named.
   - a paste longer than the field.
   - Bare hex of a seed's length is named as hex, not as a CompactSeedQR.
   - The classifier also refuses `ur:seed/` and `otpauth-migration://` exports.
+- A paste longer than the Send text field holds is cut and the text is refused (too long) until the field is cleared; typing or Backspace does not lift it (transfer/text.rs:31-34, 90-131).
 
 ## Domain calls
 
@@ -179,6 +180,4 @@ None.
   - f0c7f6145: the disk process kept a vault transfer's pieces. That is the storage layer's background transfer.
 - The storage layer's background transfer of vault files over one piece (16 MiB, `faraday/faraday-files/src/proto.rs:~37`) shares the word "transfer". It belongs to `storage`.
 - `transfer_dropped` has a stale-looking doc comment above `transfer_hovered` (`faraday/faraday-core/src/transfer/mod.rs:~501-503`).
-- `over` stays set after Backspace.
-- `faraday/faraday-core/src/transfer/screen.rs:~76-77` splits a path on `/` only, while `base_name` splits on both separators.
 - Only the lines marked plain above were checked against the code.

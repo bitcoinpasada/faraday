@@ -56,6 +56,7 @@ cards.
 - Gives to other screens: `key_name`, `child_mark`, `record_child_mark` (how a key recorded as a child seed is named, for example "BIP-85 Words . <fp> . index 0", `~113-143`; used by Home's loaded box), `out_title` and `kdbx_out` (title and file name rules for a BIP-85 password, `~72-96`), `pick_of` (`~800`).
 
 ## Rules and refusals
+- Child words to a vault: no vault open says so; a missing derived value or words that do not parse end the press with no message (faraday/faraday-core/src/bip85/mod.rs:596-615).
 
 - Index: parses as u32 and at most `bip85::MAX_INDEX` (`faraday/faraday-core/src/bip85/mod.rs:~202-207`); typed ASCII digits only, at most 10 characters, a leading "0" replaced by the first digit (`509-516`); `PIndex` clamps to 0..=MAX_INDEX (`~466`); Next on Index is refused when invalid (`~471-473`).
 - Key card: Next is refused without a key. Every loaded key is offered.
@@ -74,6 +75,7 @@ cards.
 - Password title: BIP-85 password entries are named "Password" out of the vault (`~72-82`); a KeePass export uses the generic `kdbx_export_file` name beside any Outbox file (`~89-96`).
 - Enter in the flow is always consumed (`~508`, `~524`), even when Next is refused.
 - Published test words (BIP-85 vectors among them) raise the published-sample caution on Mainnet too (fix row 3f6f8a738).
+- A child's words saved to a vault as a key record take the made-online mark when the app is the desktop app or the parent key (`b.key`) was made online; a Base64, Base85 or note record never does (`faraday/faraday-core/src/bip85/mod.rs:626`, `faraday/faraday-core/src/vault/mod.rs:2508-2520`, `faraday/faraday-vault/src/records.rs:553-565`). `bip85_to_vault_as` returns silently when no vault is open (toast), when the value or state is missing, or when the words do not parse (`faraday/faraday-core/src/bip85/mod.rs:595-625`).
 
 ## Domain calls
 
@@ -94,5 +96,3 @@ None.
 
 ## Doubts
 
-- `bip85_to_vault_as` returns with no note on a parse failure or a missing value.
-- `marked_online` (`faraday/faraday-core/src/bip85/mod.rs:~626`) was not read.

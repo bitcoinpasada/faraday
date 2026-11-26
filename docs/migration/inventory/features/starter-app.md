@@ -47,6 +47,7 @@ Uninstall pressed.
   - The dice worksheet is two landscape pages.
 - Faraday Demo inside the Starter: drawn under the Starter's top bar (`faraday/faraday-starter/src/demo.rs`).
 - The held desktop app's Transfer screen (`Screen::Transfer`), shown in the Starter's frame.
+- Drawing is `faraday/faraday-starter/src/draw.rs` (no `draw/mod.rs`) and its submodules `appearance`, `boot_file`, `clear_first`, `guide`, `home`, `how`, `images`, `name`, `nav`, `row`: `frame` draws one of the 23 pages in a scrolling column (`COL_W = 720`, `CONTENT_MAX` on the four destinations) under the top app bar, beside a rail or above a bottom bar by window class, then the menu and the open sheet (6 variants) over a backdrop; with a held desktop app only the held chrome is drawn (`faraday/faraday-starter/src/draw.rs:63-182`).
 
 ## Actions
 
@@ -97,9 +98,10 @@ time is `now_ms` from host ticks.
 - The held app (`faraday/shells/starter/src/main.rs`):
   - Its Downloads listing is read again every 700 ms (`RESCAN`, `~75`, `~764-786`) and sent only on change (`relist`, `~620-639`).
   - Its `RequestEntropy` is answered with `faraday_window::entropy()`. `CameraOn` and `CameraOff` work as in the window shell (`~156-165`, `~198-199`).
-- Child processes: `xdg-open`, `explorer.exe`, `cmd.exe`, `ping`, `gsettings`, `pkexec`. Also the installed copy with `--version`, which is given 5 s.
+- Child processes: `xdg-open`, `explorer.exe`, `cmd.exe`, `ping`, `gsettings`, `pkexec`. Also the installed copy with `--version`, which is given 5 s. `gsettings get org.gnome.desktop.interface color-scheme|gtk-theme` is waited for with no limit (`faraday/shells/starter/src/scheme.rs:77-87`); it runs at most twice, once at start, only when the portal said nothing.
 - Threads: a Downloads watcher and one per slow command.
 - No clipboard, no network. Diagnostics go to stderr only.
+- The Starter's own state keeps no file (`faraday/faraday-starter/src/api.rs:8-9`); the settings file (`text=` line) is the shell's, written on `KeepTextSize` only while a Starter is installed; a write failure is printed to stderr and the size lasts for this run (`faraday/shells/starter/src/main.rs:369-376`).
 
 ## State and lock
 
@@ -114,7 +116,7 @@ time is `now_ms` from host ticks.
 - Theme: not kept. Text size: kept only while a Starter is installed (`settings.txt`). With nothing installed, `text_kept` goes back to Standard but `text` stays.
 - `Shell` (`faraday/shells/starter/src/main.rs:~84-120`):
   - `starter`, `system: Arc<dyn Platform>`, `finder`, `image`, channels, `writing`, `close_held`, `key_sheets`, `host`, `listed`, `cameras`.
-  - `boxes`: a Memory inbox, outbox and kept list (`~990-994`).
+- `boxes`: `Boxes::Memory`, three empty lists at start (`faraday/shells/starter/src/main.rs:990-994`): the held app's Inbox files, Outbox files and `kept` (its own kept entries, such as `backup-gate`, `backup-flow`). The held app's `SaveBoxes` replaces them, `ForgetBoxes` clears them, `restore` hands them back (`faraday/faraday-storage/src/lib.rs:590-599, 642-651, 676-686`). Held in memory only; nothing reaches a file; gone at exit.
   - `dirs`, `demo`.
 - The Demo inside the Starter:
   - A lock in the Demo calls `restart_demo`. A fresh Demo app is built from `demo.restart(&old.app)`, in the mode the old one chose (`faraday/shells/starter/src/main.rs:260-273`).
@@ -123,6 +125,7 @@ time is `now_ms` from host ticks.
   - Dropping the host is the Demo's only wipe in the Starter.
   - The Demo's data is test data.
 - At exit, key sheets are wiped (see `starter-start`).
+- A lock in Faraday Demo inside the Starter rebuilds the Demo app with the mode, boxes, attached sticks, preview size, clipboard and listings the Demo host keeps; the fresh app takes the Starter's theme and text size (`faraday/shells/starter/src/main.rs:262-273`, `faraday/faraday-starter/src/demo.rs:55-70`, `faraday/shells/demo/src/lib.rs:317-335`).
 
 ## Reach
 
@@ -138,7 +141,7 @@ time is `now_ms` from host ticks.
   - `motion::{Motion, Region, SLOP}`, `work::core_count`.
   - `strings::EN`, `names`, `BUILD`, `version_line`, `Program`, `Mode`, `parse_version_output`, `ui::{Theme, TextSize}`.
 - Uses `faraday_shell_api` (`impl App for Starter`, `faraday/faraday-starter/src/lib.rs:~2835`), `faraday_host::Host`, `faraday_demo`, `faraday_storage`, `faraday_window`.
-- Events reach the held app when it shows: keys, touch, wheel and ticks. Held-app commands the Starter does not know pass through the catch-all arm (`faraday/faraday-starter/src/lib.rs:~2895`).
+- Events reach the held app when it shows: keys, touch, wheel and ticks. The arm at `faraday/faraday-starter/src/lib.rs:2893-2899` passes every event the Starter does not handle itself (including the answers to what the held app asked: entropy, camera, files) to the held app. This arm is about events, not commands. Held-app commands: the shell answers `Draw`, `RequestEntropy`, `CameraOn`, `CameraOff` and `Exit` (not while a restart is requested); any other command is dropped with no answer (`faraday/shells/starter/src/main.rs:152-162`). The Starter does not turn on the held app's clipboard flag, so Transfer's paste emits no request.
 - The snapshot example presses and reads the drawn state: `press`, `where_offered`, `drawn_texts`, `drawn_progress`, `drawn_targets`, `drawn_ink`. These are hooks in non-test code.
 
 ## Rules and refusals
@@ -158,7 +161,7 @@ time is `now_ms` from host ticks.
 
 **Checklist** (`Facts::checklist`, `faraday/faraday-starter/src/decide.rs:~616`):
 - Items: MakeStick, Start, SecureBootOn.
-- It stops after MakeStick when the computer cannot start a stick. That also hides the Secure Boot step on Windows.
+- The checklist stops after Make a stick when the computer cannot start a stick (ARM, or a Mac with 32-bit firmware or Apple silicon). Turn Secure Boot back on (a row only for a non-Mac with Secure Boot off) comes after that point, so it is hidden too; on Windows that means an ARM computer (`faraday/faraday-starter/src/decide.rs:592-599, 631-647`).
 - The Secure Boot item comes back only on a computer that is not a Mac, with Secure Boot off.
 - `next_step` highlights one item.
 - "Use a device" applies on Windows, with UEFI and Secure Boot read as off.
@@ -205,6 +208,7 @@ time is `now_ms` from host ticks.
 - `guide_open` does nothing while any sheet is open.
 - `guide_press` closes the Guide sheet, else opens it if offered.
 - `how_press` toggles `Sheet::How` only when no sheet, or How, is up (`faraday/faraday-starter/src/how.rs:35-40`).
+- A How press while Faraday Demo is open is consumed there (`faraday/faraday-starter/src/demo.rs:139-147`); while the held app shows it only ends the held app's view (`faraday/faraday-starter/src/lib.rs:2152-2154, 2672-2691`). The row is drawn only on the Guide page (`faraday/faraday-starter/src/draw/guide.rs:14-26`).
 
 **Sheets and menu** (`faraday/faraday-starter/src/lib.rs:~2153-2175`):
 - While a sheet is up, only these are taken: Cancel, RestartNow, UninstallNow, LetThrough, How, Guide, StartGuide(BootEntry), and Back on the How, Guide and StartGuide sheets.
@@ -248,6 +252,7 @@ time is `now_ms` from host ticks.
 **Tools in the crate's examples**:
 - `faraday/faraday-starter/examples/icon.rs`: `icon OUT.png` draws the 256×256 app mark, the shield alone on transparency. Wrong usage exits 2.
 - `faraday/faraday-starter/examples/snap.rs`: `[--tour] WxH[@DPI] OUT_DIR [THEME]`, with env `FARADAY_SNAP_TEXT`. It writes PNGs, `cut.txt` and sample PDFs. A bad size, theme or text size exits 2. A `@DPI` that does not parse becomes 160 without a word (`faraday/faraday-starter/examples/snap.rs:1170-1172`).
+- Install ends by removing the cache's release folders (`X.Y.Z`); a folder that cannot be removed makes the whole install (Windows `faraday/shells/starter/src/windows/install.rs:306`, Linux `faraday/shells/starter/src/linux/install.rs:305`) and the whole uninstall return an error. On Windows uninstall this comes before the folder removals and before the exit-time removal command is returned (`faraday/shells/starter/src/windows/install.rs:441`); on Linux it is the last step (`faraday/shells/starter/src/linux/install.rs:377`).
 
 ## Domain calls
 
@@ -286,19 +291,9 @@ The codex32 tables cite `tools/vectors/codex32-booklet/tables.json` in comments 
   - Seven to `starter-start`: the key sheet's folder and contents, restart from the stick, and the BitLocker fields.
   - Two to `desktop-shells`: System32 library loading.
 - bbf1971b3 also changed a launcher icon of an Android app since dropped.
-- Not read: `faraday/faraday-starter/src/draw/mod.rs`.
-- Not read: what `faraday_demo` carries from the old Demo on a lock.
-- `Boxes` holds a kept list in the Starter shell. What it holds there is unclear.
-- Held-app commands that pass through the catch-all arm include entropy requests. Whether every one is answered is unclear; the shell does answer `RequestEntropy`.
-- `how_press` has no `showing` or Demo guard, unlike `guide_offered`. Whether How can be reached then is unclear; the sheet gating may cover it.
-- The checklist hides the Secure Boot step on Windows when the computer cannot start a stick. Intent unstated.
 - Looks dead or odd:
   - `StartGuide::ALL` lacks Maker.
   - `Template::pdf` has identical Codex32 and Krux branches.
   - `from_code` maps an unknown argument 42 to Places.
   - Several doc comments do not describe their function (leftover "Costs ..." lines in `faraday/faraday-starter/src/notes.rs`, `faraday/faraday-starter/src/sheets.rs`, `faraday/faraday-starter/src/scroll.rs`, `faraday/faraday-starter/src/template.rs` and `faraday/faraday-starter/src/draw/nav.rs`).
-- Windows install: a `clear_cache` error aborts the install after the new copy is written, and stops an uninstall midway.
 - `Step::Replace` is never built in `plan` (`faraday/shells/starter/src/windows/install.rs:~146`).
-- `gsettings` is started with no timeout.
-- The Linux install module's doc names `.local/share/faraday-starter/`, while the code uses `names::LINUX_BIN`. Whether they are equal was not checked.
-- "Starter keeps no file" (`faraday/faraday-starter/src/api.rs:~9`) agrees with the shell writing the settings file on `KeepTextSize`.

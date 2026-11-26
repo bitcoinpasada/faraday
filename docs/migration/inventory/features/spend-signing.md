@@ -167,6 +167,7 @@ runs the same spend through its own step cards.
 - Nonce history written (see `decode`).
 - No clock, randomness drawn by this feature beyond the MuSig2 session
   seed, clipboard or printing.
+Signing starts through `SpendState::sign_job`, which clones the open spend's PSBT, keeps its bytes as before and calls `Session::sign_spend_job`, which calls `Session::sign_job` (the inspection, the participating loaded keys, the `SignJob`) (faraday/faraday-core/src/wallet/state.rs:751-761, faraday/faraday-core/src/review.rs:549-590).
 
 ## State and lock
 
@@ -488,6 +489,8 @@ Amounts and sighash (in `core/faraday-psbt`):
 - A fee is stated only when known (128-bit sums, money range); else
   "Cannot tell" or "amount not stated".
 - A secret scalar times G is `secret_base_mul` (`PublicKey::from_secret_key`, constant time and blinded, `core/faraday-bip/src/musig.rs:944-959`). A secret times a point is `secp256k1::ecdh` (`core/faraday-bip/src/silent.rs:788-800`). `PublicKey::mul_tweak` takes public scalars only (`core/faraday-psbt/src/musig.rs:472`, `916`, `1242`, `1331`, `1342`; `core/faraday-bip/src/silent.rs:820`, `1021`). Secret scalar sums and products are libsecp256k1's `SecretKey` operations (`core/faraday-psbt/src/musig.rs:219-290`) (fix 2cbe8c4ba).
+- A transaction with no locktime shows the locktime line as "block 0" (`EN.psbt_locktime_block` filled with 0, review.rs:449).
+A key origin or wallet key path of more than 16 steps (`MAX_PATH_STEPS`, core/faraday-bip/src/keys.rs:310) is refused: in a PSBT when it is read (core/faraday-psbt/src/psbt.rs:117-137), in a wallet policy's key (core/faraday-bip/src/policy.rs:1904-1908), and the keys crate derives nothing for a longer path (faraday/faraday-keys/src/session.rs:1486, faraday/faraday-keys/src/operations.rs:205, faraday/faraday-keys/src/job.rs:765).
 
 ## Domain calls
 
@@ -603,16 +606,9 @@ Amounts and sighash (in `core/faraday-psbt`):
   `EN.app_check` (`faraday/faraday-core/src/screens/spend.rs:212`). Another
   account gave the steps as Review, Check, Signers, Nonces, Sign, Collect,
   Finish; both match the ten `STEPS` in a different order of naming.
-- `sign_job` is placed in `faraday/faraday-core/src/review.rs:~549-583` by
-  one account and in `faraday/faraday-core/src/wallet/state.rs:~751-761`
-  by another; both may be true (a `Session` method and a spend-state
-  wrapper). Not checked.
-- `MAX_PATH_STEPS` is named in a doc of the register sheet but not visible
-  in the code read.
 - `expect("spend")` on `app.wallets.spend()` at
   `faraday/faraday-core/src/screens/spend.rs:768` relies on the dispatcher
   checking first; reachability unchecked.
-- `K::None` locktime prints a literal "0", not from the strings file.
 - `faraday/faraday-core/src/slow.rs` entries say "not yet timed on a Pi 3B+".
 - 2cbe8c4ba names old crate paths (`core/osk-bip`, `core/osk-psbt`,
   `opensigner/`) that no longer exist; the rule carries to

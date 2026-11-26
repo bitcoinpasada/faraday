@@ -52,7 +52,7 @@ None of its own. Values and shapes (paths full):
 - The Role order is the table's column order (`faraday/faraday-ui/src/pal/schemes.rs:~15`, `faraday/faraday-ui/src/pal/schemes.rs:~110`, `faraday/faraday-ui/src/pal/schemes.rs:~160`); `in_theme` indexes `theme.scheme()[r as usize]` (`faraday/faraday-ui/src/pal/mod.rs:~82`).
 - Stored words: mode `light`/`dark` (`faraday/faraday-ui/src/theme.rs:~151-156`); contrast `standard`/`medium`/`high` (`faraday/faraday-ui/src/theme.rs:~175-181`); text size `standard`/`large`/`larger` (`faraday/faraday-ui/src/theme.rs:~220-226`); theme slug `name-mode-contrast` (`faraday/faraday-ui/src/theme.rs:~292-298`).
 - `Theme::from_words` takes up to three comma-separated parts and refuses extras (`parts.next().is_none().then_some(theme)`, `faraday/faraday-ui/src/theme.rs:278-288`).
-- Legacy theme ids map to the new schemes in `from_stored` (`faraday/faraday-ui/src/theme.rs:~254-273`), with a fallback for any other id.
+Legacy theme ids map to the new schemes in `from_stored` (faraday/faraday-ui/src/theme.rs:254-273): twelve ids explicitly (dark, light, nord, catppuccin, tokyo-night, gruvbox, rose-pine, bitcoin-orange, bitcoin-orange-light, mars, high-contrast-dark, high-contrast-light), and any other word that names one of the ten themes opens it in Light at Standard; a word neither names is none. There are ten theme names (faraday/faraday-ui/src/pal/schemes.rs:191-202) and 60 scheme rows (schemes.rs:225).
 - Text size percent 100, `TEXT_LARGE_PCT`, `TEXT_LARGER_PCT` (`faraday/faraday-ui/src/theme.rs:~234-240`); the doc says 1.2 and 1.4 times (`faraday/faraday-ui/src/theme.rs:~197-199`); `TextSize::OFFERED` equals `ALL` (`faraday/faraday-ui/src/theme.rs:~208`).
 - Stick number: `n = 0` is boot (k = 0); otherwise k = `1 + (n-1) % 7` (`faraday/faraday-ui/src/pal/mod.rs:~219-228`); `stick_in` picks the tone set by light or dark and contrast, then indexes `k % 8` (`faraday/faraday-ui/src/pal/mod.rs:~240`); dark Standard uses `STICK_BOOT` plus `STICKS`, the other three sets are separate constants (`faraday/faraday-ui/src/pal/mod.rs:~166`, `faraday/faraday-ui/src/pal/mod.rs:~219-245`); `on_stick` is white text on light pages, black on dark (`faraday/faraday-ui/src/pal/mod.rs:~231`).
 - Selected state: `SecondaryContainer` fill and `OnSecondaryContainer` content (`faraday/faraday-ui/src/pal/mod.rs:~125-140`).
@@ -61,6 +61,8 @@ None of its own. Values and shapes (paths full):
 - `Color::mix` clamps `t` to 0..1 and rounds (`core/faraday-draw/src/color.rs:~38-47`).
 - High contrast: a see-through fill becomes an edge stroke (`fill`, `faraday/faraday-ui/src/lib.rs:~1218-1220`); `dot` draws a ring (`faraday/faraday-ui/src/lib.rs:~1188-1209`); `stroke` is at full strength.
 - Wordmark: beside in a line if it fits, else stacked and shrunk to `WORDMARK_CAP_MIN`, else nothing (`faraday/faraday-ui/src/lib.rs:~1412-1439`); `SUFFIX_GAP` 364 font units (`faraday/faraday-ui/src/lib.rs:~105`), `WORDMARK_CAP` 687 font units (`faraday/faraday-ui/src/lib.rs:~133`).
+- The `Role` order and each scheme row's column order come from one list in the generator, and `lint-themes` fails unless the generator's output equals `faraday/faraday-ui/src/pal/schemes.rs` byte for byte (tools/lint-themes.sh:34-45); a scheme is read as `scheme[role as usize]` (faraday-ui/src/pal/mod.rs:79-83).
+The stick tones read at or above their stated contrast: white on the light Standard and Medium tones 4.5:1 or more (5.67 to 6.37:1), white on the light High tones 7:1 or more (9.08 to 9.74:1), black on the dark High tones 7:1 or more (8.82 to 14.5:1), and every tone 3:1 or more from every surface in every scheme (faraday/faraday-ui/src/pal/mod.rs:175-213, faraday/faraday-ui/src/read_tests.rs:988-1012).
 
 ## Domain calls
 
@@ -79,8 +81,5 @@ None given to this feature.
 ## Doubts
 
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- No check was seen that the `Role` discriminant order equals the `SCHEMES` column order (`faraday/faraday-ui/src/pal/mod.rs:~82`).
-- `from_stored`'s doc says "fourteen themes"; the match has 12 explicit ids plus a fallback (`faraday/faraday-ui/src/theme.rs:~250-273`). The count of 10 theme names behind the 60 rows rests on `ThemeName::ALL`.
 - Theme seeds are named in doc comments only.
-- Contrast claims of the stick tones were not checked by the inventory.
 - `STICKS_ON_*` line numbers are approximate (about 170-215).

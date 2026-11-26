@@ -58,6 +58,7 @@ Suggest corrections (`Press`, `faraday/faraday-core/src/codex32_correct/mod.rs:~
 - No storage, clipboard, camera, printing or worker.
 
 ## State and lock
+- The backup area's `holds()` counts the Krux code form, the seed on show and the copy check's typed words; the checklist's codex32 `Strings` are not counted, and a lock drops them with the backup state (faraday/faraday-core/src/wallet_backup.rs:5283-5297, 957-960).
 
 - `Codex32Make` (`faraday/faraday-core/src/codex32/mod.rs:~466-579`): `open`, `done[7]`, `length`, `split`, `other_k`, `other_n`, `fixed`, `shares_only`, `id[4]`, `taken`, `way`, `work: Option<WorkSet>` (secret, a faraday-keys type), `seq` and `rows` (rolls in progress, `Zeroizing`), `dice: BookletChar`, `made: Vec<Vec<Made>>` (`Made.value` zeroed on drop, `~409-413`), `typed`, `strings: Option<Held<Vec<Text>>>` (wipes), `fingerprint`, `qr: Option<QrMatrix>`, `back: Back` (with `typed: SecretText`), `locked`, `hidden`, `given`, `inputs: Vec<Codex32>`, `demo` (the published sample, not secret), and pan, fit and scroll fields.
 - `keygen.dice` (the dice choice) is kept for the session (`faraday/faraday-core/src/keygen/mod.rs:~2423`).
@@ -69,6 +70,7 @@ Suggest corrections (`Press`, `faraday/faraday-core/src/codex32_correct/mod.rs:~
 - The correction lives in the Add a key entry state (`faraday/faraday-core/src/state.rs:~76`); the entry's lock calls `reset()` (`faraday/faraday-core/src/state.rs:2766-2781`).
 - `KeyMarks` (`faraday/faraday-core/src/codex32_correct/mod.rs:~697`): per fingerprint, for the session, "Share entry corrected" or "Share repairs unchecked"; never weakened (`~703`). Not secret.
 - `Codex32Make.inputs` (`faraday/faraday-core/src/codex32/mod.rs:544`) is a `Vec<Codex32>`. `Codex32` derives `ZeroizeOnDrop` (`core/faraday-bip/src/codex32/mod.rs:370-374`), so each string typed in wipes as it drops.
+- `KeyMarks` is reset only by a new `Session` (`faraday/faraday-core/src/storage_api.rs:1198`) or a restart; `Session::wipe`, which a lock runs, leaves it (`faraday/faraday-core/src/wallet.rs:1539-1549`). It holds fingerprints and marks, no secret.
 
 ## Reach
 
@@ -79,6 +81,7 @@ Suggest corrections (`Press`, `faraday/faraday-core/src/codex32_correct/mod.rs:~
 - Suggest corrections is used by Add a key (`add-key`) and Check a string.
 
 ## Rules and refusals
+- The correction's `offer` runs only for an unparseable string typed with the tick on and no stage standing; while a proposal or refusal is open it takes the keys in place of the field (faraday/faraday-core/src/state.rs:658-660, 772-777; codex32_correct/mod.rs:312, 486-512).
 
 Scheme
 - Length and split change only before the work, not when `fixed`, not for a typed-in set (`scheme_open`, `faraday/faraday-core/src/codex32/mod.rs:~1602`, `~1519`, `~1526`).
@@ -112,7 +115,7 @@ Strings and Made
 - Typed back: symbols only, up to the string's room (`~2241`); the finished typing is compared box by box and marked `checked` if equal (`~2247-2258`).
 - Continue needs the typed copy equal, or skipped; the last string leads to Made (`~2265-2276`).
 - Skip: the first press asks, the second skips, only on Strings (`~2281-2292`).
-- The Codex32 QR only for a 48-character string and only when not masked (`faraday/faraday-core/src/codex32/screen.rs:~1469-1481`). The masked check record shows at most 12 dots (`~1616-1617`).
+- The Codex32 QR only for a 48-character string and only when not masked (`faraday/faraday-core/src/codex32/screen.rs:~1469-1481`). The masked check record (only for k = 0, the secret alone) shows `min(length, 12)` dots, so 12 for every string this flow makes (`~1616-1617`); the unmasked record shows the string shortened.
 - Undo is refused for a given set and where a share has no characters (`faraday/faraday-core/src/codex32/mod.rs:~2171`, `~2193`).
 - Check sets to try: none when k = 0; else `ceil(n/k)` (`~2339-2344`).
 - Lock in needs `ready_to_lock()`: not locked, Made open, work complete (`faraday/faraday-core/src/codex32/mod.rs:~2327-2331`); outside secret-making only given strings are taken (`faraday/faraday-core/src/keygen/mod.rs:~2667-2669`). No key is accepted before the self-test passes (`keygen_codex32_lock`, `~2649`).
@@ -163,10 +166,6 @@ None. Practice's sample is BIP 93 test vector 2, handed in by the shell (`farada
 ## Doubts
 
 - Rows left out as not about this feature: e20186b1f (a plan record's codex32 string), 54332b693 (a codex32 secret read at a flow's scanner), 363c80dbf (a vault's share-set identity), 591ae4a10 (codex32 offered as a backup of a key of words).
-- `Strings` of a backup's codex32 set are not counted in that area's `holds()`, so a typed but unlocked codex32 string would not raise the lock prompt on its own (Back up, not this flow).
 - Drawing writes flow state: `note_dice_body_h` (`faraday/faraday-core/src/codex32/dice_screen.rs:~253`, `~266`) and `note_sheet_room` (`faraday/faraday-core/src/codex32/screen.rs:~749`, `~787`); whether this is interior mutability or a real write is unclear.
 - `column_scale` returns `Option` but never `None` (`faraday/faraday-core/src/codex32/dice_screen.rs:~284`); `die_line` could read "higher . 0" for an equal pair (`~420-431`); `kw` can go negative at tiny widths (`~184`).
-- The masked check record caps the dots at 12, so the dot count bounds the string length (`faraday/faraday-core/src/codex32/screen.rs:~1617`); intent unclear.
-- `offer` returns `Holds` before assigning `stage`, so a stale proposal could stay on screen (`faraday/faraday-core/src/codex32_correct/mod.rs:~490-512`); unclear if reachable.
-- Where `KeyMarks` is reset was not read.
 - 7285b52a3 and 51b51666c name files (`codex32/tracker.rs`, `tools/costs-lint/src/walk.rs`, `walk_screen.rs`, `tracker_screen.rs`) that no longer exist at this commit.

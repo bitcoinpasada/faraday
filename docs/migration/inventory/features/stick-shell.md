@@ -47,6 +47,8 @@ shell are in `devices-inputs`, `pointer-touch`, `scanner-qr` and
   - `faraday/shells/stick/src/pace.rs`: a frame step of 1 to 4 refreshes at 60 Hz (`MOST` 4, `KEEP` 1.15, `SHORTEN` 1.4, a window of 8, coarsen at 5 late, recover after 12, cost capped at `frame * MOST`); fades paced by the median of the last 5 step costs; no clock of its own.
 - The CPU's minimum clock is raised while input or drawing runs and dropped a second after (`faraday/shells/stick/src/clock.rs`; only the schedutil governor; a policy whose write fails is dropped, `faraday/shells/stick/src/clock.rs:55, 111-114`). The Pi is left alone.
 - Power-off and restart end the disk process and drop the page cache before reboot or power-off; a restart or power-off drops everything a lock would drop (without the seal) and removes every waiting file.
+- `CameraOn` sends the camera list first, then starts the camera; a failed start keeps the list told and pushes `CameraUnavailable` (reason said with `--verbose` only) (`faraday/shells/stick/src/main.rs:1669-1689`).
+- `Shell::say` writes a line to stderr only with `--verbose`; nothing else shows it (`faraday/shells/stick/src/main.rs:1194-1198`).
 
 ## State and lock
 
@@ -113,6 +115,9 @@ Kernel and image (from history fixes):
 - Neither RDRAND nor the firmware seed is credited as entropy (both still mixed in); the Pi's hardware RNG is mixed with credit 0 (`rng_core.default_quality=0`); the kernel config check fails a config lacking the required command-line words.
 - The PC kernel's default governor is schedutil; the Pi's is schedutil.
 - On the Pi, the screen script runs before `mdev -s`, each screen's arguments come only from its own probe, a slow HDMI screen is asked again for two seconds before the panel, a connected HDMI monitor without modes is forced on, and DRM nodes are root-only 0600.
+- The boot disk is left out of attached storage only by a recorded disk sequence number: the Pi's card is recorded with its number once `/sys/class/block/<disk>/diskseq` reads as a number within 5 s of start (`faraday/faraday-grant/src/main.rs:86, 279-310`); if it cannot be read the record is the node alone and nothing is left out, so the card counts as attached (`faraday/shells/stick/src/attached.rs:29-35`, `faraday/faraday-boot/src/medium.rs:71-87`). A PC's finder writes a number or `NotFound` (`faraday/faraday-grant/src/lib.rs:620-633`).
+- A job waits up to 15 s for a vault in pieces to end and then makes its call; a request made while a transfer is in flight is refused at once as "the stick is busy", nothing sent (`faraday/shells/stick/src/diskwork.rs:253-285`, `faraday/faraday-storage/src/lib.rs:1855-1873`).
+- The EDID density is used for a screen of 11 in or less whose density is 96 to 480 and whose EDID timing is the framebuffer mode (no lower size bound); Rotation is offered only for a natively portrait panel or one of 6 to 11 in (`faraday/shells/stick/src/orient.rs:164-188, 227-245`).
 
 ## Domain calls
 
@@ -167,11 +172,6 @@ Kernel and image (from history fixes):
 ## Doubts
 
 - Rows left out as not about this feature: 080b60125 (Upgrade's source stick), 14c854851, fdc31f3f8, 42e87e9cc and b9a1f5188 (the boot logo), cd3cb5056, b4723e7f5, fb961492f and 44f36ada8 (the Starter's stick writing and layout), 8dc8e4d11 (download status), 95bc790d4 (Spend's Lock and write), 86ec4713c and acf516aa5 (dev timings and the boot report's sampler; in `dev-diagnostics`), a6c59705c and 425eb6b48 (pointer; in `pointer-touch`), c7fd03a21, ec55eec25 and 87b48f203 (input trust; in `devices-inputs`), 0cabd576c, 0b18f538c, 4832948a3 and 535390cc8 (FAT and vault write-back in the disk process; see `storage`), d5fd12b64 and dad3b6c94 (stick delete sheet and read answers; see `files-inbox`).
-- The 0aaa0f66d row says a boot record with no disk sequence number leaves the boot disk out by its name. The code at this commit does not: a record without `diskseq` leaves nothing out (`faraday/shells/stick/src/attached.rs:29-35`), and its doc says the Pi's own card is matched by `diskseq` like any other. A later change is presumed; whether every boot path records a `diskseq` (so the Pi's card is never counted as an attached stick, which would block key loads) was not traced.
 - 319a0cbeb's code was not read; 8a2acd279 and d8c93f824 say themselves they were not measured on hardware.
-- A failed `CameraOn` leaves the camera list already told; intent unclear.
-- `faraday/shells/stick/src/diskwork.rs:~254`'s doc says a job after the wait is refused as busy; no such refusal is in that file.
 - Doc and code differ: `faraday/shells/stick/src/fb.rs` `compare_convert_keep` with an empty frame and fw > 0 could hit `chunks(0)`; `faraday/shells/stick/src/present.rs` `rows_converted` `(b + 1 - a)` underflows only if b < a (neither re-checked); `Loop::wait` sets `unwoken` on a disconnected channel and never clears it (not re-checked).
-- `edid_dpi` has an upper size bound but no lower one: a screen under 6 inches still gets a density while Rotation is not offered.
-- Whether `Shell::say`'s output reaches anyone except with `--verbose` is unclear.
 - Struct and enum lines in `faraday/shells/stick/src/main.rs:1-300` are approximate (within about 10 lines).

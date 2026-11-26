@@ -37,6 +37,8 @@ screen.
 - `faraday/shells/stick/src/clock.rs` `Boost`: for each cpufreq policy whose governor is `schedutil` and whose min and max are readable, writes `scaling_min_freq` to max while input or frames arrive and back to min after `HOLD` 1 s of stillness (`faraday/shells/stick/src/clock.rs:50-70, 105-117`).
 - `faraday/shells/stick/src/work.rs`: the `wake` closure `try_send`s `Wake::Work` (dropped if full; the loop takes the answer on its next pass); `running(app)` is `app.busy().is_some()` (`faraday/shells/stick/src/work.rs:22`).
 - Faraday Demo and the window shell: slow-frame lines (not in release builds, over 50 ms, once a second, `faraday/shells/demo/src/main.rs:~207-229`); a fade-count line per drawn frame (`~362-386`); `--timings` frame figures (`faraday/shells/window/src/pace.rs:~141-154, 192-278`).
+- The boot report's camera lines are every `/dev/video*` entry, not only capture nodes; the scan sheet's camera list is only nodes whose sysfs `index` is 0 (`faraday/shells/stick/src/bootreport.rs:206-221`, `faraday/shells/camera/src/lib.rs:97-126`).
+- Faraday Demo prints a "fades" line on stderr with each timings line, only with `--timings` (any build, release too); neither the Demo nor the core checks for a release build (`faraday/shells/demo/src/main.rs:362-384`, `faraday/shells/window/src/view.rs:118`, `faraday/shells/window/src/pace.rs:116`).
 
 ## State and lock
 
@@ -56,7 +58,7 @@ screen.
 
 Self-test:
 - A build whose vectors do not reproduce does nothing but exit: with a failed self-test every press is dropped except PowerOff, which runs `exit_forgetting` (`faraday/faraday-core/src/action.rs:1405-1410`).
-- `selftest_failed` is `matches!(self.selftest, Some(Err(_)))` (`faraday/faraday-core/src/tools/mod.rs:~1019-1021`).
+- `selftest_failed` is `matches!(self.selftest, Some(Err(_)))` (`faraday/faraday-core/src/tools/mod.rs:1019-1021`).
 - The self-test runs before any key is accepted; its expected values are copied from the vector files the integration tests use, and from libsecp256k1's copy of the BIP-340 vectors (`core/faraday-selftest/src/lib.rs:~8-14`).
 
 Dev files and reports:
@@ -67,6 +69,7 @@ Dev files and reports:
 - `Shell::write_boot_report`: not due unless scheduled; not while a write is out; with a disk process and no boot stick listed it retries in 1 s; a failure is said once. A missing kernel log is written as "no kernel log: why".
 - `Sampler`: "not known: no kernel log" and "not in the kernel log" when absent; throttling flags are never read (reported as not available).
 - `Boost`: a policy whose write fails is dropped; only schedutil policies are touched.
+- The "dev card" is any image built with `DEV=1` (Pi card or PC stick): only that build passes `--verbose --timings --boot-report` to the app, and the image script fails a non-dev image whose arguments carry one of them (`faraday/image/build.sh:276-290`). The parser accepts the flags in every build (`faraday/shells/stick/src/main.rs:624-627`).
 
 ## Domain calls
 
@@ -88,8 +91,5 @@ None of the listed fixtures. The self-test's expected values are copied from vec
 ## Doubts
 
 - 86ec4713c and acf516aa5 came with the stick shell's rows and are carried here.
-- The inventory covered the self-test only through its Settings row, its fix row and the press gate; the code lines for it here were read in the checkout, not by the inventory's reports. Whether "dev card" means only the Pi dev image or every dev build is not stated in the reports.
 - `devnodes` (256 entries), `radios` (4096 nodes) and the dev notice (two lines) truncate silently.
-- The boot report's camera nodes are `/dev/video*` names while `camera::list()` keeps only index-0 nodes; the two may differ.
-- Faraday Demo's fade-count line is not gated by a release check in `faraday/shells/demo/src/main.rs:~362-384`; whether the core gates it is unclear.
 - `faraday/shells/stick/src/timings.rs:~99` and `~801` have misplaced doc comments.

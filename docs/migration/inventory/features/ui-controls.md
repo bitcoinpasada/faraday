@@ -95,13 +95,6 @@ None.
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - Of the fix rows, only 7ac5cd6a0 and 10a89d54d were checked against git by the inventory; the others are as given.
 
-- Rows given to this feature but left out as not about it:
-  - c9aeb5242 (shell keys and toasts centred on the page column, not the window): shell overlay placement.
-  - c1798e8b5 (a scrolling sheet's field under the on-screen keyboard) and 046a47e7f (pinned sheet buttons losing part of their touch target): about sheets (`ui-sheets`).
-  - b257cc040 (a press on a typing bar did not bring the keyboard up): about the keyboard and text entry.
-  - 2be654675 (double focus ring on the ⋮ button, state layers misplaced) and e271ea80e (state layers out of order at the remaining press sites, Tab out of order): about presses (`ui-press`).
-  - 7ac5cd6a0 (on-screen keyboard rows and Spend facts under the touch floor on the desktop): about the keyboard (`keyboard`) and Spend.
-  - ccf0308e8 (Sign a file rows, key generation word rows, session card under the touch floor): rows in core screens, not these components.
 - Negative wrap width in `hold_layout` when `room < 2*BUTTON_PAD` was raised and not settled (`faraday/faraday-ui/src/hold.rs:~53-64`).
 - `button_icon_width`, `button_width`, `chip_width` are measures only (`faraday/faraday-ui/src/lib.rs:~2156-2165`, `faraday/faraday-ui/src/lib.rs:~2223-2238`, `faraday/faraday-ui/src/lib.rs:~2483-2488`).
 - `pill` is described as a Material assist chip in its own comment; `chip`, `tag`, `pips`, `badge`, `word_pill`, the stepper and the hold are Faraday's own, not Material kinds.

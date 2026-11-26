@@ -65,6 +65,7 @@ start, and before any press that shows a secret.
 - Reads the stick shell's events (`stick-shell`) and `storage` events; the start window uses `evdev::port_fixed` (`faraday/shells/stick/src/start_window.rs:196`); evdev uses `start_window::Window::admit` (`faraday/shells/stick/src/evdev.rs:897`).
 - Pointer and touch decoding: `pointer-touch` (`crate::pointer`, `touch`, `hid::ranges`, `orient::Shared`).
 - `may_load_keys` (self-test passed and no stick in the way, `faraday/faraday-core/src/inputs.rs:~1095`) is read by Files, the Inbox and the boot import.
+- `Faraday::usb_devices` (`faraday/faraday-core/src/devices.rs:504`) is called only by the stick shell, when the USB device list changes and the app's device check is on (`devices.read`, set for a PC and for a Pi with an HDMI screen): `faraday/shells/stick/src/main.rs:2051-2060`, `faraday/faraday-core/src/devices.rs:325-362`.
 
 ## Rules and refusals
 
@@ -107,6 +108,8 @@ Physical keyboard and panic chord (`faraday/shells/stick/src/keyboard.rs:185-262
 - Only `EV_KEY` events; value 2 (repeat) makes a stroke only for Backspace, Tab, BackTab and arrows; unknown values are dropped.
 - Super (either) never types; while Super is held key-downs are dropped and key-ups still pass; a key-up reads Shift again; Shift makes no stroke.
 - Panic chord: Super and S held. `Stroke::Panic(true/false)` is sent only on change and wins before the drop rule; `PanicTimer` keeps the first time while held; `PANIC_HOLD` 2 s. `stop_after_input` (`faraday/shells/stick/src/main.rs:2966`) sets `panic` and `done` when due; `run` then takes the panic path (`stick-shell`).
+- The panic chord (either Super with S) must be held 2 s (`PANIC_HOLD`) without a break; a repeat does not restart the count, opening the chord resets it; at 2 s the machine powers off at once (`faraday/shells/stick/src/keyboard.rs:243, 254-262`, `faraday/shells/stick/src/main.rs:2964-2968`).
+- A device's first `Direct.believed` is its `trusted` flag: true for I2C and host buses and for a USB device whose port and every hub above are `fixed`; during the start window every device found is trusted; afterwards only one remembered from the window, or on a laptop one on the PS/2 controller (`faraday/shells/stick/src/main.rs:1025`, `:2297-2310`, `faraday/shells/stick/src/evdev.rs:483-515`, `faraday/shells/stick/src/start_window.rs:106-113`).
 
 ## Domain calls
 
@@ -141,9 +144,6 @@ None.
 - Left out: 0b6e31d67 (non-canonical base64 refused; a parser fix, not about input devices). 90c45fa1d and 0aaa0f66d (which disks count as attached sticks) are about the stick shell's attachment and are carried in `stick-shell`'s Fixes.
 - c7fd03a21, ec55eec25 and 87b48f203 came with the stick shell's rows and are carried here.
 - b111ae501's files were not inspected beyond its message; it also carries a Create a vault text change not about this feature.
-- `usb_devices` has no production caller inside `faraday-core`; the host is presumed to call it (`faraday/faraday-core/src/devices.rs:504`, unverified).
 - `devices::chassis_laptop` has no caller in its own file.
-- `Direct.believed`'s first value for a trusted device is set by the caller and was not seen.
 - The code letter `byte % 17` is slightly biased.
-- The keyboard doc (`faraday/shells/stick/src/keyboard.rs:~25`, `~242`) says the chord "powers off at once"; the code waits a 2 s hold.
 - `faraday/faraday-core/src/inputs.rs:~1080-1081` indexes 4 bytes of a `fresh.draw` result, assumed at least 4.

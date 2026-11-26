@@ -170,6 +170,7 @@ Account sheet
 
 Drawing
 - The Address row draws the address whole, in groups of four (fix 6e7609df4).
+- A PSBT with any BIP-375 silent payment field (global 0x07 or 0x08, input 0x1d or 0x1e, output 0x09 or 0x0a, in version 0 as unknown fields or in version 2) is not read, so no spend opens: the refusal says "Not signed: this PSBT sends to silent payments, which this device does not sign" (`faraday/faraday-core/src/wallet/v2.rs:30-87`, `core/faraday-psbt/src/v2.rs:860-871`, `faraday/faraday-core/src/signing/read.rs:104`, `:178-194`).
 
 ## Domain calls
 
@@ -207,4 +208,3 @@ Used by `faraday/faraday-core/tests/all/silent.rs`, `faraday/faraday-core/tests/
 - 3035d5ec5 names `core/osk-bip/src/silent.rs` and `osk_codec`, earlier names of `core/faraday-bip` and `core/faraday-codec`.
 - Line numbers in `faraday/faraday-core/src/silent/mod.rs`, other than those written plainly, are unconfirmed.
 - The receiver cache in `SilentState.shown` is written from drawing paths. That is work done while drawing.
-- How BIP-375 silent payment PSBT outputs are refused when signing belongs to signing (`faraday/faraday-core/src/wallet/v2.rs:24-50`). It is not described here.

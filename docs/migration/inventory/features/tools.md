@@ -131,6 +131,7 @@ Calculators:
   (`~585`), `read_input` / `encoding_of` (`~584`, `~587`), cached in
   `ToolsState.read` (`~566-575`, `~598-606`).
 - Scroll `list_offset` (`~953`, `~973`); `flow scroll.follow` (`~662`).
+Take to Wallets adds the pair as a wallet of the session only (`Session::add_wallet`, pushed on `Session.wallets`); nothing is written to storage and Wallets opens on it (faraday/faraday-core/src/core_wallet/tool.rs:631-665, faraday/faraday-core/src/wallet.rs:681, 1253).
 
 ## State and lock
 
@@ -263,6 +264,7 @@ Lightning:
   sample's words and a SLIP-39 set of a sample are refused with the
   public-sample line; Testnet takes both.
 - Only Convert an xpub refuses an extended private key (`core/faraday-bip/src/slip132.rs:136-141`). Encodings, Hashes, Descriptor checksum and Miniscript take any typed text. The module doc's "Nothing here is a secret" (`faraday/faraday-core/src/tools/mod.rs:4-5`) and `hide_shown`'s "Typed text here is public" (`faraday/faraday-core/src/tools/flow.rs:112-115`) do not hold for them.
+- Dispatched tiles (`faraday/faraday-core/src/catalog.rs:719-763`): Sweep refused in Practice (`:624`); Lightning reads an aezeed of exactly 24 English words (refusals name the count or the word's place) or a loaded key either way, or a Core Lightning `hsm_secret` file or its words; the node's private key stays hidden until its eye, hides again when the node changes, and the area is cleared at a lock (`faraday/faraday-core/src/lightning/mod.rs:150-156`, `:243-285`, `:890-902`); the invoice decoder reads a BOLT 11 invoice (signature checked once at Decode) or BOLT 12 offer to rows, refuses with one plain line per reason, is read only and holds nothing a lock wipes (`faraday/faraday-core/src/invoice/mod.rs:24-30`, `:187-420`); Check a timestamp, Check a multisig setup and Read a Bitcoin Core wallet each open on the one waiting file in Files, on a choice when several wait, and empty (or with Practice's sample) when none (`faraday/faraday-core/src/ots_check/mod.rs:816-833`, `faraday/faraday-core/src/multisig_check/mod.rs:221-243`, `faraday/faraday-core/src/core_wallet/tool.rs:750-762`).
 
 ## Domain calls
 
@@ -312,13 +314,9 @@ Lightning tool lists `hsm_secret` files in Files as buttons to read,
   `core/faraday-bip/src/base64.rs`; the Encodings calculator uses
   `faraday_codec`, so the row may not be about this feature); 2763f2157 (a
   cross-check script, `tools/scripts/signer-core.py`, not the Tools page).
-- The inventory has no code account of the Lightning node key tool, the
-  invoice decoder or the other dispatched tools (Convert, Krux code, Check a
-  timestamp, My seed makes my wallet, Read a Bitcoin Core wallet, Check a
-  multisig setup); only their module docs and fix rows are here.
+- Convert, Krux code, My seed makes my wallet and Check a Bitcoin address are accounted in `docs/guide/convert.md`, `krux-codes.md`, `seed-checks.md` and `address-check-explore.md`; Convert's tile only calls `act(Convert(Open))` (`faraday/faraday-core/src/catalog.rs:721-722`).
 - `type_descriptor` (`~379-388`) and `run_selftest_with` (`~1023-1035`) are
   testkit-gated items in product code.
-- Whether Take to Wallets persists the wallet to storage is unclear.
 - The catalog's 9 groups and their tile list were not re-read; tile line
   numbers are approximate.
 - Plain line numbers in `faraday/faraday-core/src/invoice/mod.rs:1-13`,

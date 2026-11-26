@@ -101,6 +101,8 @@ Nobody reaches this feature directly: it is what the desktop programs run on.
   - Each runs `xdg-open`, or `explorer.exe` from `SystemRoot`, with stdio null, and is waited for on a thread.
 - `Hash`: a file's SHA-256 only (`faraday/faraday-storage/src/lib.rs:~938-955`, `~1221-1235`).
 - None in this area: a clipboard write, a printer other than a file write, or the network.
+- Choosing another camera on the scan sheet while one runs stops it and starts the chosen one (`faraday/shells/window/src/camera.rs:189-198`); if the start fails the reason is printed on stderr and the app is told nothing (`faraday/shells/window/src/lens.rs:69-73`).
+- With no camera chosen, the V4L2 search opens `/dev/video0` to `/dev/video31` read-write, one after another, and asks each for its capabilities and a 640x480 trial format; non-capture nodes are opened and dropped, nothing is set on any (`faraday/shells/v4l2/src/lib.rs:93, 169-190, 232-258, 687-689`).
 
 ## State and lock
 
@@ -137,6 +139,7 @@ Nobody reaches this feature directly: it is what the desktop programs run on.
 - `faraday-host` also uses `faraday_core::work::core_count` (`faraday/faraday-host/src/lib.rs:775`, `:786`).
 - The window shell's `faraday/shells/window/src/lens.rs` calls `Faraday::storage` and `take_camera` (`faraday/shells/window/src/lens.rs:71`).
 - Opens: `transfer` (file drop), and the paste of every typed field.
+- `ForgetBoxes` goes out only from `exit_forgetting` (power off, restart, idle power-off, a failed self-test's power-off): `faraday/faraday-core/src/action.rs:1317-1326`. `Print` goes out from the Inbox and Outbox PDF buttons (`Action::PdfInbox`, `Action::PdfOutbox`), only when `online`: `faraday/faraday-core/src/qr_view.rs:891-902`, `:1101-1113`; with no print folder the shell answers `PrintFailed` (`faraday/faraday-storage/src/lib.rs:1238-1243`). `OpenInstitute` goes out from the press on the site name in the Settings screen's About note, only when `online`, and the host opens it only when it can open things (`faraday/faraday-core/src/screens/settings.rs:614-640`, `faraday/faraday-core/src/action.rs:1696-1701`, `faraday/faraday-storage/src/lib.rs:1307-1314`).
 
 ## Rules and refusals
 
@@ -203,6 +206,11 @@ Nobody reaches this feature directly: it is what the desktop programs run on.
 - Window layout, from history fixes (`faraday/faraday-core/src/lib.rs`):
   - A window whose wide layout would fall below three quarters of the screen's density takes the one-column layout at that density.
   - The layout is the same at any compositor scale above 1.5.
+- Library search is limited to System32 on Windows only: `system32_only` is a no-op returning `Ok` on other platforms; on Windows a failure of the call stops the program at start (`faraday/shells/window/src/system32.rs:19-28`; callers `faraday/shells/demo/src/main.rs:637`, `faraday/shells/starter/src/main.rs:822`).
+- File drop and hover events are handled on every platform, with no platform check (`faraday/shells/window/src/run.rs:216-224`); the windowing library (winit 0.30.13) reports a drop from X11, Windows and macOS and not from native Wayland, where the file list is the way in.
+- With any host menu or the Samples sheet open, keys are dropped (not passed to the app and not used by the host), so those lists have no keyboard use; Back closes the menu; Scroll and Wheel move the menu's rows; ScrollEnd still passes to the app (`faraday/faraday-host/src/lib.rs:1077-1078, 1097-1112, 1122-1127, 1131`).
+- Camera frame size caps differ by platform: V4L2 shrinks by an integer factor so the longer side is at most 1920 (`faraday/shells/v4l2/src/convert.rs:24`, `faraday/shells/camera/src/scale.rs:17-19`); Media Foundation caps the width at 1280 (`faraday/shells/mediafoundation/src/lib.rs:61`).
+- Windows build: the window shell's build script makes delay-load import libraries for `uxtheme` and `dwmapi` with `llvm-dlltool` on a Windows GNU target only (`faraday/shells/window/build.rs:28-59`); the Windows build script fails the build unless the delay-load set is exactly those two, their four slots are writable, the load configuration's Size is 0x50 with DependentLoadFlags `LOAD_LIBRARY_SEARCH_SYSTEM32`, the manifest is `asInvoker`, and no container path or home folder is in the exe's strings (`faraday/build/windows/build.sh:50-51`, `:82-137`). `system32_only` does nothing off Windows (`faraday/shells/window/src/system32.rs:19-29`).
 
 ## Domain calls
 
@@ -240,16 +248,3 @@ None.
   - cafdf37c7, from `practice-demo`.
   - 58dc296d7 and 1f4c7b61d, from `starter-app`.
 - The resources file named earlier as `faraday/shells/build/windows/resources.rs` does not exist. The file is `faraday/build/windows/resources.rs`.
-- Library loading is limited to System32 on every platform. Whether the call does nothing off Windows was not read.
-- File drop is X11 only, per a source comment (`faraday/shells/window/src/run.rs:~216-217`). Not tested.
-- `faraday/shells/window/src/camera.rs:189-198`: choosing another camera while one runs restarts it. On failure it only prints; the app is not told and may believe the camera is on.
-- The host passes `ScrollEnd` to the app with a menu open, and drops keys while a sheet is open, so the Samples sheet cannot be driven by keyboard. Whether this is intended is unclear.
-- The v4l2 width cap is 1920 in code (`faraday/shells/v4l2/src/convert.rs:24`) and 1280 in a doc comment (`faraday/shells/v4l2/src/lib.rs:446-447`). Media Foundation's cap is 1280, and its comment says "same as the V4L2 shell's".
-- The v4l2 crate doc says 640×480 and "no device chooser yet", while the code takes a wanted size. `search()` opens every `/dev/video*` read-write, which also touches nodes that are not cameras.
-- Not read by the inventory:
-  - `faraday/shells/mediafoundation/src/camera.c`.
-  - `faraday/shells/v4l2/src/abi.rs:~421-452`.
-  - The window shell's Windows build script.
-  - Which action sends `ForgetBoxes` and `Print`.
-  - Which feature sends `OpenInstitute`.
-- Storage: the early `?` returns in `Boxes::save` drop `first_error` and stop later subfolders, against the doc at `faraday/faraday-storage/src/lib.rs:~577-583`. `MakeEmpty` reports `next: 2, total: 0` (`1137-1139`), which looks like a placeholder.

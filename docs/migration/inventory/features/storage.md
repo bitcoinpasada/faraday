@@ -29,6 +29,7 @@ sticks), `faraday/faraday-disk/`, `faraday/faraday-files/` and
   - `Hash`;
   - `Print` (online desktop only), `ReadHost`, `SaveDownload` (never over a file; `name (2).ext`), `OpenDownloads`, `OpenInstitute`;
   - `SaveBoxes`, `ForgetBoxes`.
+- Who sends: `ForgetBoxes` from `exit_forgetting` (power off with nothing waiting, Power sheet's power off and restart, their hold forms, idle power-off, failed self-test) (`faraday/faraday-core/src/action.rs:1317-1326`, `faraday/faraday-core/src/state.rs:2532-2556`, `:2664`); `Print` from the Inbox and Outbox PDF buttons, only online (`faraday/faraday-core/src/qr_view.rs:891-902`, `:1101-1113`); `OpenInstitute` from the site name in the Settings About note, only online (`faraday/faraday-core/src/screens/settings.rs:614-640`, `faraday/faraday-core/src/action.rs:1696-1701`).
 
 ## Effects
 
@@ -47,6 +48,7 @@ sticks), `faraday/faraday-disk/`, `faraday/faraday-files/` and
 - `Print` writes bytes to the host's print folder (`~1238-1263`); Faraday Demo's Make PDF on a sheet in the Inbox or Outbox saves there (`faraday/shells/demo/src/lib.rs:~339-343`).
 - `ForgetBoxes` (`forget`, `faraday/faraday-storage/src/lib.rs:641-672`): clears the memory boxes; zero-fills, then removes the directory's files.
 - Faraday Demo keeps the boxes in memory and carries them over a lock (`faraday/shells/demo/src/lib.rs:~329-330`).
+- `MakeEmpty` success is answered as a zeroing step at cluster 2 of 0: the app marks the partition emptied (the backup flow's copies on it are gone), keeps its known total, and asks the next zeroing step (`faraday/faraday-storage/src/lib.rs:1135-1143`, `faraday/faraday-core/src/stick/wipe.rs:391-436`).
 
 ## State and lock
 
@@ -103,6 +105,9 @@ Disk process and FAT code (from history fixes, files named):
 - A name with hidden characters is refused; save time is bounded on a stick of many vault-sized files or a looping chain.
 - A piece read gets the same 120 s allowance as a write.
 - Power-off waits only for disk-process requests, not for all jobs.
+- `Boxes::save` writes subfolders in the order kept, inbox, outbox; a failed file write does not stop the others and the first such error is returned at the end; a failure to create or list a subfolder returns that error at once (`faraday/faraday-storage/src/lib.rs:602-630`).
+- A stick's name: spaces at the ends are trimmed; empty means no label; at most 11 characters; letters, digits, spaces and `` ! # $ % & ' ( ) - @ ^ _ ` { } ~ ``; lower case is written in capitals; the boot-layout label and an unchanged name are refused (`faraday/faraday-fat/src/lib.rs:2044-2065`, `faraday/faraday-core/src/file_menu.rs:1092-1110`, `faraday/faraday-disk/src/lib.rs:903-907`).
+- `DiskProcess::ask` refuses a request made while a transfer is in flight, at once and sending nothing, with "the stick is busy"; a dead disk process answers "silent" first (`faraday/faraday-storage/src/lib.rs:1855-1873`).
 
 ## Domain calls
 
@@ -140,10 +145,5 @@ None.
 - c10f56835 (the Starter's stick writer reading the partition table with unaligned O_DIRECT reads, `faraday/shells/hub/src/writer.rs`) is about the Starter's stick writing, not this protocol; left out.
 - 0cabd576c, 0b18f538c, 4832948a3 and 535390cc8 came with the stick shell's rows and are carried here.
 - b2c70ea9f's files were not inspected; only its message is carried.
-- `Boxes::save`'s early `?` returns drop `first_error` and stop later subfolders despite the doc at `faraday/faraday-storage/src/lib.rs:~577-583`; whether intended is unclear.
-- `MakeEmpty`'s success numbers (`next: 2, total: 0`) look like a placeholder; their meaning is unclear.
 - `(bytes.len() - 1)` in `send_piece` would underflow for an empty file; looks unreachable, not checked.
 - `StorageEvent`'s doc says it carries bytes in wiping buffers (`faraday/faraday-core/src/storage_api.rs:203-206`), but `HostRead.bytes` is a plain `Vec<u8>` (`faraday/faraday-core/src/storage_api.rs:499`).
-- `NameStick`'s 11-capital rule is from a doc comment only.
-- Which action sends `ForgetBoxes`, `Print` and `OpenInstitute` is outside the files read for this feature (the power-off path sends `ForgetBoxes` through `exit_forgetting`, `faraday/faraday-core/src/action.rs:1317-1326`).
-- `faraday/shells/stick/src/diskwork.rs:~254` says a job after the idle wait is refused as busy; no such refusal is in that file, and `faraday-storage` was not read for it.

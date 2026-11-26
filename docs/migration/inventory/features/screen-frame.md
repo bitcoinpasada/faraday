@@ -13,6 +13,7 @@ What every screen shares: the frame that picks the layout (compact, held, or wid
   - Check an address uses the reading width unless the scanner is in a pane (`:~216-219`).
   - Screens with `panes::has_list` use the work width (`:~182`).
 - Notices (`faraday/faraday-core/src/screens/mod.rs:~927-958`): the busy line; the "remove the stick" snackbar; the toast (also drawn under a NewInput sheet, `:~590-594`); boot and keyboard notices, drawn only when they have text (`:~623-629`).
+- On the wide layout the notices (busy line, "remove the stick" snackbar, toast) are placed on the whole window width, the sidebar included: `notices(app, ui, 0.0, full_w, h)` (`faraday/faraday-core/src/screens/mod.rs:425-426`).
 - Pinned bottom bar on compact layouts: the page's forward action, plus Cancel at left when an aside exists (`:~884-903`). The frame is drawn again when the pin bar appears or goes (`app.pin_h.set`, then `draw_compact` again, `:~876-882`).
 - Floating Scan button -> `Action::Scan` (`:~905-908`); room for it at the foot is reserved off Home only (`:~916-921`).
 - Held frame: the way back is always `Nav(Screen::Home)` (`:~679-681`); a held Home draws nothing, and the holder's Home is the one seen (`:~823-824`).
@@ -23,6 +24,7 @@ What every screen shares: the frame that picks the layout (compact, held, or wid
   - A tag shows while the auto-lock is held (`lock_held`, `:~114-116`; tag `:~135-140`).
   - A Transfer tab above Settings only with the `demo` feature and `app.online` (`faraday/faraday-core/src/screens/sidebar.rs:63-72`).
   - Its shadow is dropped in a flow (`:~33-35`); High contrast draws an outline (`:~37-39`).
+- Sheet to drawing function: `faraday/faraday-core/src/screens/mod.rs:504-585` has one arm for each of the 74 `Sheet` variants (list in sheets-parts); `KeyFile` and `KefOptions` choose by state (`vaults.more`, `vaults.key_menu`, `screen == Backup`).
 
 ## Actions
 
@@ -71,6 +73,7 @@ What every screen shares: the frame that picks the layout (compact, held, or wid
   - The lock tag under the sidebar reads "Auto-lock off until backed up".
   - A tab press resumes a flow in progress.
   - A flow's noted heading goes in every frame after the flow is left.
+- Files (`faraday/faraday-core/src/screens/visit.rs`): the two cards In Faraday and On the stick stand as the pair (equal columns, never stacked) from expanded windows up and as two primary tabs below (`:26-33`, `:129-157`); the stick card draws only with a stick in and no secret held (`:103-104`); a stick that holds a secret file gets an error-tone notice with Delete (`:105-123`, `:228-245`); a file in both Faraday and on the stick shows a faint Ok-tone box with a check (`faraday/faraday-core/src/screens/visit_same.rs:1-50`). Wallets, Vaults and Wallets start stand as the pane and tile pair at one place with Back moving nothing: Wallets (`faraday/faraday-core/src/screens/wallets_pair.rs:20-48`, `:167-234`), Vaults (`faraday/faraday-core/src/screens/vaults_pair.rs:20-60`); in a narrow room each is one column (`Narrow::OneColumn`).
 
 ## Domain calls
 
@@ -89,6 +92,7 @@ None.
 | 89c5c5f27 | Home's and Tools' search did not find a Settings card by a drawn word, nor show the whole card. | Search finds Settings cards by their drawn words. |
 | 20002202c | On the wide layout Home could not be scrolled to its last key; a flow in progress showed no chip on Home. | Home scrolls; the chip shows. |
 | 5d5967d92 | A page with nothing to scroll was pulled by a two-finger scroll. | It stays still under a pan. |
+| c9aeb5242 | On the wide layout the shell's keys line and the toasts were centred on the page column, beside the sidebar. | They are centred on the whole window (`faraday/faraday-core/src/screens/mod.rs:425-426`). |
 | cb040a64f | On the small panel, part of a flow's bar behind its tools kept the surface colour once scrolled. | The bar's fill is continuous. |
 | c4cf85d5d | Settings' two columns came out unequal at some widths and text sizes. | The columns are about equal, order kept. |
 | f69da7f3e | The compact bar lost the ? into its overflow on pages with a guide block. | The ? goes into the overflow first. |
@@ -119,8 +123,6 @@ None.
 
 ## Doubts
 
-- Which `Sheet` variant opens which drawing function is in the `match sheet` at `faraday/faraday-core/src/screens/mod.rs:~503-585`; the mapping was not recorded sheet by sheet.
 - Draw-time writes (`pin_h`, `camera.pane_forget`) contradict "drawing reads and does not work things out" in spirit; whether each is real state is undecided.
 - Many rows above are polish more than breakage; c4c1eb2dc is a decision change.
 - Rows left out as not about the frame: 80609811b (backup end card title), 6b09697b7 (chart place lines), 06ab70678 (backup board stick head), 9448d5702 (backup board descriptor chip), 6238eae9a (wallet card backup line).
-- Files not read for this feature: `faraday/faraday-core/src/screens/visit.rs`, `faraday/faraday-core/src/screens/visit_same.rs`, `faraday/faraday-core/src/screens/wallets.rs`, `faraday/faraday-core/src/screens/wallets/actions.rs`, `faraday/faraday-core/src/screens/wallets_pair.rs`, `faraday/faraday-core/src/screens/wallets_start.rs`, `faraday/faraday-core/src/screens/vaults_pair.rs` (in the same folder).

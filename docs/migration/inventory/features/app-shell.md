@@ -13,6 +13,7 @@ The `Faraday` app value and its `App` implementation: it takes every event the s
   - Keys and seeds: Potential, Sweep, KeyFile, ChildRecord, ChildNotice, KefOptions, OtherForms, KeyLengths, Published, PassphraseSeeds, Account, Register, WalletConfirm, MadeWallet, Chart, GpgTile, GpgSign, GpgRestore, Trim, SaveKeeps, SaveAlso, CopyTo, OlderCopy, UnlockLoad, VaultPassphrase, VaultMemory, SignerSeed.
   - Backup board: BoardList, BoardSees, BoardPartials, BoardMenu, FigMenu, LaterAsk, StickSheet, QuickTemplate, CancelFlow, CancelKey, CheckBackups, CheckBackupsOther, AddressFiles.
 - Failed start-up self-test: the whole screen names the failed check, with Exit its only control (`faraday/faraday-core/src/lib.rs:~1050-1054`; drawn by the screen frame).
+- Per product: `Screen` has 43 variants and `Sheet` 74. The device (stick and Pi, `faraday-core` built with no feature) has every screen but `Screen::Transfer` (42) and every sheet; Faraday Demo and the Starter's Demo (`demo` on) add `Screen::Transfer`, `ScanPurpose::Transfer`, `PlainThen::Transfer` and the four `Action::Transfer*`, offered in the navigation only when `online` is set (`faraday/faraday-core/src/lib.rs:420`, `faraday/faraday-core/src/qr_view.rs:71`, `faraday/faraday-core/src/secrets.rs:229`, `faraday/faraday-core/src/action.rs:417-426`, `faraday/faraday-core/src/screens/sidebar.rs:66-72`). `testkit` adds no screen or sheet, only test hooks. The Starter's own pages (23, four of them navigation destinations) and sheets (6) are in `faraday/faraday-starter/src/lib.rs:135-262`.
 
 ## Actions
 
@@ -45,6 +46,7 @@ The `Faraday` app value and its `App` implementation: it takes every event the s
 - `faraday_selftest::run` for `SelfTestRun` (toast only; result kept in `self.selftest`).
 - `exit_forgetting` clears the import, Inbox secrets, the session, own randomness, sends ForgetBoxes, then Exit (`faraday/faraday-core/src/action.rs:1317-1326`); also reached from the PowerAsk fast path.
 - Exit codes: 75 = fresh process (lock or restart), 76 = restart the computer (`faraday/faraday-core/src/lib.rs:~328, ~332`).
+- Exit codes the app ends with: 0 power off (any status other than 75 and 76), 75 lock, 76 restart the computer (`faraday/faraday-core/src/lib.rs:328`, `:332`). The stick shell ends with them (`faraday/shells/stick/src/main.rs:2470-2526`, `:3126`); init loops on 75, reboots on 76 and powers off otherwise (`faraday/image/common/rootfs-overlay/etc/inittab:18`). A bad command line is 2 (`faraday/shells/stick/src/main.rs:3121`). Restart is offered only when the app does not host sticks of its own (`faraday/faraday-core/src/action.rs:1193-1195`).
 
 ## State and lock
 
@@ -116,9 +118,7 @@ None.
 
 ## Doubts
 
-- Where the shell reads exit codes 75 and 76 is not in the code the inventory read for this feature.
 - `Faraday::new` sets 1280x800 at scale 1.0; whether the first Display event always overrides it is not known.
-- The screens and sheets differ per product: `Screen::Transfer` and `ScanPurpose::Transfer` exist only with `demo`; testkit items only with `testkit`. No list of which screens exist on the device, in Demo and in the Starter was made.
 - `picture::draw` returns its canvas; no caller was checked.
 - The board tokens `BOARD_MENU_DOT` and `BOARD_MARK` are used for every ⋮ menu (`faraday/faraday-core/src/menu.rs:~100-107`), a possible naming leftover.
 - Cosmetic doc defects named but not re-read: `faraday/faraday-core/src/action.rs:~47-48, ~794-796`.

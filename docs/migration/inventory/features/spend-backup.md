@@ -41,6 +41,8 @@ tile SpendBackup and Home. Code: `faraday/faraday-core/src/spend_backup/mod.rs`
   depends on `app.online`; `signers_missing` decides SIGNERS' More; on the
   Paper route the one-seed line. The Lock line says the vault is sealed
   again with the keys inside it and none is left in memory.
+The overview is drawn by `Screen::SpendBackup` (not `Screen::Spend`): `loaded_compact` on a compact panel, else `loaded`, when `spend_backup_overview()` holds (a key or a wallet is loaded, no walk-through chosen, no route taken) (faraday/faraday-core/src/spend_backup/screen.rs:27-45, faraday/faraday-core/src/spend_backup/mod.rs:310-312, 421-424).
+- Helpers: `screens::spend::step_body` draws a spend step by number (0 wallet, 1 addresses, 2 review, 4 keys, 5 sign, 6 collect, 7 finish, 8 paths, 9 nonces) then the spend's error line (`faraday/faraday-core/src/screens/spend.rs:763-805`), called from `faraday/faraday-core/src/spend_backup/screen.rs:630`; `screens::vault_panel` draws each open vault's seeds and wallets with Select all and Load (`faraday/faraday-core/src/screens/files.rs:566`, called from `faraday/faraday-core/src/spend_backup/screen.rs:1107`).
 
 ## Actions
 
@@ -231,12 +233,10 @@ Drawn rules:
 | b5c8fe935 | A Taproot multisig rebuilt from sheets showed "Restored wallet" | The sheets' name is kept on every path |
 | fa6f2f592 | A way answering No money twice, after the next was cancelled, was listed twice | Each wallet with no money is listed once |
 | 1da1e56aa | A guess from seeds shaped as one multisig kind did not go on to the others | Every multisig kind is tried once |
+| 4e38374d4 | Spend from backup on a wallet file dropped the spend under way before the file was accepted, and the flow started again for another wallet kept every file that had come in. | The spend stays until the file is accepted (a refusal or a cancelled sheet leaves it); the flow started again for another wallet keeps only the file just taken as what came in (`faraday/faraday-core/src/spend_backup/mod.rs:1970-1978,2009-2035`). |
 
 ## Doubts
 
-- The overview is said to draw on `Screen::Spend` (`loaded` /
-  `loaded_compact`) while the tab is `Screen::SpendBackup`; which screen
-  hosts the overview was not checked.
 - `spend_backup_set_wallet(i)` indexes `session.wallets[i]` unchecked
   (`faraday/faraday-core/src/spend_backup/mod.rs:~1008`).
 - `STEP_AT = 16` and `LATER_AT = 32` card numbering assumes fewer than 16
@@ -246,10 +246,5 @@ Drawn rules:
   the address rows per side, `spend_backup_guess()` several times,
   `wallet_rows` quorum counts); whether these are cached elsewhere is
   unclear.
-- `screens/` helpers for this tab (`step_body`, `vault_panel`) were not
-  read.
 - `faraday/faraday-core/src/samples/put.rs:417-442` was read from the code
   at `d89dde5de`.
-- A commit 4e38374d4 ("spend dropped before file taken", in
-  `faraday/faraday-core/src/spend_backup/mod.rs`) was confirmed by the
-  history spot checks but no row for it was given to this feature.

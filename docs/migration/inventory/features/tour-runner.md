@@ -168,6 +168,7 @@ canvases some tours make (`save_canvas`,
   `leaks::plant` and whatever the tours type. They go at a `restart` with
   the app; the planted forms stay registered for the thread
   (`faraday_core::leaks::plant`).
+- `Tour::restart` keeps the lock's saved boxes, rebuilds the app with the same medium and network, display and theme, and does not tell it of the sticks; a tour that needs a stick after a restart sends `Sticks` (or `Tour::sticks`) and `Restored` from `Tour::boxes` itself (`faraday/shells/snapshot/src/tour.rs:334-364`, `:472-475`).
 
 ## Reach
 
@@ -183,6 +184,7 @@ canvases some tours make (`save_canvas`,
   ~74-77`).
 - The leak check's rules are `docs/SECRET-LEAKS.md` §5; the touch-target
   rules are `docs/M3-CHECKS.md` §2 and §3.
+- Sizes run: `just faraday-snapshots` runs the default tour at 13 window sizes, each at standard and Larger text; `just faraday-snap SIZE [TOUR]` one tour at one size; `just lint-touch-targets` every tour at 240x320@143, 480x640@286, 1024x600@170 and 1280x800@160 (`faraday/faraday.just:195-258`, `faraday/shells/snapshot/src/targets.rs:79-90`, `justfile:175-185`).
 
 ## Rules and refusals
 
@@ -284,9 +286,5 @@ None.
   and lines of definitions are given.
 - The ratchet test over `faraday/shells/snapshot/src/targets.rs` and the `every_tour_runs_to_its_end`
   test are test code and were not read.
-- `restart` does not re-send the sticks; whether tours rely on stick state
-  across a restart was not checked.
 - The `Write`/`NameTaken` line range (`faraday/shells/snapshot/src/tour.rs:~197-226`) and the leak
   events' range (`faraday/shells/snapshot/src/leaks.rs:~207-217`) were not re-checked line by line.
-- Which window sizes the lint and render recipes run the tool at is not
-  covered here.

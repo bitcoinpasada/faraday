@@ -170,6 +170,8 @@ Checking (`check_message`, `faraday/faraday-core/src/wallet.rs:~4388-4411`):
   as Bitcoin Core reports it (`strict_der`,
   `core/faraday-psbt/src/message.rs:~598-600`, `~651-655`). A 65-byte taproot signature ending 0x00 is
   malformed.
+- The index steppers' labels "-" and "+" (screens/message.rs:322, 331) and the signed message's file name `message-<last 6 characters of the address>.txt` (message.rs:511-514) are literals; the strings lint allows both (no letter; a file name with an extension).
+A change address can be signed when Sign a message is opened from an address check's find: a loaded key's account address on the change chain, or a single-key wallet's change address (`MessageAt` with `change` true, signed at its full path); Sign a message's own wallet and index choice signs only the receive chain, and no signing is offered for a multi-key wallet's address (faraday/faraday-core/src/address_find/look.rs:175-257, faraday/faraday-core/src/wallet.rs:4295-4385, faraday/faraday-core/src/state.rs:2039-2058).
 
 ## Domain calls
 
@@ -205,13 +207,8 @@ None.
   e329d6ff1, 315094b62, 0074b6d25, 2b1a9b266, 4f5e3bdd8, 38a890f28,
   966560ab2 and 4598a2dca from `spend-signing`; 7d0e9cdd7 from
   `check-page`.
-- A change-address message can be checked but not signed; whether by
-  design is not stated.
 - The State and lock lines for `MessageState` and `MessageArea` were read
   from the code by the inventory, not by its earlier accounts.
-- Hard-coded `"-"` and `"+"` (`faraday/faraday-core/src/screens/message.rs:~322`,
-  `~331`) and the `message-<6>.txt` file name (`~511`) are outside the
-  strings file.
 - `expect` at `faraday/faraday-core/src/screens/message.rs:~249` relies on
   the dispatcher checking first.
 - 38a890f28 also changes fonts and `faraday/faraday-core/src/scan_key.rs`;

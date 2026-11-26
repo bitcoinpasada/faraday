@@ -45,6 +45,7 @@ Sheets (drawn at `faraday/faraday-core/src/screens/mod.rs:481-495, 539-559`)
 - `Sheet::Published`: words published or made online, with Remove and Keep.
 - `Sheet::RemoveKeys`, `Sheet::MadeWallet`, `Sheet::Pull`.
 - `Sheet::Chart` (`faraday/faraday-core/src/chart_edit.rs`): the wallet's backup chart. It holds the holder and vault names, the lost and exposed marks, checks, the passphrase check, "move money to a new wallet", envelope PDFs and destroying a part.
+The Wallets start page lists five ways in; the pair's tile lists the first four only (Make a new wallet, Restore an existing wallet, Spend from a backup, Add a key), leaving out Make a new key, and with the pills in the bar only Add a key (faraday/faraday-core/src/screens/wallets_start.rs:15-52, faraday/faraday-core/src/screens/wallets_pair.rs:94-108).
 
 ## Actions
 
@@ -177,6 +178,7 @@ Chart (`ChartAction`, `faraday/faraday-core/src/chart_edit.rs`)
 - Reads, in the upkeep code: `signing::{read, collect}`, `decode::check_others`, `review::sign_error_text`, `wallet_backup::kef::dropped`, `seeds::kef`, `visit`, `glance`, `memory`.
 - The tab draws with `drawing::View`, `panes::screen`, `compact`, `menu`, `row_open`, `guide`, `vault::{VaultAction, SlotOf}`, `silent::{RecordCheck, differs_line}` and `address_check::AddressPress`.
 - `set_demo` (`faraday/faraday-core/src/wallet.rs:1533`) puts in the public sample set.
+- `wallet_page` is called by Wallets and by a row's details pane (`faraday/faraday-core/src/screens/row_details.rs:276`, `:297`); `wallet_rows` by Wallets start only (`faraday/faraday-core/src/screens/wallets_start.rs:162`); `loose_card` by `wallet_page` and the compact wallet card (`faraday/faraday-core/src/screens/wallets.rs:587`, `faraday/faraday-core/src/compact/screen.rs:140`); `missing_keys_line` by `wallet_page`, the compact card and Spend from a backup (`faraday/faraday-core/src/screens/wallets.rs:793`, `faraday/faraday-core/src/compact/screen.rs:371`, `faraday/faraday-core/src/spend_backup/screen.rs:467`); `first_receive_row` by `wallet_page` and the quick backup's end card (`faraday/faraday-core/src/screens/wallets.rs:796`, `faraday/faraday-core/src/screens/backup.rs:799`).
 
 ## Rules and refusals
 
@@ -321,6 +323,9 @@ Chart (`faraday/faraday-core/src/chart_edit.rs`)
 - Only Xor and Slip39 kept parts can be destroyed (`~749-754`).
 - The passphrase check waits while seeds load. It marks Checked, with today's date, only on a match (`~541-555`).
 - A change waits for its load's answer and is then made. Escape during a load takes the Cancel path, and a cancelled load adds no seeds (fixes f1a755273, 2eeaa102a).
+The nonce check's history keeps only signatures that verified (`Verdict::Valid`, faraday/faraday-core/src/memory/nonces.rs:74-77) and whose key is proved here (faraday/faraday-core/src/wallet.rs:1851-1875).
+When the wallet confirmation closes, the sheet it covered comes back except a scanner whose camera is off, an import sheet whose field is gone, and the stick-pull sheet, which is not restored; the pending press kept for the pull is run only while the sheet is the pull sheet when the stick is gone (faraday/faraday-core/src/wallet.rs:4635-4642, faraday/faraday-core/src/stick/events.rs:523-529).
+- Missing keys line: nothing when an open vault holds a missing key or no vault file is locked; otherwise it names the first locked file and offers Unlock, Disabled while `may_load_keys()` is false (`faraday/faraday-core/src/screens/wallets.rs:103-176`). Loose-keys card: nothing without a picked key; one key shows its mark, several are ticked rows; buttons From this key, Start a multisig, Restore (`faraday/faraday-core/src/screens/wallets.rs:181-236`). The wallet's "What you can do" list is silent-wallet Address, Show wallet (omitted when held) and Remove for a silent payments wallet; otherwise the spend or backup button, Back up (Continue when unfinished), Check an address, Sign a message (only when offered), Show wallet, New wallet from this one, Explore its keys (when a slot is held here), Remove from session last, which acts at once with no page (`faraday/faraday-core/src/screens/wallets/actions.rs:46-130`).
 
 ## Domain calls
 
@@ -415,13 +420,9 @@ The silent payments keystores (`faraday/faraday-core/tests/vectors/interop/sparr
 - Rows moved here from public-files, because they are about reading wallet files: 1590a5825, d89080ffc, b0010427e. The last two name `core/osk-bip/...` paths, an earlier name of `core/faraday-bip`. 35aba23cf and 7a17abcf7 are carried only for their descriptor rule.
 - `e45fa284d` was not read beyond its commit message.
 - Line numbers in `faraday/faraday-core/src/screens/wallets.rs`, `faraday/faraday-core/src/screens/wallets/actions.rs`, `faraday/faraday-core/src/screens/wallets_start.rs` and `faraday/faraday-core/src/screens/wallets_pair.rs` are unconfirmed. Those files were read once and not checked.
-- `Sheet::Pull` in `confirm_act` (`faraday/faraday-core/src/wallet.rs:~4640`) clears the sheet with no further step. The reason is unclear.
 - Duplicates in `faraday/faraday-core/src/wallet.rs`:
   - `fp_text` and `fp_label` (`~604`, `~610`) are the same;
   - `address` (`~1776`) and `address_shown` (`~1782`) are the same;
   - `master_proof` (`~475`) had no caller found.
 - `file_witness_refusal` (`faraday/faraday-core/src/wallet.rs:~4162-4177`) is live; it is used at `~3688`.
-- `nonce_check`'s doc says only valid signatures are looked at, but the filter does not check validity.
-- `Make a new key` is on the start page but not on the pair tile. Whether that is intended is unclear.
 - `KeyWallet(fp, 1)` is a literal of unclear meaning (`faraday/faraday-core/src/screens/session_pane/rows.rs:~180, ~330`).
-- The callers of `wallet_page`, `wallet_rows`, `loose_card`, `missing_keys_line` and `first_receive_row` outside the tab were not traced. `faraday/faraday-core/src/screens/row_details.rs:~276` calls `wallets::{actions, wallet_page}`.

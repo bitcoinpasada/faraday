@@ -53,6 +53,7 @@ the boot import's list.
 - Opened from: the stick's visit on Files (`Action::DeleteFiles`), the visit's secret-file notice (`Action::DeleteUnprotected`), the boot import's list (`faraday/faraday-core/src/boot_import/screen.rs:201` calls `delete_files`).
 - Reached from the shell's storage answers: `wiped`, `zero_step`, `zero_failed`, `zero_stop`, `zero_tick`, `zero_space`, `zero_sticks_changed` (callers outside `faraday/faraday-core/src/stick/wipe.rs`).
 - Calls: `self.import_reads(stick, name)` (`~281-282`), `flow_copy_gone`, `flow_copy_gone_for`, `import_drop_name`, `vaults.key_file_was_used(f)` (`231`), `visit.{log_push, inn_retain, unprotected_of, unprotected_gone}`, `StickInfo::{is_vault, files, serial, id, label}`, `vault::screen::hold_button_in`, `faraday_ui::hold::HoldTone`, `compact::{buttons, scroll_sheet, sheet_head}`, `screens::{wrap_buttons, size_text}`, `self.medium.noun()`.
+- Storage answers reach the wipe code through `faraday/faraday-core/src/stick/events.rs`: `Sticks` to `zero_sticks_changed` (`:38-41`), `Wiped` and `WipedName` to `wiped` (`:218-219`), `StickSpace` to `zero_space` (`:225`), `Zeroing` to `zero_step` (`:226-228`), `ZeroFailed` to `zero_failed` (`:229-234`), `WipeFailed` to `wiped` with the reason (`:236-239`); the shell tick runs `zero_tick` (`faraday/faraday-core/src/lib.rs:1395`) and `Action::ZeroStop` runs `zero_stop` (`faraday/faraday-core/src/stick/wipe.rs:840`).
 
 ## Rules and refusals
 
@@ -84,6 +85,5 @@ None.
 ## Doubts
 
 - Fix 85b325ffb (the Delete files button's touch target overlapped the foot buttons) was given to `stick-visit`; it is about this feature's entry button.
-- Who calls `wiped`, `zero_step`, `zero_failed`, `zero_stop`, `zero_tick`, `zero_space` and `zero_sticks_changed` was not traced; they are reached from the shell's storage answers.
 - `chosen` holds file names as `Vec<String>` while `stick` and `label` are `Text`.
 - Test modules were not read; no fixture is named for this feature.

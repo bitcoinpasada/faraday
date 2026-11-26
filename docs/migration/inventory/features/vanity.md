@@ -50,6 +50,8 @@ Tools (`Screen::Vanity`) and from Explore on a key (`OpenOn(fp)`).
 - Reads `session.keys` (`position_of`, `position`, `has_words`, `label`, `fingerprint`), `makes_secrets()`.
 
 ## Rules and refusals
+- Use on the Passphrase dial first adds the key with the passphrase found (marked made here, so it waits for backup), then opens a silent payment code in the Silent payments tool or opens the key's wallet; where a later step fails the key stays added (faraday/faraday-core/src/vanity/mod.rs:480-562).
+- On a find, Use opens the wallet whether or not the key waits for backup; the find's address and code are hidden for such a key (faraday/faraday-core/src/vanity/screen.rs:268-279, 343-362; vanity/mod.rs:459).
 
 - `Step(s)` opens a card only if every earlier card is done (`faraday/faraday-core/src/vanity/mod.rs:231-233`).
 - `Next(PREFIX)` is refused unless the prefix has a free position for the kind: `vanity_type_at_least` (`236-239`).
@@ -79,5 +81,3 @@ None.
 
 ## Doubts
 
-- `Use` on the Account dial is offered for a key waiting for backup, though the address and code are hidden; there is no held-key check on that path.
-- `Use` on the Passphrase dial adds the key before the later silent-payments branch.

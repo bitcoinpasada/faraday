@@ -114,7 +114,7 @@ Descriptors
 - Output type order: Legacy, P2SH-SegWit, Bech32, Bech32m (`~298-303`).
 - `no_active` shows when the file is whole but has no active pair (`~447`).
 - Failed records, and kept `combo()` descriptors, are each capped at 12, with a "more" line (`~51`, `~248-264`, `~413-422`).
-- `Refusal::Unconfirmed` on Take does nothing; the hold runs it again (`~663-664`).
+`Refusal::Unconfirmed` on Take does nothing (faraday/faraday-core/src/core_wallet/tool.rs:~663-664). The hold then runs Take again only when no wallet sheet already waited and the Inbox's names and sizes are unchanged; else it adds the wallet itself and toasts (faraday/faraday-core/src/wallet.rs:657-673, 4539-4544, 4653-4705).
 
 Cards
 - The open step's own press does nothing (`~468-475`).
@@ -147,6 +147,7 @@ The parser (`faraday/faraday-core/src/core_wallet/mod.rs`, `faraday/faraday-sqli
 - `faraday/faraday-samples/data/core-wallet-plain.dat`
 - `faraday/faraday-samples/data/core-wallet-encrypted.dat`
 - `faraday/faraday-core/tests/all/core_wallet_pinned.txt`
+- `tools/vectors/core-wallet/`, made by Bitcoin Core on regtest by `gen.py` (ten descriptor wallets: plain, encrypted with passphrase `faraday`, watch-only, blank, labels, imported, uncompressed, multisig, active multisig, migrated from a legacy wallet): `<name>.json` for each (application id, every `main` record as hex, listdescriptors, listdescriptors_public, getwalletinfo) and `<name>.dat` for plain, encrypted, multisig, activemultisig, watchonly and migrated. Read by `faraday/faraday-core/tests/all/core_wallet.rs`, `faraday/faraday-core/tests/all/core_wallet_pinned.rs`, `faraday/faraday-core/tests/all/core_wallet_tool.rs`, `faraday/faraday-core/tests/all/tool_opens.rs`, `faraday/faraday-core/tests/all/tool_stick.rs`, `faraday/faraday-core/tests/all/flow_hide_shown.rs`, `faraday/faraday-core/tests/all/stick_copy.rs`, `faraday/faraday-core/tests/leaks/readers.rs`, `faraday/faraday-keys/tests/core_wallet.rs` and the core-wallet tour; the two Practice sample files are copies of plain.dat and encrypted.dat (`faraday/faraday-samples/examples/regenerate.rs:625-626`).
 - The parser's SQLite fixtures:
   - `faraday/faraday-sqlite/tests/fixtures/deleted.db`, `empty.db`, `freelist.db`, `other_table.db`, `overflow.db`;
   - `ps512.db`, `ps1024.db`, `ps2048.db`, `ps4096.db`, `ps8192.db`, `ps16384.db`, `ps32768.db`, `ps65536.db`;
@@ -167,6 +168,4 @@ The parser (`faraday/faraday-core/src/core_wallet/mod.rs`, `faraday/faraday-sqli
 
 ## Doubts
 
-- Whether the hold always runs `Take` again after `Refusal::Unconfirmed` is unclear.
-- The SQLite fixtures belong to the parser crate. That they are the only test data of this tool beyond the samples was not checked.
 - e45fa284d was not read beyond its commit message. Its main surface is the session's dedupe (see wallets).

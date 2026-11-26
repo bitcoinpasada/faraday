@@ -50,6 +50,7 @@ The compact layout used on small panels (the Pi's panel, phone-size windows, and
 - Reaches `crate::nav::{BarTool, MenuPress, Overflow, Way, Nav, scan_floats}`, `crate::modes::screen`, `crate::menu`, `crate::screens::{settings_open, decode_back, nothing_loaded, first_actions, menu_page, catalog, ...}`, `crate::vault::{Focus, SearchAct, VaultAction, screen::{contents_detail, unlock_back}}`, `crate::explore`, `crate::invoice::screen::back_of`, `crate::address_check::screen::back_of`, `crate::seed_check::{here, field}`, `crate::kef_tool::field`, `crate::keygen::kstep`, `crate::forms`, `crate::fresh::page::Act::Open`, `crate::row_open`, `crate::devices`, `crate::guide`.
 - The compact screens reach the `crate::screens` helpers, `crate::glance`, `crate::wallet`, `crate::vault::screen::eye_at_marked`, `crate::pass_field::pair::pass_pair`, `crate::ways_in::screen`, `crate::seeds::kef::read_rows`, `crate::samples::put::offer`, `crate::create::NewKind::of`, `crate::address_check::AddressPress`, `crate::demo::PASSPHRASE`.
 - Reached from `crate::drawing` (`View`) and the `Faraday` glue (`keyboard`, `nav_menu`, `osk_*`).
+- The compact Add a key page is `Screen::Entry`, drawn by `compact::screen::entry` when `ui.compact` (`faraday/faraday-core/src/screens/entry.rs:20-23`); Use a sample on it shows only while the field is empty (`faraday/faraday-core/src/samples/put.rs:151-168`).
 
 ## Rules and refusals
 
@@ -115,6 +116,5 @@ None. (`crate::demo::PASSPHRASE` and `crate::ABOUT_PAGE` are constants in code.)
 
 - `flow_bar_tools` may overlap the pill when tools fill the width (`faraday/faraday-core/src/compact/mod.rs:~181`).
 - The call site of `toggle_about` was not found in the code read.
-- Which `Screen` variant hosts the compact Add a key page is not visible in `faraday/faraday-core/src/compact/screen.rs`; whether `entry_sample_shown()` includes "field empty" is not known.
 - cb8cda00f is mixed with a new keyboard behaviour in the same commit.
 - Related fixes sit under the screen frame's table (f69da7f3e, cb040a64f, 07b61adb7, fb680e1fb, 83859ec2a) and the menu pages' table (aa82a99f0, 216bab656).

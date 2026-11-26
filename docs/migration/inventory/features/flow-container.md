@@ -42,6 +42,7 @@ The flow container: the card a step flow is drawn on, Back and Forward through i
 - The flows listed above (`create-wallet`, `restore-wallet`, `spend-signing`, `spend-backup`, `messages`, `vault-list-create`, `child-keys`, `convert`, `krux-codes`, `decode`, `seed-checks`, `core-wallet`, `silent-payments`, `vanity`, `keygen-flow`).
 
 ## Rules and refusals
+- A vault Create flow is in progress while its Create state holds a step done beyond the size; it has no finished test, since finishing clears the state (faraday/faraday-core/src/in_progress.rs:293-303, 1164; vault/stretch.rs:618).
 
 - Trail:
   - Home empties the trail (`faraday/faraday-core/src/trail.rs:141-143`).
@@ -96,6 +97,5 @@ None.
 
 ## Doubts
 
-- A Vault flow never counts as finished (`faraday/faraday-core/src/in_progress.rs:~1164`); not checked further.
 - `c4c1eb2dc` (a resumed flow returns to where it was first begun) is a decision change (F77 amended) as much as a repair; its row sits under the screen frame's fixes.
 - The trail rules were spot-checked as a group; only the line numbers written without `~` were checked one by one.

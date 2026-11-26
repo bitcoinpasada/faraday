@@ -63,6 +63,7 @@ All through `BoardPress` (`faraday/faraday-core/src/board/mod.rs:~119-196`) and 
 - Reached by `drawing::View::board_view` (`faraday/faraday-core/src/board/mod.rs:~1134-1137`), pointer and key paths (`board_marks`, `board_plan`), `quick_put`, `kef_dropped`, `board_place_name`, `board_map`.
 
 ## Rules and refusals
+- A codex32 set's threshold is 0 (the secret alone) or 2 to 9; 1 is refused by the parser (core/faraday-bip/src/codex32/mod.rs:422, 521). The board's head line names k == 0 as "secret alone" (faraday/faraday-core/src/board/codex32.rs:31) and its warnings (a place that keeps enough strings, losing a place, a vault holding the whole seed) apply only where k is 2 or more (board/codex32.rs:111, 118, 152).
 
 Gates (`faraday/faraday-core/src/board/mod.rs`)
 
@@ -104,6 +105,8 @@ Drawing (`faraday/faraday-core/src/board/screen.rs`)
 
 - The place x is offered only if `v.custom && places.len() > 1 && (!locked || last)` (`~1171`); the stick x is not drawn read-only, or after the lock with files (`~1391`); the software x only `custom && !locked` (`~1493`); the vault-keeps checkbox is live only when custom (`~1725`, `~1740`); "+ place" only `custom && room` (`~1970`); the partials button only when `v.splits == Some(None)` (`~1676-1692`); the list shows entries only when custom, else the read-only buttons (`~2170-2181`); with no `BoardView` or state nothing is drawn.
 - Chips are one touch target high (48 dp; 44 dp on the compact and short layouts); the vault chip's menu and x are 48 dp; form toggles wrap at the chip's width; chip marks use the label type (fixes 438acd7fb, 8ec2a9ff1, 36658def0, 95a1e38cd).
+- The sees/spend sheet after a drop is not asked while a "Save without encryption?" sheet is waiting for its hold (`secrets.plain()` is Some: `faraday/faraday-core/src/board/mod.rs:2829`, `faraday/faraday-core/src/secrets.rs:266`); the hold of a plan-kind record asks it afterwards with the plan as it was (`faraday/faraday-core/src/secrets.rs:~534-546`).
+- A drop of the software chip on any zone but the list turns the software place on when unlocked, never off; after the lock it toasts "files after lock" (`faraday/faraday-core/src/board/mod.rs:~556-558`, `~2769-2778`, `~3064-3066`). The software stick (`Zone::SoftStick`, `At::Files`) takes only the whole wallet from a drop (`faraday/faraday-core/src/board/mod.rs:571`); its `forms_in` arm for a seed (`faraday/faraday-core/src/board/mod.rs:420`) is only for a chip already on it (no drop makes one).
 
 ## Domain calls
 
@@ -128,10 +131,7 @@ None.
 
 ## Doubts
 
-- `secrets.plain()` skips the sees and spend sheets (`faraday/faraday-core/src/board/mod.rs:2829`); what "plain" means there is not known.
-- `Thing::Seed` on `Zone::SoftStick` is refused by `takes` but has a `forms_in` arm (`faraday/faraday-core/src/board/mod.rs:~420`); `board_up` lets software drop on any non-list zone (`~3056`) and `board_put` toggles software whatever the zone (`~2769-2778`): dead or meant, not known.
 - `faraday/faraday-core/src/board/screen.rs:~1969` comment says "one place per key" but the draw checks only `v.room`; gap tokens differ at `~1191` and `~1127` (`BOARD_CHIP_GAP` and `BOARD_PAD`); `card_frame` builds a placeholder `plan::Shape` (`~2290-2322`); every place uses `Icon::House` (`~1010-1016`).
-- `faraday/faraday-core/src/board/codex32.rs`: behaviour at threshold k = 1 is not known (`head` treats k == 0 as the secret alone; `warnings` tests k of 2 or more).
 - `sees_line` with an empty list reads "whole" (`faraday/faraday-core/src/board/lines.rs:~93`); whether that is reachable is not known.
 - The caller of `card_frame` and `card_stick` is `faraday/faraday-core/src/backup_flow/figures.rs` per a doc comment, not verified.
 - Fix 98b1be3af (Words and SeedQR form pills on the board under the touch floor) was given to `backups-list`; it is about this board.

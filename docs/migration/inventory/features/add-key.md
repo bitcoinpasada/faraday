@@ -97,11 +97,13 @@ Ways in (`faraday/faraday-core/src/ways_in/mod.rs`, `faraday/faraday-core/src/wa
 - Check a signer's Other forms is always a sheet (`sheet_only`).
 - Loaded-key "holders" appear under Other forms only for My seed makes my wallet.
 - `Way::SeedQr`, `Aezeed` and `AddAKey` have no row text (their press is `Action::Cancel`; their own screens draw them).
-- `others_with` keeps only `Way::Words`, so the aezeed in `CONVERT_FROM` never shows in those rows.
+- `others_with` keeps only `Way::Words` among an opener's `other_ways` (`faraday/faraday-core/src/ways_in/mod.rs:238-256`). The aezeed of `CONVERT_FROM` (`faraday/faraday-core/src/ways_in/mod.rs:279-283`) is drawn by Convert's own screen as a "LND aezeed" row under its Other forms (`faraday/faraday-core/src/convert/screen.rs:182-188`, `260-266`), not by the ways-in rows. `SEED_MAKES_WALLET`, `CHECK_A_SIGNER`, `SPEND_SIGN` and `RESTORE_SLOT` carry the same forms and ways (`faraday/faraday-core/src/ways_in/mod.rs:57-77`).
 - `CHECK_BACKUP` has no word form.
 
 Word list
 - An unknown list index is refused (`faraday/faraday-core/src/wordlist/mod.rs:~212-214`).
+- An xprv typed, pasted or scanned (Add a key, the Inbox) is read by `faraday_keys::xprv::read_master` (`faraday/faraday-keys/src/xprv.rs`); key text over 112 characters (after an optional `[fingerprint]` origin) is refused as unreadable before base58 decoding (`core/faraday-bip/src/xkey.rs:43`, `127-129`; reached from `faraday/faraday-keys/src/session.rs:1063`, `faraday/faraday-core/src/state.rs:2485`).
+- Use a sample shows on Add a key (wide and compact, `faraday/faraday-core/src/screens/entry.rs:161`, `:880`; `faraday/faraday-core/src/compact/screen.rs:866`, `:1054`) only when `entry_sample_shown()` holds: Demo mode with samples on, `may_load_keys()`, the chip not dismissed, and the field empty (nothing typed; on the Words form no word committed and no prefix) (`faraday/faraday-core/src/samples/put.rs:151-168`). Typing a key dismisses the chip for the visit (`faraday/faraday-core/src/samples/put.rs:171-178`). The compact page is `Screen::Entry` drawn by `compact::screen::entry` (`faraday/faraday-core/src/screens/entry.rs:20-23`).
 
 ## Domain calls
 
@@ -127,10 +129,7 @@ None.
 
 ## Doubts
 
-- c2c4c296f names wallet files, BSMS, Coldcard exports, PSBT registration and BBQr. The 112-character cap is in `core/faraday-bip/src/xkey.rs:~43`; that Add a key's Xprv form goes through it was not traced.
 - `EntryList::Slip39` is never built by `WordEntry::list()` (`faraday/faraday-core/src/word_entry.rs:~473-475`).
 - `reading_keys` loops over 2048 indices per keystroke.
 - The word list's draw calls `app.wordlist_scroll(max, scroll)`, which writes the clamped scroll to state during drawing (`faraday/faraday-core/src/wordlist/screen.rs:~133`); a memo or a breach of "drawing reads", unclear.
-- `SEED_MAKES_WALLET`, `CHECK_A_SIGNER` and `SPEND_SIGN` have identical constants; the `CONVERT_FROM` doc says the aezeed is under Other forms but `others_with` drops it.
-- Which `Screen` hosts the compact Add a key page, and whether `entry_sample_shown()` includes "field empty", were not read.
 - The inventory gave no line numbers for the Add a key rules in `faraday/faraday-core/src/state.rs` or for the word keyboard and candidate rules in `faraday/faraday-core/src/word_entry.rs`; only the files are named.

@@ -109,6 +109,7 @@ carries out (`faraday/faraday-starter/src/api.rs:~1025-1168`), and it reads
 - Done leads to the Start page (`starter-start`).
 - Reads the signed boot file through `faraday_sb`, as `secure-boot` does.
 - The disk list and the Faraday-stick test are shared with the Start page's restart from the stick and with Remove boot entry.
+- Windows command-line recorders, first argument only, run before the window and printed on standard output: `--record-disks` (this computer's disks as `tests/windows/` files hold them, no elevation) and `--record-bitlocker` (as administrator; no recovery password read) (`faraday/shells/starter/src/windows/win.rs:672-686`, `faraday/shells/starter/src/main.rs:9-12, 829`). Test stand-ins `windows::bitlocker::Recorded`, `windows::disks::Snapshot::parse`, `linux::udisks::Objects::parse` are `pub` and compiled into the release library (`faraday/shells/starter/src/windows/bitlocker.rs:567`, `faraday/shells/starter/src/windows/disks.rs:532`, `faraday/shells/starter/src/linux/udisks.rs:438`).
 
 ## Rules and refusals
 
@@ -365,6 +366,12 @@ carries out (`faraday/faraday-starter/src/api.rs:~1025-1168`), and it reads
 - Refused: a missing or extra field, a bad number, and an unknown message, fault, reason or release-fault name.
 - The progress stage is `clearing`, `writing` or `reading-back`. `signed` is `yes` or `no`.
 - There are 36 release-fault names and 28 reasons without a payload.
+- Each stick's IDs come from a 256-byte pool filled once from the system's randomness at the start of a write; failing that fill is `Reason::Random` (`faraday/shells/starter/src/writer.rs:690-694`). A stick uses 56 bytes and a card 12, so the pool is not refilled; a refill that would be needed ignores its error and reuses the pool's old bytes (`faraday/shells/starter/src/writer.rs:698-704`).
+- Linux reads the boot partition's whole SHA-256 only for a disk whose layout passed: GPT, two partitions, the first an ESP at 1 MiB of exactly 64 MiB (`faraday/shells/starter/src/gpt.rs:61-85`, `faraday/shells/starter/src/linux/udisks.rs:372-381`). The read has no cap of its own (`faraday/shells/starter/src/linux/mod.rs:283-301`); it ends at the partition's end.
+- Windows pipe wait: the Starter's pipe end is created in no-wait mode; each poll of `pipe_connected` is `Ok(true)` once the error says a client is connected (`ERROR_PIPE_CONNECTED`, `ERROR_NO_DATA`), after switching to wait mode; a non-zero return, or any other error, reads as `Ok(false)`; only a failure to switch the mode is an error (`faraday/shells/starter/src/windows/sys.rs:436-454`). The caller polls every 50 ms and stops with the child's end (`faraday/shells/starter/src/windows/win.rs:304-309, 540-545, 632-637`).
+- On Windows the Starter waits for each elevated child (BitLocker, read version, write, firmware restart) to end in 200 ms waits on its process handle, with no overall limit (`faraday/shells/starter/src/windows/win.rs:192, 319, 577, 654`). The wait for the pipe's client to connect polls every 50 ms and ends only with a connection or the child's end (`faraday/shells/starter/src/windows/win.rs:304-309, 540-545, 632-637`).
+- The elevated copy's pipe name is predictable (prefix, process id, nanosecond clock; `faraday/shells/starter/src/windows/win.rs:334-344`). What holds it: the pipe is made first with `FILE_FLAG_FIRST_PIPE_INSTANCE`, one instance, no remote clients, a protected DACL for the account and administrators only (`faraday/shells/starter/src/windows/sys.rs:389, 410-420`), and the connected client's process id must be the child's (`faraday/shells/starter/src/windows/sys.rs:456-461`; `faraday/shells/starter/src/windows/win.rs:311, 547, 639`), else the step fails.
+- The development script `faraday/image/stick-boot.sh` writes a boot partition only after the same checks as Keep data: whole USB disk or an image file, nothing mounted or in swap, GPT with exactly two partitions (an EFI system partition at sector 2048 of 64 MiB, at least the .vfat's size, then a basic data partition at sector 133120 of at least 128 MiB inside the usable sectors), a primary GPT header and entries the Starter's reader accepts (`faraday/shells/starter/src/gpt.rs:197-290`), a FAT32 `EFI` .vfat, and the target path typed back; it reads back, compares and checks the table is unchanged (`faraday/image/stick-boot.sh:63-236`).
 
 ## Domain calls
 
@@ -415,16 +422,7 @@ carries out (`faraday/faraday-starter/src/api.rs:~1025-1168`), and it reads
 - Eleven history rows were moved here from `starter-app`, because they are about making a stick: dba7f1240, 983987833, 0bd375106, 99fb53b07, 9ff31a057, 20e7cc8a2, 276f53d56, 03a672d06, 039a45e4d, e48785ec0 and dc63f6353.
 - 4bac34f9b is a compile fix, not checked further.
 - The files changed by c87c26777 and eca68fbed are not confirmed.
-- `faraday/shells/starter/src/writer.rs:~698-708`: an error refilling the random pool is ignored (`let _ =`). It would matter only if the pool ran out; about 56 bytes are used for a stick and 12 for a card, out of 256.
-- On Linux, `boot_sum` has no size cap (`faraday/shells/starter/src/linux/mod.rs:~283-301`). It relies on the layout check's fixed 64 MiB boot partition, which is an inference not read there.
-- On Windows, `pipe_connected` returns `Ok(false)` on a successful connect (`faraday/shells/starter/src/windows/sys.rs:~441-451`). Not checked whether this is by design.
-- `ConnectNamedPipe` errors other than already-connected or no-data are all read as "not connected".
-- On Windows the program waits for the child's end in a busy loop with no timeout (`faraday/shells/starter/src/windows/win.rs:~319`, `~577`, `~654`, `~192`).
-- Pipe names are predictable. The guard is the client-PID check and the DACL.
 - `NameClass::Unrelated` at `faraday/shells/starter/src/finder.rs:~169` is an unreachable duplicate arm.
 - `faraday/faraday-starter/src/draw/images.rs` casts `n as u16` with no bound (`faraday/faraday-starter/src/draw/images.rs`). `faraday/faraday-starter/src/boot_file.rs` guards the same cast.
 - `clear_first_order()` is called twice in `write`.
-- `StarterAction::code` maps an unknown Item to MakeStick without a word.
-- Ship in non-test code: the `Recorded` stand-in, `udisks::Objects::parse`, and the Windows flag `--record-disks` (`faraday/shells/starter/src/windows/win.rs:~678-684`).
-- `faraday/image/stick-boot.sh` mirrors keep-data; it was not read. Docs named: `docs/STICK-IDENTITY.md` §5.1, `docs/STARTER.md`.
 - Lines in `faraday/faraday-starter/src/draw/*.rs` were partly given as local and partly as cumulative numbers. Check them again before use.

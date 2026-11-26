@@ -91,6 +91,7 @@ Tooltip:
 Stick pill:
 - Radius `h/2`, dot at `pad`, label LABEL_M at `dot_room` (`faraday/faraday-ui/src/stick.rs:~88-98`).
 - Inserted: filled in the stick tone with on-stick ink; Asked: OnSurface text, tone edge, SurfaceContainerHighest body; Quiet: OnSurfaceVariant text, OutlineVariant edge, SurfaceContainerHighest body; the dot is always the tone; nothing see-through (`faraday/faraday-ui/src/stick.rs:~5-7`, `faraday/faraday-ui/src/stick.rs:~48-72`).
+The stick tones' ink contrast holds by computation: white on the light Standard and Medium tones 5.67:1 or more, white on the light High tones 9.08:1 or more, black on the dark High tones 8.82:1 or more; each tone stands out 3:1 or more from every surface in every scheme (faraday/faraday-ui/src/pal/mod.rs:175-213, faraday/faraday-ui/src/read_tests.rs:988-1012).
 
 ## Domain calls
 
@@ -104,11 +105,12 @@ None.
 
 ## Fixes
 
-None given to this feature.
+| hash | what was broken | rule restored |
+|---|---|---|
+| c1798e8b5 | On the 7-inch panel a scrolling sheet put a field (Options' Rounds) under the on-screen keyboard: the sheet's measuring pass joined the box the keyboard keeps in view. | A scrolling sheet's field is measured where it is drawn: `framed` restores `focus_box` after its measuring pass (`faraday/faraday-ui/src/sheet.rs:71-74`). |
+| 046a47e7f | A pinned button of a dialog or sheet lost part of its touch target at the scroll edge (Cancel 79 px under the 86 px floor at 480 wide, 40 of 43 at 240 x 320), because the bottom pad was inside the scroll view. | The button row is held outside the scroll with a pad above and below, the divider at the scroll's edge; unscrolled, the sheet is laid out as before (`faraday/faraday-ui/src/sheet.rs:92-98,121-145`). |
 
 ## Doubts
 
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- Two sheet fix rows were filed under buttons and choice controls and not carried here: c1798e8b5 (on the 7-inch panel a scrolling sheet put a field, Options' Rounds, under the on-screen keyboard; rule restored: a scrolling sheet's field is measured where it is drawn) and 046a47e7f (pinned buttons lost part of their touch target at a sheet's scroll edge; Cancel 79 px under the 86 px floor at 480 wide). Both touch `faraday/faraday-ui/src/sheet.rs`.
-- The 4.5:1 and 7:1 contrast claims of the stick tones were not checked by the inventory.
 - `Tips` method bodies and how `TipFrame` and `Tips` hand over between frames were not traced beyond the field.

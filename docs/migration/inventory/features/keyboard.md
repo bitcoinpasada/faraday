@@ -52,6 +52,7 @@ None outside the app's state. Typed characters go to the caller's field.
 - `keycaps()` lists every character a kind has a key for, in layout order; per its doc the font baker reads it (`core/faraday-draw/src/widgets/keyboard.rs:~402-438`).
 - Its rows push the focused field above the keyboard through the focus box noted by `ui-text` and `ui-regions`.
 - Keys drawn by `key_in` (`ui-controls`), hover and focus only.
+No code in the app passes a PIN scramble seed: both callers of `keyboard::keys` (faraday/faraday-ui/src/keyboard.rs:187, faraday/faraday-core/src/screens/parts.rs:1491) pass `None`, and no caller builds `KeyboardKind::Pin`, so `scrambled_digits` runs only in the crate's tests (core/faraday-draw/src/widgets/keyboard.rs:504, 593-598, 1034-1042).
 
 ## Rules and refusals
 
@@ -77,6 +78,7 @@ Geometry (`core/faraday-draw/src/widgets/keyboard.rs`):
 - `scrambled_digits(seed)`: xorshift32 from `seed | 1`, then Fisher-Yates over 0-9; deterministic from the caller's seed (`core/faraday-draw/src/widgets/keyboard.rs:504-515`).
 - Path: ✓ is dead while `DONE_DISABLED` (`core/faraday-draw/src/widgets/keyboard.rs:~703-723`).
 - Drawing uses the same rects as hit-testing (`KeyCap`, `core/faraday-draw/src/widgets/keyboard.rs:~108-115`).
+The panel and the word keyboard lay their keys out at a fixed 160 dpi scale (one design unit per pixel) inside `fixed_text`, so the keys keep their size whatever the text size; the panel passes size class Small, the word keyboard Wide, and key rectangles do not depend on the class (faraday/faraday-ui/src/keyboard.rs:145-149, 181-184, faraday/faraday-core/src/screens/parts.rs:1466-1485).
 
 ## Domain calls
 
@@ -93,13 +95,11 @@ None.
 | hash | what was broken | rule restored |
 |---|---|---|
 | 10a89d54d | The on-screen keyboard's Shift key showed "?" because Faraday's fonts lack "⇧". The same commit fixed the Companion's Back in Windows sheet naming the wrong app. | Shift is drawn as an up-chevron icon, in the accent's text colour while Shift is on; the Starter is named by its name (F16). |
+| 7ac5cd6a0 | On the desktop the on-screen keyboard's rows (32 dp) left its keys under the 48 dp touch floor. | Off a compact panel a row is `OSK_KEY_ROW` (touch target plus a gap, 56 dp) and `height` takes `compact`; a compact panel, the stick's included, keeps its 32 dp row (`faraday/faraday-ui/src/keyboard.rs:118-127`). |
 
 ## Doubts
 
 - Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- No caller of `scrambled_digits` was found in `faraday/faraday-core/src`, and the faraday-ui panel passes no seed, so where the PIN pad scramble is used is unclear.
 - The kana grid comment does not match the grid (`core/faraday-draw/src/widgets/keyboard.rs:~171-178`).
 - Where the "no popup, no press layer" rule of the module doc is enforced (`core/faraday-draw/src/widgets/keyboard.rs:~8-10`); partly answered by `key_in` drawing hover and focus only.
-- The panel builds the layout at a fixed scale and size class, not the Ui's; whether that is meant was not settled.
-- Two keyboard fix rows were filed under buttons and choice controls (7ac5cd6a0: keyboard keys under the touch floor on the desktop, rows now `OSK_KEY_ROW`, a compact panel keeps its 32 dp row; b257cc040: a press on a typing bar did not bring the keyboard up on a one-column layout). They are named here, not in the Fixes table.
 - `KEY_BOTTOM_RESERVE` is named in a doc comment but only the function `key_bottom_reserve` exists.

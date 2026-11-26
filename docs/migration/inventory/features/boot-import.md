@@ -65,6 +65,7 @@ it loads. Decisions: the boot stick import (F60) and F130.
 - The file menu (`files-inbox`) refuses rename and delete of a file the import reads.
 
 ## Rules and refusals
+- When the boot stick is taken out while the Import sheet is up: a file still reading fails with the "stick gone" text, the list is re-read, and the screen goes Home with the vault's passphrase field readied only if no vault field holds typing focus (faraday/faraday-core/src/boot_import/mod.rs:969-987).
 
 - `Go` (Import) is refused unless the stick is in, `clean_now`, not asked yet, the listing is held and still the stick's, and some enabled file is ticked (`import_may_go`, `faraday/faraday-core/src/boot_import/mod.rs:1073-1087`).
 - A file is enabled only while Import is not pressed and it is Listed; ticks apply only to enabled files (`~1151, 1213`). A tick names its file, not its place.
@@ -86,7 +87,7 @@ it loads. Decisions: the boot stick import (F60) and F130.
 
 ## Domain calls
 
-- `Item::new(&c, name, bytes)` (kind detection; `faraday/faraday-core/src/item.rs`), `seedqr_words`, `FileKind::{exposure, may_be_secret}`, `name_may_hold_key`, `zeroize`.
+- `Item::new(&c, name, bytes)` (kind detection; `faraday/faraday-core/src/item.rs:93`, faraday-core's own), `seedqr_words` (`faraday/faraday-intake/src/lib.rs:52`, English SeedQR digits 48 or 96, or compact; re-exported at `faraday/faraday-core/src/lib.rs:309`), `FileKind::{exposure, may_be_secret}`, `name_may_hold_key`, `zeroize`.
 - No other domain crate is named; the crate behind `Item::new` and `seedqr_words` was not settled by the inventory.
 
 ## Fixtures
@@ -109,6 +110,4 @@ None.
 - a7c9aed6c and 578f5021a were given to the Files feature; they are about this one and are carried here. 0bab55cbf, c8bb85314, 2b14e801e and 5d9019486 touch both and are in `files-inbox`.
 - Most line numbers in `faraday/faraday-core/src/boot_import/` come from one report and were not re-read; only those written plainly were checked.
 - The doc of `import_go` (`faraday/faraday-core/src/boot_import/mod.rs:~1270-1271`) starts with a stale-looking cost line.
-- `import_stick_gone` goes to Home only when `vaults.focus.is_none()` (`~983`).
 - The "QR read" count includes text-seed-asked codes that are not named (`~941-953`).
-- Which domain crate holds `Item::new` and `seedqr_words` is not settled.

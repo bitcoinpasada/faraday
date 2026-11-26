@@ -69,6 +69,8 @@ and Quiz; SLIP-39 shares and codex32 shares are made inside the same flow
 - The shell's entropy answer reaches the flow through `entropy_arrived` (`faraday/faraday-core/src/keygen/mod.rs:2339-2346`).
 
 ## Rules and refusals
+- A New key result card names the key "Key {n}" with the number the key was made under (the counter after its increment), the same as the key's own label (faraday/faraday-core/src/keygen/mod.rs:1963, 1993, 2255).
+- Lock in on the Key card: refused with no message while the passphrase pair differs (the pair's own line says so once the second field is begun) and while the eye has not shown a typed passphrase once (faraday/faraday-core/src/keygen/mod.rs:2027-2030, 2056). Scanned words that do not parse leave New key and go to the seed read, which sends them to Add a key (keygen/mod.rs:1715-1731; scan_key.rs:2601-2619).
 
 Start and steps
 - Make is offered only for Words and Codex32, and SLIP-39 through its own start; Xor, Krux, Xprv and HexSeed are never made here (`faraday/faraday-core/src/keygen/start.rs:~57-64`, `faraday/faraday-core/src/keygen/mod.rs:~633`, `~1676-1681`).
@@ -119,6 +121,8 @@ Quiz
 On a Create card
 - `card_forget_words` resets the passphrase, `pass_open`, focus and `shown` (`faraday/faraday-core/src/keygen/on_card.rs:~10-33`).
 - The first slot only, for a single key backed up as words, or a multisig with no key yet. Typing is on when the window is not compact (`faraday/faraday-core/src/keygen/mod.rs:~2949`).
+- On Tools' New key card, typing is on when the layout is not one-column (`k.typing = !self.compact`, `faraday/faraday-core/src/keygen/mod.rs:~2945-2949`): the expanded rail (1200 dp or wider and not low), or in the Starter 1280 dp or wider (`faraday/faraday-core/src/drawing.rs:389-395`); the comment's 600 dp is stale. Under Reduce motion the rerolled face's drop is 0.0, so the face and its caption stay put until the next roll (`faraday/faraday-core/src/keygen/mod.rs:~1263-1270`, `faraday/faraday-core/src/keygen/dice_strip.rs:~258-285`). With coins by die, keys 1 to 6 are die flips (`faraday/faraday-core/src/keygen/mod.rs:~2822`).
+- `Keys::next_handout` is `None` when no demo is set (stick and any non-Practice run), so a key made is added as made; with the demo it names the next sample of the same word count not loaded, which `keygen_add` and `keygen_lock` add in place of the key just made (`faraday/faraday-keys/src/session.rs:753-768`, `faraday/faraday-core/src/keygen/mod.rs:1966-1971`, `:2048-2054`); the callers are those two, `demo_refuses` for Lock in (`faraday/faraday-core/src/demo.rs:46-51`) and the demo lines (`faraday/faraday-core/src/samples/mod.rs:990`).
 
 ## Domain calls
 
@@ -146,9 +150,5 @@ None. Practice's codex32 sample (BIP 93 test vector 2) comes from the shell's sa
 
 - Row 298b5c5f9 left out: outside the inventory's scope.
 - 24a4901f7 is a mixed commit; most of it added behaviour (sources on the card, Skip, the word-list search).
-- Silent refusals with no note: passphrase mismatch at Lock in, a bad scanned SeedQR, the eye wait.
-- `keygen_done` for the Tools result card uses `new_keys` without `+1` (`faraday/faraday-core/src/keygen/mod.rs:~2255`); unconfirmed.
-- Reach of `Keys::next_handout` outside Practice was not read.
-- Comments that disagree with the code: `faraday/faraday-core/src/keygen/mod.rs:~2945-2946` says typing is on from 600 dp, the code tests `!compact`; `~1263-1268` doc and code disagree on the Reduce-motion value of the rerolled-face fade. The arm `(Some(Source::Coins), '1'..='6') if by_die` (`~2822`) looks unreachable.
 - No visible zero or overflow guard on the dice strip divisor `need` (`faraday/faraday-core/src/keygen/dice_strip.rs:~181`, `~187`), `k.words - 1` (`~138`), and `[11 - sums..]` (`faraday/faraday-core/src/keygen/words_so_far.rs:~334`, `~361`).
 - The SLIP-39 quiz fix (311d293ea) also touched a cross-check tool; that part is not about this feature.

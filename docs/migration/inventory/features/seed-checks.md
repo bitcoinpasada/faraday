@@ -108,6 +108,8 @@ Check my copy
 - Check my copy is reached from the backup checklist (`faraday/faraday-core/src/backups/mod.rs`, `faraday/faraday-core/src/wallet_backup.rs`).
 
 ## Rules and refusals
+- An extended key's network is Main or Test only (its version bytes); signet and testnet keys are not told apart (core/faraday-bip/src/slip132.rs:162-169).
+- The seed passphrase sheet's Use without / Use with a passphrase presses are not gated by the stick (only the passphrase field and the Krux choice are); a stick arriving clears the sheet's passphrase and focus (faraday/faraday-core/src/seeds/read.rs:354-372, 469-491; seed_check/act.rs:642).
 
 My seed makes my wallet
 - Refused while `stick::refuses_secret` holds (`faraday/faraday-core/src/seed_check/act.rs:48, 216, 225, 237`):
@@ -183,8 +185,6 @@ None. Practice uses `demo::PASSPHRASE` and the sample seed from `faraday/faraday
 ## Doubts
 
 - Three rows came to this feature from Restore's history group, where they had been relabelled to My seed makes my wallet: 9d1dd6af2, 48689014d and 7c45ea8d2.
-- The stick guard on `seed_check::scanned` was confirmed absent in that function. Its one caller is the seed passphrase sheet (`faraday/faraday-core/src/seeds/read.rs:494`), which refuses passphrase field presses with a stick in the way and clears the passphrase when a stick arrives. Whether a plain (no passphrase) SeedQR read with a stick in the way is refused before that call was not traced.
 - `faraday/faraday-core/src/copy_check.rs:~240-243`: `wrong(k, ..)` with k = 0 would underflow. Its callers were not checked.
-- Signet and testnet are not told apart by `network_kind`. Whether this matters is unclear.
 - `still_fits` always returns false (`faraday/faraday-core/src/seed_check/act.rs:~1125`). It looks dead.
 - A comment problem was noted at `faraday/faraday-core/src/copy_check.rs:~189` (cosmetic).

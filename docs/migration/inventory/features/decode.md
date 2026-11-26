@@ -87,6 +87,7 @@ Compare (other transactions):
   Sign's review.
 - Words: `faraday/faraday-core/src/decode/diff_words.rs`,
   `faraday/faraday-core/src/decode/check_words.rs`.
+The nonce check's contained card draws nothing under its card (`under` returns 0.0) and, with no check, the line `nonce_screen_none`; the un-contained page returns without drawing when there is no check and opens no scanner (faraday/faraday-core/src/screens/nonce_check.rs:27-31, 85-90, 103).
 
 ## Actions
 
@@ -124,6 +125,7 @@ Check a signer:
   (`faraday/faraday-core/src/decode/mod.rs:~1517`), `signer_check_file`
   (`~1549`), `signer_check_from_review` (`~1596`), `signer_check_scanned`
   (`~1935`).
+- Dispatch: `act_inner` sends `DecodeFinished`, `DecodeInbox`, `QrDecoded`, `DecodeHex`, `DecodeAnother`, `DecodeTyped`, `SpendHex`, `NonceCheck` and `SignerCheck` to `decode_act` (`faraday/faraday-core/src/action.rs:1946-1953`). `DecodeAnother` clears the decode state and its scroll and lands on the screen it was opened from; `QrDecoded` shows the transaction hex as a text code, but not when it was opened from a held spend, and from the nonce check page not while the check refuses (`faraday/faraday-core/src/decode/mod.rs:1169-1204`).
 
 ## Effects
 
@@ -336,6 +338,7 @@ Compare (`faraday/faraday-core/src/decode/check_others.rs`):
   (`faraday/faraday-core/src/decode/check_words.rs:~128-185`); a signature
   not checked shows the review's reason (`~109-115`); outputs are named by
   whole address else script length (`~41-46`).
+A signature enters the nonce history only if it verified (`Verdict::Valid` with a message; faraday/faraday-core/src/memory/nonces.rs:74-77) and its key is proved here: derived at its stated place by a registered wallet's key or by a loaded master (faraday/faraday-core/src/wallet.rs:1851-1875).
 
 ## Domain calls
 
@@ -392,10 +395,6 @@ Compare (`faraday/faraday-core/src/decode/check_others.rs`):
 
 - c287628be and c3ab6eb33 were given to `spend-signing`; a7fef6f08 to
   `check-page`. They are placed here as they concern these screens.
-- The doc at `faraday/faraday-core/src/wallet.rs:~1851-1852` says only a
-  valid signature is looked at for nonce history, but the filter at
-  `~1857` checks only fingerprint and place; whether
-  `NonceEntry::of_signature` checks validity is unclear.
 - `decode_act` has `unreachable!()` for unmatched actions
   (`faraday/faraday-core/src/decode/mod.rs:~1212`). `"replace-by-fee"` and
   `"0x…"` are hard-coded English (`~160-162`).
@@ -404,9 +403,3 @@ Compare (`faraday/faraday-core/src/decode/check_others.rs`):
   `faraday/faraday-core/src/decode/check.rs:~371-372`,
   `faraday/faraday-core/src/decode/check_words.rs:~1-4` (says exhaustive;
   `pair()` ends in `_ => None`).
-- `faraday/faraday-core/src/screens/nonce_check.rs:~103` `under` closure is
-  a no-op; the comment at `~27-28` says a small panel opens the scanner but
-  the code only returns.
-- The dispatcher `act_inner` for decode was not read.
-- Check a signer's `put` behaviour for a scanned Returned side (never
-  cleared) is as stated; whether that is intended was not asked.

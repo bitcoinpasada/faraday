@@ -18,6 +18,7 @@ Settings (mode, session, time, randomness, appearance, display, remembered data,
   - Type the date `YYYY-MM-DD` and the time `HH:MM` (24 h); only digits, `-` and `:` are typed; Tab swaps fields; Backspace; Escape goes back, or closes the zone list.
 
 ## Effects
+- Setting the display scale (from the kept settings or a stick) lays the screen out again at once and removes the entropy requests that layout queued; requests queued earlier stay (faraday/faraday-core/src/stick/settings.rs:481-492).
 
 - Set: turns the typed local time into an offset against the shell's clock (`vaults.set_clock_offset`), marks the clock checked, toasts and saves the boxes. It never writes the computer's clock (`set_time_set`, `faraday/faraday-core/src/set_time.rs:411-432`).
 - The settings file: `StorageCommand::Read` of the file at first look; written to the boot stick through Files; `save_boxes`.
@@ -72,7 +73,7 @@ Settings (mode, session, time, randomness, appearance, display, remembered data,
   - `idle-lock=0` and `idle-off=0` (never) are refused when read from a stick (`faraday/faraday-core/src/stick/settings.rs:365-380`). A person may still choose Never in Settings.
   - Only a chosen motion and a chosen zone are written (`body`, `:~272-295`).
   - The Files row only when a setting differs from the boot stick's (`settings_changed`, `:~564`). A read from a stick that is not the boot stick is ignored.
-  - `idle_off_at`: power-off counts only when `idle_off_min > 0`, not online, not lockable, the Outbox empty and not on a flow screen (`faraday/faraday-core/src/stick/settings.rs:414-420`; also `faraday/faraday-core/src/state.rs:2655-2671`).
+- `idle_off_at` (the Locked sheet's countdown and drawn line): power-off counts only when `idle_off_min > 0`, not online, not lockable, the Outbox empty and not on a flow screen (faraday/faraday-core/src/stick/settings.rs:414-420, faraday/faraday-core/src/state.rs:2627-2640, faraday/faraday-core/src/screens/sheets.rs:1840-1846). The power-off itself (faraday/faraday-core/src/state.rs:2657-2673) applies the same conditions: with the Outbox empty the app exits forgetting everything; with something in the Outbox and no sheet open the Locked sheet is raised instead.
   - Rotation is offered only when the shell says it can turn; the same orientation does nothing (`:~455, ~602-605`).
   - `layout_scale` drops a `Command::RequestEntropy` added by a display call (`:~483-491`).
 - Version (`faraday/faraday-core/src/version.rs`):
@@ -82,6 +83,9 @@ Settings (mode, session, time, randomness, appearance, display, remembered data,
   - `parse_version_output` (`:~89-100`): the first line, trimmed, must be the program name (or an old name) followed by a space and a non-empty build string, else `None`. The Starter uses it to tell its own files from the desktop app's.
   - Compile-time refusal: feature `handwriting` with a build ID not ending `.dev` does not compile (`:~35-43`); no ID (cargo test or clippy) is let through (`:~31-34`).
 - Since the history fixes: a time is recorded or shown (seals, a new vault, a KeePass export, the write receipt, vault summaries, a sealed QR picture) only once the clock is checked (`checked_now`); the desktop reads Quit and shows the power-off timer row only where it applies; zone rows wrap their city names.
+- Set the time: the Set button and `Action::SetTimeSet` need a chosen zone and a valid date (2020-01-01 to 2099-12-31) and 24-hour time (set_time.rs:379-381, 488-492; `valid_date`, `valid_time`); Enter in a field sets whenever the date and time are valid, with no zone chosen (read as UTC, set_time.rs:191, 465). Keep is drawn only with a clock reading and a chosen zone; the `SetTimeKeep` action itself needs only a clock reading and no key sends it (set_time.rs:442-449).
+- The zone is minutes east of UTC, clamped to -720..=840 by `set_tz` (stick/settings.rs:216-218); it is a multiple of 15 because the zone list, the steppers (plus or minus 15) and the stored `tz=` line (minutes 00, 15, 30, 45 only, vault/area.rs:3594-3611) give only such values.
+- About's institute note is `EN.institute_note_visit` filled with the literal domain `nakamotoinstitute.org`; online that word is a link (Action::OpenInstitute), offline it is plain text (screens/settings.rs:613-643).
 
 ## Domain calls
 
@@ -103,10 +107,4 @@ None.
 
 ## Doubts
 
-- Set the time: Enter sets with no zone chosen, and Keep marks the clock checked with no zone, while the Set button needs one. The button and the keys disagree (confirmed in code).
-- The zone is documented as a multiple of 15 minutes, but `set_tz` only clamps (`faraday/faraday-core/src/stick/settings.rs:~215-218`).
-- Why `layout_scale` drops `Command::RequestEntropy` is not known.
-- The Settings search words omit some drawn strings (`settings_loaded`, `settings_ignored_until`, remembered, self-test, `own_status`); a likely gap.
-- `nakamotoinstitute.org` is a literal outside `EN`.
 - 79790e50b also dropped the Pi's QR sheet PNG button; whether that part was a fault is unclear.
-- Two figures for the idle power-off conditions were checked in two places (`faraday/faraday-core/src/stick/settings.rs` and `faraday/faraday-core/src/state.rs`); which one the app uses at each call was not traced.

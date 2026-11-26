@@ -89,6 +89,7 @@ Commands the shell carries out (`faraday/shells/starter/src/main.rs:~319-547`), 
   - Linux sysfs (`faraday/shells/starter/src/linux/camera.rs`).
   - Windows (`faraday/shells/starter/src/windows/devices.rs:~221-256`).
 - Events in: `Computer`, `Concerns`, `BitLocker`, `BitLockerDone`, `RecoveryKey`, `NotesOpened`, `RestartFailed`, `StickRestartFailed`, `OtherEncryption`.
+- A sheet is opened with `explorer.exe` (from the system folder) on Windows and `xdg-open` on every other target; no `open` (`faraday/shells/starter/src/pdf.rs:247-260`).
 
 ## State and lock
 
@@ -118,6 +119,7 @@ Commands the shell carries out (`faraday/shells/starter/src/main.rs:~319-547`), 
 - Opens: the guide sheet and start guides (`starter-app` guide).
 - The device's power-off sheet shows the same guide address for the same computer (`secure-boot`).
 - Home's checklist and card choose between Make, Rescue, Stick and Firmware from the same facts (see `starter-app`).
+- `faraday-starter --record-bitlocker` (Windows, first argument, as administrator) prints this computer's BitLocker state as a test recording on standard output and exits; it reads no recovery password; reached only from the command line (`faraday/shells/starter/src/windows/win.rs:672-720`; `faraday/shells/starter/src/windows/bitlocker.rs:715-760`).
 
 ## Rules and refusals
 
@@ -236,6 +238,13 @@ Commands the shell carries out (`faraday/shells/starter/src/main.rs:~319-547`), 
 - No free number is `BootEntry`. A pkexec exit of 126 or 127 is `Declined` (`262`).
 - Privileged tools are found only in `/usr/sbin`, `/usr/bin`, `/sbin` and `/bin`. Each must be a regular, executable file, owned by uid 0, not group- or world-writable. PATH is never used (`161-192`). A missing tool is `Missing(name)`.
 - A non-zero exit of the restart command gives `Restart`. The default platform (`Elsewhere`) refuses with `Unsupported`.
+- A key sheet is recorded for removal at exit only when it was written whole; a write that fails after the folder and file are made leaves both until the next start's sweep (`faraday/shells/starter/src/pdf.rs:113-143, 209-228`; `faraday/shells/starter/src/main.rs:418-424, 914`).
+- `tpm_unlock` is a Linux-only fact (`tpm2-device` in the fourth field of an `/etc/crypttab` line that is not a comment); it is `false` on Windows by design, whose TPM and BitLocker case is the BitLocker steps (`faraday/faraday-starter/src/api.rs:42-45`; `faraday/shells/starter/src/windows/registry.rs:114`; `faraday/shells/starter/src/linux/mod.rs:415, 422-429`). It only turns on the TPM warning line on the Start page (`faraday/faraday-starter/src/draw.rs:1534-1536`).
+- Camera: Linux is `Usable` only when a `uvcvideo` camera's descriptors list an uncompressed format; Windows is `Usable` for any USB device on the `usbvideo` driver, without reading its formats, so a compressed-only camera reads as usable there (a stated limit, `faraday/shells/starter/src/windows/devices.rs:222-246`; Linux `faraday/shells/starter/src/linux/camera.rs:41-60`).
+- A virtual machine found only by the CPU's hypervisor flag, with no maker or model, has an empty name; the screens then use the words for "computer" in its line and in the let-through question (`faraday/faraday-starter/src/concern.rs:123-138`; `faraday/faraday-starter/src/draw.rs:530-548, 2088-2094`).
+- Linux restart: `pkexec efibootmgr` sets `BootNext`, exit 0 continues, 126 or 127 is Declined, any other code is a boot-entry error with the program's output; then `systemctl reboot` runs as the person, and its failure is a Restart error carrying its stderr (`faraday/shells/starter/src/linux/boot.rs:254-285`). Nothing restarts unless `BootNext` was set. Whether the system allows the reboot is logind's policy (the code's comment says it allows the person at the computer, `faraday/shells/starter/src/linux/boot.rs:18-19`). The firmware-setup restart is `systemctl reboot --firmware-setup` as the person (`faraday/shells/starter/src/linux/mod.rs:100-114`).
+- Any pkexec status other than 0, 126 and 127, or none (a signal), is a boot-entry failure with the command's text (`faraday/shells/starter/src/linux/boot.rs:254-265`).
+- The Windows BitLocker volume listing waits on each `Next` with no bound (`faraday/shells/starter/src/windows/sys.rs:1275`). A WMI failure with the code `WBEM_E_NOT_FOUND` stands for: no input signature for given arguments, an unsupported string-array argument, a device not in the listing, and a missing or non-integer `ReturnValue` (`faraday/shells/starter/src/windows/sys.rs:1177, 1206, 1316, 1354`).
 
 ## Domain calls
 
@@ -287,12 +296,3 @@ Commands the shell carries out (`faraday/shells/starter/src/main.rs:~319-547`), 
 - Seven history rows were moved here from `starter-app`, because they are about the Start page, restart or BitLocker: 6cc0ab0f2, 14d8f76a0, 0ea78ac6f, 1927556c7, 70162b5b3, a687c8692 and 153b7b72c.
 - 76aaee791, a Secure Boot certificate time, was moved to `secure-boot`.
 - 63c1b7eea and 5d818fb5b name files under `faraday/shells/hub` and `faraday/faraday-hub`, the Starter's earlier names.
-- A key sheet whose `write_all` fails after the file is made is not recorded in `key_sheets`. It is left until the next start's sweep.
-- On Windows, `tpm_unlock` is fixed to `false` (`faraday/shells/starter/src/windows/registry.rs:114`), so Windows never reports a TPM-unlocked disk. Intent unclear.
-- Windows takes compressed-only cameras as usable, and Linux does not. Whether this is by design is unclear.
-- `concern::virtual_machine` can return an empty name. Whether callers handle it is unknown.
-- `systemctl reboot` after pkexec runs as the user. Not checked whether logind allows it.
-- Other pkexec dismiss codes are not known.
-- WMI `Next` waits with `WBEM_INFINITE`, with no bound. Several unrelated WMI failures are all reported as `NOT_FOUND` (`faraday/shells/starter/src/windows/sys.rs:~1157`, `~1177`, `~1206`, `~1316`).
-- `--record-bitlocker` ships in the Windows binary (`faraday/shells/starter/src/windows/win.rs:~678-684`). Whether a user can reach it is unclear.
-- The doc comment at `faraday/shells/starter/src/pdf.rs:~5-6` names `open` for macOS, but the code uses `xdg-open`.

@@ -83,6 +83,7 @@ Sweep (`SweepAction`)
   - `sweep-final.txn`, only when every input is signed.
 
 ## State and lock
+- The Krux read's timed run: `kef_timing` is true only while one is out; its answer, also a stopped run's, always arrives and clears it, and a rate is kept only for a run that finished with a nonzero time. The flag and the rate (a time in milliseconds) stay across a lock (faraday/faraday-core/src/seeds/mod.rs:493-509; seeds/kef.rs:261-267, 283-286; worker/kef.rs:78-98).
 
 - `SeedsArea` (`faraday/faraday-core/src/seeds/mod.rs:~404-416`) holds:
   - `state` (the `SeedRead` sheet);
@@ -209,4 +210,3 @@ None.
   - 32c60b9a2 (a vault's stick write of seed words).
 - One row given to this feature (1f6eb9aad) is outside the inventory's scope and is not carried.
 - Several line numbers are unconfirmed: the Make path, the `SeedsArea` and `SeedRead` field lists, the silent NativeSegwit fallback and the descriptor error order.
-- Whether the `kef_timing` flag that survives a lock can stay true when a timing run never answers is unclear.
