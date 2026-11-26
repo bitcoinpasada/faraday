@@ -181,7 +181,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         wide,
                         panel,
                         // In the page's own lines, which the offset does not move.
-                        column.then_some(h - foot - faraday_draw::tokens::FLOW_END_PAD),
+                        ui.flow_end.filter(|_| column),
                     ),
                     ui,
                     x,

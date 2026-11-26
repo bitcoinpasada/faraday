@@ -283,12 +283,16 @@ pub(crate) fn contained(
             y += th + 10.0;
             ui.page_view = compact.then_some((view_h + next.y, view_h - top));
             ui.flow_work = work;
+            // The same line whether the card is raised or not: `view` keeps
+            // under the content what its flat part leaves out of it.
+            ui.flow_end = Some(clip_end - tokens::FLOW_END_PAD);
             if leaving {
                 y += outgoing(ui, |ui| body(ui, k, x, y, w));
             } else {
                 y += body(ui, k, x, y, w);
             }
             ui.flow_work = None;
+            ui.flow_end = None;
             ui.page_view = None;
         }
     }
@@ -398,12 +402,13 @@ impl RaisedCard {
         (top, clip_end): (f32, f32),
     ) -> ((f32, f32, f32, f32), f32) {
         let Some((_, left, right)) = self.drawn else {
-            return ((from, top, to - from, clip_end - top), 24.0);
+            return ((from, top, to - from, clip_end - top), tokens::FLOW_END_PAD);
         };
         let (from, to) = (from.max(left), to.min(right));
         let top = top - tokens::PAD / 2.0 + tokens::SHAPE_L;
         let end = clip_end - tokens::SHAPE_L;
-        ((from, top, to - from, end - top), 24.0 - tokens::SHAPE_L)
+        let tail = tokens::FLOW_END_PAD - tokens::SHAPE_L;
+        ((from, top, to - from, end - top), tail)
     }
 
     /// `region` as it stands on the card: its edges fade into the card.

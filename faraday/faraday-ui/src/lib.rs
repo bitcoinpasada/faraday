@@ -529,6 +529,10 @@ pub struct Ui<'a, A> {
     /// units: `SPACER` before Your choices, or the page area's end less the
     /// margin on a step that takes the whole room. `None` otherwise.
     pub flow_work: Option<f32>,
+    /// While the body of a flow on the container runs: the line the
+    /// content ends at for the page to scroll nothing, as a y in the page's
+    /// own lines, which the scroll does not move. `None` otherwise.
+    pub flow_end: Option<f32>,
     /// Where the step column wants to glide to, to bring the open card
     /// into view, units.
     pub follow_to: Option<f32>,
@@ -699,6 +703,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             flow_card: None,
             pane: None,
             flow_work: None,
+            flow_end: None,
             follow_to: None,
             compact: false,
             touch: faraday_draw::tokens::TOUCH,
