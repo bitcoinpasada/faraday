@@ -1921,6 +1921,28 @@ fn a_guess_by_spend_as_a_single_on_a_restored_wallet_goes_with_its_key() {
     the_guess_stays_with_its_wallet(&mut app);
 }
 
+/// "Spend as a single" on a seed, and another loaded after: No money
+/// shows makes the next kind from the first, not from the last loaded.
+#[test]
+fn a_guess_by_spend_as_a_single_keeps_its_key_when_another_is_loaded() {
+    let mut app = shown();
+    load_on_home(&mut app, "bacon");
+    let a = last_loaded(&app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    let _ = drawn(&mut app);
+    assert!(app.offers(Action::SpendBackup(F::SeedWallet)));
+    app.press(Action::SpendBackup(F::SeedWallet));
+    assert_eq!(chosen_key(&app), a);
+    assert_eq!(chosen_address(&app), kit_address("spending"));
+    load_on_home(&mut app, "zebra");
+    assert_ne!(last_loaded(&app), a);
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(false)));
+    assert_eq!(chosen_key(&app), a, "another key's wallet");
+    assert_eq!(chosen_address(&app), kit_address("taproot"));
+}
+
 /// A guess from one typed seed, with a restored wallet chosen under Spend
 /// from in its place: it goes with that wallet's key.
 #[test]

@@ -309,6 +309,10 @@ way in place of the wallet:
 3. Nested SegWit.
 4. Legacy.
 
+With one key, each way is made from the key the guess began with (with a
+passphrase typed, that key with it), whatever key is loaded later; with
+that key removed, the guess ends.
+
 With several keys the kind the seeds were shaped as comes first, then
 the others in the order native SegWit, Taproot, nested SegWit, legacy;
 each is tried once.

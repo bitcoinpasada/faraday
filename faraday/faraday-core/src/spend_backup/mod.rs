@@ -194,6 +194,9 @@ pub enum Came {
 pub struct Guess {
     /// Several keys: the multisig kinds, else the single-key ways.
     pub multi: bool,
+    /// A single-key guess: the key it was made from. Its other kinds are
+    /// made from this key only.
+    pub key: Option<faraday_keys::KeyId>,
     /// Several keys: the place in the multisig kinds of the one the seeds
     /// were shaped as, tried first.
     pub first: usize,
@@ -720,6 +723,7 @@ impl Faraday {
             F::Scan => self.spend_backup_scan(None),
             F::Everything => {
                 self.spend_backup.state.everything = true;
+                self.spend_backup.state.guess = None;
                 self.spend_backup_words_kind(NewKind::NativeSegwit);
                 self.spend_backup_guess_start(false);
                 self.refresh_spend();
@@ -872,6 +876,7 @@ impl Faraday {
                 self.spend_backup.state.closed[page::MAP as usize] = true;
                 self.spend_backup.state.closed[page::SAFE as usize] = true;
                 self.spend_backup.state.everything = true;
+                self.spend_backup.state.guess = None;
                 self.spend_backup_words_kind(NewKind::NativeSegwit);
                 self.spend_backup_guess_start(false);
                 self.refresh_spend();
@@ -1080,18 +1085,24 @@ impl Faraday {
     }
 
     /// [`Faraday::spend_backup_key_gone`] without its settle, for several
-    /// keys gone in one press. A guess whose wallet has this key in a
-    /// slot goes too: its other kinds would be made from whichever key
-    /// is loaded, or from no seed at all.
+    /// keys gone in one press. A guess made from this key, or whose
+    /// wallet has it in a slot, goes too: its other kinds have no key to
+    /// be made from.
     pub(crate) fn spend_backup_forget_key(&mut self, fp: Fingerprint) {
-        if self.spend_backup.state.guess.is_some()
-            && let Some(w) = self.spend_backup_wallet()
-            && self
-                .session
+        let own_gone = self
+            .spend_backup
+            .state
+            .guess
+            .as_ref()
+            .and_then(|g| g.key)
+            .is_some_and(|id| !self.session.keys.all().any(|k| k.id == id));
+        let in_wallet = self.spend_backup_wallet().is_some_and(|w| {
+            self.session
                 .slots(&self.session.wallets[w])
                 .iter()
                 .any(|s| s.fingerprint == Some(fp))
-        {
+        });
+        if own_gone || in_wallet {
             self.spend_backup.state.guess = None;
         }
         let plain = self
@@ -1408,8 +1419,14 @@ impl Faraday {
         } else {
             0
         };
+        self.spend_backup.state.guess = None;
+        let key = (!multi)
+            .then(|| self.spend_backup_words_key())
+            .flatten()
+            .and_then(|k| self.session.keys.info(k).map(|k| k.id));
         self.spend_backup.state.guess = Some(Guess {
             multi,
+            key,
             first,
             ..Guess::default()
         });
@@ -1592,11 +1609,16 @@ impl Faraday {
             self.spend_backup_guess_step(2);
             return;
         }
-        if self.spend_backup_seed_with(plain, source, pass).is_none() {
+        let Some(fp) = self.spend_backup_seed_with(plain, source, pass) else {
             return;
-        }
+        };
+        let key = self.session.keys.find(fp).map(|k| k.id);
         if let Some(g) = self.spend_backup.state.guess.as_mut() {
             g.pass = true;
+            // From here on the guess is of the key with the passphrase.
+            if !g.multi {
+                g.key = key;
+            }
         }
         self.spend_backup_guess_step(1);
     }
@@ -1673,9 +1695,13 @@ impl Faraday {
         self.spend_backup.state.scroll.follow = true;
     }
 
-    /// The key the words route's single-key wallet is opened from: the
-    /// first seed typed on the route, else the last loaded.
+    /// The key the words route's single-key wallet is opened from: a
+    /// guess's own key, and no other once that one is gone. With no such
+    /// guess, the first seed typed on the route, else the last loaded.
     pub(crate) fn spend_backup_words_key(&self) -> Option<usize> {
+        if let Some(id) = self.spend_backup.state.guess.as_ref().and_then(|g| g.key) {
+            return self.session.keys.all().position(|k| k.id == id);
+        }
         self.spend_backup
             .state
             .seeds
