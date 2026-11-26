@@ -4,6 +4,7 @@ use crate::tour::{
     Tour, boff, bput, description_file_at, device_key, keep_vault, test_key_1, type_text,
     type_words, vault_place, vault_stick,
 };
+use faraday_bip::keys::Network;
 use faraday_core::board::{Thing, Zone};
 use faraday_core::explore::{Eye, Page, XAction};
 use faraday_core::plan::Item;
@@ -149,9 +150,22 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.shot("boot-load-sheet")?;
         t.press(Action::Vault(V::LoadTicked));
     }
+    // The vault's key is a test seed, a public sample: on Mainnet the
+    // app refuses it, and says so over Wallets. The tour goes on with
+    // it, as it does with every test seed it types there.
+    let sample = t.app.session.keys.published_pending();
+    if testkit::net() == Network::Mainnet {
+        if t.app.sheet != Some(Sheet::Published)
+            || !sample.is_some_and(|fp| t.app.session.keys.is_sample(fp))
+        {
+            return Err("Mainnet did not refuse the vault's public sample key".into());
+        }
+        t.shot("boot-sample-refused")?;
+    }
+    let sheet_expected = (testkit::net() == Network::Mainnet).then_some(Sheet::Published);
     if t.app.vaults().open.len() != 1
         || t.app.import().is_some()
-        || t.app.sheet.is_some()
+        || t.app.sheet != sheet_expected
         || t.app.screen != Screen::Wallets
     {
         return Err("unlocking on the import sheet did not import and land on Wallets".into());
