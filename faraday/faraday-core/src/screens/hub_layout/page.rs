@@ -12,11 +12,11 @@ use crate::drawing::View;
 use crate::screens::catalog::home_results;
 use crate::screens::menu_page::{Page, Section, page_span, sections_height};
 use crate::screens::session_pane::{
-    draw_page_pane, page_content_h, pane_groups, stacked_card, stacked_card_h,
+    draw_page_pane, page_content_h, pane_groups, stacked_card, stacked_card_h, stacked_scan,
 };
 use crate::ui::pal::*;
 use crate::ui::{Region, Ui};
-use faraday_draw::tokens::{ELEVATION_SHEET, MARGIN_WIDE, PAD, PANE_TOP_BAR, SHAPE_M};
+use faraday_draw::tokens::{ELEVATION_SHEET, MARGIN_WIDE, PAD, PANE_TOP_BAR, SHAPE_M, SPACER};
 
 /// Where Home's card stands in a room `room` wide: its left edge from the
 /// room's and its width.
@@ -152,12 +152,22 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
         }
         let clip = ui.rect(x0, 0.0, left_of_guide, h);
         let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
-        stacked_card(app, ui, (x0 + hx, top), hw);
+        // The sidebar's Scan: the strip grows to the viewfinder's box, as
+        // wide as the tile's columns, and the tile moves down under it.
+        // The stack was chosen by This session's own height.
+        let columns = (x0 + hx + PAD, top, hw - 2.0 * PAD);
+        let under = match stacked_scan(app, ui, columns, h - top - MARGIN_WIDE) {
+            Some(box_h) => top + box_h + SPACER,
+            None => {
+                stacked_card(app, ui, (x0 + hx, top), hw);
+                under
+            }
+        };
         tile_surface(ui, (x0 + hx, under, hw, tile_h));
         tile_content(ui, (x0 + hx, under, hw), body);
         let content = under + tile_h + MARGIN_WIDE;
         app.scroll.content_h().set(content);
-        ui.region_close(open, 0.0);
+        ui.region_close(open, (content - h).max(0.0));
         return true;
     }
     let Some(p) = place_in_area(app, &panes, (ui.ox, cw), guide) else {

@@ -28,11 +28,12 @@ pub(crate) fn on(app: &Faraday) -> bool {
 }
 
 /// The card where This session's stands among a menu page's sections
-/// (Home), as tall as what it holds. Returns that height.
-pub(super) fn block(app: &View, ui: &mut Ui, (x, y): (f32, f32), w: f32) -> f32 {
-    let h = crate::menu::measure(ui, &mut |ui| content(app, ui, (x, y, w), f32::INFINITY));
+/// (Home) or over a stacked page, as tall as what it holds, its picture
+/// sized to at most `room` of height. Returns that height.
+pub(super) fn block(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), room: f32) -> f32 {
+    let h = crate::menu::measure(ui, &mut |ui| content(app, ui, (x, y, w), room));
     card_surface(ui, (x, y, w, h));
-    content(app, ui, (x, y, w), h);
+    content(app, ui, (x, y, w), room);
     h
 }
 

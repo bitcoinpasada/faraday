@@ -46,6 +46,16 @@ pub(crate) fn stacked_card(app: &View, ui: &mut Ui, (x, y): (f32, f32), w: f32) 
     )
 }
 
+/// The Scan box in [`stacked_card`]'s stead while the sidebar's Scan
+/// stands over a stacked page: its top-left corner at `(x, y)`, `w` wide,
+/// at most `room` tall where its picture can give way. Says the pane
+/// stands on this page, scanning or not. Returns the box's height, or
+/// `None`, drawing nothing, with no scan in the pane.
+pub(crate) fn stacked_scan(app: &View, ui: &mut Ui, at: (f32, f32, f32), room: f32) -> Option<f32> {
+    app.camera.pane_stands(app.screen);
+    scan::on(app).then(|| scan::block(app, ui, at, room))
+}
+
 /// The height [`stacked_card`] takes, with its gap, read from the groups
 /// without drawing them.
 pub(crate) fn stacked_card_h(app: &View, ui: &Ui, w: f32) -> f32 {
@@ -496,7 +506,7 @@ pub(crate) fn loaded_sections<'a>(
         return vec![Section::block(None, move |ui, (x, y), w| {
             app.camera.pane_stands(app.screen);
             if scan::on(app) {
-                return scan::block(app, ui, (x, y), w);
+                return scan::block(app, ui, (x, y, w), f32::INFINITY);
             }
             pane_card(
                 in_bar,

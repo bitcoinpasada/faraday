@@ -313,5 +313,17 @@ pub(crate) fn scan_tour(t: &mut Tour) -> Result<(), String> {
         }
         t.shot("scan-address")?;
     }
+    // The viewfinder over a page: where the page is stacked under This
+    // session, the strip grows to it and the page moves down.
+    for (screen, name) in [
+        (Screen::Catalog, "scan-over-tools"),
+        (Screen::Check, "scan-over-check"),
+    ] {
+        t.press(Action::Cancel);
+        t.press(Action::Nav(screen));
+        t.shot("page")?;
+        t.press(Action::Scan);
+        t.shot(name)?;
+    }
     Ok(())
 }

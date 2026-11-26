@@ -83,7 +83,12 @@ session pane; what fills the tile is the page's (`docs/MENU-PAGE.md`).
   `MENU_TILE_WIDE_MAX`, the pair centred past it; where the room holds one
   column the pair stands at a flow's place.
 - **The stack.** Under This session's card as Home has it, as wide, `SPACER`
-  under it, ending a `MARGIN_WIDE` above the window's foot.
+  under it, ending a `MARGIN_WIDE` above the window's foot. While the
+  sidebar's Scan stands on a stacked page, its box takes the card's place,
+  as wide as the tile's columns (a `PAD` in from each side), no taller
+  than the window holds; the tile moves down under it and the page
+  scrolls. Whether the page stacks is still decided by This session's own
+  height, so scanning never changes the page's place.
 - **The level ends** of every pair.
 - **The time of a change of page** and what the Motion and Speed settings do
   in it (`docs/MOTION.md` §3.5); `fade.rs` draws the change.

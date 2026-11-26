@@ -832,3 +832,125 @@ fn the_pane_fades_to_the_viewfinder_and_back() {
         assert_eq!(fades(&mut app), want, "back");
     }
 }
+
+// A stacked page (`docs/WORKSPACE.md` §4): This session stands over the
+// page's tile, and the sidebar's Scan grows it to the viewfinder.
+
+/// Where the line `text` is drawn, pixels (x, y, w, h).
+fn line_box(app: &mut Faraday, text: &str) -> (i32, i32, i32, i32) {
+    app.drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t == text)
+        .unwrap_or_else(|| panic!("{text} is not drawn"))
+        .1
+}
+
+/// The pane's box, settled, pixels (x, y, w, h).
+fn pane(app: &mut Faraday) -> (i32, i32, i32, i32) {
+    app.settle();
+    let _ = app.frame();
+    app.pane_place().expect("a pane")
+}
+
+/// A session with a wallet on `screen`, reached from Home (a page left
+/// for a tool stays side by side until Home is shown), in the first of
+/// these windows tall enough to stack it, with that height: Tools, the
+/// longer page, needs more than Check.
+fn stacked(screen: Screen) -> (Faraday, i32) {
+    for height in [2000, 2600, 3200, 3800, 4400] {
+        let mut app = beside(Screen::Home, (1920, height));
+        app.press(Action::Nav(screen));
+        // Wider than the pair's list pane: This session over the page.
+        if pane(&mut app).2 > faraday_draw::tokens::LIST_PANE as i32 {
+            return (app, i32::from(height));
+        }
+    }
+    panic!("{screen:?} stacks in no window tried");
+}
+
+fn escape(app: &mut Faraday) {
+    app.event(Event::Key(Key::Escape));
+}
+
+/// On `screen`, tall enough to stack: the sidebar's Scan takes This
+/// session's place in a box as wide as the tile's columns, the page under
+/// it, and `close` puts both back.
+fn scan_over_a_stacked_page(screen: Screen, first_line: &str, close: fn(&mut Faraday)) {
+    let (mut app, height) = stacked(screen);
+    let strip = pane(&mut app);
+    let line = line_box(&mut app, first_line);
+    let (_, strip_y, _, strip_h) = strip;
+    assert!(
+        line.1 > strip_y + strip_h,
+        "not stacked: {strip:?} {line:?}"
+    );
+
+    sidebar_scan(&mut app);
+    let boxed = pane(&mut app);
+    assert!(has(&app.drawn_texts(), "Scan a QR code"));
+    assert!(!has(&app.drawn_texts(), "This session"));
+    // A padding in from each side of the strip: the tile's columns.
+    let pad = faraday_draw::tokens::PAD as i32;
+    assert_eq!(boxed.0, strip.0 + pad, "{boxed:?} {strip:?}");
+    assert_eq!(boxed.2, strip.2 - 2 * pad, "{boxed:?} {strip:?}");
+    assert_eq!(boxed.1, strip.1);
+    assert!(boxed.3 > strip.3, "the strip did not grow: {boxed:?}");
+    assert!(boxed.1 + boxed.3 <= height, "the box is cut: {boxed:?}");
+    let moved = line_box(&mut app, first_line);
+    assert!(moved.1 > boxed.1 + boxed.3, "{moved:?} {boxed:?}");
+    assert_eq!(moved.0, line.0);
+    assert_eq!(moved.1 - line.1, boxed.3 - strip.3);
+
+    close(&mut app);
+    let _ = app.frame();
+    gone(&app);
+    assert_eq!(app.screen, screen);
+    assert_eq!(pane(&mut app), strip);
+    assert_eq!(line_box(&mut app, first_line), line);
+    assert!(has(&app.drawn_texts(), "This session"));
+}
+
+#[test]
+fn scan_over_the_stacked_check_page_takes_the_columns_and_moves_the_page_down() {
+    scan_over_a_stacked_page(
+        Screen::Check,
+        faraday_core::strings::EN.check_group_wallet,
+        escape,
+    );
+}
+
+#[test]
+fn scan_over_the_stacked_tools_page_takes_the_columns_and_moves_the_page_down() {
+    scan_over_a_stacked_page(
+        Screen::Catalog,
+        faraday_core::strings::EN.catalog_common,
+        escape,
+    );
+}
+
+#[test]
+fn cancel_puts_a_stacked_pages_strip_back() {
+    scan_over_a_stacked_page(
+        Screen::Check,
+        faraday_core::strings::EN.check_group_wallet,
+        |app| {
+            app.press(Action::Cancel);
+        },
+    );
+}
+
+#[test]
+fn a_read_over_a_stacked_page_shows_its_card_in_the_box() {
+    let (mut app, _) = stacked(Screen::Check);
+    let strip = pane(&mut app);
+    sidebar_scan(&mut app);
+    let finder = pane(&mut app);
+    read_totp(&mut app);
+    let card = pane(&mut app);
+    assert!(has(&app.drawn_texts(), "Make a new vault"));
+    assert_eq!((card.0, card.1, card.2), (finder.0, finder.1, finder.2));
+    app.press(Action::Cancel);
+    let _ = app.frame();
+    gone(&app);
+    assert_eq!(pane(&mut app), strip);
+}
