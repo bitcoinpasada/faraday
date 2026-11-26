@@ -378,6 +378,9 @@ const PANE_GLIDES: &[(Screen, &str, Screen)] = &[
     (Screen::Vaults, "Nav(Catalog)", Screen::Catalog),
     (Screen::Vaults, "Nav(WalletsStart)", Screen::WalletsStart),
     (Screen::Vaults, "StartSpend(", Screen::Spend),
+    // A tab press with a Spend in progress resumes it (WORKSPACE §16):
+    // the pane glides into the Spend pair, as StartSpend from here does.
+    (Screen::Vaults, "Tab(WalletsStart)", Screen::Spend),
     (Screen::Vaults, "Vault(Create)", Screen::CreateVault),
     // The pills stand on Vaults too: the pane glides from the page's place
     // into the flow pair's, as Home's press of the same pill does.
