@@ -137,7 +137,7 @@ impl View<'_> {
                                 &loaded_at,
                             );
                             let (label, action) = offer.button()?;
-                            Some((crate::items::button_label(label)?, *action))
+                            Some((crate::items::button_label(label, *action)?, *action))
                         })
                         .collect(),
                 )

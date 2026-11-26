@@ -101,9 +101,12 @@ pub(crate) fn offer(
 }
 
 /// The words of a row button as the text the strings hold them in, for a
-/// row that keeps them as such; none for a label made with a count (the
-/// shares' Restore), which gives no row button.
-pub(crate) fn button_label(label: &str) -> Option<&'static str> {
+/// row that keeps them as such. The shares' list entry says how many it
+/// restores from; their row's button says Restore alone.
+pub(crate) fn button_label(label: &str, action: Action) -> Option<&'static str> {
+    if action == Action::RestoreShares {
+        return Some(EN.home_ways_restore_short);
+    }
     [
         EN.inbox_actions_add_signatures,
         EN.inbox_actions_sign,

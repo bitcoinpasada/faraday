@@ -969,3 +969,33 @@ fn share_files_of_one_prefix_read_whole_on_the_pis_panel() {
         }
     }
 }
+
+/// A split sheet's row in the session pane carries Restore, and the rest
+/// of the row opens the file's details.
+#[test]
+fn a_share_files_row_has_restore_and_opens_its_details() {
+    let (a, _) = sheets("Savings", &two_of_three(0));
+    let mut app = device(vec![(
+        "savings-share-1.txt".to_string(),
+        a[0].clone().into_bytes(),
+    )]);
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Nav(Screen::Check));
+    let _ = app.frame();
+    let details = Action::RowOpen(faraday_core::Row::File(0));
+    assert!(app.offers(details));
+    assert!(app.offers(Action::RestoreShares));
+    app.press(Action::RestoreShares);
+    assert_eq!(app.screen, Screen::Restore);
+}

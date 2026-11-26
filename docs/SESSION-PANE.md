@@ -88,8 +88,8 @@ the button being the row's press as above. The buttons are worked out once a
 frame for every file held (`View::inbox_buttons`, the drawing memo, emptied
 when the frame ends), so a lock, a load or a change of the files shows in the
 next frame; the offer reads the Inbox's and the spend's kept answers. A file
-whose kind has no button keeps its row, which opens Files. A button whose
-words are made with a count (the shares' Restore) is not drawn, and a PSBT
+whose kind has no button keeps its row, which opens Files. A split sheet's
+button says Restore (the list's entry says how many sheets), and a PSBT
 keeps the rows of Waiting. A wallet's row still has no button.
 
 ### Where it stands, for the change of page
