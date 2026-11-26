@@ -42,6 +42,9 @@ pub mod vstep {
 pub enum VanityAction {
     /// Open the flow.
     Open,
+    /// Open the flow on a loaded key, by fingerprint, to return to the
+    /// screen pressed from. A key not loaded does nothing.
+    OpenOn([u8; 4]),
     /// Open or close a card.
     Step(u8),
     /// Done with a card.
@@ -288,7 +291,7 @@ impl VanityArea {
                 }
             }
             V::Show => v.shown = !v.shown,
-            V::Open | V::Use | V::Done | V::Another => {}
+            V::Open | V::OpenOn(_) | V::Use | V::Done | V::Another => {}
         }
     }
 
@@ -404,6 +407,16 @@ impl Faraday {
     pub(crate) fn vanity_act(&mut self, a: VanityAction) {
         match a {
             VanityAction::Open => self.vanity_open(),
+            VanityAction::OpenOn(fp) => {
+                if self.session.keys.position_of(fp).is_some() {
+                    // Explore is kept for the way back; what its eyes show
+                    // is not.
+                    self.explore_hide();
+                    let net = self.session.network();
+                    self.vanity.open(Some(fp), net, self.screen);
+                    self.screen = Screen::Vanity;
+                }
+            }
             VanityAction::Use => self.vanity_use(),
             VanityAction::Done => {
                 if let Some(v) = self.vanity.state() {

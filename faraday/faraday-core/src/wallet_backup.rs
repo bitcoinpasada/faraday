@@ -2281,11 +2281,7 @@ impl Faraday {
                     .and_then(|k| self.session.keys.info(k))
                     .map(|k| k.fingerprint);
                 if let Some(fp) = fp {
-                    let mut scan = ScanState::default();
-                    scan.purpose = ScanPurpose::CheckCopy(fp);
-                    self.camera.open(scan);
-                    self.sheet = Some(Sheet::Scan);
-                    self.out.commands.push_back(Command::CameraOn);
+                    self.copy_scan_open(fp);
                 }
             }
             Action::BCheckClear => self.copy_check_clear(),
@@ -2457,6 +2453,31 @@ impl Faraday {
         }
         let check = self.copy_check_new();
         self.backup.check_start(check);
+    }
+
+    /// Opens the camera to read a copy of the seed of key `fp`, over the
+    /// page on show.
+    fn copy_scan_open(&mut self, fp: faraday_bip::keys::Fingerprint) {
+        let mut scan = ScanState::default();
+        scan.purpose = ScanPurpose::CheckCopy(fp);
+        self.camera.open(scan);
+        self.sheet = Some(Sheet::Scan);
+        self.out.commands.push_back(Command::CameraOn);
+    }
+
+    /// The same scan from a key's details, with no backup open: a copy is
+    /// checked only against a key with words.
+    pub(crate) fn key_copy_scan(&mut self, fp: [u8; 4]) {
+        let fp = faraday_bip::keys::Fingerprint(fp);
+        let words = self
+            .session
+            .keys
+            .position(fp)
+            .and_then(|k| self.session.keys.info(k))
+            .is_some_and(|k| k.has_words());
+        if words {
+            self.copy_scan_open(fp);
+        }
     }
 
     /// Check my copy of Seed XOR part `i` (from 0): the typed check opens

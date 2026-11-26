@@ -2614,6 +2614,11 @@ impl Faraday {
             self.camera.close();
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);
+            // A key's details have no card that says it.
+            if matches!(crate::row_open::opened(self), Some(crate::row_open::Opened::Key(k)) if k == fp.0)
+            {
+                self.toast(&crate::wallet_backup::copy_scan_line(&found));
+            }
         } else if let Some(scan) = self.camera.scan.as_mut() {
             scan.note = Some(Text::of(&crate::wallet_backup::copy_scan_line(&found)));
         }

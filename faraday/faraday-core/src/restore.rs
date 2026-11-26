@@ -979,6 +979,16 @@ impl Faraday {
                 });
                 self.screen = Screen::Restore;
             }
+            Action::RestoreWith(fp) => {
+                if self.session.keys.position_of(fp).is_none() {
+                    return;
+                }
+                // Explore is kept for the way back; what its eyes show is
+                // not.
+                self.explore_hide();
+                self.restore_act(Action::RestoreWallet, c);
+                self.restore_took(faraday_bip::keys::Fingerprint(fp));
+            }
             Action::RestoreWallet => {
                 let owner = self.fresh_owner();
                 self.kept.pooled_drop();

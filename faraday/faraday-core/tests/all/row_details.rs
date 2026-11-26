@@ -4,11 +4,13 @@
 //! details offer what they offer, a row's button stays its own press and a
 //! flow begun from the details returns to them.
 
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::keys::Fingerprint;
 use faraday_core::convert::ConvertAction as C;
 use faraday_core::lightning::NodeSource;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit::KindText;
-use faraday_core::{Action, Faraday, KeyTool, Row, Screen, Sheet, StorageEvent};
+use faraday_core::{Action, Code, Faraday, KeyTool, Row, ScanPurpose, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const WORDS: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
@@ -92,7 +94,7 @@ fn a_key_row_opens_its_details_and_tools_stays() {
         app.offers(Action::KeyWallet(fp, 2)),
         "Start a multisig wallet with this key"
     );
-    assert!(app.offers(Action::RestoreWallet), "Restore");
+    assert!(app.offers(Action::RestoreWith(fp)), "Restore");
     assert!(app.offers(Action::RowClose), "the way back");
 }
 
@@ -216,7 +218,7 @@ fn wallets_key_row_lists_add_another_key_and_restore() {
     app.press(Action::RowOpen(Row::Key(fp)));
     assert_eq!(app.screen, Screen::Wallets);
     assert!(shown(&mut app, Action::KeyWallet(fp, 2)));
-    assert!(app.offers(Action::RestoreWallet));
+    assert!(shown(&mut app, Action::RestoreWith(fp)));
 }
 
 #[test]
@@ -1208,7 +1210,11 @@ fn vaults_wallet_rows_have_no_add_a_key() {
 
 /// Tools with a key a wallet uses, that key's details open.
 fn tools_with_a_used_keys_details() -> (Faraday, [u8; 4]) {
-    let mut app = desktop();
+    used_keys_details_in(desktop())
+}
+
+/// The same in `app`'s window.
+fn used_keys_details_in(mut app: Faraday) -> (Faraday, [u8; 4]) {
     let fp = add_key(&mut app, WORDS);
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
@@ -1245,10 +1251,123 @@ fn a_used_keys_details_offer_make_a_wallet_and_it_takes_the_key() {
     }
 }
 
+/// Backs out of the flow on `screen` by its back button, through its
+/// cards, to the page and the key's details it was opened from.
+fn back_to_details(app: &mut Faraday, screen: Screen, fp: [u8; 4]) {
+    for _ in 0..8 {
+        if app.screen != screen {
+            break;
+        }
+        let _ = app.frame();
+        let at = app.back_offered().expect("a way back");
+        touch(app, at);
+    }
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(details_of(app, fp), "back in the key's details");
+}
+
 #[test]
-fn a_used_keys_details_offer_restore() {
-    let (app, _) = used_key_press(|_| Action::RestoreWallet);
+fn a_used_keys_details_offer_restore_with_the_key_in_it() {
+    // A key that has not been through Restore: a screen reached again cuts
+    // the way back short of the page.
+    let (mut app, fp) = tools_with_key();
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(shown(&mut app, Action::RestoreWith(fp)));
+    app.press(Action::RestoreWith(fp));
     assert_eq!(app.screen, Screen::Restore);
+    let s = app.restore().and_then(|r| r.seeds.as_ref()).unwrap();
+    assert_eq!(s.keys, vec![fp]);
+    back_to_details(&mut app, Screen::Restore, fp);
+}
+
+#[test]
+fn a_used_keys_details_offer_a_krux_code_of_that_keys_words() {
+    use faraday_core::kef_tool::KefToolAction as K;
+    // With a second key held, the tool alone would pick none.
+    let (mut app, fp) = tools_with_a_used_keys_details();
+    add_key(&mut app, OTHER_WORDS);
+    let action = Action::KefTool(K::OpenOn(fp));
+    assert!(shown(&mut app, action), "{action:?} is not offered");
+    app.press(action);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::KefTool);
+    let at = app.session.keys.position_of(fp);
+    assert!(at.is_some());
+    assert_eq!(faraday_core::kef_tool::state(&app).unwrap().key(), at);
+    back_to_details(&mut app, Screen::KefTool, fp);
+}
+
+#[test]
+fn a_used_keys_details_offer_a_vanity_address_with_the_key_picked() {
+    use faraday_core::vanity::VanityAction as V;
+    let (mut app, fp) = tools_with_a_used_keys_details();
+    add_key(&mut app, OTHER_WORDS);
+    let action = Action::Vanity(V::OpenOn(fp));
+    assert!(shown(&mut app, action), "{action:?} is not offered");
+    app.press(action);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Vanity);
+    assert_eq!(app.vanity().unwrap().key, Some(fp));
+    back_to_details(&mut app, Screen::Vanity, fp);
+}
+
+#[test]
+// The published test words, to draw the copy scanned.
+#[allow(clippy::disallowed_methods)]
+fn a_used_keys_details_offer_a_scan_of_its_copy() {
+    let (mut app, fp) = used_key_press(Action::CheckKeyCopy);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert_eq!(
+        app.scan().map(|s| s.purpose),
+        Some(ScanPurpose::CheckCopy(Fingerprint(fp)))
+    );
+    // Closed without a copy: the details again.
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert!(details_of(&mut app, fp));
+    // A copy that matches closes the camera and says so.
+    app.press(Action::CheckKeyCopy(fp));
+    let c = faraday_core::testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, WORDS).unwrap();
+    let matrix = faraday_codec::seedqr::encode_seedqr(&c, &m).unwrap();
+    let (w, h, px) = matrix.to_luma(4, faraday_codec::qr::QUIET_ZONE);
+    let bytes = faraday_codec::decode_luma(&c, w, h, &px)[0].bytes.to_vec();
+    app.event(Event::Scanned { bytes });
+    assert_eq!(app.sheet, None);
+    assert_eq!(
+        app.toast_text(),
+        Some("Your copy scans and matches the seed")
+    );
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(details_of(&mut app, fp));
+}
+
+#[test]
+fn a_used_keys_details_offer_its_xpub_as_a_code_and_as_a_file() {
+    // Tall enough for the whole list: the xpub's offers are its last.
+    let (mut app, fp) = used_keys_details_in(desktop_of(1400));
+    let qr = Action::ShowCode(Code::WalletKey(0, 0));
+    assert!(shown(&mut app, qr), "Show xpub QR is not offered");
+    app.press(qr);
+    let _ = app.frame();
+    assert!(app.qr().is_some(), "no code on screen");
+    app.press(Action::Cancel);
+    assert!(details_of(&mut app, fp));
+    let file = Action::WalletKeyOut(0, 0);
+    assert!(shown(&mut app, file), "Xpub file is not offered");
+    let before = app.outbox.len();
+    app.press(file);
+    assert_eq!(app.outbox.len(), before + 1);
+    assert!(details_of(&mut app, fp));
+}
+
+#[test]
+fn a_loose_key_has_no_account_xpub_to_offer() {
+    let (mut app, fp) = tools_with_key();
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(shown(&mut app, Action::CheckKeyCopy(fp)));
+    assert!(!app.offers(Action::ShowCode(Code::WalletKey(0, 0))));
+    assert!(!app.offers(Action::WalletKeyOut(0, 0)));
 }
 
 #[test]

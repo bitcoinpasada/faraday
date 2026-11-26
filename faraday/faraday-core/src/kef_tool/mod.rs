@@ -47,6 +47,9 @@ pub enum Pick {
 pub enum KefToolAction {
     /// Opens the tool, from the page on show.
     Open,
+    /// Opens the tool on a loaded key's words, by fingerprint, to return to
+    /// the page on show. A key no code can be made of does nothing.
+    OpenOn([u8; 4]),
     /// Opens or closes a card.
     Step(u8),
     /// Chooses where the text comes from.
@@ -288,6 +291,20 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
                 out: None,
             });
             app.screen = Screen::KefTool;
+        }
+        KefToolAction::OpenOn(fp) => {
+            let Some(i) = app
+                .session
+                .keys
+                .position_of(fp)
+                .filter(|&i| offered_keys(app).contains(&i))
+            else {
+                return;
+            };
+            // Explore is kept for the way back; what its eyes show is not.
+            app.explore_hide();
+            act(app, KefToolAction::Open);
+            act(app, KefToolAction::Key(i));
         }
         KefToolAction::Step(k) => step(app, k),
         KefToolAction::Pick(p) => {

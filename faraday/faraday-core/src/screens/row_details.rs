@@ -46,21 +46,23 @@ pub(crate) fn bar_when(app: &View, ui: &mut Ui, page: &str, stands: bool) -> f32
 }
 
 /// What key `fp` offers, every action that can open with it picked, whether
-/// or not a wallet uses it, in the order of Tools: Explore it, Derive from
-/// it, Convert it, its silent payments, its Lightning node key, Make a
-/// wallet from this key, Start a multisig wallet with this key, Restore,
-/// and Add to vault where the open vault can take it. A tool that would
-/// not take the key is left out.
+/// or not a wallet uses it: Explore it, derive from it, Convert it, make a
+/// Krux code of its words (where one can be made), search a vanity address,
+/// its silent payments and its Lightning node key (all in the order of
+/// Tools), Make a wallet from this key, Start a multisig wallet with this
+/// key, Restore with it, Add to vault where the open vault can take it,
+/// check a copy of its words (a key with words) and show its account xpub or
+/// put it in a file (a key in a wallet). A tool that would not take the key
+/// is left out.
 fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
     let convert = Action::Convert(crate::convert::ConvertAction::OpenOn(fp));
     let tool = |label, tool| actions::offer(label, None, Action::KeyTool(tool, fp));
-    // The node key is made from BIP-39 words.
-    let has_words = app
+    let info = app
         .session
         .keys
-        .all()
-        .any(|k| k.fingerprint.0 == fp && k.has_words());
-    let mut list = vec![
+        .position_of(fp)
+        .and_then(|k| app.session.keys.info(k));
+    let mut offers = vec![
         actions::offer(
             EN.explore_explore,
             Some(Icon::Explore),
@@ -69,14 +71,21 @@ fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
         tool(EN.catalog_child_seeds, KeyTool::Derive),
         actions::offer(EN.convert_way_in, offer_icon(convert), convert),
     ];
+    if info.is_some_and(|k| k.kef_offered()) {
+        let kef = Action::KefTool(crate::kef_tool::KefToolAction::OpenOn(fp));
+        offers.push(actions::offer(EN.catalog_krux_code, None, kef));
+    }
+    let vanity = Action::Vanity(crate::vanity::VanityAction::OpenOn(fp));
+    offers.push(actions::offer(EN.catalog_vanity_address, None, vanity));
     // A key waiting for its backup has its silent payments address held.
     if !app.key_held(faraday_bip::keys::Fingerprint(fp)) {
-        list.push(tool(EN.catalog_silent_payments, KeyTool::Silent));
+        offers.push(tool(EN.catalog_silent_payments, KeyTool::Silent));
     }
-    if has_words {
-        list.push(tool(EN.catalog_lightning_node, KeyTool::Lightning));
+    // The node key is made from BIP-39 words.
+    if info.is_some_and(|k| k.has_words()) {
+        offers.push(tool(EN.catalog_lightning_node, KeyTool::Lightning));
     }
-    list.extend([
+    offers.extend([
         actions::offer(
             super::parts::FROM_KEY,
             Some(Icon::Wallet),
@@ -90,17 +99,51 @@ fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
         actions::offer(
             EN.loose_card_restore,
             offer_icon(Action::RestoreWallet),
-            Action::RestoreWallet,
+            Action::RestoreWith(fp),
         ),
     ]);
     if let Some(save) = super::session_pane::key_save(app, fp) {
-        list.push(actions::offer(
+        offers.push(actions::offer(
             EN.add_to_vault_button,
             offer_icon(save),
             save,
         ));
     }
-    list
+    if info.is_some_and(|k| k.has_words()) {
+        let check = Action::CheckKeyCopy(fp);
+        offers.push(actions::offer(EN.glance_sheet_scan_my, None, check));
+    }
+    if let Some((w, slot)) = account_key(app, fp) {
+        let qr = Action::ShowCode(crate::Code::WalletKey(w, slot));
+        offers.push(actions::offer(EN.glance_sheet_show_xpub, None, qr));
+        let file = Action::WalletKeyOut(w, slot);
+        offers.push(actions::offer(EN.glance_sheet_xpub_file, None, file));
+    }
+    offers
+}
+
+/// The wallet and slot whose account xpub is key `fp`'s: none where no
+/// wallet writes one, or where its wallets write different ones (one press
+/// cannot say which).
+fn account_key(app: &View, fp: [u8; 4]) -> Option<(usize, u8)> {
+    let mut found = None;
+    for (w, wallet) in app.session.wallets.iter().enumerate() {
+        if wallet.policy().silent().is_some() {
+            continue;
+        }
+        for (slot, key) in wallet.policy().keys().iter().enumerate() {
+            if key.fingerprint().is_none_or(|f| f.0 != fp) {
+                continue;
+            }
+            let text = key.key_text();
+            match &found {
+                None => found = Some((w, u8::try_from(slot).ok()?, text)),
+                Some((_, _, first)) if *first != text => return None,
+                Some(_) => {}
+            }
+        }
+    }
+    found.map(|(w, slot, _)| (w, slot))
 }
 
 /// The icon an action carries elsewhere (a wallet's group, the first

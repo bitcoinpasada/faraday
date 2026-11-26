@@ -945,6 +945,12 @@ pub enum Action {
     CBackup,
     /// Start restoring a wallet.
     RestoreWallet,
+    /// Start restoring a wallet with a loaded key, by fingerprint, already
+    /// in it. A key not loaded does nothing.
+    RestoreWith([u8; 4]),
+    /// Scan a copy of a loaded key's seed to check it, by fingerprint, over
+    /// the page pressed from. A key without words does nothing.
+    CheckKeyCopy([u8; 4]),
     /// Start restoring a wallet for a check that found none loaded: the
     /// wallet read goes back to the check.
     RestoreFor(crate::restore::Check),
@@ -1209,7 +1215,7 @@ impl Faraday {
         // what was typed goes (a result's press keeps it for the way back).
         if matches!(
             action,
-            Action::Nav(_) | Action::CreateWallet | Action::RestoreWallet
+            Action::Nav(_) | Action::CreateWallet | Action::RestoreWallet | Action::RestoreWith(_)
         ) {
             self.tools.clear_home_find();
         }
@@ -1581,7 +1587,7 @@ impl Faraday {
             Action::KeyTool(tool, fp) if self.session.keys.position_of(fp).is_some() => {
                 match tool {
                     KeyTool::Derive => self.bip85_open_on(Some(fp)),
-                    KeyTool::Silent => self.silent_open_on(fp),
+                    KeyTool::Silent => self.silent_open_for(fp),
                     KeyTool::Lightning => {
                         self.lightning_act(Action::Lightning);
                         self.lightning_act(Action::LKey(fp));
@@ -1852,6 +1858,7 @@ impl Faraday {
             | Action::SamplePsbt) => self.samples_act(a),
             a @ (Action::RFromVault(..)
             | Action::RestoreWallet
+            | Action::RestoreWith(..)
             | Action::RestoreFor(..)
             | Action::RStep(..)
             | Action::RExistingVault(..)
@@ -1872,6 +1879,7 @@ impl Faraday {
             | Action::RestoreShares
             | Action::RestoreSeedFile(..)
             | Action::RestoreShareAt(..)) => self.restore_act(a, &c),
+            Action::CheckKeyCopy(fp) => self.key_copy_scan(fp),
             a @ Action::Cancel => self.cancel_act(a),
             Action::File(p) => self.file_act(p),
             Action::About(k) => self.panel.toggle_about(self.screen, k),
