@@ -31,7 +31,8 @@ with no rows is not drawn:
    is no All keys row and no Make a wallet button.
 2. **Wallets.** Every loaded wallet, a wallet that needs something with the
    warning icon and colour; Backups last, while something is not backed up. A
-   wallet that needs a key carries Add a key (below).
+   wallet that needs a key carries Add a key (below; the Wallets page's tile
+   rows carry none: the tile keeps its one at the foot; owner, 2026-11-25).
 3. **Waiting** (the band). The jobs of `docs/HOME.md` §2, each one row, always, with keys
    and wallets loaded too: the spend under way, a backup not finished, one row
    for each PSBT in Files that waits to be signed (fewest signatures first),
