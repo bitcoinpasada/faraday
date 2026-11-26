@@ -22,7 +22,7 @@ mod plans;
 pub(crate) mod screen;
 mod view;
 
-use lines::{count_text, description_line, form_label, sees_line, software_name};
+use lines::{count_text, description_line, form_label, sees_line, software_name, written_as};
 use lines::{stick_numbers, stick_word};
 pub(crate) use view::{StickView, VaultView};
 
@@ -730,6 +730,10 @@ pub(crate) struct ChipView {
     /// chip while the board takes changes (§17.3); empty when read-only
     /// or where it has one form only.
     pub forms: Vec<(String, bool)>,
+    /// The line under the toggles, or under the name where the chip has
+    /// no form, where the item was written as the text file in the
+    /// picture's place ([`lines::written_as`]); else empty.
+    pub written: String,
     /// A check names it (`docs/BACKUP-FLOW.md` §17.5).
     pub warn: bool,
     /// Drawn at every place that keeps its vault's stick.
@@ -1366,6 +1370,12 @@ impl Faraday {
             } else {
                 Vec::new()
             };
+            // The toggles show the chosen form, and the software's chips
+            // have no mark: what was written is said under the chip's
+            // name. A chip whose marks read as text has said it.
+            let written = at_of(&m, z)
+                .filter(|_| custom && t == Thing::Whole && (toggles || marks.is_empty()))
+                .map_or_else(String::new, |at| written_as(&a, at));
             ChipView {
                 chip: Chip::Placed(z, t),
                 name: name_of(t),
@@ -1375,6 +1385,7 @@ impl Faraday {
                     marks.join(" · ")
                 },
                 forms,
+                written,
                 warn: p.is_some_and(|p| marked.contains(&(p, t))),
                 link: matches!(t, Thing::Vault(v) if vault_places(v) > 1),
                 fixed: false,
@@ -1769,6 +1780,7 @@ impl Faraday {
                 name,
                 marks: String::new(),
                 forms: Vec::new(),
+                written: String::new(),
                 warn: false,
                 link: false,
                 fixed: true,

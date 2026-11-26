@@ -478,6 +478,9 @@ macro_rules! words_vm_names {
     board_passphrase_file: "Passphrase file",
     /// A form: the description or a share as text.
     board_text_file: "Text file",
+    /// Under a chip's form toggles: what was written where it was not the
+    /// chosen form. `{}`: the form written.
+    board_written_as: "Written as: {}",
     /// A form: the description or a share as a QR picture.
     board_qr_picture: "QR picture",
     /// A form: the software's own file. `{}`: the software.

@@ -1,5 +1,5 @@
 //! The board's lines of words: a list chip's count, a form's name on a
-//! chip, the sheet's line over a drop that let a place see the balance,
+//! chip and what was written in its place, the sheet's line over a drop that let a place see the balance,
 //! the line naming where the description is short, and the software's
 //! name (`docs/BACKUP-FLOW.md` §17).
 
@@ -28,6 +28,16 @@ pub(super) fn form_label(w: What, software: &str) -> Option<String> {
         What::SoftwareFile => fill(EN.board_software_file, &[software]),
         _ => return None,
     })
+}
+
+/// "Written as: Text file" where the plan marks an item at `at` as
+/// written as the text file in the picture's place; else nothing.
+pub(super) fn written_as(a: &Answers, at: At) -> String {
+    if a.written_on(at) {
+        fill(EN.board_written_as, &[EN.board_text_file])
+    } else {
+        String::new()
+    }
 }
 
 /// A copy's name on a chip: a seed's words, SeedQR or file, a codex32

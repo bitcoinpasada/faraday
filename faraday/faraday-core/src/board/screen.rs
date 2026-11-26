@@ -283,12 +283,15 @@ fn chip_size(ui: &Ui, cv: &ChipView, avail: f32) -> Fit {
     let two = if cv.forms.is_empty() {
         chip_h(ui) + ui.line_as(BODY_S)
     } else {
-        chip_h(ui) - tokens::BOARD_CHIP_GAP + rows * toggle_row_h(ui)
+        chip_h(ui) - tokens::BOARD_CHIP_GAP + rows * toggle_row_h(ui) + written_h(ui, cv)
     };
-    let has_marks = !cv.marks.is_empty() || !cv.forms.is_empty();
+    // Whether anything goes on a second line where it must. A written
+    // line alone takes the marks' place there (`two`).
+    let has_marks = !cv.marks.is_empty() || !cv.forms.is_empty() || !cv.written.is_empty();
     for role in [pick(LABEL_L), pick(LABEL_M)] {
         let need = base + ui.measure_as(role, &cv.name);
-        if need + marks <= avail {
+        // The written line is under the name, never beside it.
+        if need + marks <= avail && cv.written.is_empty() {
             return Fit {
                 w: need + marks,
                 h: one,
@@ -309,6 +312,16 @@ fn chip_size(ui: &Ui, cv: &ChipView, avail: f32) -> Fit {
         w: avail.max(least),
         h: if has_marks { two } else { one },
         role: pick(BODY_S),
+    }
+}
+
+/// The room a chip's written line takes at the chip's foot, with the
+/// room under it.
+fn written_h(ui: &Ui, cv: &ChipView) -> f32 {
+    if cv.written.is_empty() {
+        0.0
+    } else {
+        ui.line_as(BODY_S) + tokens::BOARD_CHIP_GAP
     }
 }
 
@@ -621,6 +634,17 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
             f32::INFINITY
         };
         toggles(ui, cv, (tx, ty, room), th, hits && !cv.fixed);
+    }
+    if !cv.written.is_empty() {
+        let room = w - 2.0 * tokens::BOARD_PAD;
+        let shown = ui.fit_as(BODY_S, &cv.written, room);
+        ui.text_as(
+            x + tokens::BOARD_PAD,
+            y + h - written_h(ui, cv),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            &shown,
+        );
     }
 }
 
@@ -1544,6 +1568,7 @@ fn entry(
         name: e.name.clone(),
         marks: String::new(),
         forms: Vec::new(),
+        written: String::new(),
         warn: false,
         link: false,
         fixed: e.dim,
@@ -2089,6 +2114,7 @@ fn view_of(v: &BoardView, c: Chip) -> Option<ChipView> {
             name: e.name.clone(),
             marks: String::new(),
             forms: Vec::new(),
+            written: String::new(),
             warn: false,
             link: false,
             fixed: false,

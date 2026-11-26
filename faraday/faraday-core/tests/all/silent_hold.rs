@@ -1636,6 +1636,95 @@ fn the_board_says_text_file_on_the_written_stick_and_the_picture_on_the_other() 
     assert_eq!(count("· QR picture"), 1, "{t:?}");
 }
 
+/// With its toggles on, the chip of the stick written as the text file
+/// keeps the picture as the chosen form and says what was written, and so
+/// do the chips of the software and of its stick of files, which have no
+/// form; the other stick's picture and an ordinary wallet's say nothing
+/// of it.
+#[test]
+fn the_toggled_chip_keeps_the_picture_ticked_and_says_written_as_text_file() {
+    const LINE: &str = "Written as: Text file";
+    let (mut shell, mut app) = lock_held_in(plan::Preset::PaperVault, false, None, |m| {
+        plan::with_added(&picture_with_vault(m), At::Files, What::Wallet)
+    });
+    write_all_sticks(&mut shell, &mut app);
+    let vd = vault_stick(&shell);
+    let mut app = power_on_with_vault(&mut shell, vd);
+    open_first_vault_then_key(&mut shell, &mut app, vd);
+    app.press(Action::Backup(0));
+    testkit::change_backup_answers(&mut app, |a| {
+        let m = a.map.clone().expect("a stored map");
+        a.set_map(plan::with_added(
+            &m,
+            At::Stick(1, 0),
+            What::WalletFile(form::QR),
+        ));
+    });
+    app.press(Action::BPlan);
+    if app.backup().unwrap().q != Some(faraday_core::qstep::BOARD) {
+        app.press(Action::BQ(faraday_core::qstep::BOARD));
+    }
+    assert!(app.board_shown());
+    let (_, a) = app.board_plan().unwrap();
+    assert!(a.custom, "the chips have their toggles");
+    assert!(a.written_on(At::Software), "{:?}", a.map);
+    assert!(a.written_on(At::Files), "{:?}", a.map);
+    assert!(a.written_on(At::Stick(0, 0)), "{:?}", a.map);
+    assert!(!a.written_on(At::Stick(1, 0)), "{:?}", a.map);
+    // The stored map, which the board's toggles read: the chosen form.
+    let stored = a.map.clone().expect("a stored map");
+    let h: Vec<What> = stored
+        .iter()
+        .filter(|s| s.at == At::Stick(0, 0))
+        .flat_map(|s| s.holds.iter().map(|h| h.0))
+        .collect();
+    assert!(h.contains(&What::WalletFile(form::QR)), "{h:?}");
+    assert!(!h.contains(&What::WalletFile(form::TEXT)), "{h:?}");
+    let t: Vec<String> = app.drawn_texts().iter().map(|t| t.to_string()).collect();
+    // The marked stick's chip; the other stick's has the toggles and no
+    // line.
+    assert_eq!(t.iter().filter(|x| *x == LINE).count(), 1, "{t:?}");
+    assert!(t.iter().any(|x| x == "QR picture"), "{t:?}");
+    // The software's card is at the foot of the page: its chip and its
+    // files stick's each have the line.
+    app.event(Event::Scroll {
+        x: 600,
+        y: 400,
+        dy: 20_000,
+    });
+    app.settle();
+    let t: Vec<String> = app.drawn_texts().iter().map(|t| t.to_string()).collect();
+    let soft = t.iter().position(|x| x == "Sparrow").expect("its card");
+    assert_eq!(t[soft..].iter().filter(|x| *x == LINE).count(), 2, "{t:?}");
+
+    // Wallet 0 is the ordinary one.
+    let mut app = held_with_an_ordinary_wallet();
+    let h = holds_after_a_drop(&mut app);
+    assert!(
+        h.iter().any(|(_, w)| *w == What::WalletFile(form::QR)),
+        "{h:?}"
+    );
+    assert!(app.board_plan().unwrap().1.custom);
+    let t: Vec<String> = app.drawn_texts().iter().map(|t| t.to_string()).collect();
+    assert!(t.iter().any(|x| x == "QR picture"), "{t:?}");
+    assert!(!t.iter().any(|x| x.starts_with("Written as")), "{t:?}");
+    // Nor does the software's chip, unmarked.
+    testkit::change_backup_answers(&mut app, |a| {
+        let m = a.map.clone().expect("a stored map");
+        a.set_map(plan::with_added(&m, At::Software, What::Wallet));
+    });
+    app.event(Event::Scroll {
+        x: 600,
+        y: 400,
+        dy: 20_000,
+    });
+    app.settle();
+    let t: Vec<String> = app.drawn_texts().iter().map(|t| t.to_string()).collect();
+    let soft = t.iter().position(|x| x == "Scanned in").expect("its card");
+    assert!(t[soft..].iter().any(|x| x == "Whole"), "{t:?}");
+    assert!(!t.iter().any(|x| x.starts_with("Written as")), "{t:?}");
+}
+
 /// A held silent wallet's picture written with the watch-only software
 /// only, Done, the key typed again (not held); then Back up again with the
 /// text file ticked too, and the public files item of its checklist open.

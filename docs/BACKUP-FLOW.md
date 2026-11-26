@@ -1399,7 +1399,13 @@ Text, QR or File, whichever its zone allows): one tap turns a form on or
 off, and the last form on stays on. Where the toggles do not fit beside
 the name they wrap to a line under it. There is no forms popup (owner,
 2026-10-19). On the read-only board the chip reads its forms as text
-("9a6a2580 · Words · SeedQR"), with no toggles. Each form is its
+("9a6a2580 · Words · SeedQR"), with no toggles. Where a lock wrote the
+description's text file in the picture's place (the key waited for its
+backup), the board that takes changes says so on each of the
+description's chips so marked, with a line reading "Written as: Text
+file": under the toggles, which keep the chosen form, or under the name
+on the software's chips, which have none. A chip already reading "Text
+file" has no second line. Each form is its
 own `What` on the map, so turning a form on or off is `Edit::Add` or
 `Edit::Drop` of that `What`, and the plan's text, the checks and the
 checklist read forms as they read everything else.
