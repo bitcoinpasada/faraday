@@ -4952,7 +4952,9 @@ impl Faraday {
             self.screen = Screen::Wallets;
         }
         self.entry.wallet_left(gone);
-        self.message.wallet_left(gone);
+        if self.message.wallet_left(gone) {
+            self.message_drop_made();
+        }
         if let Some(back) = self.silent.wallet_left(gone) {
             // The page of the wallet gone closes: it does not turn into its
             // key's own page.

@@ -1294,11 +1294,14 @@ impl MessageArea {
     }
 
     /// Wallet `gone` left the session list: the place kept moves up, or
-    /// goes when it is the one gone.
-    pub(crate) fn wallet_left(&mut self, gone: usize) {
-        if let Some(s) = self.state.as_mut() {
-            crate::wallet::kept_place_after_removal(&mut s.wallet, gone);
-        }
+    /// goes when it is the one gone. True when it was the flow's own.
+    pub(crate) fn wallet_left(&mut self, gone: usize) -> bool {
+        let Some(s) = self.state.as_mut() else {
+            return false;
+        };
+        let own = s.wallet == Some(gone);
+        crate::wallet::kept_place_after_removal(&mut s.wallet, gone);
+        own
     }
 
     /// The message as drawn: its visible form and lines, kept.
@@ -1501,25 +1504,7 @@ impl Faraday {
             return;
         };
         if m.signed.is_some() && self.message_waits(m.at.as_ref(), m.wallet) {
-            self.message.made = None;
-            // Its code on show goes with it: no picture is made of it.
-            if self
-                .qr
-                .view()
-                .is_some_and(|q| q.title == EN.code_view_signed_message)
-            {
-                self.qr.close();
-                if self.sheet == Some(Sheet::Qr) {
-                    self.sheet = None;
-                }
-            }
-            if let Some(m) = self.message.state.as_mut() {
-                m.drop_signature();
-                m.out_name = None;
-                m.out_sha = None;
-                m.out_refused = false;
-                m.done[mstep::SIGN as usize] = false;
-            }
+            self.message_drop_made();
         }
         let Some(m) = self.message.state.as_ref() else {
             return;
@@ -1550,6 +1535,31 @@ impl Faraday {
         });
         if let Some(m) = self.message.state.as_mut() {
             m.shown = shown;
+        }
+    }
+
+    /// Drops what Sign a message made: the signature, the file's name, the
+    /// message kept for **Check it**, and its code on show with the sheet.
+    /// Files already made keep their records.
+    pub(crate) fn message_drop_made(&mut self) {
+        self.message.made = None;
+        // Its code on show goes with it: no picture is made of it.
+        if self
+            .qr
+            .view()
+            .is_some_and(|q| q.title == EN.code_view_signed_message)
+        {
+            self.qr.close();
+            if self.sheet == Some(Sheet::Qr) {
+                self.sheet = None;
+            }
+        }
+        if let Some(m) = self.message.state.as_mut() {
+            m.drop_signature();
+            m.out_name = None;
+            m.out_sha = None;
+            m.out_refused = false;
+            m.done[mstep::SIGN as usize] = false;
         }
     }
 

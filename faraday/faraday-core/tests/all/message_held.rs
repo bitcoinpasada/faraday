@@ -546,27 +546,55 @@ fn a_picture_made_with_the_signing_key_away_is_held_back() {
     assert_held_without_the_key(&mut next, &picture);
 }
 
-/// A signature outlives its wallet, and so does the record of who signed: a
-/// picture made of it after the wallet was removed, while the key waits for
-/// its backup, is not ticked and stays held in the next process.
+/// A removed wallet takes its signed message with it: once its key is held,
+/// Sign a message shows no signature, and neither its code, Check it nor its
+/// file is offered.
 #[test]
-fn a_picture_made_after_the_wallet_was_removed_is_held_back() {
+fn a_removed_wallet_drops_its_signed_message() {
     let (mut app, text) = signed_file();
+    // The file is removed in Files, so the card offers to make it again.
+    let made = [Action::MQr, Action::CheckMessageMade, Action::MOut];
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::OutboxRemove(0));
+    app.press(Action::Back);
+    app.press(Action::MStep(faraday_core::mstep::SIGN));
+    let _ = app.frame();
+    for a in &made {
+        assert!(app.offers(*a), "{a:?} before");
+    }
     app.press(Action::RemoveWallet(0));
     assert!(app.session.wallets.is_empty());
     hold(&mut app);
     app.press(Action::Resume(Going::Message));
+    app.press(Action::MStep(faraday_core::mstep::SIGN));
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Message);
+    assert!(testkit::message(&app).unwrap().signed.is_none());
+    for a in &made {
+        assert!(!app.offers(*a), "{a:?} after");
+    }
+    assert!(app.outbox.is_empty(), "{text} is not made again");
+}
+
+/// The record of who signed outlives the wallet: a picture of the signature,
+/// made before the wallet was removed, is not ticked once the key waits for
+/// its backup and stays held in the next process.
+#[test]
+fn a_picture_made_before_the_wallet_was_removed_is_held_back() {
+    let (mut app, text) = signed_file();
     app.press(Action::MQr);
     app.press(Action::QrPng);
-    if app.qr().is_some() {
-        app.press(Action::Cancel);
-    }
+    app.press(Action::Cancel);
+    assert!(app.qr().is_none());
     let picture = app
         .outbox
         .iter()
         .map(|i| i.name.to_string())
         .find(|n| n.ends_with(".png"))
         .expect("the picture");
+    app.press(Action::RemoveWallet(0));
+    assert!(app.session.wallets.is_empty());
+    hold(&mut app);
     assert!(!app.visit().out.contains(picture.as_str()), "unticked");
     // The text file goes, so the first row is the picture's.
     app.press(Action::Nav(Screen::Files));
