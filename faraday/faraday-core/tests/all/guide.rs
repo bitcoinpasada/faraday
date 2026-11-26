@@ -852,6 +852,17 @@ fn beside_an_outlined_pair_the_guides_pane_has_the_outlines_top_and_foot() {
     level_with_the_pair(&mut app, "Lightning");
 }
 
+/// The strip just left of the guide's pane is the page's own colour on
+/// every row: nothing of the page runs on under the pane.
+fn nothing_under_the_pane(app: &mut Faraday, what: &str) {
+    crate::common::through_fade(app);
+    frame(app);
+    frame(app);
+    let (seen, (x, y, _, h)) = Seen::of(app);
+    let under = (y..y + h).filter(|&row| seen.drawn(x - 4, row)).count();
+    assert_eq!(under, 0, "{what}: rows with a card running under the guide");
+}
+
 #[test]
 fn home_beside_the_guide_has_nothing_under_its_pane() {
     let mut app = faraday_core::testkit::started();
@@ -860,14 +871,37 @@ fn home_beside_the_guide_has_nothing_under_its_pane() {
     app.press(Action::Nav(faraday_core::Screen::Home));
     crate::common::through_fade(&mut app);
     app.press(Action::Guide);
+    nothing_under_the_pane(&mut app, "Home");
+}
+
+#[test]
+fn search_results_and_a_rows_details_stay_clear_of_the_guide() {
+    use faraday_core::Screen;
+    for screen in [Screen::Home, Screen::Catalog, Screen::Check] {
+        let mut app = faraday_core::testkit::started();
+        window(&mut app, 1920, 1080);
+        add_key(&mut app);
+        app.press(Action::Nav(screen));
+        crate::common::through_fade(&mut app);
+        app.press(Action::Guide);
+        crate::common::through_fade(&mut app);
+        frame(&mut app);
+        for c in "seed".chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        nothing_under_the_pane(&mut app, &format!("{screen:?}, a search"));
+    }
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    add_key(&mut app);
+    let fp = app.session.keys.all().next().expect("the key").fingerprint.0;
+    app.press(Action::Nav(Screen::Home));
+    crate::common::through_fade(&mut app);
+    app.press(Action::Guide);
     crate::common::through_fade(&mut app);
     frame(&mut app);
-    frame(&mut app);
-    let (seen, (x, y, _, h)) = Seen::of(&mut app);
-    // The strip just left of the pane is the page's own colour: no card
-    // runs on under the pane.
-    let under = (y..y + h).filter(|&row| seen.drawn(x - 4, row)).count();
-    assert_eq!(under, 0, "rows with a card running under the guide");
+    app.press(Action::RowOpen(faraday_core::Row::Key(fp)));
+    nothing_under_the_pane(&mut app, "Home, a key's details");
 }
 
 /// Beside a pair the pane's arrow lets it down to the window's foot and

@@ -6,7 +6,8 @@
 //! are the pane's. A typed search's results take the tile's place the same
 //! way, on Home (the pane then holds Home's rows) and on Tools.
 
-use super::{Left, Panes, guide_room, home_area, level};
+use super::pair::left_of_guide;
+use super::{Left, Panes, Place, guide_room, home_area, level};
 use crate::drawing::View;
 use crate::screens::catalog::home_results;
 use crate::screens::menu_page::{Page, Section, page_span, sections_height};
@@ -104,6 +105,29 @@ pub(crate) fn draw_details(app: &View, ui: &mut Ui, area: (f32, f32, f32), panes
     placed(app, ui, area, &body, panes)
 }
 
+/// The pair's place in an area `cw` wide that stands `ox` into the room
+/// beside the navigation, from the area's left edge. Beside Guide's pane
+/// (`guide`) an area narrower than the room (Home's) keeps the place it
+/// has without the guide and moves left only as far as the pane needs;
+/// where it cannot, the pair is placed beside the pane in the whole room
+/// (`docs/WORKSPACE.md` §7.4). Arithmetic.
+fn place_in_area(app: &View, panes: &Panes, (ox, cw): (f32, f32), guide: bool) -> Option<Place> {
+    let room = app.window().width - crate::screens::SIDEBAR_W;
+    if !guide || cw >= room {
+        return panes.place(cw, guide);
+    }
+    let into = |p: Place, by: f32| Place {
+        card_x: p.card_x + by,
+        pane_x: p.pane_x + by,
+        ..p
+    };
+    panes
+        .place(cw, false)
+        .and_then(|p| left_of_guide(into(p, ox), room))
+        .or_else(|| panes.place(room, true))
+        .map(|p| into(p, -ox))
+}
+
 /// The stack where `body`'s tile fits under the card, else the pair. The
 /// pair is measured only where the stack does not fit.
 fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, panes: Panes) -> bool {
@@ -136,7 +160,7 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
         ui.region_close(open, 0.0);
         return true;
     }
-    let Some(p) = panes.place(cw, guide) else {
+    let Some(p) = place_in_area(app, &panes, (ui.ox, cw), guide) else {
         return false;
     };
     app.stood_apart();
