@@ -5276,8 +5276,19 @@ impl Faraday {
                 if self.sheet == Some(crate::Sheet::RemoveKeys) {
                     self.sheet = None;
                 }
+                let gone: Vec<_> = self.session.keys.all().map(|k| k.fingerprint).collect();
                 self.session.keys.remove_all();
                 self.wallets.clear_spend();
+                // After the removal: the tab puts back a plain seed that
+                // is still held.
+                for fp in gone {
+                    self.restore_key_gone(fp);
+                    self.spend_backup_forget_key(fp);
+                    self.create.key_removed_with_all(fp.0);
+                }
+                if self.spend_backup.state().open.is_some() {
+                    self.spend_backup_settle_cards();
+                }
             }
             Action::StartSpend(i) => {
                 // A spend from anywhere but the stick's "Import and sign"

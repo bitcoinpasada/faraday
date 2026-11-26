@@ -1034,6 +1034,9 @@ pub struct CreateState {
     pub slots: Vec<Source>,
     /// The wallet, once made, by index into the session.
     pub built: Option<usize>,
+    /// Keys removed with every key while the wallet stood made: their
+    /// slots are emptied when it is taken back.
+    pub(crate) removed_since_made: Vec<[u8; 4]>,
     /// The last refusal.
     pub error: Option<Text>,
     /// The Kind card's **More kinds** is expanded: the other eight kinds
@@ -1436,6 +1439,12 @@ impl CreateArea {
     pub(crate) fn take_back(&mut self) -> Option<TakenBack> {
         let c = self.state.as_mut()?;
         let wallet = c.built.take()?;
+        let removed = std::mem::take(&mut c.removed_since_made);
+        c.slots.iter_mut().for_each(|s| {
+            if matches!(s, Source::Here(fp) if removed.contains(fp)) {
+                *s = Source::Empty;
+            }
+        });
         c.done[cstep::KEYS as usize] = false;
         c.done[cstep::CHECK as usize] = false;
         c.open = Some(c.account_card().unwrap_or(cstep::KIND));
@@ -1478,6 +1487,16 @@ impl CreateArea {
                     *s = Source::Empty;
                 }
             }
+        }
+    }
+
+    /// Key `fp` removed with every key. A made wallet's slots stay its
+    /// record, which Check's codex32 set is read by, until it is taken
+    /// back; else they are empty at once.
+    pub(crate) fn key_removed_with_all(&mut self, fp: [u8; 4]) {
+        match self.state.as_mut() {
+            Some(c) if c.built.is_some() => c.removed_since_made.push(fp),
+            _ => self.drop_key(fp),
         }
     }
 

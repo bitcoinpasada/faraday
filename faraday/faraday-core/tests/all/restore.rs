@@ -1988,3 +1988,30 @@ fn restore_says_a_refused_key_file_though_another_loaded_after_it_or_before_it()
         );
     }
 }
+
+/// A key in the set, then removed with every key: its slot is open again,
+/// and three other keys fill the 2-of-3.
+#[test]
+fn a_key_in_the_set_leaves_it_with_remove_every_key() {
+    let mut app = shown();
+    to_loaded_slots(&mut app);
+    type_seed(&mut app, ABANDON);
+    type_seed(&mut app, &testkit::test_words("summer"));
+    assert_eq!(in_set(&app).len(), 2);
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::Restore));
+    assert_eq!(in_set(&app), Vec::<[u8; 4]>::new());
+    // Loaded again for something else, it is not back in the set.
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    type_text(&mut app, ABANDON);
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    app.press(Action::Nav(Screen::Restore));
+    assert_eq!(in_set(&app), Vec::<[u8; 4]>::new());
+    for word in ["bacon", "zebra", "summer"] {
+        type_seed(&mut app, &testkit::test_words(word));
+    }
+    assert_eq!(in_set(&app).len(), 3);
+}

@@ -13,7 +13,7 @@
 )]
 
 use crate::common::{add_key, type_text};
-use faraday_core::create::NewKind;
+use faraday_core::create::{NewKind, Source};
 use faraday_core::plan;
 use faraday_core::testkit::Plain;
 use faraday_core::{Action, Faraday, Screen, cstep, testkit};
@@ -2084,4 +2084,51 @@ fn a_change_of_kind_ends_a_reopened_pick() {
         .unwrap() as u8;
     app.press(Action::CKind(nested));
     assert_eq!(pane_for(&mut app), Some(0));
+}
+
+#[test]
+fn remove_every_key_empties_the_slot_of_a_wallet_not_yet_made() {
+    let mut app = opened();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    crate::common::type_text(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CSlotHere(0, fp));
+    assert_eq!(app.create().unwrap().slots, [Source::Here(fp)]);
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::Create));
+    assert_eq!(app.create().unwrap().slots, [Source::Empty]);
+    let _ = app.frame();
+    let texts = app.drawn_texts().join("\n");
+    assert!(!texts.contains("loaded here"), "{texts}");
+    // Loaded again for something else, it is not back in the slot.
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    crate::common::type_text(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    assert_eq!(app.create().unwrap().slots, [Source::Empty]);
+}
+
+/// A made wallet keeps its slot's record; taken back with Change, the slot
+/// of a key removed since is empty, even where it was loaded again.
+#[test]
+fn a_made_wallet_taken_back_after_remove_every_key_has_an_empty_slot() {
+    let (mut app, _) = made_on_testnet();
+    let fp = app.session.keys[0].fingerprint.0;
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    crate::common::type_text(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    app.press(Action::Nav(Screen::Create));
+    assert_eq!(app.create().unwrap().slots, [Source::Here(fp)]);
+    app.press(Action::CPathChange);
+    assert_eq!(app.create().unwrap().built, None, "not taken back");
+    assert_eq!(app.create().unwrap().slots, [Source::Empty]);
 }

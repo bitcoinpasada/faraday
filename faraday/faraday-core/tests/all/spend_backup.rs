@@ -1698,3 +1698,314 @@ fn the_kept_wallet_of_the_tab_is_its_id_and_an_old_checksum_names_none() {
         "an 8-character checksum chose a wallet"
     );
 }
+
+/// What do you have?'s Type the words: test seed `word`, as typed.
+fn type_on_card(app: &mut Faraday, word: &str) {
+    app.press(Action::SpendBackup(F::TypeWords));
+    type_text(app, &testkit::test_words(word));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
+    assert_eq!(app.screen, Screen::SpendBackup);
+}
+
+/// zebra typed on the tab, every key removed, and back on the tab.
+fn removed_after_zebra() -> Faraday {
+    let mut app = shown();
+    on_intake(&mut app);
+    type_on_card(&mut app, "zebra");
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    app
+}
+
+fn card_seeds(app: &Faraday) -> Vec<[u8; 4]> {
+    app.spend_backup().seeds.keys.clone()
+}
+
+fn last_loaded(app: &Faraday) -> [u8; 4] {
+    app.session.keys.all().last().unwrap().fingerprint.0
+}
+
+#[test]
+fn after_remove_every_key_thats_everything_opens_the_seed_typed_since() {
+    let mut app = removed_after_zebra();
+    type_on_card(&mut app, "bacon");
+    // Another key, loaded from Home, is not what came in.
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words("summer"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Everything));
+    assert_eq!(chosen_address(&app), kit_address("spending"));
+}
+
+#[test]
+fn after_remove_every_key_the_shape_counts_only_the_seeds_typed_since() {
+    let mut app = shown();
+    on_intake(&mut app);
+    type_on_card(&mut app, "zebra");
+    type_on_card(&mut app, "summer");
+    assert_eq!(card_seeds(&app).len(), 2);
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    type_on_card(&mut app, "bacon");
+    let b = last_loaded(&app);
+    type_on_card(&mut app, "zebra");
+    let c = last_loaded(&app);
+    app.press(Action::SpendBackup(F::NoDescription));
+    assert_eq!(card_seeds(&app), [b, c]);
+    assert_eq!(app.spend_backup().seeds.n, 2);
+}
+
+/// A key removed with every key has no place on the tab when it is loaded
+/// again for something else.
+#[test]
+fn a_key_removed_and_loaded_again_is_not_back_in_the_spends_seeds() {
+    let mut app = removed_after_zebra();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words("zebra"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    assert_eq!(card_seeds(&app), Vec::<[u8; 4]>::new());
+}
+
+/// The wallet a removed seed opened stays; its key is not the first of a
+/// later spend's seeds.
+#[test]
+fn a_new_spend_after_remove_every_key_does_not_take_the_old_wallets_seed() {
+    let mut app = shown();
+    on_intake(&mut app);
+    type_on_card(&mut app, "zebra");
+    app.press(Action::SpendBackup(F::Everything));
+    assert!(app.spend_backup_wallet().is_some());
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::StartOver));
+    if app.sheet.is_some() {
+        app.press(Action::CancelFlowNow);
+    }
+    on_intake(&mut app);
+    type_on_card(&mut app, "bacon");
+    assert_eq!(card_seeds(&app), [last_loaded(&app)]);
+}
+
+/// A wallet guessed from one seed is that seed's: with every key removed
+/// and another loaded, Check the money's presses do not make it again from
+/// the other.
+#[test]
+fn a_guess_from_a_removed_seed_does_not_open_another_keys_wallet() {
+    let mut app = shown();
+    on_intake(&mut app);
+    type_on_card(&mut app, "zebra");
+    let a = last_loaded(&app);
+    app.press(Action::SpendBackup(F::Everything));
+    let address = chosen_address(&app);
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    let whose = |app: &Faraday| {
+        let w = app.spend_backup_wallet().expect("no wallet chosen");
+        app.session.slots(&app.session.wallets[w])[0].fingerprint
+    };
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(false)));
+    assert_eq!(whose(&app).map(|f| f.0), Some(a), "another key's wallet");
+    assert_eq!(chosen_address(&app), address);
+    app.press(Action::SpendBackup(F::GuessWay(2)));
+    assert_eq!(whose(&app).map(|f| f.0), Some(a), "another key's wallet");
+    assert_eq!(chosen_address(&app), address);
+}
+
+/// On the vault route a wallet removed by hand stays removed at Remove
+/// every key, though the vaults hold only seeds and its file is in Files.
+#[test]
+fn remove_every_key_does_not_open_a_wallet_removed_by_hand() {
+    use faraday_vault::records::{self, field, kind};
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, &testkit::test_words("zebra")).unwrap();
+    let seed = faraday_vault::Record::new(kind::KEY)
+        .with(field::KEY, &records::words_payload(&m))
+        .with(field::KEY_LABEL, b"zebra");
+    let file = testkit::kdbx_vault("Seeds", testkit::VAULT_PASSPHRASE, 0x5c, vec![seed]).unwrap();
+    let wallet = kit("savings").descriptor.into_bytes();
+    let mut app = with_files(
+        vec![
+            ("vault.kdbx".to_string(), file),
+            ("savings.txt".to_string(), wallet),
+        ],
+        Vec::new(),
+    );
+    unlock_on_tab(&mut app);
+    assert_eq!(app.spend_backup().route, Some(Route::Vault));
+    // A press on the tab, after which the one wallet file opens.
+    app.press(Action::SpendBackup(F::Unsure));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    assert_eq!(app.session.wallets.len(), 1, "the file did not open");
+    app.press(Action::RemoveWallet(0));
+    assert_eq!(app.session.wallets.len(), 0);
+    crate::common::remove_every_key(&mut app);
+    assert_eq!(app.sheet, None, "the removed wallet is held to come back");
+    assert_eq!(app.session.wallets.len(), 0, "the removed wallet came back");
+}
+
+/// Add a key on Home: these words, typed.
+fn load_on_home(app: &mut Faraday, word: &str) {
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    type_text(app, &testkit::test_words(word));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
+}
+
+/// Restore from one seed with no description: a wallet made from typed
+/// seeds, native SegWit.
+fn restored_from_seed(app: &mut Faraday, word: &str) {
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(faraday_core::rstep::KIND));
+    app.press(Action::RSeeds);
+    app.press(Action::RSlotWords);
+    type_text(app, &testkit::test_words(word));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(app);
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    faraday_core::testkit::confirm_wallets(app);
+    assert_eq!(app.session.wallets.len(), 1, "Restore made no wallet");
+}
+
+/// The first key of the wallet chosen.
+fn chosen_key(app: &Faraday) -> [u8; 4] {
+    let w = app.spend_backup_wallet().expect("no wallet chosen");
+    app.session.slots(&app.session.wallets[w])[0]
+        .fingerprint
+        .expect("a slot without a key")
+        .0
+}
+
+/// Every key removed and bacon's loaded: Check the money's presses leave
+/// the wallet chosen as it is.
+fn the_guess_stays_with_its_wallet(app: &mut Faraday) {
+    let whose = chosen_key(app);
+    let address = chosen_address(app);
+    crate::common::remove_every_key(app);
+    load_on_home(app, "bacon");
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(false)));
+    assert_eq!(chosen_key(app), whose, "another key's wallet");
+    assert_eq!(chosen_address(app), address);
+}
+
+/// "Spend as a single" on a seed whose wallet Restore made before: the
+/// guess is of that wallet, and goes with its key.
+#[test]
+fn a_guess_by_spend_as_a_single_on_a_restored_wallet_goes_with_its_key() {
+    let mut app = shown();
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    load_on_home(&mut app, "summer");
+    restored_from_seed(&mut app, "zebra");
+    let a = last_loaded(&app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    let _ = drawn(&mut app);
+    assert!(app.offers(Action::SpendBackup(F::SeedWallet)));
+    app.press(Action::SpendBackup(F::SeedWallet));
+    assert_eq!(chosen_key(&app), a);
+    assert_eq!(app.session.wallets.len(), 1, "not the restored wallet");
+    assert!(app.spend_backup_guess().is_some());
+    the_guess_stays_with_its_wallet(&mut app);
+}
+
+/// A guess from one typed seed, with a restored wallet chosen under Spend
+/// from in its place: it goes with that wallet's key.
+#[test]
+fn a_guess_with_a_restored_wallet_chosen_goes_with_that_wallets_key() {
+    let mut app = shown();
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    restored_from_seed(&mut app, "summer");
+    on_intake(&mut app);
+    type_on_card(&mut app, "zebra");
+    app.press(Action::SpendBackup(F::Everything));
+    app.press(Action::SpendBackup(F::Card(page::HOLDING)));
+    app.press(Action::SpendBackup(F::Choose(0)));
+    assert_eq!(app.spend_backup_wallet(), Some(0));
+    assert!(app.spend_backup_guess().is_some());
+    the_guess_stays_with_its_wallet(&mut app);
+}
+
+/// A guess of several keys cannot make another kind once they are
+/// removed: No money shows goes, the wallet stays, and its keys loaded
+/// again are its keys.
+#[test]
+fn a_guess_of_several_keys_goes_with_them_and_the_wallet_stays() {
+    let mut app = shown_at(1400);
+    on_intake(&mut app);
+    type_on_card(&mut app, "bacon");
+    type_on_card(&mut app, "zebra");
+    app.press(Action::SpendBackup(F::NoDescription));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    let address = chosen_address(&app);
+    let _ = drawn(&mut app);
+    assert!(app.offers(Action::SpendBackup(F::NoMoney)));
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    let _ = drawn(&mut app);
+    assert!(!app.offers(Action::SpendBackup(F::NoMoney)));
+    assert_eq!(app.session.wallets.len(), 1, "the wallet went");
+    assert_eq!(chosen_address(&app), address);
+    load_on_home(&mut app, "bacon");
+    load_on_home(&mut app, "zebra");
+    app.press(Action::Nav(Screen::SpendBackup));
+    let _ = drawn(&mut app);
+    assert!(!app.offers(Action::SpendBackup(F::NoMoney)));
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(chosen_address(&app), address);
+    let w = app.spend_backup_wallet().unwrap();
+    let slots = app.session.slots(&app.session.wallets[w]);
+    assert!(
+        slots.iter().all(|s| s.held_by.is_some()),
+        "a key is not back"
+    );
+}
+
+/// A spend on the tab begun by Walk through has no route; Remove every key
+/// ends it and the tab still has a step open.
+#[test]
+fn remove_every_key_leaves_a_step_open_after_a_walked_through_spend() {
+    let (u, _) = testkit::spend_of(&kit("spending")).unwrap();
+    let mut app = with_files(
+        vec![
+            (
+                "spending.txt".to_string(),
+                kit("spending").descriptor.into_bytes(),
+            ),
+            ("spending-unsigned.psbt".to_string(), u.to_bytes()),
+        ],
+        Vec::new(),
+    );
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    let file = inbox_at(&app, "spending.txt");
+    app.press(Action::LoadWallet(file));
+    faraday_core::testkit::confirm_wallets(&mut app);
+    load_on_home(&mut app, "zebra");
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Walkthrough));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    app.press(Action::SpendBackup(F::Choose(0)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::WRITE)));
+    let psbt = inbox_at(&app, "spending-unsigned.psbt");
+    app.press(Action::SpendBackup(F::UsePsbt(psbt)));
+    assert_eq!(app.spend_backup().route, None);
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
+    assert!(app.spend_backup_open_card().is_some());
+    crate::common::remove_every_key(&mut app);
+    app.press(Action::Nav(Screen::SpendBackup));
+    assert!(app.spend_backup_open_card().is_some(), "no step is open");
+}

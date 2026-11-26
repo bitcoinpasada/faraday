@@ -1077,6 +1077,16 @@ pub fn has_part(app: &mut Faraday, part: &str) -> bool {
     texts(app).iter().any(|t| t.contains(part))
 }
 
+/// Settings' Remove every key, held where a key is kept nowhere else.
+pub fn remove_every_key(app: &mut Faraday) {
+    app.press(Action::Nav(faraday_core::Screen::Settings));
+    app.press(Action::RemoveKeys);
+    if app.sheet == Some(faraday_core::Sheet::RemoveKeys) {
+        app.press(Action::RemoveKeysHold);
+    }
+    assert_eq!(app.session.keys.len(), 0, "the keys stayed");
+}
+
 /// Create a vault inside the flow: the passphrase typed twice, then made.
 pub fn create_vault(shell: &mut Shell, app: &mut Faraday, v: usize, phrase: &str) {
     top_up(app);

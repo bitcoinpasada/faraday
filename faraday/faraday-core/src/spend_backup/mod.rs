@@ -636,6 +636,13 @@ impl Faraday {
     /// you have? without a wallet, and no spend step without a spend.
     pub(crate) fn spend_backup_settle(&mut self) {
         self.spend_backup_auto_wallet();
+        self.spend_backup_settle_cards();
+    }
+
+    /// [`Faraday::spend_backup_settle`] without opening the only wallet
+    /// file by itself, for Remove every key: a removal brings no wallet,
+    /// so one removed by hand stays removed.
+    pub(crate) fn spend_backup_settle_cards(&mut self) {
         let ready = self.spend_backup_ready();
         // The wallet the card opened on is gone: the whole column again.
         if self.spend_backup.state.from_card && !ready {
@@ -1068,6 +1075,25 @@ impl Faraday {
     /// The plain seed a passphrase key replaced, still held, takes its
     /// place again.
     pub(crate) fn spend_backup_key_gone(&mut self, fp: Fingerprint) {
+        self.spend_backup_forget_key(fp);
+        self.spend_backup_settle();
+    }
+
+    /// [`Faraday::spend_backup_key_gone`] without its settle, for several
+    /// keys gone in one press. A guess whose wallet has this key in a
+    /// slot goes too: its other kinds would be made from whichever key
+    /// is loaded, or from no seed at all.
+    pub(crate) fn spend_backup_forget_key(&mut self, fp: Fingerprint) {
+        if self.spend_backup.state.guess.is_some()
+            && let Some(w) = self.spend_backup_wallet()
+            && self
+                .session
+                .slots(&self.session.wallets[w])
+                .iter()
+                .any(|s| s.fingerprint == Some(fp))
+        {
+            self.spend_backup.state.guess = None;
+        }
         let plain = self
             .spend_backup
             .state
@@ -1094,7 +1120,6 @@ impl Faraday {
             .state
             .came
             .retain(|c| *c != Came::Seed(fp.0));
-        self.spend_backup_settle();
     }
 
     /// The wallet chosen, when it came from a description (a file, the
@@ -2300,6 +2325,7 @@ impl Faraday {
                 .find(|w| w.origin == crate::wallet::Origin::TypedWords)
             && let Some(first) = self.session.slots(w).first().and_then(|s| s.fingerprint)
             && first != fp
+            && self.session.keys.position_of(first.0).is_some()
         {
             self.spend_backup.state.seeds.keys.push(first.0);
         }
