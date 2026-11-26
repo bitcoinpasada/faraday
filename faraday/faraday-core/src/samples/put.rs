@@ -655,6 +655,7 @@ impl Faraday {
                     if let Some(slot) = st.cosigners.get_mut(k) {
                         *slot = faraday_text::Text::of(&text);
                     }
+                    st.trim_ticks();
                     st.sample_next = next;
                     st.focus = None;
                     st.error = None;

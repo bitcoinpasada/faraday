@@ -221,6 +221,9 @@ details only while a vault is open.
   - A key pick that takes several (Restore's and Spend from a backup's own
     among them) is checkbox rows with one button to use the ticked keys; a
     key already in the wallet is dimmed with its reason (owner, 2026-11-24).
+    In Restore, once the ticks fill the free slots, every other key's box is
+    disabled until one is unticked; a slot filled another way, or fewer
+    keys, takes off the latest ticks past them (owner, 2026-11-25).
   - **Every tool and check stands on the flow's one card** (owner,
     2026-11-23, 2026-11-24), those of one page too: Units, Hashes and the
     like, and Decode a transaction, Check an address, Nonce check, Check a

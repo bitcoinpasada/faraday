@@ -40,7 +40,8 @@ pub(crate) fn more_ways(app: &View, unlock: bool, labels: &mut Vec<(String, Styl
 }
 
 /// The loaded keys as the pane's checkbox rows, ticked as the set's state
-/// has them: one already in the set (`here`) dimmed with its reason. Then
+/// has them: one already in the set (`here`), and an unticked one once the
+/// ticks fill the free slots, dimmed with its reason. Then
 /// one button to use the ticked keys. Returns the height used.
 pub(crate) fn loaded_keys(
     app: &View,
@@ -59,6 +60,8 @@ pub(crate) fn loaded_keys(
             let t = Take::of(ticked.contains(&f), sa(S::Tick(f))).several();
             Some(if here.contains(&f) {
                 t.refused(EN.seeds_in_set)
+            } else if !ticked.contains(&f) && s.is_some_and(SeedsState::ticks_full) {
+                t.refused(EN.seeds_no_free_slot)
             } else {
                 t
             })

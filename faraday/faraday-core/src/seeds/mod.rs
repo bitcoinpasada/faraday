@@ -176,6 +176,8 @@ impl SeedsState {
             self.cosigners.remove(k);
             self.focus = None;
             self.keys.push(fp);
+            self.untick(fp);
+            self.trim_ticks();
             return true;
         }
         self.keys.push(fp);
@@ -212,6 +214,29 @@ impl SeedsState {
     /// Takes the tick off loaded key `fp`.
     pub(crate) fn untick(&mut self, fp: [u8; 4]) {
         self.ticked.retain(|f| *f != fp);
+    }
+
+    /// Whether the ticks fill the free slots, so no other key can be
+    /// ticked. Only a fixed kind has a number of slots to fill.
+    pub(crate) fn ticks_full(&self) -> bool {
+        self.fixed && self.ticked.len() >= self.free_slots()
+    }
+
+    /// Takes off the latest ticks past the free slots, after a slot is
+    /// filled or the number of keys falls.
+    pub(crate) fn trim_ticks(&mut self) {
+        if self.fixed {
+            let free = self.free_slots();
+            self.ticked.truncate(free);
+        }
+    }
+
+    /// The slots with neither a seed nor anything typed for a cosigner.
+    fn free_slots(&self) -> usize {
+        self.cosigners
+            .iter()
+            .filter(|c| c.trim().is_empty())
+            .count()
     }
 
     /// The first slot with neither a seed nor anything typed for a
@@ -293,6 +318,7 @@ impl SeedsState {
             if matches!(self.focus, Some(Focus::Cosigner(k)) if usize::from(k) >= want) {
                 self.focus = None;
             }
+            self.trim_ticks();
             return;
         }
         if self.n < self.keys.len() {
@@ -611,6 +637,7 @@ impl Faraday {
             return false;
         };
         s.cosigners[slot] = Text::of(&key);
+        s.trim_ticks();
         s.focus = None;
         s.error = None;
         true
@@ -802,7 +829,7 @@ impl Faraday {
             S::Tick(fp) => {
                 if let Some(at) = s.ticked.iter().position(|f| *f == fp) {
                     s.ticked.remove(at);
-                } else {
+                } else if !s.ticks_full() {
                     s.ticked.push(fp);
                 }
             }
@@ -1024,6 +1051,7 @@ impl Faraday {
             K::Enter | K::Escape | K::Tab => s.focus = None,
             _ => {}
         }
+        s.trim_ticks();
         s.error = None;
         true
     }

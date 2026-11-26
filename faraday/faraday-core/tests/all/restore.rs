@@ -462,13 +462,51 @@ fn a_tick_goes_only_when_its_key_is_taken() {
     );
 }
 
-/// More keys ticked than slots: the one left over stays ticked and the card
-/// says why. A kind chosen again starts the set with no ticks.
+/// Once the ticks fill the free slots, another key's box is disabled and
+/// takes no tick, until one is unticked.
 #[test]
-fn a_key_left_over_says_why_and_a_fresh_set_has_no_ticks() {
-    use crate::common::has;
+fn a_key_past_the_free_slots_cannot_be_ticked() {
+    use crate::common::{has, offered};
     let mut app = shown();
     let keys: Vec<[u8; 4]> = ["one", "two", "three", "four"]
+        .iter()
+        .map(|p| load_with_pass(&mut app, "summer", p))
+        .collect();
+    to_loaded_slots(&mut app);
+    // Two of the three slots taken, so one is free.
+    app.press(Action::Seeds(S::Tick(keys[0])));
+    app.press(Action::Seeds(S::Tick(keys[1])));
+    app.press(Action::Seeds(S::UseTicked));
+    assert_eq!(in_set(&app), keys[..2]);
+    let ticked = |app: &Faraday| {
+        app.restore()
+            .unwrap()
+            .seeds
+            .as_ref()
+            .unwrap()
+            .ticked
+            .clone()
+    };
+    assert!(!has(&mut app, "No free slot to tick"));
+    app.press(Action::Seeds(S::Tick(keys[2])));
+    assert!(has(&mut app, "No free slot to tick"));
+    assert!(!offered(&mut app, Action::Seeds(S::Tick(keys[3]))));
+    app.press(Action::Seeds(S::Tick(keys[3])));
+    assert_eq!(ticked(&app), [keys[2]]);
+    // Unticked, the other can be ticked.
+    app.press(Action::Seeds(S::Tick(keys[2])));
+    assert!(!has(&mut app, "No free slot to tick"));
+    assert!(offered(&mut app, Action::Seeds(S::Tick(keys[3]))));
+    app.press(Action::Seeds(S::Tick(keys[3])));
+    assert_eq!(ticked(&app), [keys[3]]);
+}
+
+/// Fewer keys take off the latest ticks past the free slots. A kind chosen
+/// again starts the set with no ticks.
+#[test]
+fn fewer_slots_take_off_the_latest_ticks_and_a_fresh_set_has_none() {
+    let mut app = shown();
+    let keys: Vec<[u8; 4]> = ["one", "two", "three"]
         .iter()
         .map(|p| load_with_pass(&mut app, "summer", p))
         .collect();
@@ -476,29 +514,20 @@ fn a_key_left_over_says_why_and_a_fresh_set_has_no_ticks() {
     for &k in &keys {
         app.press(Action::Seeds(S::Tick(k)));
     }
-    app.press(Action::Seeds(S::UseTicked));
-    assert_eq!(in_set(&app), keys[..3]);
-    assert_eq!(
-        app.restore().unwrap().seeds.as_ref().unwrap().ticked,
-        keys[3..]
-    );
-    assert!(has(&mut app, "Every slot is filled"));
-    // A fourth slot: the refusal is no longer true, and goes.
     app.press(Action::RStep(QUORUM));
-    app.press(Action::Slide(SLIDE_N, 4));
-    assert!(!has(&mut app, "Every slot is filled"));
-    app.press(Action::RStep(SEEDS));
-    assert!(!has(&mut app, "Every slot is filled"));
-    app.press(Action::RKind(MULTI));
-    assert!(
+    app.press(Action::Slide(SLIDE_N, 2));
+    let ticked = |app: &Faraday| {
         app.restore()
             .unwrap()
             .seeds
             .as_ref()
             .unwrap()
             .ticked
-            .is_empty()
-    );
+            .clone()
+    };
+    assert_eq!(ticked(&app), keys[..2]);
+    app.press(Action::RKind(MULTI));
+    assert!(ticked(&app).is_empty());
 }
 
 #[test]

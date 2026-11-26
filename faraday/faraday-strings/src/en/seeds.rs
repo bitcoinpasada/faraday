@@ -88,6 +88,9 @@ macro_rules! words_seeds {
     seeds_use: "Use {}",
     /// Dimmed reason on a loaded key already in the set.
     seeds_in_set: "Already in this set",
+    /// Dimmed reason on an unticked loaded key once the ticks fill the free
+    /// slots.
+    seeds_no_free_slot: "No free slot to tick",
     /// Button under the loaded keys.
     seeds_use_ticked: "Use the ticked keys",
     /// Text in `cosigner`.
