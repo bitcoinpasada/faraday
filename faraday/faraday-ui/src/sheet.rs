@@ -490,10 +490,7 @@ fn buttons_with<'a, A: Copy + PartialEq>(
             if lines.is_empty() {
                 ui.button(x, by, Some(w), bh, label, style, action);
             } else {
-                let lines: Vec<&str> = lines
-                    .iter()
-                    .map(|&(a, b)| label[a..b].trim_end())
-                    .collect();
+                let lines: Vec<&str> = lines.iter().map(|&(a, b)| label[a..b].trim_end()).collect();
                 ui.button_wrapped((x, by, w, tall), &lines, style, action);
             }
             by += tall + GAP;

@@ -104,8 +104,7 @@ fn the_stick_sheets_lock_button_holds_all_its_words() {
             let _ = faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::net());
             app.press(Action::TextSize(size));
             for i in 0..11 {
-                let m =
-                    faraday_keys::words::from_entropy(Language::English, &[i + 1; 16]).unwrap();
+                let m = faraday_keys::words::from_entropy(Language::English, &[i + 1; 16]).unwrap();
                 let words: Vec<&str> = m
                     .indices()
                     .iter()

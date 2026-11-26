@@ -2169,7 +2169,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         // A key keeps its size whatever the text size: the keyboards
         // and pads are set by what must fit on the panel.
         let size = faraday_draw::tokens::key_label(at.3);
-        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action, None, None, false, &[]))
+        self.fixed_text(|ui| {
+            ui.button_drawn(at, size, label, style, action, None, None, false, &[])
+        })
     }
 
     /// [`Ui::button_in`] for a key of the on-screen keyboard: it shows

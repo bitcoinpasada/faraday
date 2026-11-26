@@ -698,11 +698,7 @@ pub(crate) fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result
     let b = t.app.backup().ok_or("no backup")?;
     let at = b.key_at(&t.app.session.keys).ok_or("no key")?;
     let key = t.app.session.keys.info(at).ok_or("no key")?;
-    let words = t
-        .app
-        .session
-        .keys
-        .reveal(at, faraday_keys::Reveal::SeedQr);
+    let words = t.app.session.keys.reveal(at, faraday_keys::Reveal::SeedQr);
     if words.is_empty() {
         return Err("no words".to_string());
     }
