@@ -283,8 +283,8 @@ pub(crate) fn vault_list(
 
 /// Load the chosen wallets of open vault `v` with their keys: none where
 /// none is left that is chosen. An open vault's row menu and its list.
-pub(crate) fn load_wallets(wallets: &[VaultWallet], v: usize) -> Option<Pick> {
-    let pending: Vec<_> = wallets.iter().filter(|w| !w.done).collect();
+pub(crate) fn load_wallets(vault_wallets: &[VaultWallet], v: usize) -> Option<Pick> {
+    let pending: Vec<_> = vault_wallets.iter().filter(|w| !w.done).collect();
     let chosen = pending.iter().filter(|w| w.chosen).count();
     let label = match (chosen, pending.len()) {
         (0, _) => return None,
