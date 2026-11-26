@@ -292,6 +292,23 @@ pub(crate) fn bar_head_back(app: &View, ui: &mut Ui, name: &str) -> f32 {
     bar_head(ui, Some(back), name)
 }
 
+/// Whether Check an address's scanner stands in a pane beside its card
+/// on the wide layout, in a window `full_w` wide. A lookup.
+fn scanner_in_pane(app: &View, full_w: f32) -> bool {
+    let guide = app.guide_pane_shown() && !app.unit_on_show();
+    let nav = if app.held { 0.0 } else { SIDEBAR_W };
+    let room = full_w - nav - if guide { hub_layout::guide_room() } else { 0.0 };
+    crate::address_check::pane::place_in(app, room)
+}
+
+/// A flow's noted heading goes with the flow, in every frame: the
+/// compact, the held and the sidebar one.
+fn clear_flow_head(app: &View) {
+    if !bar_search::in_flow(app) {
+        app.tools.note_flow_head(None);
+    }
+}
+
 /// Draws the whole frame.
 pub(crate) fn draw(app: &View, ui: &mut Ui) {
     let (full_w, full_h) = app.size();
@@ -320,19 +337,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // is not drawn again: the copy stands for it.
     // The scanner of Check an address stands in a pane beside its card on the
     // wide layout: no sheet is drawn, the page stays live.
-    let in_pane = {
-        let guide = app.guide_pane_shown() && !app.unit_on_show();
-        let nav = if app.held { 0.0 } else { SIDEBAR_W };
-        let room = full_w - nav - if guide { hub_layout::guide_room() } else { 0.0 };
-        crate::address_check::pane::place_in(app, room)
-    };
+    let in_pane = scanner_in_pane(app, full_w);
     let frosted = app.sheet.is_some() && !in_pane && ui.frost.is_some();
     let side = crate::glance::sheet::side_now(app);
-    // A flow's noted heading goes with the flow, in every frame: the
-    // compact, the held and the sidebar one.
-    if !bar_search::in_flow(app) {
-        app.tools.note_flow_head(None);
-    }
+    clear_flow_head(app);
     if !frosted && app.is_compact() {
         ui.clear(Role::Surface);
         // The stick pills take a strip across the top; the page is
