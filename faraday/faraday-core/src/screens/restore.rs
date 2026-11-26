@@ -623,7 +623,7 @@ fn restore_open_slot(
     if open && !app.one_column() {
         labels.extend(opener.other_forms().into_iter().map(form_row));
     }
-    crate::seeds::screen::more_ways(app, here, true, &mut labels);
+    crate::seeds::screen::more_ways(app, true, &mut labels);
     if let Some((label, action)) = extra {
         labels.push((label.to_string(), Style::Secondary, action));
     }
@@ -632,6 +632,7 @@ fn restore_open_slot(
         .map(|(l, st, a)| (l.as_str(), *st, *a))
         .collect();
     cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 6.0;
+    cy += crate::seeds::screen::loaded_keys(app, ui, r.seeds.as_ref(), here, x, cy, w);
     cy - y
 }
 

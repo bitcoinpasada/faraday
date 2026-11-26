@@ -86,6 +86,10 @@ macro_rules! words_seeds {
     seeds_not_an_account: "Not an account key",
     /// Text in `cosigner`. `{}`: `n`.
     seeds_use: "Use {}",
+    /// Dimmed reason on a loaded key already in the set.
+    seeds_in_set: "Already in this set",
+    /// Button under the loaded keys.
+    seeds_use_ticked: "Use the ticked keys",
     /// Text in `cosigner`.
     seeds_scan: "Scan",
     /// Line in `shape`.

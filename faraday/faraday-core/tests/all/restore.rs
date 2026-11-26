@@ -320,6 +320,32 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     assert_eq!(desc(&app, w), PASSPHRASE_VECTOR);
 }
 
+/// The loaded keys are checkbox rows: ticked, Use the ticked keys takes
+/// them into the slots, and a key already in the set is dimmed with why.
+#[test]
+fn ticked_loaded_keys_are_used_together_and_a_key_in_the_set_is_dimmed() {
+    use crate::common::{has, offered};
+    let mut app = shown();
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words("summer"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    let summer = app.session.keys[0].fingerprint;
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(MULTI));
+    app.press(Action::RNext(KIND));
+    app.press(Action::RNext(QUORUM));
+    app.press(Action::RSeeds);
+    assert!(!has(&mut app, "Already in this set"));
+    assert!(offered(&mut app, Action::Seeds(S::Tick(summer.0))));
+    app.press(Action::Seeds(S::Tick(summer.0)));
+    app.press(Action::Seeds(S::UseTicked));
+    assert_eq!(app.sheet, Some(Sheet::SeedRead), "it asks first");
+    sheet_passphrase(&mut app, "TREZOR", "TREZOR");
+    app.press(Action::SeedRead(Choice::WithPass));
+    assert_eq!(app.sheet, None);
+}
+
 #[test]
 fn the_sheets_button_waits_and_the_line_shows_while_the_passphrases_differ() {
     use crate::common::{has, offered};
