@@ -4,10 +4,11 @@
 //! with no stick, "Written and checked" after the write). Other sizes keep
 //! the card as it was.
 
+use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::strings::EN;
 use faraday_core::ui::TextSize;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
-use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn signed_at(width: u16, height: u16) -> Faraday {
     let c = testkit::compute();
@@ -666,4 +667,100 @@ fn the_scope_lives_and_dies_with_the_sheet_it_opened() {
     let mut want = vec![name, "other.txt".to_string()];
     want.sort();
     assert_eq!(writes(&mut app), want);
+}
+
+/// Rename in Files, by its presses: the file For the stick at `k` takes
+/// `stem`, its extension kept.
+fn rename_in_files(app: &mut Faraday, k: usize, stem: &str) {
+    app.press(Action::File(FilePress::Menu(Row::Out(k))));
+    app.press(Action::File(FilePress::Rename(Row::Out(k))));
+    assert_eq!(app.sheet, Some(Sheet::Rename));
+    let had = app
+        .files_menu()
+        .renaming
+        .as_ref()
+        .map_or(0, |r| r.stem.chars().count());
+    for _ in 0..had {
+        app.event(Event::Key(Key::Backspace));
+    }
+    for ch in stem.chars() {
+        app.event(Event::Key(Key::Char(ch)));
+    }
+    app.press(Action::File(FilePress::RenameGo));
+    assert_eq!(app.sheet, None);
+}
+
+/// The stick pulled under the sheet that names the file, and Lock pressed
+/// on it. In the next process another file takes the name in Files: the
+/// write that waited does not send it.
+#[test]
+fn another_file_under_the_name_after_the_lock_is_not_written() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    let name = file(&app);
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    app.press(Action::TakeWrite);
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.sheet, Some(Sheet::WriteOut));
+    while app.poll_storage().is_some() {}
+    app.press(Action::Lock);
+    let mut saved = None;
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { outbox, kept, .. } = c {
+            saved = Some((outbox, kept));
+        }
+    }
+    let (outbox, kept) = saved.expect("the lock kept the boxes");
+    let mut next = testkit::started();
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox,
+        kept,
+    });
+    while next.poll_storage().is_some() {}
+    next.press(Action::Nav(Screen::Files));
+    let at = |app: &Faraday, n: &str| app.outbox.iter().position(|i| i.name == n).expect(n);
+    let k = at(&next, &name);
+    rename_in_files(&mut next, k, "moved");
+    let k = at(&next, "other.txt");
+    rename_in_files(&mut next, k, name.trim_end_matches(".txt"));
+    assert_eq!(&*next.outbox[k].bytes, b"other");
+    assert_eq!(next.outbox[k].name, *name);
+    while next.poll_storage().is_some() {}
+    next.storage(StorageEvent::Sticks(vec![stick_with(&[])]));
+    assert!(writes(&mut next).is_empty());
+}
+
+/// A write kept with names only, no SHA-256, writes nothing, though the
+/// file and the stick are the ones it names.
+#[test]
+fn a_waiting_write_kept_by_name_only_writes_nothing() {
+    let mut app = signed_at(1366, 768);
+    stick_in(&mut app);
+    let name = file(&app);
+    app.press(Action::TakeWrite);
+    while app.poll_storage().is_some() {}
+    app.press(Action::Lock);
+    let mut saved = None;
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { outbox, kept, .. } = c {
+            saved = Some((outbox, kept));
+        }
+    }
+    let (outbox, mut kept) = saved.expect("the lock kept the boxes");
+    let (_, wait) = kept
+        .iter_mut()
+        .find(|(k, _)| k == "write-waiting")
+        .expect("the write waits");
+    *wait = format!("id:one\n\n{name}").into_bytes().into();
+    let mut next = testkit::started();
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox,
+        kept,
+    });
+    while next.poll_storage().is_some() {}
+    next.storage(StorageEvent::Sticks(vec![stick_with(&[])]));
+    assert!(writes(&mut next).is_empty());
 }
