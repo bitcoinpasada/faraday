@@ -41,7 +41,7 @@ pub(crate) fn typing_here(app: &Faraday) -> bool {
 
 /// Whether the tool's ways in are the rows of a pick.
 pub(crate) fn has_pick(t: Tool) -> bool {
-    matches!(t, Tool::Descriptor)
+    matches!(t, Tool::Descriptor | Tool::ConvertKey)
 }
 
 /// The tool's steps, plugged into Back, Forward and Your choices.
