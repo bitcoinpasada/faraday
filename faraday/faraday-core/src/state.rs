@@ -1099,6 +1099,18 @@ pub(crate) struct MessageArea {
 }
 
 impl MessageArea {
+    /// For the testkit: a signature put in the open flow, no step run.
+    pub(crate) fn put_signed(&mut self, signed: faraday_psbt::message::Signed) {
+        if let Some(m) = self.state.as_mut() {
+            m.signed = Some(signed);
+        }
+    }
+
+    /// For the testkit: whether a message is kept for **Check it**.
+    pub(crate) fn made_kept(&self) -> bool {
+        self.made.is_some()
+    }
+
     /// How far Check a signed message's card is scrolled.
     pub(crate) fn check_scroll(&self) -> crate::flow::Scroll {
         self.check_scroll

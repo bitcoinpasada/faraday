@@ -81,6 +81,8 @@ mod loose_key;
 mod message_address_row;
 #[path = "all/message_format.rs"]
 mod message_format;
+#[path = "all/message_held.rs"]
+mod message_held;
 #[path = "all/message_pick.rs"]
 mod message_pick;
 #[path = "all/message_scan.rs"]

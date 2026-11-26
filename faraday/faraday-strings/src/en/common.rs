@@ -1012,6 +1012,8 @@ macro_rules! words_common {
     message_single_key_only: "Single-key wallets only",
     /// Reason of a dimmed row in `MessageSteps::pick`: its key is not loaded.
     message_key_not_held: "Its key is not loaded",
+    /// Sign a message refused, and its wallet's dimmed row: the key's backup is
+    /// not done.
     message_waits_backup: "Its key waits for its backup",
     /// Text in `message_screen`.
     message_sign_a_message: "Sign a message",

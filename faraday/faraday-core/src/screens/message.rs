@@ -270,12 +270,8 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
                     cy += 48.0;
                 }
                 if waiting {
-                    cy += ui.wrap_as(
-                        (x, cy, w),
-                        BODY_M,
-                        Role::Warning,
-                        EN.message_waits_backup,
-                    ) + 12.0;
+                    cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.message_waits_backup)
+                        + faraday_draw::tokens::GAP;
                 }
             }
             let wallet = m.wallet.and_then(|wi| app.session.wallets.get(wi));
@@ -283,12 +279,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
             // path line when the address is of a key's own path.
             let shown = match (m.at.as_ref(), wallet) {
                 // A picked address whose key waits is shown nowhere.
-                (Some(at), _) if app.message_waits(Some(at), None) => Some((
-                    String::new(),
-                    EN.message_waits_backup.into(),
-                    true,
-                    None,
-                )),
+                (Some(at), _) if app.message_waits(Some(at), None) => None,
                 (Some(at), _) => {
                     let label = if at.change {
                         EN.message_change_address
@@ -312,6 +303,10 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
                 }),
                 (None, None) => None,
             };
+            if m.at.is_some() && app.message_waits(m.at.as_ref(), None) {
+                cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.message_waits_backup)
+                    + faraday_draw::tokens::GAP;
+            }
             if let Some((label, address, held, line)) = shown {
                 ui.text_mid_as((x, cy, 36.0), BODY_S, Role::OnSurfaceVariant, &label);
                 if m.at.is_none() {
@@ -483,7 +478,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
             match m.signed.as_ref() {
                 None if waits => {
                     cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.message_waits_backup)
-                        + 6.0;
+                        + faraday_draw::tokens::GAP_SMALL;
                 }
                 None => {
                     if pin_button(
