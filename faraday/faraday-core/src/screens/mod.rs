@@ -96,7 +96,7 @@ use sheets::{
     remove_keys_sheet, scan_sheet, secret_out_sheet, wallet_confirm_sheet, write_out_sheet,
 };
 use sidebar::sidebar;
-pub(crate) use sidebar::{leave_label, lock_held_pill, name_suffix};
+pub(crate) use sidebar::{leave_label, lock_held_tag, name_suffix};
 pub(crate) use spend::{
     STEPS as SPEND_TITLES, row_verdict, signers_count, single_key_unloaded, step_body, step_summary,
 };

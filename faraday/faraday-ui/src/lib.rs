@@ -1763,6 +1763,22 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
     }
 
+    /// The chevron that ends a row which opens a page or its details
+    /// (`docs/DESIGN.md` §4.13): `CHEVRON` wide, its right edge at `end`,
+    /// centred in the height `h` from `y`. The one place a row's chevron is
+    /// drawn.
+    pub fn row_chevron(&mut self, end: f32, y: f32, h: f32, color: impl Into<Paint>) {
+        use faraday_draw::tokens::CHEVRON;
+        self.icon(
+            end - CHEVRON,
+            y + (h - CHEVRON) / 2.0,
+            CHEVRON,
+            Icon::ChevronRight,
+            CHEVRON,
+            color,
+        );
+    }
+
     /// The USB stick glyph centred on (cx, cy), `size` units across: a
     /// body with rounded corners and its connector at the right end, two
     /// holes in the connector. Drawn as outlines, at the icon face's size.
@@ -2191,6 +2207,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 }
             }
             Style::Secondary => self.stroke(x, y, width, h, r, Role::Outline),
+            Style::Danger => self.stroke(x, y, width, h, r, Role::Error),
             Style::Disabled => {
                 // Faint in every theme: it is not available now.
                 let (rect, edge) = (self.rect(x, y, width, h), self.col(faint));

@@ -16,7 +16,8 @@ use crate::ui::{Style, Ui};
 use crate::wallet::network_name;
 use faraday_draw::tokens::{BODY_M, LABEL_L, LABEL_M};
 use faraday_draw::tokens::{
-    GAP, LABEL, MODE_PILL_HEIGHT, MODE_PILL_PAD, MODE_ROW, MODE_SHEET_WIDTH, PAD, TOUCH,
+    GAP, GAP_SMALL, LABEL, MODE_PILL_HEIGHT, MODE_PILL_PAD, MODE_ROW, MODE_SHEET_WIDTH, NAV_ICON,
+    PAD, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 
@@ -37,7 +38,27 @@ fn pill_label(app: &View, ui: &Ui) -> &'static str {
 
 /// The mode pill's own width.
 fn mode_width(app: &View, ui: &Ui) -> f32 {
-    ui.measure_as(LABEL_M, pill_label(app, ui)) + 2.0 * MODE_PILL_PAD
+    ui.measure_as(LABEL_M, pill_label(app, ui)) + 2.0 * MODE_PILL_PAD + arrow_room(app)
+}
+
+/// What the small menu arrow after the label takes: a gap and the glyph.
+/// The pill opens the mode sheet, so it carries the arrow (F332), but not on
+/// the compact layouts, whose bar has no room beyond the name (the
+/// phone-size window and the Pi keep their pill; owner, 2026-11-25).
+fn arrow_room(app: &View) -> f32 {
+    if has_arrow(app) {
+        GAP_SMALL + NAV_ICON
+    } else {
+        0.0
+    }
+}
+
+/// Whether the pill carries the arrow: on the layouts with a rail only.
+fn has_arrow(app: &View) -> bool {
+    matches!(
+        app.nav(),
+        crate::nav::Nav::Rail | crate::nav::Nav::ExpandedRail
+    )
 }
 
 /// The pill's width, for a row that makes room for it. Load samples is
@@ -54,6 +75,7 @@ fn chip(
     tone: Paint,
     action: Action,
     bar_h: Option<f32>,
+    arrow: bool,
 ) {
     let h = MODE_PILL_HEIGHT;
     // In its tone's container, never a tint (`docs/DESIGN.md` §3).
@@ -68,6 +90,17 @@ fn chip(
     }
     ui.press_to(shape, (px, ty.max(0.0), pw, TOUCH), fg.paint(), action);
     ui.text_mid_as((px + MODE_PILL_PAD, py, h), LABEL_M, fg, label);
+    if arrow {
+        let ax = px + MODE_PILL_PAD + ui.measure_as(LABEL_M, label) + GAP_SMALL;
+        ui.icon(
+            ax,
+            py + (h - NAV_ICON) / 2.0,
+            NAV_ICON,
+            Icon::ChevronDown,
+            NAV_ICON,
+            fg,
+        );
+    }
 }
 
 /// The mode pill at (`px`, `py`), in the caution tone: it names the
@@ -93,6 +126,7 @@ fn pill_within(app: &View, ui: &mut Ui, px: f32, py: f32, bar_h: Option<f32>) ->
         Role::Warning.paint(),
         Action::ModeSheet,
         bar_h,
+        has_arrow(app),
     );
     mw
 }
@@ -107,18 +141,15 @@ pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         return segmented_row(app, ui, x, y, w);
     }
     ui.text_mid_as((x, y, MODE_ROW), LABEL_L, Role::OnSurface, EN.settings_mode);
-    ui.icon(
-        x + w - MODE_ROW / 2.0 - GAP,
-        y,
-        MODE_ROW,
-        Icon::ChevronRight,
-        LABEL,
-        Role::OnSurfaceVariant,
-    );
+    ui.row_chevron(x + w - GAP, y, MODE_ROW, Role::OnSurfaceVariant);
     let name = app.mode().name();
     let nw = ui.measure_as(BODY_M, name);
     ui.text_mid_as(
-        (x + w - 3.0 * GAP - nw, y, MODE_ROW),
+        (
+            x + w - GAP - faraday_draw::tokens::CHEVRON - GAP_SMALL - nw,
+            y,
+            MODE_ROW,
+        ),
         BODY_M,
         Role::OnSurfaceVariant,
         name,

@@ -221,11 +221,7 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut items: Vec<(&str, Style, Action)> = Vec::new();
     if app.holds_secret() {
         items.push((EN.settings_lock, Style::Secondary, Action::LockAsk));
-        items.push((
-            EN.settings_remove_every,
-            Style::Secondary,
-            Action::RemoveKeys,
-        ));
+        items.push((EN.settings_remove_every, Style::Danger, Action::RemoveKeys));
     }
     let leave = if app.online {
         EN.settings_quit
@@ -500,7 +496,7 @@ fn about_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
 /// opening that section as its own page, whose Back is the list again.
 fn listed(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
-    use crate::panes::screen::{Item, list_item};
+    use crate::panes::screen::{Item, list_item_opens};
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let parts = parts();
     let open = open_part(app, &parts);
@@ -527,7 +523,7 @@ fn listed(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Action::SettingsSection(Some(k as u8))
                 },
             };
-            y += list_item(ui, (x, y, w), &item, false);
+            y += list_item_opens(ui, (x, y, w), &item);
         }
     }
     // The margin above the first row and under the last.

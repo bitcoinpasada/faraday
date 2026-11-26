@@ -1583,13 +1583,10 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
         );
     }
     if let Some(a) = r.action {
-        let iy = y + (h - tokens::ICON_SMALL) / 2.0;
-        ui.icon(
-            x + w - pad - chevron,
-            iy,
-            tokens::ICON_SMALL,
-            Icon::ChevronRight,
-            tokens::GRID,
+        ui.row_chevron(
+            x + w - pad - chevron + tokens::CHEVRON,
+            y,
+            h,
             Role::OnSurfaceVariant,
         );
         ui.press(

@@ -26,6 +26,8 @@ pub(crate) enum Line {
     Item(String, Action),
     /// A choice with its icon at its start: the icon, what it reads, and the press it is.
     Icon(Icon, String, Action),
+    /// A choice that begins a dangerous act, in the error tone.
+    Danger(String, Action),
     /// A divider between groups of choices.
     Divider,
     /// A choice that is not available: what it reads, and why.
@@ -161,6 +163,7 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
             Line::Head(name) => MenuLine::Head(name.as_str()),
             Line::Item(label, a) => MenuLine::Item(label.as_str(), *a, false),
             Line::Icon(icon, label, a) => MenuLine::Icon(*icon, label.as_str(), *a),
+            Line::Danger(label, a) => MenuLine::Danger(label.as_str(), *a),
             Line::Divider => MenuLine::Divider,
             Line::Off(label, why) => MenuLine::Off(label.as_str(), why.as_str()),
         })

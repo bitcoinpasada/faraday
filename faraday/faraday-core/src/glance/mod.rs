@@ -1313,12 +1313,22 @@ struct Node {
 }
 
 impl Node {
+    /// The room the chevron takes from the title's line: a box that opens
+    /// something ends in one, the others have none (F332).
+    fn chevron_room(&self) -> f32 {
+        if self.action.is_some() {
+            tokens::ROW_CHEVRON_ROOM
+        } else {
+            0.0
+        }
+    }
+
     /// The width its title and lines ask for, with its padding.
     fn natural(&self, ui: &Ui) -> f32 {
         let tag = self
             .tag
             .map_or(0.0, |(t, _)| ui.measure_as(BODY_S, t) + tokens::GAP);
-        let title = ui.measure_as(LABEL_L, &self.title) + tag;
+        let title = ui.measure_as(LABEL_L, &self.title) + tag + self.chevron_room();
         let lines = self
             .lines
             .iter()
@@ -1336,7 +1346,7 @@ impl Node {
     /// side at width `w`.
     fn tag_under(&self, ui: &Ui, w: f32) -> bool {
         self.tag.is_some_and(|(t, _)| {
-            let inner = w - 2.0 * tokens::CHART_NODE_PAD;
+            let inner = w - 2.0 * tokens::CHART_NODE_PAD - self.chevron_room();
             ui.measure_as(LABEL_L, &self.title) + tokens::GAP + ui.measure_as(BODY_S, t) > inner
         })
     }
@@ -1369,7 +1379,7 @@ impl Node {
             Some((t, c)) => {
                 let tw = ui.measure_as(BODY_S, t);
                 let lh = ui.line_as(LABEL_L);
-                ui.text_right_as((x + w - pad, cy, lh), BODY_S, c, t);
+                ui.text_right_as((x + w - pad - self.chevron_room(), cy, lh), BODY_S, c, t);
                 tw + tokens::GAP
             }
             None => 0.0,
@@ -1383,7 +1393,11 @@ impl Node {
                 a,
             );
         }
-        let title = ui.fit_as(LABEL_L, &self.title, inner - tag_w);
+        let title = ui.fit_as(LABEL_L, &self.title, inner - tag_w - self.chevron_room());
+        if self.action.is_some() {
+            let lh = ui.line_as(LABEL_L);
+            ui.row_chevron(x + w - pad, cy, lh, Role::OnSurfaceVariant);
+        }
         ui.text_as(x + pad, cy, LABEL_L, Role::OnSurface, &title);
         cy += ui.line_as(LABEL_L);
         if let Some((t, c)) = self.tag.filter(|_| under) {

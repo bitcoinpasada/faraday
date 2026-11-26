@@ -848,7 +848,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // The idle lock waits for a new wallet's backup.
     if app.lock_held() {
         sections.push(Section::block(None, move |ui, (x, y), w| {
-            crate::screens::lock_held_pill(ui, x, y, w)
+            crate::screens::lock_held_tag(ui, x, y, w)
         }));
     }
     let page = Page {
@@ -896,14 +896,7 @@ fn prompt_rows<L: std::ops::Deref<Target = str>>(
         let label = ui.fit_as(LABEL_L, label, lead_w - 60.0);
         ui.text_mid_as((M + 44.0, y0, 44.0), LABEL_L, ink, &label);
         if action.is_some() {
-            ui.icon(
-                M + lead_w - 26.0,
-                y0 + 12.0,
-                20.0,
-                Icon::ChevronRight,
-                9.0,
-                ink,
-            );
+            ui.row_chevron(M + lead_w - 6.0, y0 + 12.0, 20.0, ink);
         }
         y0 += 44.0 + 8.0;
     }

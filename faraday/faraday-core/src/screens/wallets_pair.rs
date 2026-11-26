@@ -154,14 +154,7 @@ pub(super) fn way_rows(
             Role::OnSurface,
             &name,
         );
-        ui.icon(
-            rx + cw - LIST_PAD - ICON_SMALL,
-            ry + (LIST_1 - ICON_SMALL) / 2.0,
-            ICON_SMALL,
-            Icon::ChevronRight,
-            ICON_SMALL,
-            Role::OnSurfaceVariant,
-        );
+        ui.row_chevron(rx + cw - LIST_PAD, ry, LIST_1, Role::OnSurfaceVariant);
     }
 }
 

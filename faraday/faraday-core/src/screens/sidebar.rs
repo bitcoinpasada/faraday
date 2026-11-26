@@ -6,7 +6,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L, LABEL_S};
+use faraday_draw::tokens::{FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L};
 use faraday_draw::tokens::{GRID, TOUCH};
 use faraday_draw::widgets::Icon;
 
@@ -114,7 +114,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         Action::Scan,
     );
     if app.lock_held() {
-        lock_held_pill(ui, 16.0, fab_y - LOCK_PILL_H - GRID, SIDEBAR_W - 32.0);
+        lock_held_tag(ui, 16.0, fab_y - LOCK_TAG_H - GRID, SIDEBAR_W - 32.0);
     }
 }
 
@@ -128,18 +128,15 @@ pub(crate) fn leave_label(app: &View) -> &'static str {
     }
 }
 
-/// The pill's height.
-pub(crate) const LOCK_PILL_H: f32 = 24.0;
+/// The tag's height.
+pub(crate) const LOCK_TAG_H: f32 = faraday_draw::tokens::TAG_H;
 
-/// "Auto-lock off until backup complete" as an outlined pill at (x, y),
-/// `w` wide at most. Returns its height.
-pub(crate) fn lock_held_pill(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let (role, pad) = (LABEL_S.regular(), 8.0);
-    let text = ui.fit_as(role, EN.lock_held_pill, w - 2.0 * pad);
-    let pw = (ui.measure_as(role, &text) + 2.0 * pad).min(w);
-    let r = LOCK_PILL_H / 2.0;
-    ui.fill(x, y, pw, LOCK_PILL_H, r, Role::SurfaceContainerLow);
-    ui.stroke(x, y, pw, LOCK_PILL_H, r, Role::Primary);
-    ui.text_mid_as((x + pad, y, LOCK_PILL_H), role, Role::Primary, &text);
-    LOCK_PILL_H
+/// "Auto-lock off until backup complete" as a plain neutral tag at (x, y),
+/// `w` wide at most: a fact, so no outline and no accent (F332). Returns its
+/// height.
+pub(crate) fn lock_held_tag(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let room = w - ui.chip_width("");
+    let text = ui.fit_as(faraday_draw::tokens::BODY_S, EN.lock_held_pill, room);
+    ui.tag(x, y, &text, faraday_ui::Status::Neutral);
+    LOCK_TAG_H
 }

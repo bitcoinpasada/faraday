@@ -98,14 +98,7 @@ pub(crate) fn row(
         ui.text_as(tx, sub_y, BODY_S, sub_tone, &sub);
     }
     if action.is_some() {
-        ui.icon(
-            x + w - 24.0,
-            y + 18.0,
-            20.0,
-            Icon::ChevronRight,
-            9.0,
-            Role::OnSurfaceVariant,
-        );
+        ui.row_chevron(x + w - 4.0, y + 18.0, 20.0, Role::OnSurfaceVariant);
     }
     h + 8.0
 }
@@ -190,7 +183,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.icon(x + 10.0, cy + 12.0, 20.0, Icon::File, 12.0, ink);
         let line = ui.fit_as(LABEL_L, &line, iw - 64.0);
         ui.text_mid_as((x + 36.0, cy, 44.0), LABEL_L, ink, &line);
-        ui.icon(x + iw - 24.0, cy + 12.0, 20.0, Icon::ChevronRight, 9.0, ink);
+        ui.row_chevron(x + iw - 4.0, cy + 12.0, 20.0, ink);
         cy += 56.0;
     }
 
@@ -444,7 +437,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     buttons.push((
         EN.compact_remove_from_session,
-        Style::Ghost,
+        Style::Danger,
         Action::RemoveWallet(app.wallets.wallet()),
     ));
     cy += stack(ui, x, cy, iw, &buttons);
@@ -546,7 +539,7 @@ fn silent_card(
     }
     buttons.push((
         EN.compact_remove_from_session,
-        Style::Ghost,
+        Style::Danger,
         Action::RemoveWallet(w),
     ));
     cy += stack(ui, x, cy, iw, &buttons);

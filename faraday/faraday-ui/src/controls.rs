@@ -130,6 +130,10 @@ pub enum Style {
     /// A quiet action beside others: a text button, its label in
     /// primary.
     Ghost,
+    /// The first press of a dangerous act (what removes or deletes): an
+    /// outlined button in the error tone; the last press is still a hold
+    /// (F332).
+    Danger,
     /// The chosen one of a set of options: secondary-container, with a
     /// tick.
     Selected,
@@ -150,7 +154,7 @@ impl Style {
             Style::Primary | Style::PrimaryOff => Style::PrimaryOff,
             Style::Tonal | Style::TonalOff => Style::TonalOff,
             Style::Ghost | Style::GhostOff => Style::GhostOff,
-            Style::Secondary | Style::Selected | Style::Disabled => Style::Disabled,
+            Style::Secondary | Style::Danger | Style::Selected | Style::Disabled => Style::Disabled,
         }
     }
 
@@ -185,6 +189,7 @@ impl Style {
             Style::Primary => Role::OnPrimary.paint(),
             Style::Tonal | Style::Selected => Role::OnSecondaryContainer.paint(),
             Style::Secondary | Style::Ghost => Role::Primary.paint(),
+            Style::Danger => Role::Error.paint(),
             Style::Disabled | Style::PrimaryOff | Style::TonalOff | Style::GhostOff => {
                 Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
             }
