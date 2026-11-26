@@ -1,11 +1,12 @@
 //! The nonce tour: Faraday as a check on another signer (`docs/FLOWS.md`,
-//! Nonce check). Files with a PSBT signed elsewhere and a finished
+//! Nonce check). The empty card, opened from Check; then Files with a PSBT signed elsewhere and a finished
 //! transaction, each offering Nonce check; the check of the PSBT with no
 //! key here, then with the cosigner's key loaded (recomputed); the
 //! finished transaction beside the PSBT that states its amounts, and its
 //! hex; and the PSBT with a signature damaged, refused.
 
 use crate::tour::{Tour, scroll_to};
+use faraday_core::check::{Press, Row};
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::{App, Event, Key};
@@ -82,6 +83,16 @@ pub(crate) fn nonce_tour(t: &mut Tour) -> Result<(), String> {
         let mut compact = sig.signature.serialize_compact();
         compact[63] ^= 1;
         sig.signature = Signature::from_compact(&compact).map_err(|e| e.to_string())?;
+    }
+    // Opened from Check with nothing loaded or waiting: the card with its
+    // ways in. A small panel opens the scanner instead.
+    if !t.app.is_compact() {
+        t.press(Action::Nav(Screen::Check));
+        t.press(Action::Check(Press::Row(Row::Signatures)));
+        if t.app.screen != Screen::NonceCheck || t.app.outside_check().is_some() {
+            return Err("Nonce check opened no empty card".into());
+        }
+        t.shot("nonce-empty")?;
     }
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
