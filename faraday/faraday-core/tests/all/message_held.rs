@@ -276,8 +276,9 @@ fn restarted(mut app: Faraday) -> Faraday {
 }
 
 /// A stick visit's Write with everything Select all takes, and `name`
-/// ticked besides when `tick`: the names the write sends.
-fn visit_writes(app: &mut Faraday, name: &str, tick: bool) -> Vec<String> {
+/// ticked besides when `tick`: the names the write sends. `waits` says
+/// that Select all is to leave `name` out.
+fn visit_writes(app: &mut Faraday, name: &str, tick: bool, waits: bool) -> Vec<String> {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
@@ -287,7 +288,14 @@ fn visit_writes(app: &mut Faraday, name: &str, tick: bool) -> Vec<String> {
         files: Vec::new(),
         vaults: Vec::new(),
     }]));
+    // The stick arrives with what it can take ticked: untick all, then
+    // Select all.
+    if !app.visit().out.is_empty() {
+        app.press(Action::VisitOutAll);
+    }
+    assert!(app.visit().out.is_empty(), "all unticked");
     app.press(Action::VisitOutAll);
+    assert_eq!(app.visit().out.contains(name), !waits, "Select all");
     if tick {
         testkit::visit_tick(app, name);
     }
@@ -321,16 +329,21 @@ fn held_back_until_backed_up(mut app: Faraday, name: &str) {
     testkit::mark_made_here(&mut next, fp);
     assert!(row_says_it_waits(&mut next));
     assert!(!code_shown(&mut next));
-    let written = visit_writes(&mut next, name, true);
+    let written = visit_writes(&mut next, name, true, true);
     assert!(written.iter().any(|n| n == "other.txt"), "{written:?}");
     assert!(!written.iter().any(|n| n == name), "{written:?}");
 
     testkit::release_made(&mut next, fp);
+    // The refusal's toast says the same words: its time runs out first.
+    next.event(Event::Tick {
+        now_ms: 10 * faraday_draw::tokens::TOAST_SHOW_MS,
+    });
+    assert_eq!(next.toast_text(), None);
     next.press(Action::Nav(Screen::Files));
     assert!(!row_says_it_waits(&mut next));
     assert!(code_shown(&mut next));
     next.press(Action::Cancel);
-    let written = visit_writes(&mut next, name, true);
+    let written = visit_writes(&mut next, name, true, false);
     assert!(written.iter().any(|n| n == name), "{written:?}");
 }
 
