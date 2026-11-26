@@ -161,12 +161,17 @@ fn spending_finished() -> Faraday {
 
 /// As [`spending_finished`], with other files already waiting For the stick.
 fn spending_finished_with(waiting: Vec<(&str, Vec<u8>)>) -> Faraday {
+    spending_finished_from("spend.psbt", waiting)
+}
+
+/// As [`spending_finished_with`], from a PSBT of this name.
+fn spending_finished_from(source: &str, waiting: Vec<(&str, Vec<u8>)>) -> Faraday {
     let k = kit("spending");
     let psbt = testkit::unsigned(&k).unwrap();
     let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
-            ("spend.psbt".to_string(), psbt.to_bytes()),
+            (source.to_string(), psbt.to_bytes()),
             ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
         ]),
         outbox: faraday_core::files_from(
@@ -180,7 +185,7 @@ fn spending_finished_with(waiting: Vec<(&str, Vec<u8>)>) -> Faraday {
     let wallet_at = at(&app, "spending-wallet.txt");
     testkit::load_wallet(&mut app, wallet_at);
     add_key(&mut app, "bacon");
-    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    app.press(Action::StartSpend(at(&app, source)));
     testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().spend.finished.is_some());
@@ -1531,4 +1536,34 @@ fn the_end_card_counts_only_what_is_still_waiting() {
         !texts.iter().any(|t| t == "Lock and write to the stick"),
         "{texts:?}"
     );
+}
+
+/// A folder stick's file name may hold a newline, which in the kept list
+/// would make a second file: Lock and write keeps no write.
+#[test]
+fn a_psbt_name_with_a_newline_keeps_no_write() {
+    let source = format!("a\n{} b.psbt", "0".repeat(64));
+    let mut app = spending_finished_from(&source, Vec::new());
+    assert!(
+        app.outbox.iter().any(|i| i.name.contains('\n')),
+        "the signed file carries the name"
+    );
+    app.storage(StorageEvent::Sticks(vec![a_stick(Vec::new())]));
+    app.press(Action::Primary);
+    app.press(Action::Lock);
+    let (_, kept) = the_lock_kept(&mut app);
+    assert!(!keeps_a_write(&kept));
+}
+
+/// As for a name, for the identity of the stick.
+#[test]
+fn a_stick_identity_with_a_newline_keeps_no_write() {
+    let mut app = spending_finished();
+    let mut stick = a_stick(Vec::new());
+    stick.id = faraday_text::Text::of("T\nU");
+    app.storage(StorageEvent::Sticks(vec![stick]));
+    app.press(Action::Primary);
+    app.press(Action::Lock);
+    let (_, kept) = the_lock_kept(&mut app);
+    assert!(!keeps_a_write(&kept));
 }
