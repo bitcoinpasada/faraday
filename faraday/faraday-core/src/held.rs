@@ -93,6 +93,8 @@ impl Faraday {
         let c = self.compute();
         let held = self.held_keys_now(&c);
         self.note_text_files(&held);
+        let loaded: Vec<Fingerprint> = self.session.keys.all().map(|k| k.fingerprint).collect();
+        self.message.sync_holds(&held, &loaded);
         self.session.set_waiting(held);
         self.session.set_waiting_inputs(self.waiting_inputs());
         self.untick_waiting_files();

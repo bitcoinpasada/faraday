@@ -1108,6 +1108,10 @@ struct SignedFile {
     name: faraday_text::Text,
     sha: [u8; 32],
     key: faraday_bip::keys::Fingerprint,
+    /// The key was found waiting for its backup, and has not been seen
+    /// loaded and released since: the file stays held back while the key
+    /// is not loaded, after a lock too ([`MessageArea::sync_holds`]).
+    held: bool,
 }
 
 impl MessageArea {
@@ -1123,7 +1127,25 @@ impl MessageArea {
                 name: faraday_text::Text::of(name),
                 sha,
                 key,
+                held: false,
             });
+        }
+    }
+
+    /// Takes the keys held now and the keys loaded: a file whose key is
+    /// held is held back from here on, and one whose key is loaded and not
+    /// held, its backup done, is not.
+    pub(crate) fn sync_holds(
+        &mut self,
+        held: &[faraday_bip::keys::Fingerprint],
+        loaded: &[faraday_bip::keys::Fingerprint],
+    ) {
+        for f in &mut self.files {
+            if held.contains(&f.key) {
+                f.held = true;
+            } else if loaded.contains(&f.key) {
+                f.held = false;
+            }
         }
     }
 
@@ -1133,10 +1155,15 @@ impl MessageArea {
         name: &str,
         sha: Option<[u8; 32]>,
     ) -> impl Iterator<Item = faraday_bip::keys::Fingerprint> {
+        self.signed_as(name, sha).map(|f| f.key)
+    }
+
+    /// What is noted of the file `name` of SHA-256 `sha`, once for each
+    /// key that signed it.
+    fn signed_as(&self, name: &str, sha: Option<[u8; 32]>) -> impl Iterator<Item = &SignedFile> {
         self.files
             .iter()
             .filter(move |f| *f.name == *name && sha == Some(f.sha))
-            .map(|f| f.key)
     }
 
     /// The file `from` of SHA-256 `sha` is renamed `to` in Files.
@@ -1149,14 +1176,16 @@ impl MessageArea {
     }
 
     /// What a lock keeps of the signed files: a line of SHA-256, key and
-    /// name each. Nothing in it is secret.
+    /// name each, an `h` after the key of a file held back. Nothing in it
+    /// is secret.
     pub(crate) fn files_encode(&self) -> Vec<u8> {
         let mut out = faraday_text::Text::new();
         for f in &self.files {
             out.push_str(&faraday_text::text!(
-                "{}\t{}\t{}\n",
+                "{}\t{}{}\t{}\n",
                 &*faraday_crypto::hex::encode_string(&f.sha),
                 &*faraday_crypto::hex::encode_string(&f.key.0),
+                if f.held { "h" } else { "" },
                 &*f.name
             ));
         }
@@ -1174,11 +1203,18 @@ impl MessageArea {
             else {
                 continue;
             };
+            let (key, held) = key.strip_suffix('h').map_or((key, false), |k| (k, true));
             if let (Some(s), Some(k)) = (
                 faraday_crypto::hex::decode_exact::<32>(sha),
                 faraday_crypto::hex::decode_exact::<4>(key),
             ) {
-                self.file_signed(name, s, faraday_bip::keys::Fingerprint(k));
+                let k = faraday_bip::keys::Fingerprint(k);
+                self.file_signed(name, s, k);
+                for f in &mut self.files {
+                    if held && f.sha == s && f.key == k && *f.name == *name {
+                        f.held = true;
+                    }
+                }
             }
         }
     }
@@ -1535,8 +1571,14 @@ impl Faraday {
     pub(crate) fn message_file_waits(&self, item: &crate::Item) -> bool {
         let waiting = self.session.waiting();
         self.message
-            .signers(&item.name, item.sha)
-            .any(|k| waiting.contains(&k))
+            .signed_as(&item.name, item.sha)
+            .any(|f| waiting.contains(&f.key) || self.hold_stands(f))
+    }
+
+    /// A lookup. Whether `f` was held back and its key is not loaded to say
+    /// that its backup is done.
+    fn hold_stands(&self, f: &SignedFile) -> bool {
+        f.held && !self.session.keys.all().any(|k| k.fingerprint == f.key)
     }
 
     /// Costs what `key_held` costs for each key that signed `item`, and
@@ -1544,8 +1586,8 @@ impl Faraday {
     /// write or a press, worked out now.
     pub(crate) fn message_file_waits_now(&self, c: &Compute, item: &crate::Item) -> bool {
         self.message
-            .signers(&item.name, item.sha)
-            .any(|k| self.key_held(c, k))
+            .signed_as(&item.name, item.sha)
+            .any(|f| self.hold_stands(f) || self.key_held(c, f.key))
     }
 
     /// A lookup. The key the open flow's signature is made with: the picked

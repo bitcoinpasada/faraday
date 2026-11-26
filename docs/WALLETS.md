@@ -1518,7 +1518,9 @@ back: its row says "Its key waits for its backup" and is unticked, no
 write takes it, and Show as QR is refused with the same line. Once the key
 is backed up it goes as any file does. The PNG of its code is held back
 the same way. Which key signed which file, by
-name and SHA-256, is kept across a lock.
+name and SHA-256, and that the file is held back are kept across a lock: it
+stays held after a lock or **Remove every key**, while the key is not
+loaded, until that key's backup is finished.
 
 - **What waits.** The wallet card's first button reads **Finish the backup
   first** and opens the wallet's checklist (its plan when none is made); in
