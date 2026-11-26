@@ -1384,34 +1384,72 @@ fn a_key_row_draws_its_fingerprint_and_its_mark_whole() {
     signing_row(&rows);
 }
 
+/// The page's text with no spaces, so a line that wrapped reads as it was.
+fn page_text(app: &mut Faraday) -> String {
+    app.drawn_texts()
+        .iter()
+        .flat_map(|t| t.chars())
+        .filter(|c| !c.is_whitespace())
+        .collect()
+}
+
+fn pi_panel(app: &mut Faraday, size: faraday_core::ui::TextSize) {
+    app.press(Action::TextSize(size));
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+/// A wallet's line says whether it can spend, then its shape on a line of
+/// its own, whole: wide, on the phone-size window and on the Pi's panel at
+/// every text size, wrapped and never cut.
 #[test]
-fn a_wallets_line_says_whether_it_can_spend_before_its_shape() {
+fn a_wallets_line_says_whether_it_can_spend_then_its_whole_shape_below() {
     use faraday_core::strings::EN;
-    let mut app = with_files(vec![savings()]);
-    testkit::load_wallet(&mut app, 0);
-    app.press(Action::Nav(Screen::SpendBackup));
-    let _ = app.frame();
-    let line = |app: &mut Faraday| {
-        app.drawn_texts()
-            .into_iter()
-            .map(|t| String::from(&*t))
-            .find(|t| t.contains(EN.spend_backup_no_key_here) || t.starts_with("Can spend"))
-            .unwrap_or_default()
-    };
-    assert!(
-        line(&mut app).starts_with(EN.spend_backup_no_key_here),
-        "{}",
-        line(&mut app)
-    );
-    let mut ready = with_files(vec![savings()]);
-    add_key(&mut ready, 0);
-    add_key(&mut ready, 1);
-    testkit::load_wallet(&mut ready, 0);
-    ready.press(Action::Nav(Screen::SpendBackup));
-    let _ = ready.frame();
-    assert!(
-        line(&mut ready).starts_with("Can spend"),
-        "{}",
-        line(&mut ready)
-    );
+    use faraday_core::ui::TextSize;
+    let squeeze = |s: &str| s.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+    for ready in [false, true] {
+        for size in [
+            None,
+            Some(TextSize::Standard),
+            Some(TextSize::Large),
+            Some(TextSize::Larger),
+        ] {
+            let mut app = with_files(vec![savings()]);
+            if ready {
+                add_key(&mut app, 0);
+                add_key(&mut app, 1);
+            }
+            testkit::load_wallet(&mut app, 0);
+            if let Some(size) = size {
+                pi_panel(&mut app, size);
+            }
+            app.press(Action::Nav(Screen::SpendBackup));
+            let _ = app.frame();
+            let shape = squeeze(&faraday_core::wallet::Session::shape(
+                &app.session.wallets[0],
+            ));
+            let marker = if ready {
+                squeeze(&EN.spend_backup_can_spend_count.replace("{}", ""))
+            } else {
+                squeeze(EN.spend_backup_no_key_here)
+            };
+            let marker = marker.split('·').next().unwrap().to_string();
+            let text = page_text(&mut app);
+            let (m, sh) = (text.find(&marker), text.find(&shape));
+            assert!(
+                m.is_some() && sh.is_some() && m < sh,
+                "ready {ready}, {size:?}: readiness `{marker}` then shape `{shape}` in {text}"
+            );
+        }
+    }
 }

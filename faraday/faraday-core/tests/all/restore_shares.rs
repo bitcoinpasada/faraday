@@ -918,3 +918,54 @@ fn the_tick_sentence_is_said_on_the_drawn_screen_for_a_listed_share_file() {
     }
     assert!(any, "{seen:#?}");
 }
+
+/// Share files of one wallet that share a long prefix are told apart on
+/// the Pi's panel at every text size: each name is wrapped whole, never
+/// cut where the share's number is.
+#[test]
+fn share_files_of_one_prefix_read_whole_on_the_pis_panel() {
+    use faraday_core::ui::TextSize;
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+    let (a, _) = sheets("Savings", &two_of_three(0));
+    let names: Vec<String> = (1..=a.len())
+        .map(|j| format!("family-savings-share-{j}-of-{}.txt", a.len()))
+        .collect();
+    for size in [TextSize::Standard, TextSize::Large, TextSize::Larger] {
+        let files = names
+            .iter()
+            .zip(&a)
+            .map(|(n, t)| (n.clone(), t.clone().into_bytes()))
+            .collect();
+        let mut app = device(files);
+        app.press(Action::TextSize(size));
+        app.event(Event::Display(DisplayInfo {
+            width: 480,
+            // The Pi's width, tall so the rows are in view.
+            height: 4000,
+            dpi: 286,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        // One of the three opens Restore at its Description card, ticked.
+        app.press(Action::RestoreShareAt(0));
+        assert_eq!(
+            app.restore().unwrap().open,
+            Some(faraday_core::rstep::DESCRIPTION)
+        );
+        let _ = app.frame();
+        let text: String = app
+            .drawn_texts()
+            .iter()
+            .flat_map(|t| t.chars())
+            .filter(|c| !c.is_whitespace())
+            .collect();
+        for n in &names {
+            assert!(text.contains(n.as_str()), "{size:?}: `{n}` whole in {text}");
+        }
+    }
+}

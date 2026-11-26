@@ -96,7 +96,7 @@ macro_rules! words_spend_backup {
     /// Text in `loaded_compact`.
     spend_backup_no_key_here: "No key here",
     /// Line in `loaded_compact`.
-    spend_backup_an_open_vault: "An open vault holds a missing key · Open it to load it",
+    spend_backup_an_open_vault: "An open vault holds a missing key · Open the wallet to load it",
     /// Section label in `loaded_compact`.
     spend_backup_keys_without_wallet: "Keys with no wallet loaded",
     /// Text in `loaded_compact`.
@@ -220,7 +220,7 @@ macro_rules! words_spend_backup {
     /// Line in `opened`.
     spend_backup_spend_from_label: "Spend from",
     /// Text in `wallet_rows`. `{}`: the keys' marker, `Session::shape(wl)`.
-    spend_backup_shape_and_keys: "{} · {}",
+    spend_backup_shape_and_keys: "{}\n{}",
     /// Text in `opened`. `{}`: `Session::shape(wl)`, `here`, `slots.len()`.
     spend_backup_of_keys_here: "{} · {} of {} keys here",
     /// Line in `shortcut`.

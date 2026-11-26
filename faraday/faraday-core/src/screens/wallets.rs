@@ -84,6 +84,14 @@ pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: us
     h + 16.0
 }
 
+/// Whether an open vault holds one of the keys the wallet misses.
+pub(crate) fn open_vault_holds_missing(app: &View, slots: &[crate::wallet::Slot]) -> bool {
+    slots
+        .iter()
+        .filter(|s| s.held_by.is_none() && s.fingerprint.is_some())
+        .any(|s| app.vault_key_for(s).is_some())
+}
+
 /// Where a wallet's missing keys may be: a locked vault to unlock
 /// (coming back to `back`). Nothing when an open vault holds one, since
 /// its row loads it, and nothing when no vault is locked. Returns its
@@ -101,11 +109,7 @@ pub(crate) fn missing_keys_line(
     y: f32,
     w: f32,
 ) -> f32 {
-    if slots
-        .iter()
-        .filter(|s| s.held_by.is_none() && s.fingerprint.is_some())
-        .any(|s| app.vault_key_for(s).is_some())
-    {
+    if open_vault_holds_missing(app, slots) {
         return 0.0;
     }
     // Only a locked vault is said: it may hold them, and Unlock is the
