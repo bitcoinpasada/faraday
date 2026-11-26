@@ -121,9 +121,10 @@ fn in_theme(app: &mut Faraday, theme: Theme) {
     app.press(Action::Theme(theme));
 }
 
-/// `app`'s window made tall enough for Settings to fit whole: nothing
-/// scrolls, so no text is under the fade at a scrolled edge, where a
-/// line passing out of view is meant to fade with what it is on.
+/// `app`'s window made tall enough for Settings or the board to fit
+/// whole: nothing scrolls, so no text is under the fade at a scrolled
+/// edge, where a line passing out of view is meant to fade with what it
+/// is on.
 fn tall(app: &mut Faraday) {
     use faraday_shell_api::{BootState, DisplayInfo, Event, SecureHardware};
     app.event(Event::Display(DisplayInfo {
@@ -205,6 +206,7 @@ fn what_the_screens_write_reads_on_their_fills_in_every_theme() {
             }),
             ("board", |theme| {
                 let mut app = the_board();
+                tall(&mut app);
                 in_theme(&mut app, theme);
                 app
             }),
