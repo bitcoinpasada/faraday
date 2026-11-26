@@ -60,26 +60,42 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     body(app, ui, x, y, width);
 }
 
+/// A row's take for each key of the watch-only key file at `k` in Files:
+/// the key as its second line, the one in the field marked.
+fn key_takes(
+    t: &crate::tools::ToolsState,
+    k: usize,
+    item: &crate::item::Item,
+) -> Vec<crate::pick::Take> {
+    crate::tools::watch_only_keys(item)
+        .iter()
+        .enumerate()
+        .map(|(n, key)| {
+            let held = crate::tools::bare_xpub(key) == t.typed.trim();
+            crate::pick::Take::of(held, Action::TKey(k, n)).line(key.to_string())
+        })
+        .collect()
+}
+
 /// The pick of a tool that takes codes: the held files its field takes,
 /// the one in the field marked, then Type it and Scan. In Convert an xpub
-/// a watch-only key's row says the key and puts its xpub; a key with a
-/// seed has no row.
+/// a watch-only key file has a row for each of its keys, which says the key
+/// and puts its xpub; a key with a seed has no row.
 pub(crate) fn pick(app: &crate::Faraday, t: &crate::tools::ToolsState) -> crate::flow::Pick {
     use faraday_draw::widgets::Icon;
     crate::pick::Decl::new(tool_name(t.tool))
-        .files(app, |k, i| {
-            let key = (t.tool == Tool::ConvertKey)
-                .then(|| crate::tools::watch_only_key(i))
-                .flatten();
-            if let Some(key) = key {
-                let held = crate::tools::bare_xpub(&key) == t.typed.trim();
-                let take = crate::pick::Take::of(held, Action::TKey(k));
-                return Some(take.line(key.to_string()));
+        .files_each(app, |k, i| {
+            if t.tool == Tool::ConvertKey {
+                let keys = key_takes(t, k, i);
+                if !keys.is_empty() {
+                    return keys;
+                }
             }
-            crate::tools::file_fits(i.kind).then(|| {
+            let file = crate::tools::file_fits(i.kind).then(|| {
                 let held = i.bytes.trim_ascii() == t.typed.trim().as_bytes();
                 crate::pick::Take::of(held, Action::TFile(k))
-            })
+            });
+            file.into_iter().collect()
         })
         .ways(vec![
             crate::pick::PickRow::way_in(
@@ -440,6 +456,20 @@ fn field(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, buttons: bool)
             ));
         }
         y += button_rows(ui, x, y, width, &row);
+        if let Some(open) = t.keys_of() {
+            let keys = crate::pick::Decl::new(tool_name(t.tool))
+                .files_each(app, |k, i| {
+                    if k == open {
+                        key_takes(t, k, i)
+                    } else {
+                        Vec::new()
+                    }
+                })
+                .groups();
+            for group in keys {
+                y += crate::pick::rows(ui, x, y, width, &group.rows);
+            }
+        }
     }
     y
 }

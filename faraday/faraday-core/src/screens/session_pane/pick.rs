@@ -255,18 +255,28 @@ impl Decl {
     /// Takes held files: `take` answers for the file at an index of the
     /// Inbox, `None` for one of a kind the flow never takes (hidden).
     pub(crate) fn files(
-        mut self,
+        self,
         app: &crate::Faraday,
         take: impl Fn(usize, &crate::item::Item) -> Option<Take>,
+    ) -> Self {
+        self.files_each(app, |i, f| take(i, f))
+    }
+
+    /// [`Decl::files`] where a file may hold several things a step takes: a
+    /// row for each take, under the file's name.
+    pub(crate) fn files_each<T: IntoIterator<Item = Take>>(
+        mut self,
+        app: &crate::Faraday,
+        take: impl Fn(usize, &crate::item::Item) -> T,
     ) -> Self {
         self.from_check = app.opened_from_screen() == Some(crate::Screen::Check);
         self.files = app
             .inbox
             .iter()
             .enumerate()
-            .filter_map(|(i, f)| {
-                let t = take(i, f)?;
-                Some(row_of(Icon::File, f.name.to_string(), String::new, t))
+            .flat_map(|(i, f)| {
+                (take(i, f).into_iter())
+                    .map(move |t| row_of(Icon::File, f.name.to_string(), String::new, t))
             })
             .collect();
         self

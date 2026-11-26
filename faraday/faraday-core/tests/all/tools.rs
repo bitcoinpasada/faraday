@@ -512,14 +512,77 @@ fn a_watch_only_keys_row_puts_its_xpub_in_the_converter() {
     through_fade(&mut app);
     for (at, key) in keys.iter().enumerate() {
         assert!(has_part(&mut app, &key[..9]), "{key}");
-        assert!(offered(&mut app, Action::TKey(at)), "{key}");
-        app.press(Action::TKey(at));
-        let typed = testkit::tools(&app).unwrap().typed.to_string();
-        assert_eq!(Some(typed.as_str()), key.split_once(']').map(|k| k.1));
-        assert!(matches!(
-            key_facts(&typed, app.session.network()),
-            KeyReading::Public(_)
-        ));
+        assert!(offered(&mut app, Action::TKey(at, 0)), "{key}");
+        app.press(Action::TKey(at, 0));
+        puts_the_bare_xpub(&app, key);
+    }
+}
+
+/// The field holds `key`'s xpub without its origin, and it converts.
+fn puts_the_bare_xpub(app: &Faraday, key: &str) {
+    let typed = testkit::tools(app).unwrap().typed.to_string();
+    assert_eq!(Some(typed.as_str()), key.split_once(']').map(|k| k.1));
+    assert!(matches!(
+        key_facts(&typed, app.session.network()),
+        KeyReading::Public(_)
+    ));
+}
+
+/// A file of two keys, as the pick and From Files take it.
+fn two_key_file(app: &mut Faraday) -> [String; 2] {
+    let keys = [0, 1].map(|n| testkit::key(n, "m/84h/1h/0h"));
+    let text = format!("{}\n{}\n", keys[0], keys[1]);
+    testkit::inbox_file(app, "both.txt", text.into_bytes());
+    keys
+}
+
+/// A key file of two keys has two rows in Convert an xpub's pick, and each
+/// puts its own key's xpub.
+#[test]
+fn a_file_of_two_keys_has_a_row_for_each_in_the_converters_pick() {
+    let mut app = wide();
+    let keys = two_key_file(&mut app);
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    through_fade(&mut app);
+    for (n, key) in keys.iter().enumerate() {
+        assert!(has_part(&mut app, &key[..9]), "{key}");
+        assert!(offered(&mut app, Action::TKey(0, n)), "{key}");
+        app.press(Action::TKey(0, n));
+        puts_the_bare_xpub(&app, key);
+    }
+}
+
+/// On a small panel, From Files with a key file puts a field that converts.
+#[test]
+fn from_files_on_a_small_panel_puts_a_key_files_xpub() {
+    let mut app = sized(480, 640);
+    let key = testkit::key(0, "m/84h/1h/0h");
+    testkit::inbox_file(&mut app, "first.txt", format!("{key}\n").into_bytes());
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    through_fade(&mut app);
+    assert!(offered(&mut app, Action::TFile(0)));
+    app.press(Action::TFile(0));
+    puts_the_bare_xpub(&app, &key);
+}
+
+/// On a small panel, From Files with a file of two keys puts nothing yet
+/// and offers a row for each, which puts that key's xpub.
+#[test]
+fn from_files_on_a_small_panel_offers_a_row_for_each_of_two_keys() {
+    let mut app = sized(480, 640);
+    let keys = two_key_file(&mut app);
+    app.press(Action::Tools);
+    tool(&mut app, Tool::ConvertKey);
+    through_fade(&mut app);
+    assert!(!offered(&mut app, Action::TKey(0, 0)));
+    app.press(Action::TFile(0));
+    assert!(testkit::tools(&app).unwrap().typed.is_empty());
+    for (n, key) in keys.iter().enumerate() {
+        assert!(offered(&mut app, Action::TKey(0, n)), "{key}");
+        app.press(Action::TKey(0, n));
+        puts_the_bare_xpub(&app, key);
     }
 }
 
@@ -536,7 +599,7 @@ fn a_key_with_a_seed_has_no_row_in_the_converters_pick() {
     assert!(has(&mut app, EN.tools_way_type));
     assert!(!has_part(&mut app, "73c5da0a"));
     assert!(!has_part(&mut app, "73C5DA0A"));
-    assert!(!offered(&mut app, Action::TKey(0)));
+    assert!(!offered(&mut app, Action::TKey(0, 0)));
     assert!(!offered(&mut app, Action::TFile(0)));
 }
 

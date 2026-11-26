@@ -1096,9 +1096,9 @@ pub enum Action {
     /// The calculator's **From Files**: the file at this place in Files
     /// read into the field.
     TFile(usize),
-    /// Convert an xpub's pick: the xpub of the watch-only key that is the
-    /// file at this place in Files.
-    TKey(usize),
+    /// Convert an xpub: the xpub of one key of a watch-only key file, by
+    /// the file's place in Files and the key's place in the file.
+    TKey(usize, usize),
 }
 
 /// A press of Your choices on a one-column layout.
@@ -1553,7 +1553,7 @@ impl Faraday {
             | Action::TRemoveAmount(_)
             | Action::TScan
             | Action::TFile(_)
-            | Action::TKey(_)
+            | Action::TKey(..)
             | Action::TTake => self.tools_act(action),
             Action::RowOpen(row) => crate::row_open::act(self, row),
             Action::RowClose => crate::row_open::close(self),

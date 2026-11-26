@@ -36,15 +36,14 @@ pub(crate) fn file_fits(kind: crate::wallet::FileKind) -> bool {
     matches!(kind, K::Wallet | K::Key | K::Text)
 }
 
-/// The watch-only key a held file is, as the file gives it: an account xpub
-/// file that holds one key. A file of several keys is none: a row puts one
-/// xpub. Costs a read of the file's key (a base58 decode).
-pub(crate) fn watch_only_key(item: &crate::item::Item) -> Option<Text> {
-    if item.kind != crate::wallet::FileKind::Key {
-        return None;
+/// The watch-only keys a held file gives, in the file's order: an account
+/// xpub file's, none of any other file. Costs a read of the file's keys (a
+/// base58 decode each).
+pub(crate) fn watch_only_keys(item: &crate::item::Item) -> Vec<Text> {
+    match std::str::from_utf8(&item.bytes) {
+        Ok(text) if item.kind == crate::wallet::FileKind::Key => crate::create::read_keys(text),
+        _ => Vec::new(),
     }
-    let mut keys = crate::create::read_keys(std::str::from_utf8(&item.bytes).ok()?);
-    if keys.len() == 1 { keys.pop() } else { None }
 }
 
 /// A key's xpub without its origin, which the converter does not read.
@@ -119,12 +118,20 @@ pub struct ToolsState {
     pub(crate) open: u8,
     /// How far that flow's card is scrolled.
     pub(crate) scroll: crate::flow::Scroll,
+    /// The file of several keys whose rows stand under the field's file
+    /// buttons, by its place in Files.
+    keys_of: Option<usize>,
     /// What the calculator worked out last, by what it worked it out
     /// from ([`Faraday::tools_reading`]).
     read: std::cell::RefCell<Option<KeptReading>>,
 }
 
 impl ToolsState {
+    /// [`ToolsState::keys_of`].
+    pub(crate) fn keys_of(&self) -> Option<usize> {
+        self.keys_of
+    }
+
     /// How many amounts Units holds.
     pub fn amount_count(&self) -> usize {
         self.amounts.len()
@@ -495,6 +502,7 @@ impl ToolsArea {
             back,
             open: flow::INPUT,
             scroll: crate::flow::Scroll::default(),
+            keys_of: None,
             read: std::cell::RefCell::new(None),
         });
     }
@@ -614,6 +622,7 @@ impl ToolsArea {
                     t.amounts = vec![UnitAmount::default()];
                     t.amount = 0;
                     t.open = flow::INPUT;
+                    t.keys_of = None;
                 }
             }
             A::TMode(i) => match t.tool {
@@ -768,7 +777,7 @@ impl Faraday {
         match action {
             crate::Action::TScan => self.tools_scan(),
             crate::Action::TFile(i) => self.tools_file(i),
-            crate::Action::TKey(i) => self.tools_xpub(i),
+            crate::Action::TKey(i, n) => self.tools_xpub(i, n),
             _ => self.tools.act(action),
         }
     }
@@ -799,18 +808,32 @@ impl Faraday {
         if !file_fits(item.kind) {
             return;
         }
+        // Convert an xpub reads a bare xpub: a key file puts its key's, and
+        // one of several keys opens a row for each.
+        if let Some(t) = self.tools.tools.as_mut()
+            && t.tool == Tool::ConvertKey
+        {
+            let keys = watch_only_keys(item);
+            t.keys_of = (keys.len() > 1).then_some(i);
+            match keys.as_slice() {
+                [] => {}
+                [key] => return self.tools_fill(bare_xpub(key)),
+                _ => return,
+            }
+        }
         let text = faraday_text::Text::from_utf8_lossy(&item.bytes);
         self.tools_fill(text.trim());
     }
 
-    /// The xpub of the watch-only key at `i` in Files put in Convert an
-    /// xpub's field.
-    fn tools_xpub(&mut self, i: usize) {
+    /// The xpub of key `n` of the key file at `i` in Files put in Convert
+    /// an xpub's field.
+    fn tools_xpub(&mut self, i: usize, n: usize) {
         if !(self.tools.state()).is_some_and(|t| t.tool == Tool::ConvertKey) {
             return;
         }
-        if let Some(key) = self.inbox.get(i).and_then(watch_only_key) {
-            self.tools_fill(bare_xpub(&key));
+        let keys = self.inbox.get(i).map(watch_only_keys);
+        if let Some(key) = keys.as_ref().and_then(|keys| keys.get(n)) {
+            self.tools_fill(bare_xpub(key));
         }
     }
 
