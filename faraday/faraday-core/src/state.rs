@@ -1112,7 +1112,12 @@ struct SignedFile {
 
 impl MessageArea {
     /// Notes that `key` signed the file `name` of SHA-256 `sha`.
-    fn file_signed(&mut self, name: &str, sha: [u8; 32], key: faraday_bip::keys::Fingerprint) {
+    pub(crate) fn file_signed(
+        &mut self,
+        name: &str,
+        sha: [u8; 32],
+        key: faraday_bip::keys::Fingerprint,
+    ) {
         if !self.signers(name, Some(sha)).any(|k| k == key) {
             self.files.push(SignedFile {
                 name: faraday_text::Text::of(name),
@@ -1545,7 +1550,7 @@ impl Faraday {
 
     /// A lookup. The key the open flow's signature is made with: the picked
     /// address's, or else the one key of the picked wallet.
-    fn message_signer(&self) -> Option<faraday_bip::keys::Fingerprint> {
+    pub(crate) fn message_signer(&self) -> Option<faraday_bip::keys::Fingerprint> {
         let m = self.message.state.as_ref()?;
         match &m.at {
             Some(at) => Some(at.fingerprint),

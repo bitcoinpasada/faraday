@@ -1516,7 +1516,8 @@ signing key is held, whether made before the hold, left by a flow ended
 with Done or before the wallet was changed, stays in Files and is held
 back: its row says "Its key waits for its backup" and is unticked, no
 write takes it, and Show as QR is refused with the same line. Once the key
-is backed up it goes as any file does. Which key signed which file, by
+is backed up it goes as any file does. The PNG of its code is held back
+the same way. Which key signed which file, by
 name and SHA-256, is kept across a lock.
 
 - **What waits.** The wallet card's first button reads **Finish the backup
