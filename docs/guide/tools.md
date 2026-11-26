@@ -24,7 +24,7 @@ Tools holds six calculators on one page: each takes what you type, works one thi
 
 **Key:** tools.descriptor
 
-**Descriptor checksum** reads a descriptor from the field, **Scan** or **From Files**, giving the **Checksum** of a descriptor, **Given** with whether a checksum typed with it **holds**, the descriptor **With it**, and whether it is **Wallet**: one this device loads. **Take to Wallets** then puts it in Wallets after the wallet is confirmed. A key that appears twice is named under **Keys** in the warning tone.
+**Descriptor checksum** reads a descriptor from the field, **Scan** or **From Files**, giving the **Checksum** of a descriptor, **Given** with whether a checksum typed with it **holds**, the descriptor **With it**, and whether it is **Wallet**: one this device loads. **Take to Wallets** then puts it in Wallets after the wallet is confirmed. A key that appears twice is named under **Keys** in the warning tone. On a wide window with a pane at the left, the pane holds the ways in to this field, to Convert an xpub's and to the Miniscript compiler's: the held files the field takes, **Type it** and **Scan**.
 
 ## Convert an xpub
 

@@ -124,7 +124,7 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 let picked = app_ref
                     .tools
                     .state()
-                    .is_some_and(|t| crate::tools::flow::has_pick(t.tool))
+                    .is_some_and(|t| crate::tools::takes_codes(t.tool))
                     && crate::flow::pair_left(app_ref, contained, ui.compact, cw);
                 y = field(app_ref, ui, x, y, w, !picked);
                 let empty = app_ref.tools.state().is_none_or(|t| t.typed.is_empty());

@@ -1,7 +1,7 @@
 //! The calculators on Faraday's Tools screen: what is typed
 //! reaches the calculator, and the answers are the published ones.
 
-use crate::common::{has, through_fade};
+use crate::common::{has, offered, through_fade};
 use faraday_bip::hashes::hashes;
 use faraday_bip::slip132::{KeyReading, key_facts};
 use faraday_codec::encodings::read_input;
@@ -464,6 +464,51 @@ fn convert_an_xpub_on_the_card_keeps_its_text_on_back() {
     app.press(Action::Back);
     through_fade(&mut app);
     assert_eq!(testkit::tools(&app).unwrap().typed, "xpub");
+}
+
+/// A tool with more ways in than typing, on a wide window: the pick at the
+/// left holds the held files, Type it and Scan, the card's field no second
+/// set of them, and what a row put in the field reaches the result card.
+#[test]
+fn a_tool_with_ways_in_has_them_as_the_pick_on_a_wide_window() {
+    for which in [Tool::Descriptor, Tool::ConvertKey, Tool::Miniscript] {
+        let mut app = wide();
+        testkit::inbox_file(
+            &mut app,
+            "wallet.txt",
+            format!("{DESCRIPTOR}\n").into_bytes(),
+        );
+        app.press(Action::Tools);
+        tool(&mut app, which);
+        through_fade(&mut app);
+        assert!(has(&mut app, EN.tools_way_type), "{which:?}");
+        assert!(has(&mut app, "wallet.txt"), "{which:?}");
+        assert!(!has(&mut app, "From Files · wallet.txt"), "{which:?}");
+        assert!(offered(&mut app, Action::TScan), "{which:?}");
+        assert!(offered(&mut app, Action::TFile(0)), "{which:?}");
+        app.press(Action::TFile(0));
+        assert_eq!(testkit::tools(&app).unwrap().typed, DESCRIPTOR);
+        app.press(Action::TStep(1));
+        through_fade(&mut app);
+        assert!(has(&mut app, EN.tools_card_result), "{which:?}");
+        assert!(!has(&mut app, EN.tools_way_type), "{which:?}");
+        app.press(Action::Back);
+        through_fade(&mut app);
+        assert!(has(&mut app, EN.tools_way_type), "{which:?}");
+    }
+}
+
+/// A tool that is only typed into opens straight on its field: no pick.
+#[test]
+fn a_tool_that_is_only_typed_into_has_no_pick() {
+    for which in [Tool::Hashes, Tool::Encodings] {
+        let mut app = wide();
+        app.press(Action::Tools);
+        tool(&mut app, which);
+        through_fade(&mut app);
+        assert!(!has(&mut app, EN.tools_way_type), "{which:?}");
+        assert!(has(&mut app, EN.tools_next), "{which:?}");
+    }
 }
 
 /// Units opened on a wide window, on its one amount.

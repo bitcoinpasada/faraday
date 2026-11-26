@@ -39,11 +39,6 @@ pub(crate) fn typing_here(app: &Faraday) -> bool {
         .is_some_and(|t| !contained_tool(app) || t.open == INPUT)
 }
 
-/// Whether the tool's ways in are the rows of a pick.
-pub(crate) fn has_pick(t: Tool) -> bool {
-    matches!(t, Tool::Descriptor | Tool::ConvertKey)
-}
-
 /// The tool's steps, plugged into Back, Forward and Your choices.
 pub(crate) struct ToolSteps;
 
@@ -110,7 +105,8 @@ impl Contained for ToolSteps {
     /// holds them (`docs/WORKSPACE.md` §2).
     fn pick(&self, app: &Faraday, k: u8) -> Option<Pick> {
         let t = app.tools.state().filter(|_| k == INPUT)?;
-        has_pick(t.tool).then(|| super::screen::pick(app, t))
+        // A tool that is only typed into opens straight on its field.
+        super::takes_codes(t.tool).then(|| super::screen::pick(app, t))
     }
 
     fn hide_shown(&self, app: &mut Faraday) {

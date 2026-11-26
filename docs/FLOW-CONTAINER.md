@@ -339,9 +339,9 @@ For Sign a message the button asks to lock first (signing leaves keys in memory)
 | Krux code | `kef_tool/screen.rs` | its steps | none | none |
 | Hashes (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
 | Encodings (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
-| Descriptor (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
-| Miniscript (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
-| Convert an xpub (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input, Result | none | none |
+| Descriptor (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input (on the pair, a pick at the left: the held files it takes, Type it, Scan), Result | none | none |
+| Miniscript (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input (on the pair, a pick at the left: the held files it takes, Type it, Scan), Result | none | none |
+| Convert an xpub (Tools), on a window that is not compact | `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/flow.rs` | Input (on the pair, a pick at the left: the held files it takes, Type it, Scan), Result | none | none |
 | Decode a Lightning invoice, on a window that is not compact | `faraday/faraday-core/src/invoice/screen.rs`, `faraday/faraday-core/src/invoice/flow.rs` | Input, Result | none | none |
 | Decode a transaction, on a window wide enough for the container's pair | `faraday/faraday-core/src/decode/screen.rs`, `faraday/faraday-core/src/decode/flow.rs` | Transaction (the pick at the left, with Type it among its ways in and its field in the card, then Result in the card) | none | none |
 | Check a signed message, on a window wide enough for the container's pair | `faraday/faraday-core/src/screens/check_message.rs` | Message (the pick at the left, then Result in the card) | none | none |
