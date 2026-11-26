@@ -1463,8 +1463,13 @@ offer a wallet or a picked address whose key is held (its row, button or
 tile says "Its key waits for its backup", or is left out), every press
 that would sign, or make the file, the code, its sheet or **Check it**,
 is refused, and a key held after signing drops the signature and what
-**Check it** kept. A signed message's file already For the stick stays
-there.
+**Check it** kept. A signed message's file already For the stick whose
+signing key is held, whether made before the hold, left by a flow ended
+with Done or before the wallet was changed, stays in Files and is held
+back: its row says "Its key waits for its backup" and is unticked, no
+write takes it, and Show as QR is refused with the same line. Once the key
+is backed up it goes as any file does. Which key signed which file, by
+name and SHA-256, is kept across a lock.
 
 - **What waits.** The wallet card's first button reads **Finish the backup
   first** and opens the wallet's checklist (its plan when none is made); in

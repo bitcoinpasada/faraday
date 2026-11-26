@@ -648,6 +648,8 @@ impl Faraday {
                     return;
                 };
                 item.name = faraday_text::Text::of(&to);
+                // A signed message's file stays one under its new name.
+                self.message.file_renamed(&r.from, &to, item.sha);
                 self.visit.renamed_to(&r.from, &to);
                 // Chosen on a visit under its old name, it stays chosen.
                 self.visit.out_renamed(&r.from, &to);

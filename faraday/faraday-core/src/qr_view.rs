@@ -943,7 +943,15 @@ impl Faraday {
                 }
             }
             Action::QrOutbox(i) => {
-                if let Some(item) = self.outbox.get(i).filter(|it| qr_fits(it)) {
+                // A signed message is no code while its key waits for its
+                // backup.
+                if self
+                    .outbox
+                    .get(i)
+                    .is_some_and(|it| self.message_file_waits_now(c, it))
+                {
+                    self.toast(EN.message_waits_backup);
+                } else if let Some(item) = self.outbox.get(i).filter(|it| qr_fits(it)) {
                     // What a wallet reads goes as itself; any other file in
                     // the Faraday file envelope.
                     let source = qr_source(&item.name, &item.bytes, item.kind);

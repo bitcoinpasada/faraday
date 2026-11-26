@@ -1,11 +1,17 @@
 //! A wallet whose key waits for its backup is not offered in Sign a
 //! message: Sign is refused and says why, and no file, QR code or sheet
-//! with the address is made.
+//! with the address is made. A signed message's file made before the key
+//! was held stays in Files, and is neither written nor shown as a code
+//! until the key is backed up.
 
 use faraday_core::catalog::Go;
+use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::strings::EN;
-use faraday_core::{Action, Code, Faraday, Screen, testkit};
+use faraday_core::{
+    Action, Code, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, testkit,
+};
 use faraday_psbt::message::{Format, Signed};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 /// A key of the test words with its single-key wallet.
 fn app() -> Faraday {
@@ -176,4 +182,177 @@ fn a_flow_left_half_way_signs_once_the_key_is_backed_up() {
     assert!(m.signed.is_some());
     assert!(m.error.is_none());
     assert_eq!(app.outbox.len(), 1);
+}
+
+/// Sign a message signed with the key not held, its file For the stick and
+/// ticked, on a screen wide enough for Files' rows.
+fn signed_file() -> (Faraday, String) {
+    let mut app = app();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::SignMessage);
+    testkit::message_text(&mut app, "hello");
+    app.press(Action::MSign);
+    let name = app.outbox.first().expect("the file").name.to_string();
+    assert!(app.visit().out.contains(name.as_str()));
+    (app, name)
+}
+
+fn row_says_it_waits(app: &mut Faraday) -> bool {
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .iter()
+        .any(|(t, _)| t == EN.message_waits_backup)
+}
+
+/// Show as QR on Files' first file: whether a code came, or the refusal.
+fn code_shown(app: &mut Faraday) -> bool {
+    app.press(Action::QrOutbox(0));
+    let shown = app.qr().is_some();
+    if !shown {
+        assert_eq!(app.toast_text(), Some(EN.message_waits_backup));
+    }
+    shown
+}
+
+/// The app after a lock and the restart, over what the lock kept.
+fn restarted(mut app: Faraday) -> Faraday {
+    app.press(Action::Lock);
+    let mut saved = None;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { outbox, kept, .. } = c {
+            saved = Some((outbox, kept));
+        }
+    }
+    let (outbox, kept) = saved.expect("the lock kept the boxes");
+    let mut next = testkit::started();
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox,
+        kept,
+    });
+    while next.poll_storage().is_some() {}
+    next
+}
+
+/// A stick visit's Write with everything Select all takes, and `name`
+/// ticked besides when `tick`: the names the write sends.
+fn visit_writes(app: &mut Faraday, name: &str, tick: bool) -> Vec<String> {
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("one"),
+        label: faraday_text::Text::of("FIRST"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    app.press(Action::VisitOutAll);
+    if tick {
+        testkit::visit_tick(app, name);
+    }
+    while app.poll_storage().is_some() {}
+    app.press(Action::VisitWrite);
+    let mut names = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Write { name, .. } = c {
+            names.push(name.to_string());
+        }
+    }
+    names
+}
+
+/// The signed file `name` of an app whose key is now held: it stays in
+/// Files, unticked, its row says why, it is no code, and a stick visit
+/// writes the other file and not it, a tick left standing included. Backed
+/// up, it is a code and is written.
+fn held_back_until_backed_up(mut app: Faraday, name: &str) {
+    let fp = app.session.keys.last().unwrap().fingerprint;
+    assert!(app.outbox.iter().any(|i| i.name == name), "it stays");
+    assert!(!app.visit().out.contains(name), "unticked");
+    assert!(row_says_it_waits(&mut app));
+    app.press(Action::VisitOut(0));
+    assert!(!app.visit().out.contains(name), "no tick");
+    assert!(!code_shown(&mut app));
+
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    // The lock and the restart: the next process knows who signed it.
+    let mut next = restarted(app);
+    testkit::mark_made_here(&mut next, fp);
+    assert!(row_says_it_waits(&mut next));
+    assert!(!code_shown(&mut next));
+    let written = visit_writes(&mut next, name, true);
+    assert!(written.iter().any(|n| n == "other.txt"), "{written:?}");
+    assert!(!written.iter().any(|n| n == name), "{written:?}");
+
+    testkit::release_made(&mut next, fp);
+    next.press(Action::Nav(Screen::Files));
+    assert!(!row_says_it_waits(&mut next));
+    assert!(code_shown(&mut next));
+    next.press(Action::Cancel);
+    let written = visit_writes(&mut next, name, true);
+    assert!(written.iter().any(|n| n == name), "{written:?}");
+}
+
+#[test]
+fn a_file_made_before_the_hold_is_held_back() {
+    let (mut app, name) = signed_file();
+    hold(&mut app);
+    held_back_until_backed_up(app, &name);
+}
+
+#[test]
+fn a_file_of_a_flow_ended_with_done_is_held_back() {
+    let (mut app, name) = signed_file();
+    app.press(Action::MDone);
+    assert!(testkit::message(&app).is_none());
+    hold(&mut app);
+    held_back_until_backed_up(app, &name);
+}
+
+#[test]
+fn a_file_signed_before_the_number_changed_is_held_back() {
+    let (mut app, name) = signed_file();
+    app.press(Action::MIndex(1));
+    assert!(testkit::message(&app).unwrap().signed.is_none());
+    hold(&mut app);
+    held_back_until_backed_up(app, &name);
+}
+
+#[test]
+fn a_renamed_signed_file_is_held_back_still() {
+    let (mut app, name) = signed_file();
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::File(FilePress::Rename(Row::Out(0))));
+    app.event(Event::Key(Key::Char('x')));
+    app.press(Action::File(FilePress::RenameGo));
+    let renamed = app.outbox[0].name.to_string();
+    assert_ne!(renamed, name);
+    hold(&mut app);
+    assert!(!code_shown(&mut app));
+}
+
+#[test]
+fn another_file_under_the_name_is_not_held_back() {
+    let (mut app, name) = signed_file();
+    app.press(Action::OutboxRemove(0));
+    if app.sheet.is_some() {
+        app.press(Action::OutboxDeleteHold);
+    }
+    assert!(app.outbox.is_empty());
+    testkit::outbox_file(&mut app, &name, b"other");
+    hold(&mut app);
+    assert!(!row_says_it_waits(&mut app));
+    assert!(code_shown(&mut app));
 }

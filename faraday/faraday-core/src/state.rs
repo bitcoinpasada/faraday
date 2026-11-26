@@ -1096,9 +1096,88 @@ pub(crate) struct MessageArea {
     /// How far Check a signed message's flow card is scrolled, where it is
     /// drawn as one.
     check_scroll: crate::flow::Scroll,
+    /// Which key signed each signed message's file put For the stick
+    /// ([`Faraday::message_file_waits`]). Outlives the flow and a lock, as
+    /// the file does.
+    files: Vec<SignedFile>,
+}
+
+/// A signed message's file and the key that signed it. The file is told by
+/// its name and SHA-256: another file under the name is not it.
+struct SignedFile {
+    name: faraday_text::Text,
+    sha: [u8; 32],
+    key: faraday_bip::keys::Fingerprint,
 }
 
 impl MessageArea {
+    /// Notes that `key` signed the file `name` of SHA-256 `sha`.
+    fn file_signed(&mut self, name: &str, sha: [u8; 32], key: faraday_bip::keys::Fingerprint) {
+        if !self.signers(name, Some(sha)).any(|k| k == key) {
+            self.files.push(SignedFile {
+                name: faraday_text::Text::of(name),
+                sha,
+                key,
+            });
+        }
+    }
+
+    /// The keys that signed the file `name` of SHA-256 `sha`.
+    pub(crate) fn signers(
+        &self,
+        name: &str,
+        sha: Option<[u8; 32]>,
+    ) -> impl Iterator<Item = faraday_bip::keys::Fingerprint> {
+        self.files
+            .iter()
+            .filter(move |f| *f.name == *name && sha == Some(f.sha))
+            .map(|f| f.key)
+    }
+
+    /// The file `from` of SHA-256 `sha` is renamed `to` in Files.
+    pub(crate) fn file_renamed(&mut self, from: &str, to: &str, sha: Option<[u8; 32]>) {
+        for f in &mut self.files {
+            if *f.name == *from && sha == Some(f.sha) {
+                f.name = faraday_text::Text::of(to);
+            }
+        }
+    }
+
+    /// What a lock keeps of the signed files: a line of SHA-256, key and
+    /// name each. Nothing in it is secret.
+    pub(crate) fn files_encode(&self) -> Vec<u8> {
+        let mut out = faraday_text::Text::new();
+        for f in &self.files {
+            out.push_str(&faraday_text::text!(
+                "{}\t{}\t{}\n",
+                &*faraday_crypto::hex::encode_string(&f.sha),
+                &*faraday_crypto::hex::encode_string(&f.key.0),
+                &*f.name
+            ));
+        }
+        out.as_bytes().to_vec()
+    }
+
+    /// Reads [`MessageArea::files_encode`] back.
+    pub(crate) fn files_restore(&mut self, bytes: &[u8]) {
+        let Ok(text) = std::str::from_utf8(bytes) else {
+            return;
+        };
+        for line in text.lines() {
+            let mut parts = line.splitn(3, '\t');
+            let (Some(sha), Some(key), Some(name)) = (parts.next(), parts.next(), parts.next())
+            else {
+                continue;
+            };
+            if let (Some(s), Some(k)) = (
+                faraday_crypto::hex::decode_exact::<32>(sha),
+                faraday_crypto::hex::decode_exact::<4>(key),
+            ) {
+                self.file_signed(name, s, faraday_bip::keys::Fingerprint(k));
+            }
+        }
+    }
+
     /// For the testkit: a signature put in the open flow, no step run.
     pub(crate) fn put_signed(&mut self, signed: faraday_psbt::message::Signed) {
         if let Some(m) = self.state.as_mut() {
@@ -1445,6 +1524,42 @@ impl Faraday {
         }
     }
 
+    /// A lookup. Whether the Outbox file `item` is a signed message whose
+    /// key waits for its backup, from the keys kept as waiting: for
+    /// drawing and the visit's ticks.
+    pub(crate) fn message_file_waits(&self, item: &crate::Item) -> bool {
+        let waiting = self.session.waiting();
+        self.message
+            .signers(&item.name, item.sha)
+            .any(|k| waiting.contains(&k))
+    }
+
+    /// Costs what `key_held` costs for each key that signed `item`, and
+    /// nothing for any other file. [`Faraday::message_file_waits`] for a
+    /// write or a press, worked out now.
+    pub(crate) fn message_file_waits_now(&self, c: &Compute, item: &crate::Item) -> bool {
+        self.message
+            .signers(&item.name, item.sha)
+            .any(|k| self.key_held(c, k))
+    }
+
+    /// A lookup. The key the open flow's signature is made with: the picked
+    /// address's, or else the one key of the picked wallet.
+    fn message_signer(&self) -> Option<faraday_bip::keys::Fingerprint> {
+        let m = self.message.state.as_ref()?;
+        match &m.at {
+            Some(at) => Some(at.fingerprint),
+            None => self
+                .session
+                .wallets
+                .get(m.wallet?)?
+                .policy()
+                .keys()
+                .first()?
+                .fingerprint(),
+        }
+    }
+
     /// A lookup. The kept receive address of Sign a message while the
     /// session still says what it said when it was worked out; nothing
     /// otherwise (a wallet removed, added, changed or renamed, the network
@@ -1596,6 +1711,11 @@ impl Faraday {
                         // press tell this file from another under its name.
                         if let Some(item) = self.outbox.iter_mut().find(|i| i.name == name) {
                             item.sha = Some(sha);
+                        }
+                        // With the key that signed it: the file is held
+                        // back while that key waits for its backup.
+                        if let Some(key) = self.message_signer() {
+                            self.message.file_signed(&name, sha, key);
                         }
                         if let Some(m) = self.message.state.as_mut() {
                             m.out_name = Some(name.duplicate());

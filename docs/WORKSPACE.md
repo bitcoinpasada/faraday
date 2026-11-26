@@ -198,6 +198,8 @@ details only while a vault is open.
 | Wallet needing a key | Add a key | Add a key to the slot; as a wallet |
 | Flow in progress | Resume | Resume |
 
+A signed message's file For the stick whose signing key waits for its backup stays in Files, says so on its row and is neither written nor shown as a QR until the key is backed up (`docs/WALLETS.md`).
+
 - **The pick (the picker; a flow's first step, and each later step that takes one).**
   The flow opens with the pane where its pair has it (§4) and the choice is
   made in the pane. Rows are selectable: a radio button where the flow

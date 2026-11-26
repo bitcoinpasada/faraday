@@ -759,9 +759,20 @@ fn in_faraday(
             if item.exposure() != exposure {
                 continue;
             }
-            let held = app.in_the_backup(&item.name);
+            let in_backup = app.in_the_backup(&item.name);
+            // A signed message whose key waits for its backup says so on
+            // its line and is not written.
+            let waits = app.message_file_waits(item);
+            let held = in_backup || waits;
             let (line, state) = out_state(app, item);
-            let tag = if held {
+            let line = if waits {
+                Text::of(EN.message_waits_backup)
+            } else {
+                line
+            };
+            let tag = if waits {
+                ("", state.1.paint())
+            } else if in_backup {
                 (EN.backup_flow_in_the_backup, Role::OnSurfaceVariant.paint())
             } else {
                 (state.0, state.1.paint())
@@ -1514,6 +1525,7 @@ fn visit_all_out(app: &View) -> bool {
             .iter()
             .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
             .filter(|i| !app.in_the_backup(&i.name))
+            .filter(|i| !app.message_file_waits(i))
             .all(|i| app.visit.out.contains(&*i.name))
         && app
             .visit_inbox_rows()
