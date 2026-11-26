@@ -2180,6 +2180,54 @@ fn a_note_saved_from_the_other_key_orders_chart_leaves_the_shares_plans_notes_as
 }
 
 #[test]
+fn a_part_destroyed_on_a_chart_over_a_shares_plan_of_the_other_order_names_the_vault() {
+    use crate::chart_edit::node_of;
+    use faraday_core::glance::Press;
+    use faraday_core::glance::sheet::ChartAction as C;
+    use faraday_core::testkit;
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let path = "m/48'/1'/0'/2'";
+    let (x, y) = (testkit::key(0, path), testkit::key(1, path));
+    let (mut app, id) = shares_plan_kept(&[0, 1], &x, &y, &[]);
+    app.session.wallets.clear();
+    let text = format!("wsh(sortedmulti(2,{y}/<0;1>/*,{x}/<0;1>/*))");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Pair",
+            &text,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    // A plan of its own is kept beside it, which the chart shows.
+    let shape = app.plan_shape_now(w);
+    let own = faraday_vault::Record::new(kind::PLAN)
+        .with(
+            field::PLAN_WALLET,
+            app.session.wallets[w].policy().to_descriptor().as_bytes(),
+        )
+        .with(
+            field::PLAN_ANSWERS,
+            Answers::preset(&shape, Preset::Standard)
+                .to_text()
+                .as_bytes(),
+        );
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, own));
+    let _ = node_of(&app, w, "Place 1");
+    let before = every_record(&app);
+    app.press(faraday_core::Action::Chart(C::Destroyed(
+        Press::Loaded(w),
+        0,
+        [5, 6, 7, 8],
+    )));
+    assert_eq!(app.toast_text(), Some(other_order_toast(&app, 0).as_str()));
+    assert_eq!(every_record(&app), before);
+}
+
+#[test]
 fn a_mark_pressed_on_a_chart_whose_plan_is_kept_only_for_the_other_key_order_says_so() {
     use crate::chart_edit::node_of;
     use crate::common::RecordsOf;
@@ -2358,13 +2406,7 @@ fn saving_the_backup_flow_with_the_keys_swapped_is_refused_over_a_shares_plan_of
     assert_eq!(before[0].2.len(), 2);
     let toast = save_swapped_standard(&mut app, &x, &y);
     assert_eq!(kept_plans(&app, id), before);
-    assert_eq!(
-        toast.as_deref(),
-        Some(
-            "The shares plan kept for this wallet has its keys in another order. \
-             Load the wallet with its keys in that order to change the plan."
-        )
-    );
+    assert_eq!(toast, Some(other_order_toast(&app, 0)));
 }
 
 #[test]
@@ -2405,8 +2447,14 @@ fn saving_the_backup_flow_with_the_keys_swapped_replaces_a_standard_plan_and_kee
     assert_eq!(after[0].2.len(), 1, "its note is kept");
 }
 
-pub(crate) const OTHER_ORDER_TOAST: &str = "The shares plan kept for this wallet has its keys in another order. \
+const OTHER_ORDER_TOAST: &str = "The shares plan kept for this wallet has its keys in another order. \
      Load the wallet with its keys in that order to change the plan.";
+
+/// The toast of open vault `o` keeping the wallet's plan for the other key
+/// order: it names the vault.
+fn other_order_toast(app: &Faraday, o: usize) -> String {
+    format!("{}: {OTHER_ORDER_TOAST}", &*app.vaults().open[o].name)
+}
 
 /// Every record of every open vault, as they are, to compare.
 fn every_record(app: &Faraday) -> Vec<String> {
@@ -2449,7 +2497,7 @@ fn pressing_checklist_with_the_keys_swapped_over_a_shares_plan_of_the_other_orde
     let before = every_record(&app);
     open_swapped_standard(&mut app, &x, &y);
     app.press(faraday_core::Action::BChecklist);
-    assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));
+    assert_eq!(app.toast_text(), Some(other_order_toast(&app, 0).as_str()));
     assert_ne!(
         app.backup().map(|b| b.stage),
         Some(faraday_core::BStage::Checklist),
@@ -2522,7 +2570,7 @@ fn the_lock_with_a_shares_plan_kept_for_the_other_key_order_in_a_vault_starts_no
     let before = every_record(&app);
     let flows = app.backup_flows().len();
     shell.flow(&mut app, F::WalletLock);
-    assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));
+    assert_eq!(app.toast_text(), Some(other_order_toast(&app, 1).as_str()));
     assert_eq!(app.backup_flows().len(), flows, "no flow started");
     assert!(!app.restart_requested(), "the lock did not come");
     assert_eq!(every_record(&app), before);
@@ -2549,7 +2597,10 @@ fn pressing_checklist_with_the_refusing_record_in_another_vault_of_the_flow_writ
     plant_other_order_plan(&mut app, other, w, true);
     let before = every_record(&app);
     app.press(faraday_core::Action::BChecklist);
-    assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));
+    assert_eq!(
+        app.toast_text(),
+        Some(other_order_toast(&app, other).as_str())
+    );
     assert_ne!(
         app.backup().map(|b| b.stage),
         Some(faraday_core::BStage::Checklist),
@@ -2588,7 +2639,10 @@ fn saving_a_vault_item_into_a_vault_that_keeps_a_shares_plan_of_the_other_order_
     plant_other_order_plan(&mut app, target, w, true);
     let before = every_record(&app);
     crate::backup_keep::save(&mut app, v);
-    assert_eq!(app.toast_text(), Some(OTHER_ORDER_TOAST));
+    assert_eq!(
+        app.toast_text(),
+        Some(other_order_toast(&app, target).as_str())
+    );
     assert_eq!(every_record(&app), before);
 }
 

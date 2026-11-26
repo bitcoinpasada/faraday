@@ -11,7 +11,7 @@ use crate::strings::EN;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::RecordView;
-use faraday_text::Text;
+use faraday_text::{Text, text};
 use faraday_vault::records::{self, Record, field, kind};
 
 use crate::glance::{Now, Reads};
@@ -1141,13 +1141,22 @@ impl Faraday {
             );
             self.vault_push_in(cur, record, &said);
         }
-        self.plan_save();
+        // A refused plan's toast says why, and what stays in the vault is
+        // said after it, in the one toast.
+        let saved = self.plan_save();
+        let refused = (!saved).then(|| self.toast_text().map(Text::of)).flatten();
         for (share, id) in self.backup_vault_c32_left(&c, cur, v) {
-            self.toast(&Text::fill(
-                EN.c32_vault_left,
-                &[&Text::from_char(share), &id],
-            ));
+            let left = Text::fill(EN.c32_vault_left, &[&Text::from_char(share), &id]);
+            match &refused {
+                Some(why) => self.toast(&text!("{} · {}", &**why, &*left)),
+                None => self.toast(&left),
+            }
         }
+        // What was saved above is no press on the vault: the next plan
+        // save reads it from the summary (`plan_seal_others`). For a vault
+        // the flow does not have as its own, that summary is all that
+        // counts it once the board takes it off the plan.
+        self.vault_summaries_refresh_kept();
     }
 
     /// On Change the plan: the vaults the checklist has filled, by name,

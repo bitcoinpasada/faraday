@@ -95,6 +95,8 @@ mod paper;
 mod pass_fields;
 #[path = "all/passphrase_kept.rs"]
 mod passphrase_kept;
+#[path = "all/plan_fits.rs"]
+mod plan_fits;
 #[path = "all/rounds.rs"]
 mod rounds;
 #[path = "all/scan_lock.rs"]

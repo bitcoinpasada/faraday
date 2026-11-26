@@ -1298,6 +1298,58 @@ fn picture_with_vault(m: Vec<plan::Spot>) -> Vec<plan::Spot> {
     picture_on_place(plan::with_added(&m, At::Vault(0), What::Wallet))
 }
 
+/// A lock refused because the plan no longer fits marks nothing as written:
+/// the checklist made again saves the plan it saved before the lock.
+#[test]
+fn a_refused_lock_saves_no_mark_of_files_it_did_not_write() {
+    let mut shell = Shell::light();
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    let (mut app, _) = made_here_in(app);
+    app.press(Action::SAddWallet);
+    set_up_plan(
+        &mut app,
+        Some(plan::Preset::PaperVault),
+        false,
+        None,
+        &picture_with_vault,
+    );
+    app.press(Action::BChecklist);
+    save_plan_vaults(&mut app);
+    app.press(Action::BFilesMake);
+    testkit::type_passphrases(&mut app);
+    let checklist = |app: &mut Faraday| -> Vec<String> {
+        app.press(Action::BPlan);
+        app.press(Action::BChecklist);
+        testkit::settle(app);
+        crate::common::contents(app, 0)
+            .of(faraday_vault::records::kind::PLAN)
+            .map(|(_, r)| {
+                let answers = r.text(faraday_vault::records::field::PLAN_ANSWERS);
+                answers.unwrap_or_default().to_string()
+            })
+            .collect()
+    };
+    let before = checklist(&mut app);
+    assert!(!before.is_empty());
+    let id = app.vaults().open[0].id;
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(0));
+    let used = app.vaults().records(id).used(&testkit::compute());
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used));
+    app.press(Action::BNext(plan::Item::Envelopes));
+    shell.flow(&mut app, F::WalletLock);
+    testkit::settle(&mut app);
+    assert!(!app.restart_requested(), "the lock went through");
+    assert!(
+        app.toast_text()
+            .is_some_and(|t| t.ends_with("More than a vault can hold")),
+        "{:?}",
+        app.toast_text()
+    );
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 4_000));
+    assert_eq!(checklist(&mut app), before);
+}
+
 /// The first vault's stick (the only one plugged), the vault opened from
 /// the Vaults tab, the key typed again after it.
 fn open_first_vault_then_key(shell: &mut Shell, app: &mut Faraday, vd: &str) {

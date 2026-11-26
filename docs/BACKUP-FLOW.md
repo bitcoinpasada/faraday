@@ -1139,6 +1139,33 @@ the board list's stepper.
   card read "Backed up · no plan kept" for a wallet an open or known
   vault holds. The checklist's vault item reads "Backup plan: not kept
   here" for a vault left out.
+- **A plan that does not fit** (VAULT §7's ceiling). Every vault that is
+  to keep the plan takes its record, or no vault is changed: no record is
+  replaced or taken out, the board's note edits are kept, and the toast
+  names that vault and says why it does not take it. A vault whose plan
+  for the wallet is for the other key order and does not read in this one
+  (one that splits into shares) refuses the same way, and is named.
+  **Lock and write** then goes no further, with the answers as they were
+  and nothing written to a stick. The question counts, with the record,
+  the longest seal count line (VAULT §11) of each other vault of that
+  save and of each vault left out, whatever it holds, and of each other
+  vault, open or known from when it was, that keeps or holds the wallet
+  and is open or has a seal count seen. What a vault keeps and holds is
+  read from its summary, written anew at its unlock, at each press on a
+  vault, after the checklist or Lock and write saves a plan, after a
+  checklist vault item is saved and as the session seals. A read-only
+  vault's own record is asked for no seal count line: it is closed as it
+  is; the other vaults' records still count it. A save before the lock
+  (**Make the checklist**) reaches only the vault that keeps the wallet's
+  plan, or the current one, and the vaults the flow already has open as its
+  own: the rule holds of those. The round for an added vault asks the same of each
+  open vault of the plan, of its record as the round rewrites it, before
+  anything is copied: where one does not take it, the round stops, names
+  it and copies nothing. A vault left out loses its plan only at a save
+  that reaches another vault that keeps the plan, or at one whose answers
+  keep it in no vault; until then it keeps the plan it had. A vault the
+  flow has open as its own that the board takes off the plan counts as
+  left out.
 - **One way on.** In the flow, a card's Continue opens the next card,
   and The plan card's is the flow's Continue; nothing else draws one.
 

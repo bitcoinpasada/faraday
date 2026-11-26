@@ -174,7 +174,8 @@ impl Faraday {
     /// Changes the notes kept for the chart's wallet with `change`, in the
     /// vault that keeps its plan; a plan kept in no open vault yet is
     /// saved into the current one first. False with no vault open, and
-    /// with a toast when every record kept reads only for another key order.
+    /// with a toast when that save does not fit, or when every record kept
+    /// reads only for another key order.
     pub(crate) fn chart_notes_change(
         &mut self,
         press: Press,
@@ -230,8 +231,7 @@ impl Faraday {
             let Some((answers, names)) = crate::wallet_backup::plan_now(&c, self, w) else {
                 return false;
             };
-            self.plan_store(v, w, &answers, &names, &[], Some(&notes));
-            return true;
+            return self.plan_store(v, w, &answers, &names, &[], Some(&notes));
         }
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;

@@ -730,6 +730,33 @@ fn a_vault_is_renamed_on_the_chart_and_the_name_is_kept_in_the_vault() {
     assert_eq!(holds_bytes(&kept, "Cold storage"), None);
 }
 
+/// No open vault keeps the wallet's plan and the one a mark would be kept
+/// in is full: the toast says so, nothing is kept and no sheet opens over
+/// it.
+#[test]
+fn a_check_that_a_full_vault_does_not_take_is_not_shown_as_kept() {
+    let (mut app, w) = single_key_with_vault();
+    clock_kept(&mut app);
+    let press = Press::Loaded(w);
+    let (n, _) = node_of(&app, w, "Place 1");
+    let id = app.vaults().open[0].id;
+    testkit::vault_edit(&mut app, id, |s| {
+        s.remove_where(id, |r| r.kind() == faraday_vault::records::kind::PLAN);
+        s.lower_limit(0);
+    });
+    let c = testkit::compute();
+    let used = app.vaults().records(id).used(&c);
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used));
+    app.press(Action::Chart(C::Checked(press, n)));
+    assert_eq!(app.toast_text(), Some("More than a vault can hold"));
+    assert_eq!(app.sheet, None, "the mark showed as kept");
+    use crate::common::RecordsOf as _;
+    let plans = crate::common::contents(&app, 0)
+        .of(faraday_vault::records::kind::PLAN)
+        .count();
+    assert_eq!(plans, 0);
+}
+
 #[test]
 fn a_place_marked_checked_dates_each_thing_in_it() {
     let (mut app, w) = single_key_with_vault();

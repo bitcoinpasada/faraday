@@ -1326,14 +1326,13 @@ fn copying_the_keys_to_a_vault_with_an_older_plan_for_the_other_key_order_leaves
 fn copying_the_keys_to_a_vault_with_shares_for_the_other_key_order_copies_nothing() {
     let app = copy_with_other_order_plan_in_the_added_vault(true);
     // No wallet is loaded after the lock; the toast says what is so.
-    assert_eq!(
-        app.toast_text(),
-        Some(
-            "The vault keeps a shares plan for the wallet with its keys in another order, \
-             or its answers are damaged or missing, and the copy would drop its shares. \
-             Copy into another vault"
-        )
+    let toast = format!(
+        "{}: The vault keeps a shares plan for the wallet with its keys in another order, \
+         or its answers are damaged or missing, and the copy would drop its shares. \
+         Copy into another vault",
+        &*app.vaults().open[1].name
     );
+    assert_eq!(app.toast_text(), Some(toast.as_str()));
     assert!(app.flow().unwrap().live.c32_wanted.is_none());
     assert_eq!(contents(&app, 1).of(kind::KEY).count(), 1, "no seed copied");
 }

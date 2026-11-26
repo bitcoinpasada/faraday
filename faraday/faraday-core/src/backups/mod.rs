@@ -3367,7 +3367,9 @@ impl Faraday {
         };
         matches!(st.set, crate::codex32_backup::SetStep::Scheme(..))
             && self.c32_rotation_refusal(i, key, form, &st.typed).is_ok()
-            && !self.plan_save_refused(c, self.vaults.current, &[])
+            && self
+                .plan_save_refused(c, self.vaults.current, &[])
+                .is_none()
     }
 
     /// Codex32 string `s` at index `j`, derived for seed

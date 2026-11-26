@@ -207,6 +207,27 @@ fn a_share_left_in_its_vault_does_not_hold_up_that_vaults_item() {
     assert!(app.backup_item_done_now(&c, plan::Item::Vault(1)));
 }
 
+/// The vault takes the plan's share and not its plan: the one toast says
+/// why the plan was refused and what stays in the vault.
+#[test]
+fn a_refused_plan_and_the_share_left_are_said_together() {
+    let mut app = d_left_in_the_first();
+    testkit::vault_current(&mut app, 0);
+    let id = app.vaults().open[0].id;
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(0));
+    let used = app.vaults().records(id).used(&testkit::compute());
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 600));
+    app.press(Action::BVaultSave(0));
+    assert!(holds(&app, 0, A), "A was not saved");
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "home.kdbx: More than a vault can hold · Share D of name stays in this vault: \
+             nothing else holds it"
+        )
+    );
+}
+
 /// A share the plan keeps in the first vault, moved by hand into the second,
 /// which the plan gives the seed: the second vault keeps it and reads done;
 /// the first names the string it lacks and stays undone.

@@ -84,6 +84,14 @@ fn sealed_of(found: Vec<Text>, loaded: Option<Text>) -> Option<Text> {
         .reduce(|a, b| if labels(&b) > labels(&a) { b } else { a })
 }
 
+/// Costs reading the `seals` lines of `old` and writing `text` with them.
+/// The answers `text` as a plan record keeps them over its answers `old`:
+/// with the seal counts of other vaults it held (`docs/VAULT.md` §7).
+fn answers_keeping_seals(text: &str, old: Option<&str>) -> Text {
+    let seals = old.map(crate::plan::text::seals_in).unwrap_or_default();
+    crate::plan::text::with_seals(text, &seals)
+}
+
 impl CopyCtx<'_> {
     /// Costs reading the wallet description `t` (`read_wallet`): whether it is this wallet's, by its id (its checksum for a flow with no id).
     fn of_wallet(&self, t: &str) -> bool {
@@ -1494,7 +1502,7 @@ impl Faraday {
 
     /// Costs what each added vault's `wallet_copy_vault` costs: what every added vault takes, gathered before anything is written:
     /// one vault that cannot take its share stops the copy with nothing
-    /// written.
+    /// written, and is named.
     fn wallet_copy_gather(
         &mut self,
         cx: &CopyCtx<'_>,
@@ -1507,14 +1515,105 @@ impl Faraday {
                 return Err(CopyStop::Say(Text::of(EN.backup_flow_unlock_first)));
             };
             if self.wallet_copy_plan_refused(cx, o) {
-                return Err(CopyStop::Say(Text::of(EN.backup_flow_copy_plan_kept)));
+                let name = self.vaults.open.get(o).map_or("", |v| &v.name);
+                let why = Text::fill(
+                    EN.vault_fault_wallet_why,
+                    &[name, EN.backup_flow_copy_plan_kept],
+                );
+                return Err(CopyStop::Say(why));
             }
         }
         let mut work: Vec<CopyWork> = Vec::new();
         for &v in added {
             work.push(self.wallet_copy_vault(cx, v)?);
         }
+        if let Some(why) = self.wallet_copy_plans_refused(cx, &work) {
+            return Err(CopyStop::Say(why));
+        }
         Ok(work)
+    }
+
+    /// Costs, per open vault of the plan, what `plan_seal_others` costs,
+    /// reading the wallet description of each of its plan records, and the
+    /// vault's refusal and fit check (`vault_refuses`). The first vault of
+    /// the plan that does not take its plan record as `wallet_copy_plans`
+    /// leaves it after the copy `work`, with room for the `seals` lines it
+    /// gets at the lock: the vault's name and why. Asked before the copy
+    /// writes.
+    fn wallet_copy_plans_refused(&self, cx: &CopyCtx<'_>, work: &[CopyWork]) -> Option<Text> {
+        use faraday_keys::vault::Staged;
+        use faraday_vault::records::{field, kind as rkind};
+        let c = cx.c;
+        let text = cx.wf.answers.to_text();
+        let opens: Vec<usize> = self.flows[cx.i]
+            .plan
+            .used_vaults()
+            .into_iter()
+            .filter_map(|v| self.flow_open_index(cx.i, v))
+            .collect();
+        let of_plan: Vec<[u8; 32]> = opens
+            .iter()
+            .filter_map(|&o| self.vaults.open.get(o).map(|v| v.vault_id()))
+            .collect();
+        let wallet_id = cx
+            .id
+            .or_else(|| {
+                cx.holders.iter().find_map(|&h| {
+                    self.vaults
+                        .described_of(c, self.vaults.open[h].id, rkind::PLAN)
+                        .find(|(_, _, d)| cx.is_policy(&d.checksum, d.policy.id()))
+                        .map(|(_, _, d)| d.policy.id())
+                })
+            })
+            .map(|id| id.to_hex())
+            .unwrap_or_default();
+        let ours = |t: Option<&str>| t.is_some_and(|t| cx.of_wallet(t));
+        opens.iter().find_map(|&o| {
+            let open = self.vaults.open.get(o)?;
+            let id = open.id;
+            let coming = work.iter().find(|w| w.o == o);
+            let mut out: Vec<usize> = coming.map(|w| w.out.clone()).unwrap_or_default();
+            let others = self.plan_seal_others(o, &wallet_id, &of_plan);
+            let rewritten = |mut r: faraday_vault::Record| {
+                let old = r.text(field::PLAN_ANSWERS);
+                let new = answers_keeping_seals(&text, old);
+                r.set(field::PLAN_ANSWERS, new.as_bytes());
+                crate::wallet_backup::room_for_seals(&mut r, &others);
+                Staged::Made(r)
+            };
+            // The records that stay and change, or can still get lines.
+            let mut made: Vec<Staged> = Vec::new();
+            for (k, r) in self.vaults.records(id).of(rkind::PLAN) {
+                if out.contains(&k) || !ours(r.public_text(field::PLAN_WALLET)) {
+                    continue;
+                }
+                let old = r.public_text(field::PLAN_ANSWERS);
+                if others.is_empty() && old == Some(answers_keeping_seals(&text, old).as_str()) {
+                    continue;
+                }
+                let Some(copy) = r.to_public() else {
+                    continue;
+                };
+                out.push(k);
+                made.push(rewritten(copy));
+            }
+            // And those the copy brings in, as they will be rewritten.
+            let mut adds: Vec<&Staged> = Vec::new();
+            for staged in coming.into_iter().flat_map(|w| &w.add) {
+                let view = staged.view();
+                let plan = view.kind() == rkind::PLAN && ours(view.public_text(field::PLAN_WALLET));
+                match view.to_public().filter(|_| plan) {
+                    Some(copy) => made.push(rewritten(copy)),
+                    None => adds.push(staged),
+                }
+            }
+            if made.is_empty() {
+                return None;
+            }
+            adds.extend(&made);
+            let why = self.vault_refuses(c, id, &out, &adds)?;
+            Some(Text::fill(EN.vault_fault_wallet_why, &[&open.name, &why]))
+        })
     }
 
     /// Costs a key fingerprint per record of the open vault and the reads of a holder's or the typed key's seed: each seed the plan puts in added vault `v` (open at `o`), as the record the plan wants: from a holder, from the vault itself or from the key typed back.
@@ -2082,8 +2181,9 @@ impl Faraday {
         });
         w.out.extend(stale);
         let adds: Vec<&Staged> = w.add.iter().collect();
-        let vid = self.vaults.open[o].id;
-        if let Some(why) = self.vault_refuses(c, vid, &w.out, &adds) {
+        let open = &self.vaults.open[o];
+        if let Some(why) = self.vault_refuses(c, open.id, &w.out, &adds) {
+            let why = Text::fill(EN.vault_fault_wallet_why, &[&open.name, &why]);
             return Err(CopyStop::Say(why));
         }
         Ok(())
@@ -2230,10 +2330,7 @@ impl Faraday {
                 .filter(|(_, r)| r.public_text(field::PLAN_WALLET).is_some_and(&of_wallet))
                 .filter_map(|(k, r)| {
                     let old = r.public_text(field::PLAN_ANSWERS);
-                    let new = crate::plan::text::with_seals(
-                        &text,
-                        &old.map(crate::plan::text::seals_in).unwrap_or_default(),
-                    );
+                    let new = answers_keeping_seals(&text, old);
                     (old != Some(new.as_str())).then_some((k, new))
                 })
                 .collect();

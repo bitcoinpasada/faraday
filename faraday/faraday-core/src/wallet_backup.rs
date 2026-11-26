@@ -4575,25 +4575,28 @@ impl Faraday {
     ///
     /// Returns whether it saved. A plan kept in any of the flow's open
     /// vaults for the other key order that the wallet does not read
-    /// refuses the whole save: a toast, nothing written in any vault, the
-    /// board's note edits kept.
+    /// refuses the whole save, and so does one that does not take its
+    /// record: a toast, nothing written in any vault, the board's note
+    /// edits kept.
     pub(crate) fn plan_save(&mut self) -> bool {
         self.plan_save_with(&[], &[])
     }
 
     /// Costs what `plan_save` costs. `plan_save` for a caller that writes
     /// into open vaults `extra` as well: a refusal in one of them refuses
-    /// the save too.
+    /// the save too. A vault left out loses its plan only in a save that
+    /// writes the plan into another vault, or when the answers keep it in
+    /// no vault.
     ///
     /// `left` are the open vaults the person left out of keeping the plan
     /// that the caller knows of, besides those the flow names: none is
     /// written, and the plan one already kept for the wallet goes
-    /// (`docs/BACKUP-FLOW.md` §15.7). With every vault left out nothing is
+    /// (`docs/BACKUP-FLOW.md` §15.7). With no vault to write, nothing is
     /// written and the save still succeeds.
     pub(crate) fn plan_save_with(&mut self, extra: &[usize], left: &[usize]) -> bool {
         let c = self.compute();
-        if self.plan_save_refused(&c, self.vaults.current, extra) {
-            self.toast(EN.plan_store_other_key_order);
+        if let Some(o) = self.plan_save_refused(&c, self.vaults.current, extra) {
+            self.plan_other_order_say(o);
             return false;
         }
         let Some(b) = self.backup.state() else {
@@ -4607,28 +4610,23 @@ impl Faraday {
                 vaults.push(o);
             }
         }
-        // A vault left out keeps no plan, and drops one it kept.
+        // A vault left out keeps no plan, and drops one it kept (below).
         let mut left_out = self.plan_left_out();
         left_out.extend_from_slice(left);
-        vaults.retain(|o| !left_out.contains(o));
+        // With no vault open the current one's place names none: no vault
+        // has to hold the plan.
+        vaults.retain(|&o| !left_out.contains(&o) && o < self.vaults.open.len());
         let wi = b.wallet;
         let answers = b.answers.clone();
         let names = b.names.clone();
         let extras = b.extras.clone();
-        let edits = self.backup.edits_take();
-        let fixes = self.backup.note_fixes_take();
-        if let Some(w) = self.session.wallets.get(wi) {
-            for &o in &left_out {
-                self.vaults.plan_forget(&c, o, w);
-            }
-        }
-        let Some((&v, others)) = vaults.split_first() else {
-            // Every vault is left out: the plan is kept nowhere.
-            return true;
-        };
         // The notes follow the board's edits, in each vault as it keeps
         // them (`plan::notes_after`); none edited, as the record kept them.
-        let notes_in = |app: &Self, o: usize| -> Option<Vec<plan::Note>> {
+        let notes_in = |app: &Self,
+                        o: usize,
+                        edits: &[plan::Edit],
+                        fixes: &[NoteFix]|
+         -> Option<Vec<plan::Note>> {
             if edits.is_empty() && fixes.is_empty() {
                 return None;
             }
@@ -4647,16 +4645,88 @@ impl Faraday {
                 }
             }))
         };
-        let notes = notes_in(self, v);
-        self.plan_store(v, wi, &answers, &names, &extras, notes.as_deref());
+        // Every vault takes its record, or none is changed: asked before a
+        // left-out vault forgets its plan and before the edits are taken,
+        // so no vault ends with a plan another contradicts. A record gets a
+        // `seals` line for each other vault of the plan, as that one is
+        // stored or sealed (`docs/VAULT.md` §11): the question asks room
+        // for each.
+        let wallet_id = self
+            .session
+            .wallets
+            .get(wi)
+            .map(|w| w.id().to_hex())
+            .unwrap_or_default();
+        let of_plan: Vec<[u8; 32]> = vaults
+            .iter()
+            .chain(&left_out)
+            .filter_map(|&o| self.vaults.open.get(o).map(|v| v.vault_id()))
+            .collect();
+        let no_room = vaults.iter().find_map(|&o| {
+            let open = self.vaults.open.get(o)?;
+            let id = open.id;
+            let others = self.plan_seal_others(o, &wallet_id, &of_plan);
+            let notes = notes_in(self, o, &b.edits, &b.note_fixes);
+            let notes = notes.as_deref();
+            let made = self.plan_made_in(&c, o, wi, &answers, &names, &extras, notes);
+            let (ours, mut record) = match made {
+                Some(made) => (made.ours, made.record),
+                // The record stays as it is and can still get lines.
+                None if others.is_empty() => return None,
+                None => {
+                    let same = self.session.wallets.get(wi)?.same();
+                    let (k, kept, _) = self
+                        .vaults
+                        .described_of(&c, id, faraday_vault::records::kind::PLAN)
+                        .find(|(_, _, d)| d.same == *same)?;
+                    (vec![k], kept.to_public()?)
+                }
+            };
+            room_for_seals(&mut record, &others);
+            let why = self.vault_refuses(&c, id, &ours, &[&record])?;
+            Some(Text::fill(EN.vault_fault_wallet_why, &[&open.name, &why]))
+        });
+        if let Some(why) = no_room {
+            self.toast(&why);
+            return false;
+        }
+        // A vault left out drops its plan only where this save writes it
+        // into another vault, or where the answers keep it in none: until
+        // then it may be the one record of the places' names. A save that
+        // does neither leaves the board's edits for the one that writes.
+        if vaults.is_empty() {
+            let shape = self.plan_shape_now(wi);
+            if answers
+                .vaults_made(&shape)
+                .iter()
+                .any(|&v| answers.keeps_plan(v))
+            {
+                return true;
+            }
+        }
+        let edits = self.backup.edits_take();
+        let fixes = self.backup.note_fixes_take();
+        if let Some(w) = self.session.wallets.get(wi) {
+            for &o in &left_out {
+                self.vaults.plan_forget(&c, o, w);
+            }
+        }
+        let Some((&v, others)) = vaults.split_first() else {
+            // No vault of the plan, or every one left out: the plan is
+            // kept nowhere.
+            self.vault_summaries_refresh_kept();
+            return true;
+        };
+        let notes = notes_in(self, v, &edits, &fixes);
+        let mut kept = self.plan_store(v, wi, &answers, &names, &extras, notes.as_deref());
         // And in each other open vault the wallet's flow keeps, so that
         // every vault holds the plan with its places' names
         // (`docs/BACKUP-FLOW.md` §15.7).
         for &o in others {
-            let notes = notes_in(self, o);
-            self.plan_store(o, wi, &answers, &names, &extras, notes.as_deref());
+            let notes = notes_in(self, o, &edits, &fixes);
+            kept &= self.plan_store(o, wi, &answers, &names, &extras, notes.as_deref());
         }
-        true
+        kept
     }
 
     /// Costs what `plan_vault_of` costs. The open vaults a save of this
@@ -4688,34 +4758,88 @@ impl Faraday {
     }
 
     /// The open vaults the flow's plan leaves out of keeping a copy of
-    /// the backup plan: those of its vaults the answers name in `unkept`.
+    /// the backup plan: those of its vaults the answers name in `unkept`,
+    /// and those the board took off the plan (the edited map has no spot
+    /// for them; one whose stick only lacks a place stays).
     pub(crate) fn plan_left_out(&self) -> Vec<usize> {
         let (Some(b), Some(i)) = (self.backup.state(), self.wallet_flow_of_backup()) else {
             return Vec::new();
         };
-        b.answers
-            .unkept
-            .iter()
-            .filter_map(|&pv| self.flow_open_index(i, pv))
+        let taken_off = |pv: usize| {
+            let map = b.answers.map.as_ref();
+            map.is_some_and(|m| m.iter().all(|s| s.at != plan::At::Vault(pv)))
+        };
+        (0..self.flows[i].plan.vaults.len())
+            .filter(|&pv| b.answers.unkept.contains(&pv) || taken_off(pv))
+            .filter_map(|pv| self.flow_open_index(i, pv))
             .collect()
     }
 
     /// Costs what `plan_refused` costs, for each vault `plan_save_vaults`
     /// names and the open vaults `extra` that the caller writes into.
-    /// Whether a save of this flow's plan would be refused in any of them.
-    pub(crate) fn plan_save_refused(&self, c: &Compute, current: usize, extra: &[usize]) -> bool {
-        let Some(w) = self
+    /// The first of them that would refuse a save of this flow's plan.
+    pub(crate) fn plan_save_refused(
+        &self,
+        c: &Compute,
+        current: usize,
+        extra: &[usize],
+    ) -> Option<usize> {
+        let w = self
             .backup
             .state()
-            .and_then(|b| self.session.wallets.get(b.wallet))
-        else {
-            return false;
-        };
+            .and_then(|b| self.session.wallets.get(b.wallet))?;
         let mut vaults = self.plan_save_vaults(c, current);
         vaults.extend_from_slice(extra);
         vaults
             .into_iter()
-            .any(|o| self.vaults.plan_refused(c, o, w))
+            .find(|&o| self.vaults.plan_refused(c, o, w))
+    }
+
+    /// Says that open vault `o` keeps the wallet's plan for the other key
+    /// order, naming it.
+    fn plan_other_order_say(&mut self, o: usize) {
+        let Some(open) = self.vaults.open.get(o) else {
+            return;
+        };
+        let why = Text::fill(
+            EN.vault_fault_wallet_why,
+            &[&open.name, EN.plan_store_other_key_order],
+        );
+        self.toast(&why);
+    }
+
+    /// Costs a read of each vault summary. The vaults whose `seals` line
+    /// the plan record of wallet `wallet_id` (hex) in open vault `o` can
+    /// take before that vault is sealed, by identifier: the open vaults
+    /// `of_plan`, and each other vault that keeps the wallet's plan or
+    /// holds it and is open or has a seal seen, as `seals_write` picks its
+    /// lines. Never `o`'s own; none for a read-only vault, which is closed
+    /// as it is.
+    pub(crate) fn plan_seal_others(
+        &self,
+        o: usize,
+        wallet_id: &str,
+        of_plan: &[[u8; 32]],
+    ) -> Vec<[u8; 32]> {
+        let Some(open) = self.vaults.open.get(o) else {
+            return Vec::new();
+        };
+        if self.vaults.store().read_only(open.id).is_some() {
+            return Vec::new();
+        }
+        let own = open.vault_id();
+        let mut others = of_plan.to_vec();
+        for s in &self.vaults.summaries {
+            let sealed = s.seal.is_some() || self.vaults.open.iter().any(|v| v.vault_id() == s.id);
+            if sealed
+                && (s.plans_wallet_id(wallet_id) || s.holds_wallet_id(wallet_id))
+                && !others.contains(&s.id)
+            {
+                others.push(s.id);
+            }
+        }
+        others.retain(|&other| other != own);
+        others
     }
 
     /// Costs what `plan_save_refused` costs. For a caller that writes
@@ -4725,10 +4849,10 @@ impl Faraday {
     pub(crate) fn plan_refuses(&mut self, current: usize, extra: &[usize]) -> bool {
         let c = self.compute();
         let refused = self.plan_save_refused(&c, current, extra);
-        if refused {
-            self.toast(EN.plan_store_other_key_order);
+        if let Some(o) = refused {
+            self.plan_other_order_say(o);
         }
-        refused
+        refused.is_some()
     }
 
     /// Costs what `plan_vault_of` costs. For a plan that was already made
@@ -4777,6 +4901,40 @@ impl Faraday {
         })
     }
 
+    /// Costs what `wallet_held_stored`, `plan_shape_now` and `plan_record`
+    /// cost. The record [`Faraday::plan_store`] writes into open vault `v`
+    /// for these; None without the wallet or the vault, or when the record
+    /// the vault keeps is the same.
+    #[allow(clippy::too_many_arguments, reason = "plan_store's own inputs")]
+    fn plan_made_in(
+        &self,
+        c: &Compute,
+        v: usize,
+        wi: usize,
+        answers: &plan::Answers,
+        names: &[Text],
+        extras: &[Text],
+        notes: Option<&[plan::Note]>,
+    ) -> Option<vault::plan_store::PlanRecord> {
+        let w = self.session.wallets.get(wi)?;
+        let (names, extras): (Vec<_>, Vec<_>) = (
+            names.iter().map(|n| (&**n).into()).collect(),
+            extras.iter().map(|n| (&**n).into()).collect(),
+        );
+        let src = vault::plan_store::PlanSource {
+            wallet: w,
+            held: self.wallet_held_stored(c, wi),
+            // The holds lines say what the answers say is written.
+            shape: Self::flow_shape_said(&self.plan_shape_now(wi), answers),
+            medium: self.medium,
+            answers,
+            names: &names,
+            extras: &extras,
+            notes,
+        };
+        self.vaults.plan_record(c, v, &src)
+    }
+
     /// Writes loaded wallet `wi`'s plan into open vault `v` as record type
     /// 11, over the one it kept for the wallet: `answers`, the places'
     /// `names`, what each spot holds, work a later plan dropped
@@ -4793,33 +4951,18 @@ impl Faraday {
         notes: Option<&[plan::Note]>,
     ) -> bool {
         let c = self.compute();
-        let Some(w) = self.session.wallets.get(wi) else {
+        if self.session.wallets.get(wi).is_none() {
             return false;
-        };
+        }
         let Some(open) = self.vaults.open.get(v) else {
             return false;
         };
         let (id, name) = (open.id, open.name.clone());
-        let (names, extras): (Vec<_>, Vec<_>) = (
-            names.iter().map(|n| (&**n).into()).collect(),
-            extras.iter().map(|n| (&**n).into()).collect(),
-        );
-        let src = vault::plan_store::PlanSource {
-            wallet: w,
-            held: self.wallet_held_stored(&c, wi),
-            // The holds lines say what the answers say is written.
-            shape: Self::flow_shape_said(&self.plan_shape_now(wi), answers),
-            medium: self.medium,
-            answers,
-            names: &names,
-            extras: &extras,
-            notes,
-        };
-        let Some(made) = self.vaults.plan_record(&c, v, &src) else {
+        let Some(made) = self.plan_made_in(&c, v, wi, answers, names, extras, notes) else {
             return true;
         };
         if made.refused {
-            self.toast(EN.plan_store_other_key_order);
+            self.plan_other_order_say(v);
             return false;
         }
         let old = self.vaults.plan_take(id, &made.ours);
@@ -4827,8 +4970,35 @@ impl Faraday {
         let fitted = self.vault_push_in(v, made.record, &said);
         self.vaults.plan_restore(id, old, fitted);
         self.vaults.seals_write(&c, v);
+        // `plan_seal_others` reads what each vault holds from its summary.
+        self.vault_summaries_refresh_kept();
         fitted
     }
+}
+
+/// Gives plan record `record` the longest `seals` line each vault of the
+/// identifiers `others` can have in it, the count the highest there is:
+/// for asking whether the record fits, never written.
+pub(crate) fn room_for_seals(record: &mut faraday_vault::Record, others: &[[u8; 32]]) {
+    use crate::plan::text::{SealLine, seals_in, with_seals};
+    use faraday_vault::records::field::PLAN_ANSWERS;
+    if others.is_empty() {
+        return;
+    }
+    let text = Text::of(record.text(PLAN_ANSWERS).unwrap_or_default());
+    let mut lines = seals_in(&text);
+    for &id in others {
+        let longest = SealLine {
+            id,
+            count: u64::MAX,
+            digest: [0; 32],
+        };
+        match lines.iter_mut().find(|l| l.same_vault(&longest)) {
+            Some(line) => *line = longest,
+            None => lines.push(longest),
+        }
+    }
+    record.set(PLAN_ANSWERS, with_seals(&text, &lines).as_bytes());
 }
 
 /// Costs what the plan the chart shows costs ([`crate::glance::plan_of_now`]), with
