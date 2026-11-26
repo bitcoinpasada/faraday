@@ -9,6 +9,24 @@ use faraday_draw::tokens;
 /// under it.
 const OUTLINE_ABOVE: f32 = tokens::PAD / 2.0;
 
+/// A flow's one card (F331): from `from` to `to` (the corners, x and y),
+/// filled a step off the page at level 3, which a High contrast theme
+/// casts no shadow for, so it keeps the thin outline there and only
+/// there. Drawn before what stands on it.
+pub(crate) fn card(ui: &mut Ui, from: (f32, f32), to: (f32, f32)) {
+    let (x, y) = from;
+    let (w, h) = (to.0 - x, to.1 - y);
+    if h <= 0.0 {
+        return;
+    }
+    // Material's level 3, the floating button's number.
+    ui.shadow(x, y, w, h, tokens::SHAPE_L, tokens::ELEVATION_FAB);
+    ui.fill(x, y, w, h, tokens::SHAPE_L, Role::SurfaceContainerLow);
+    if ui.theme.is_high_contrast() {
+        outline(ui, from, to);
+    }
+}
+
 /// The pair's outline: one thin rounded edge from `from` to `to` (the
 /// corners, x and y), round Your choices and the step; no fill, the page
 /// is the surface.

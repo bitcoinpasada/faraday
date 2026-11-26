@@ -171,7 +171,16 @@ not low; `ui.compact` false). A step whose card is a column stands as a
 pair, one card: Your choices at the LEFT, `LIST_PANE` (360 dp), one
 `SPACER` gap, and the step card at its right, up to `COLUMN_MAX`, the
 pair centred in the room beside the navigation (placed by the pane container, `docs/HUB-LAYOUT.md`). The page
-is the surface (no fill); one thin rounded outline (`SHAPE_L`, OutlineVariant) goes round the pair, a padding outside the pair's left and right edges and foot and half a padding above the card's top, ending a padding above the window's foot where the pair is taller, so the pane and the step scroll inside it; a divider at the middle of the gap, inset at top and
+is the surface; the pair is one card (F331): `SHAPE_L`, filled
+surface-container-low, at level 3, with a thin outline (OutlineVariant) at High
+contrast only, a padding outside the pair's left and right edges and foot and a
+padding above the content, which starts half a padding lower than a flat page's,
+ending a padding above the window's foot where the pair is taller, so the pane
+and the step scroll inside it. A full-width step on a window with a rail raises
+its one column the same way. The step scrolls in the card's flat part, a
+corner's radius inside its top and foot, so a moved frame moves nothing of its
+shape. The card is drawn first, to where it ended last; a frame that finds
+another end is drawn again before it is shown. In the pair a divider at the middle of the gap, inset at top and
 bottom by the card's padding, is the only line between the two, and runs
 to where the taller side ends: a pair ends level, tops and bottoms in line,
 the pane never stretched to the window's foot. Where the pair does not

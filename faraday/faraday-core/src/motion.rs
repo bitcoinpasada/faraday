@@ -508,6 +508,10 @@ pub(crate) struct Scroll {
     /// The height a scrolled page last drew to, design units: how far its
     /// scroll may go.
     content_h: std::cell::Cell<f32>,
+    /// Where the foot of a flow's raised card stood when it was last
+    /// drawn, design units: the card is drawn before the content that
+    /// says how long it is.
+    card_foot: std::cell::Cell<f32>,
     /// Where the finger or the pointer dragging a region that pans
     /// sideways last was across, in pixels.
     drag_x: i32,
@@ -548,6 +552,7 @@ impl Default for Scroll {
             bar_seen: (home, 0.0, 0),
             sheet_scroll: (0.0, None),
             content_h: std::cell::Cell::new(0.0),
+            card_foot: std::cell::Cell::new(0.0),
             drag_x: 0,
             panes: crate::panes::Panes::default(),
             sidebar: 0.0,
@@ -620,6 +625,12 @@ impl Scroll {
     /// go. Written by the screen as it draws.
     pub(crate) fn content_h(&self) -> &std::cell::Cell<f32> {
         &self.content_h
+    }
+
+    /// The foot of a flow's raised card as last drawn. Written by the flow
+    /// container as it draws.
+    pub(crate) fn card_foot(&self) -> &std::cell::Cell<f32> {
+        &self.card_foot
     }
 
     /// How far the content is shown past an end, units.

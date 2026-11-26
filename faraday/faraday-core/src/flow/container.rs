@@ -151,6 +151,10 @@ pub(crate) fn contained(
         moved = true;
     }
 
+    // The flow's one card, raised (F331): the pair, and on a window with a
+    // rail the card of a flow with one column.
+    let raised = !compact && steps.is_some() && (left || (full && crate::screens::in_flow(app)));
+
     // The card's place: the same for every step.
     let aligned = !compact && (full || flow.wide_content(app));
     let (top, x, w) = if compact {
@@ -170,7 +174,9 @@ pub(crate) fn contained(
         } else {
             area_x + (room_w - w) / 2.0
         };
-        (tokens::PAGE_TOP_BAR, x, w)
+        // A raised card stands a padding above its content.
+        let lower = f32::from(u8::from(raised)) * tokens::PAD / 2.0;
+        (tokens::PAGE_TOP_BAR + lower, x, w)
     };
     // Where the work of a wide card ends: before the pane, or at the
     // area's end less the margin when there is none.
@@ -183,14 +189,17 @@ pub(crate) fn contained(
     });
     // Where the pair stands, its outline's top and foot are the card's
     // limits: nothing scrolls past them.
-    let (clip_top, clip_end) = hub_layout::limits(left, compact, top, view_h);
-    let clip = ui.rect(
-        clip_x,
-        clip_top,
-        area_x + room_w - clip_x,
-        clip_end - clip_top,
-    );
-    let view_open = ui.region_open(Region::page(clip).from_zero(next.y).moves(page.moves));
+    let (clip_top, clip_end) = hub_layout::limits(left || raised, compact, top, view_h);
+    let columns = unit
+        .filter(|_| left)
+        .map_or((x, work.unwrap_or(x + w)), |u| (area_x + u.pane_x, x + w));
+    let card = RaisedCard::draw(ui, app, raised.then_some(columns), (top, clip_end));
+    let seen = (clip_x, area_x + room_w);
+    let (seen, tail) = card.view(seen, (clip_top, clip_end));
+    let (view_x, view_y, view_w, view_rows) = seen;
+    let clip = ui.rect(view_x, view_y, view_w, view_rows);
+    let region = Region::page(clip).from_zero(next.y).moves(page.moves);
+    let view_open = ui.region_open(card.under(region));
     let mut y = if compact { top + 10.0 } else { top };
     if !compact {
         // The top app bar over the page names the flow and carries its way
@@ -283,7 +292,7 @@ pub(crate) fn contained(
             ui.page_view = None;
         }
     }
-    let max = (y + 24.0 - clip_end).max(0.0);
+    let max = (y + tail - (view_y + view_rows)).max(0.0);
     ui.region_close(view_open, max);
     // In screen space: the card's own place less the scroll, kept to the
     // page area under the bar and above any foot.
@@ -297,6 +306,8 @@ pub(crate) fn contained(
     } else {
         tokens::SIDE_PANEL_TOP
     };
+    // How far down Your choices reaches, where it is the card's left side.
+    let mut pane_end = 0.0;
     if compact {
         bar(ui, page, area_x + area_w);
     } else if let (Some(s), false) = (steps.as_ref(), full) {
@@ -329,8 +340,10 @@ pub(crate) fn contained(
             px - gap / 2.0
         };
         let end = hub_layout::level(top + pane_h, y - next.y, view_h);
-        hub_layout::lines(ui, (at, top, end), left.then_some(((px, x + w), clip_end)));
+        hub_layout::lines(ui, (at, top, end), None);
+        pane_end = top + pane_h;
     }
+    card.settle(ui, app, (y, pane_end), max > 0.0, (view_h, clip_end));
 
     let mut again = false;
     if past_end(next.y, max) {
@@ -344,6 +357,90 @@ pub(crate) fn contained(
         w,
     };
     (next, again || moved, room)
+}
+
+/// A flow's raised card as drawn: it stands under the content, which alone
+/// says where it ends, so it is drawn to where it ended last, and a frame
+/// that finds another end is drawn again before it is shown.
+struct RaisedCard {
+    /// Where its foot was drawn, and its left and right edges; none where
+    /// no card is raised.
+    drawn: Option<(f32, f32, f32)>,
+}
+
+impl RaisedCard {
+    /// Draws it, where one is raised, round the columns from `from` to
+    /// `to`, a padding outside them, for content that starts at `top`.
+    fn draw(
+        ui: &mut Ui,
+        app: &Faraday,
+        columns: Option<(f32, f32)>,
+        (top, clip_end): (f32, f32),
+    ) -> Self {
+        let drawn = columns.map(|(from, to)| {
+            let foot = app.scroll.card_foot().get();
+            let (left, right) = (from - tokens::PAD, to + tokens::PAD);
+            hub_layout::card(ui, (left, top - tokens::PAD), (right, foot.min(clip_end)));
+            (foot, left, right)
+        });
+        RaisedCard { drawn }
+    }
+
+    /// The region the content scrolls in, between `seen.0` and `seen.1`
+    /// across and from `top` to `clip_end`, and the room kept under the
+    /// content. Under a raised card it lies in the card's flat part: from
+    /// edge to edge at most, and a corner's radius inside its top and
+    /// foot, so a scroll step that moves the rows drawn moves nothing of
+    /// the card's shape.
+    fn view(
+        &self,
+        (from, to): (f32, f32),
+        (top, clip_end): (f32, f32),
+    ) -> ((f32, f32, f32, f32), f32) {
+        let Some((_, left, right)) = self.drawn else {
+            return ((from, top, to - from, clip_end - top), 24.0);
+        };
+        let (from, to) = (from.max(left), to.min(right));
+        let top = top - tokens::PAD / 2.0 + tokens::SHAPE_L;
+        let end = clip_end - tokens::SHAPE_L;
+        ((from, top, to - from, end - top), 24.0 - tokens::SHAPE_L)
+    }
+
+    /// `region` as it stands on the card: its edges fade into the card.
+    fn under(&self, region: Region) -> Region {
+        match self.drawn {
+            Some(_) => region
+                .on(Role::SurfaceContainerLow)
+                .fades_into(Role::SurfaceContainerLow),
+            None => region,
+        }
+    }
+
+    /// After the content, which ends at `y` beside a pane that ends at
+    /// `pane_end`: keeps where the card ends. A card whose content scrolls
+    /// runs to its limit, so that a scroll step leaves its foot where it
+    /// is.
+    fn settle(
+        &self,
+        ui: &mut Ui,
+        app: &Faraday,
+        (y, pane_end): (f32, f32),
+        scrolls: bool,
+        (view_h, clip_end): (f32, f32),
+    ) {
+        let Some((was, ..)) = self.drawn else {
+            return;
+        };
+        let foot = if scrolls {
+            clip_end
+        } else {
+            (hub_layout::level(pane_end, y, view_h) + tokens::PAD).min(clip_end)
+        };
+        if (foot - was).abs() > 0.1 {
+            app.scroll.card_foot().set(foot);
+            ui.spoiled = true;
+        }
+    }
 }
 
 /// The small panel's top app bar, over whatever has scrolled under it:
