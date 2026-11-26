@@ -908,6 +908,19 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     for _ in more.chars() {
         t.app.event(Event::Key(Key::Backspace));
     }
+    // The Spending wallet's key waits for its backup: the row says so,
+    // not an address.
+    let fp = t.app.session.wallets[spending]
+        .policy()
+        .keys()
+        .first()
+        .and_then(|k| k.fingerprint())
+        .ok_or("no key")?;
+    testkit::mark_made_here(&mut t.app, fp);
+    t.shot("message-held")?;
+    testkit::release_made(&mut t.app, fp);
+    t.press(Action::MType);
+    t.press(Action::MType);
     t.press(Action::MNext(1));
     t.press(Action::MNext(2));
     t.press(Action::MSign);

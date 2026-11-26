@@ -18,6 +18,7 @@ mod fee_bump;
 mod identities;
 mod idle;
 mod keys;
+mod message_address;
 mod moments;
 mod name;
 mod paths;

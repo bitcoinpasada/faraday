@@ -482,7 +482,8 @@ fn sign(app: &mut Faraday) {
         Some(crate::address_find::SignAt::Wallet(wallet, index))
             if look.same_wallet(&app.session, wallet) =>
         {
-            app.message_open_at(wallet, index);
+            let c = app.compute();
+            app.message_open_at(&c, wallet, index);
         }
         Some(crate::address_find::SignAt::Key(at)) => app.message_open_path(at),
         _ => {}
