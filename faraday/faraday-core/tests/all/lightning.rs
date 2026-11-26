@@ -970,3 +970,54 @@ fn the_page_opened_from_a_scrolled_convert_page_starts_at_the_top() {
     assert_eq!(app.screen, Screen::Lightning);
     assert_eq!(app.list_offset, 0.0);
 }
+
+/// A key with no BIP-39 words (an xprv) stays in the pane dimmed with why:
+/// neither node can be made of it, so neither of its rows takes a press.
+/// Words of another list than English refuse Core Lightning's row only.
+#[test]
+fn a_key_a_node_cannot_be_made_of_stays_with_why_and_takes_no_press() {
+    use faraday_bip::bip39::Language;
+    let c = faraday_core::testkit::compute();
+    let mut app = wide_window();
+    add_keys(&mut app, 1);
+    // BIP 32's test vector 1 master key, in testnet's version.
+    let xprv = "tprv8ZgxMBicQKsPeDgjzdC36fs6bMjGApWDNLR9erAXMs5skhMv36j9MV5ecvfavji5khqjWaWSFhN3YcCUUdiKH6isR4Pwy3U5y5egddBr16m";
+    app.session.keys.add_xprv(&c, xprv, "Bare").unwrap();
+    let m = faraday_keys::words::from_entropy(Language::Spanish, &[9; 16]).unwrap();
+    app.session
+        .keys
+        .add_mnemonic(&c, &m, "", "Otra", None)
+        .unwrap();
+    app.press(Action::Lightning);
+    let _ = app.frame();
+    let (words_key, bare, spanish) = (key_at(&app, 0), key_at(&app, 1), key_at(&app, 2));
+    for a in [
+        Action::LKey(words_key),
+        Action::LCln(Some(words_key)),
+        Action::LKey(spanish),
+    ] {
+        assert!(app.offers(a), "{a:?}");
+    }
+    for a in [
+        Action::LKey(bare),
+        Action::LCln(Some(bare)),
+        Action::LCln(Some(spanish)),
+    ] {
+        assert!(!app.offers(a), "{a:?}");
+    }
+    let drawn: Vec<String> = {
+        use faraday_core::testkit::Plain;
+        app.drawn_text_boxes()
+            .plain()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    };
+    let lines = |line: &str| drawn.iter().filter(|t| *t == line).count();
+    assert_eq!(lines("This key has no BIP-39 seed"), 2, "{drawn:?}");
+    assert_eq!(
+        lines("Core Lightning takes English words only"),
+        1,
+        "{drawn:?}"
+    );
+}

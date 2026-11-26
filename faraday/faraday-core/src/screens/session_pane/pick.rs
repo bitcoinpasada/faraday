@@ -157,7 +157,8 @@ impl Take {
 /// A flow's pick as it declares it: which kinds it takes, which item is
 /// chosen and which is refused (each through [`Take`]), and its ways in,
 /// the only rows the flow makes itself. The pane lists the keys, wallets
-/// and files, in its order (Keys, Wallets, Files),
+/// and files, in its order (Keys, Wallets, Files; in a pick opened from
+/// Check, Check's own: Files, Keys, Wallets),
 /// and no flow lists `session.keys` or `session.wallets` for a
 /// row of its own (`lint-components`).
 pub(crate) struct Decl {
@@ -165,6 +166,8 @@ pub(crate) struct Decl {
     keys: Vec<PickRow>,
     wallets: Vec<PickRow>,
     files: Vec<PickRow>,
+    /// Whether the pick was opened from Check, which puts Files first.
+    from_check: bool,
     ways: Vec<PickRow>,
 }
 
@@ -176,6 +179,7 @@ impl Decl {
             keys: Vec::new(),
             wallets: Vec::new(),
             files: Vec::new(),
+            from_check: false,
             ways: Vec::new(),
         }
     }
@@ -255,6 +259,7 @@ impl Decl {
         app: &crate::Faraday,
         take: impl Fn(usize, &crate::item::Item) -> Option<Take>,
     ) -> Self {
+        self.from_check = app.opened_from_screen() == Some(crate::Screen::Check);
         self.files = app
             .inbox
             .iter()
@@ -284,11 +289,15 @@ impl Decl {
     /// in last, headed "Other ways in" while anything loaded is taken.
     pub(crate) fn groups(self) -> Vec<crate::flow::PickGroup> {
         let loaded = !(self.keys.is_empty() && self.wallets.is_empty() && self.files.is_empty());
-        let order = [
+        let mut order = [
             (EN.session_group_keys, self.keys),
             (EN.session_group_wallets, self.wallets),
             (EN.session_group_files, self.files),
         ];
+        // Files moves to the front; the other two keep their order.
+        if self.from_check {
+            order.rotate_right(1);
+        }
         let mut groups: Vec<_> = order
             .into_iter()
             .filter(|(_, rows)| !rows.is_empty())
@@ -655,5 +664,53 @@ mod tests {
             presses(&[opens, ready]),
             [Action::OpenWallet(0), Action::OpenWallet(1)]
         );
+    }
+}
+
+#[cfg(all(test, feature = "testkit"))]
+mod order_tests {
+    use super::{Decl, EN, Take};
+    use crate::{Action, Faraday, Screen};
+
+    /// The headings of a pick that takes every key, wallet and file, as
+    /// declared in the tool on show.
+    fn heads(app: &Faraday) -> Vec<&'static str> {
+        Decl::new("")
+            .keys(app, |_, _| Some(Take::of(false, Action::Scan)))
+            .wallets(app, |_, _| {
+                Some((Take::of(false, Action::Scan), String::new()))
+            })
+            .files(app, |_, _| Some(Take::of(false, Action::Scan)))
+            .groups()
+            .iter()
+            .map(|g| g.head)
+            .collect()
+    }
+
+    /// Decode, opened by presses from `opener` in a session holding a key
+    /// and a file.
+    fn decode_from(opener: Screen) -> Faraday {
+        let mut app = crate::testkit::started();
+        app.press(Action::Entry(None));
+        for c in "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about".chars() {
+            faraday_shell_api::App::event(
+                &mut app,
+                faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(c)),
+            );
+        }
+        app.press(Action::EntryAdd);
+        crate::testkit::keep_published(&mut app);
+        crate::testkit::inbox_file(&mut app, "note.txt", b"a note".to_vec());
+        app.press(Action::Nav(opener));
+        app.press(Action::Nav(Screen::Decode));
+        assert_eq!(app.screen, Screen::Decode);
+        app
+    }
+
+    #[test]
+    fn a_pick_opened_from_check_puts_files_first_and_from_elsewhere_keys() {
+        let (keys, files) = (EN.session_group_keys, EN.session_group_files);
+        assert_eq!(heads(&decode_from(Screen::Check)), [files, keys]);
+        assert_eq!(heads(&decode_from(Screen::Catalog)), [keys, files]);
     }
 }

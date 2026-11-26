@@ -119,6 +119,8 @@ mod outside;
 mod pass_steps;
 #[path = "all/phone_keyboard.rs"]
 mod phone_keyboard;
+#[path = "all/pick_openers.rs"]
+mod pick_openers;
 #[path = "all/pictures.rs"]
 mod pictures;
 #[path = "all/public_files_worker.rs"]

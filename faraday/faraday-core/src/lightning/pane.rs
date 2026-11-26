@@ -9,6 +9,7 @@ use crate::lightning::NodeSource;
 use crate::pick;
 use crate::screens::hub_layout::{Left, Narrow, Panes, Tile};
 use crate::strings::EN;
+use faraday_bip::bip39::Language;
 use faraday_text::Text;
 
 /// The Lightning page's panes: the keys and the card.
@@ -49,18 +50,26 @@ pub(crate) fn groups(app: &View, source: Option<NodeSource>) -> Vec<crate::flow:
         .keys_many(app, |_, k| {
             let fp = k.fingerprint;
             let name = crate::wallet::key_line(fp, &k.label);
+            // Both nodes are made from BIP-39 words, Core Lightning's from
+            // English ones: a key without them stays, with why.
+            let ldk = pick::Take::of(source == Some(NodeSource::Key(fp.0)), Action::LKey(fp.0));
+            let cln = pick::Take::of(
+                source == Some(NodeSource::KeyCln(fp.0)),
+                Action::LCln(Some(fp.0)),
+            );
+            let (ldk, cln) = if !k.has_words() {
+                (
+                    ldk.refused(EN.lightning_this_key),
+                    cln.refused(EN.lightning_this_key),
+                )
+            } else if k.language != Language::English {
+                (ldk, cln.refused(EN.lightning_hsm_not_english))
+            } else {
+                (ldk, cln)
+            };
             vec![
-                (
-                    Text::fill(EN.lightning_ldk_node, &[&name]),
-                    pick::Take::of(source == Some(NodeSource::Key(fp.0)), Action::LKey(fp.0)),
-                ),
-                (
-                    Text::fill(EN.lightning_cln_node, &[&name]),
-                    pick::Take::of(
-                        source == Some(NodeSource::KeyCln(fp.0)),
-                        Action::LCln(Some(fp.0)),
-                    ),
-                ),
+                (Text::fill(EN.lightning_ldk_node, &[&name]), ldk),
+                (Text::fill(EN.lightning_cln_node, &[&name]), cln),
             ]
         })
         .groups()

@@ -119,7 +119,10 @@ declares with `Decl`: the question, which kinds it takes (`keys`, `wallets`,
 refusal giving its reason or none), and its ways in, the only rows the flow
 makes itself. The pane lists the items, never the flow: Keys, Wallets, Files,
 then the ways in ("Other ways in" while anything is listed, "Ways in" when
-nothing is). A key row's head is its fingerprint and its line is the one
+nothing is); in a pick opened from Check (`Faraday::opened_from_screen`)
+the order is Check's, Files, Keys, Wallets. Lightning's pane refuses both
+rows of a key with no BIP-39 words, and Core Lightning's row of words not
+in English. A key row's head is its fingerprint and its line is the one
 `key_line` says for the pane (name, passphrase, codex32 mark, the wallet that
 uses it); a refused row is dimmed, shows its reason as the line and takes no
 press, by pointer or keyboard. The row is the Material single-choice list
