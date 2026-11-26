@@ -25,7 +25,10 @@ impl OpenVaults {
     /// record `i` has; `None` for another record, or a key record that
     /// holds a seed rather than words.
     pub fn word_count(&self, c: &Compute, id: VaultId, i: usize) -> Option<usize> {
-        self.slot(id)?.fact(c, i).map(|f| f.words)
+        self.slot(id)?
+            .fact(c, i)
+            .and_then(|f| f.words.as_ref())
+            .map(|w| w.words)
     }
 
     /// Costs what `word_count` costs. The word list key record `i`'s
@@ -37,14 +40,20 @@ impl OpenVaults {
         id: VaultId,
         i: usize,
     ) -> Option<faraday_bip::bip39::Language> {
-        self.slot(id)?.fact(c, i).map(|f| f.language)
+        self.slot(id)?
+            .fact(c, i)
+            .and_then(|f| f.words.as_ref())
+            .map(|w| w.language)
     }
 
     /// Costs what `word_count` costs. What tells key record `i`'s words
     /// from other words ([`WordsId`]); `None` as for `word_count`. A
     /// lookup once the vault's key records are read.
     pub fn words_id(&self, c: &Compute, id: VaultId, i: usize) -> Option<&[u8; 32]> {
-        self.slot(id)?.fact(c, i).map(|f| &*f.id)
+        self.slot(id)?
+            .fact(c, i)
+            .and_then(|f| f.words.as_ref())
+            .map(|w| &*w.id)
     }
 
     /// Costs what `word_count` costs for a record in an open vault, a
@@ -81,6 +90,36 @@ impl OpenVaults {
             }
             _ => record_words(c, r.raw()).map(|m| words_id(c, &m)),
         }
+    }
+
+    /// Costs what `word_count` costs. Key record `i`'s
+    /// [`key_record_id`], kept with the facts; `None` for another record.
+    pub fn record_id(&self, c: &Compute, id: VaultId, i: usize) -> Option<&[u8; 32]> {
+        self.slot(id)?.fact(c, i)?.record_id.as_deref()
+    }
+
+    /// Costs what `word_count` costs. Whether key record `i` of open vault
+    /// `id` holds session key `k`'s seed, as words or as a master seed,
+    /// and with `with_pass` stores its passphrase too: lookups once the
+    /// vault's records are read (the same answer as the app's
+    /// `vault_holds_seed`, which hashes again at each call).
+    pub fn key_record_holds(
+        &self,
+        c: &Compute,
+        keys: &Keys,
+        id: VaultId,
+        r: (usize, RecordView<'_>),
+        k: usize,
+        with_pass: bool,
+    ) -> bool {
+        let (i, view) = r;
+        let words = keys
+            .words_id(c, k)
+            .is_some_and(|w| self.words_id(c, id, i).is_some_and(|x| *x == *w));
+        let seed = keys
+            .seed_record_id_kept(k)
+            .is_some_and(|s| self.record_id(c, id, i) == Some(s));
+        (words || seed) && (!with_pass || self.stores_passphrase_of(view, keys, k))
     }
 
     // ---- key records and the session ----

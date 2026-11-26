@@ -867,6 +867,16 @@ impl Overlay<'_> {
 /// What is worked out of one key record's words, once per change: how
 /// many words, and what tells them from other words ([`WordsId`]).
 struct Fact {
+    /// `None` for a key record that holds a seed rather than words.
+    words: Option<WordFacts>,
+    /// The record's [`key_record_id`], kept so a frame does not make it
+    /// again, in a wiping type like [`WordsId`]: wiped with the slot (a
+    /// vault's close).
+    record_id: Option<WordsId>,
+}
+
+/// What a key record's words give ([`Fact`]).
+struct WordFacts {
     words: usize,
     /// The words' list: public, as the count is.
     language: faraday_bip::bip39::Language,
@@ -1252,21 +1262,21 @@ impl Slot {
     }
 
     /// Costs a parse of key record `i`'s words and a hash, the first time
-    /// after that record is changed. What is worked out of them; `None`
-    /// for another record, or a key record that holds a seed rather than
-    /// words.
+    /// after that record is changed. What is worked out of a key record;
+    /// `None` for another record.
     fn fact(&self, c: &Compute, i: usize) -> Option<&Fact> {
         self.facts
             .get(i)?
             .get_or_init(|| {
                 let r = self.records.get(i)?;
-                let m = (r.kind == kind::KEY)
-                    .then(|| record_words(c, r))
-                    .flatten()?;
+                (r.kind == kind::KEY).then_some(())?;
                 Some(Fact {
-                    words: m.word_count(),
-                    language: m.language(),
-                    id: words_id(c, &m),
+                    words: record_words(c, r).map(|m| WordFacts {
+                        words: m.word_count(),
+                        language: m.language(),
+                        id: words_id(c, &m),
+                    }),
+                    record_id: key_record_id(RecordView::of(r)).map(zeroize::Zeroizing::new),
                 })
             })
             .as_ref()

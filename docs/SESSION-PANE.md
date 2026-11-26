@@ -76,7 +76,9 @@ group's small heading and its rows in one column, in WORKSPACE §2's order for
 Tools and Check, Waiting the band at the foot (the lead with its button, the waiting PSBTs, an import put off and the locked vault files; not backups, files to write, the last write or open vaults) and In progress (each flow in progress that is not the band's lead) a group of its own after the others, scrolling within
 (`Slot::HomeBox`) where the page's height cuts it. Vaults' mode is Keys, then Wallets, with Waiting at the foot (a waiting PSBT with
 Sign, flows in progress); its rows keep their own presses, as Vaults has no
-details yet. Open vaults, files to write
+details yet, and carry the marks of `session_pane/vault_marks.rs` while exactly one vault is open: "In a vault", "Words in a vault" (a key with a passphrase whose words alone the vault holds) or "Not saved" at the row's end, and Save under a row not saved when
+that vault can be written (the row's own press moves to the row's chevron).
+The press is the vault's own SaveKey or SaveWallet, whose checks stay. Open vaults, files to write
 and Backups are not in it, and no row of it is also in the tile.
 
 A file row of the page's own mode carries the row button of WORKSPACE §2's

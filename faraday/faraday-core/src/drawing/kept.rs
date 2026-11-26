@@ -966,6 +966,26 @@ impl View<'_> {
         self.kept(|c| self.app.vault_holds_seed(c, o, k, with_pass))
     }
 
+    /// Whether open vault `o` holds session key `k`'s seed, as
+    /// [`View::vault_holds_seed`] says, from the ids kept with the key and
+    /// the vault's records: lookups once both are read, no hash per call.
+    pub(crate) fn vault_holds_seed_kept(&self, o: usize, k: usize, with_pass: bool) -> bool {
+        self.kept(|c| {
+            let Some(open) = self.app.vaults.open.get(o) else {
+                return false;
+            };
+            let store = self.app.vaults.store();
+            self.app.vaults.warm(c, open.id);
+            self.app
+                .vaults
+                .records(open.id)
+                .of(faraday_vault::records::kind::KEY)
+                .any(|r| {
+                    store.key_record_holds(c, &self.app.session.keys, open.id, r, k, with_pass)
+                })
+        })
+    }
+
     /// Whether open vault `v` holds session key `key`
     /// ([`crate::vault::screen::vault_has_key`]), from each key record's
     /// kept fingerprint and id. Costs a PBKDF2 and two elliptic-curve

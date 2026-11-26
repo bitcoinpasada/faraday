@@ -192,6 +192,12 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "each key added derives the account keys its entry keeps (three: Savings' keys), and the wallet added checks each of its keys under a loaded fingerprint is this device's at its path (Session::add_policy, two derivations a key: six)",
     ),
     (
+        "Vault(SaveKey(",
+        Work::KeyDerive,
+        1,
+        "Save on a key row in Vaults' pane (the vault's own SaveKey): one account-key derivation, as counted when the press runs (the press that adds the record; which call makes it is not named here); drawing works out nothing",
+    ),
+    (
         "LoadWallet",
         Work::KeyDerive,
         2,
@@ -208,6 +214,24 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         Work::FileHash,
         3,
         "each key added gets the id its entry keeps, a hash of its secret (three: Savings' keys)",
+    ),
+    (
+        "Vault(SaveKey(",
+        Work::DescriptorParse,
+        11,
+        "Save on a key row in Vaults' pane is the vault's own SaveKey, whose result changes the vault's record count: Vaults::read in before_frame keeps the descriptions it carried over only while the count is unchanged, so it parses each of the heavy session's eleven wallet descriptors again (counted; keep::asks itself only looks them up); drawing works out nothing",
+    ),
+    (
+        "Vault(SaveKey(",
+        Work::FileHash,
+        2,
+        "Save on a key row in Vaults' pane is the vault's own SaveKey, which works the same on any page; counted at the press: the words are read once for each of the heavy session's three keys, and two hashes are made for the key's secret and its record; drawing works out nothing (the ids of the key and of the vault's records are kept, no hash per frame)",
+    ),
+    (
+        "Vault(SaveKey(",
+        Work::WordsParse,
+        3,
+        "Save on a key row in Vaults' pane is the vault's own SaveKey, which works the same on any page; counted at the press: the words are read once for each of the heavy session's three keys, and two hashes are made for the key's secret and its record; drawing works out nothing (the ids of the key and of the vault's records are kept, no hash per frame)",
     ),
     (
         "LoadWallet",
@@ -286,6 +310,15 @@ const PANE_GLIDES: &[(Screen, &str, Screen)] = &[
     // whenever both sides have one, so Back still costs the two canvases
     // (`fade.rs`, shared code).
     (Screen::Wallets, "Nav(WalletsStart)", Screen::WalletsStart),
+    // Vaults is a pair too (the session pane at the left, the files at the
+    // right): both sides have a pane, so the same blend runs (`fade.rs`).
+    (Screen::Wallets, "Nav(Vaults)", Screen::Vaults),
+    (Screen::Vaults, "Nav(Home)", Screen::Home),
+    (Screen::Vaults, "Nav(Check)", Screen::Check),
+    (Screen::Vaults, "Nav(Catalog)", Screen::Catalog),
+    (Screen::Vaults, "Nav(WalletsStart)", Screen::WalletsStart),
+    (Screen::Vaults, "StartSpend(", Screen::Spend),
+    (Screen::Vaults, "Vault(Create)", Screen::CreateVault),
     (Screen::Wallets, "StartSpend(", Screen::Spend),
     (Screen::Wallets, "NewWalletFrom(", Screen::Create),
     (
