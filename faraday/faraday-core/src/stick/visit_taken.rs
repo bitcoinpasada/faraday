@@ -1064,18 +1064,26 @@ impl Faraday {
         self.visit.out_offset()
     }
 
+    /// Costs `message_file_waits_now` for each chosen Outbox file.
     /// What the visit's Write writes, the settings file aside: each
     /// chosen Outbox file, then each chosen Inbox file the visit lists,
     /// with its bytes and whether it came from the Inbox.
     ///
     /// `scope` is the take-away's own file names: then only the chosen
     /// Outbox files among them, never the Inbox's.
-    fn visit_files(&self, scope: Option<&[Text]>) -> Vec<(Text, Zeroizing<Vec<u8>>, bool)> {
+    fn visit_files(
+        &self,
+        c: &Compute,
+        scope: Option<&[Text]>,
+    ) -> Vec<(Text, Zeroizing<Vec<u8>>, bool)> {
         let mut out: Vec<(Text, Zeroizing<Vec<u8>>, bool)> = self
             .outbox
             .iter()
             .filter(|i| self.visit.out.contains(&*i.name))
             .filter(|i| scope.is_none_or(|s| s.iter().any(|n| **n == *i.name)))
+            // A signed message whose key waits for its backup is not
+            // written, by the hold as it is now.
+            .filter(|i| !self.message_file_waits_now(c, i))
             .map(|i| (Text::of(&i.name), i.bytes.clone(), false))
             .collect();
         for k in self
@@ -1127,14 +1135,15 @@ impl Faraday {
     }
 
     /// The files the write would write whose names are taken on the stick
-    /// shown, each with what becomes of it.
-    pub(crate) fn visit_taken(&self, scope: Option<&[Text]>) -> Vec<Taken> {
+    /// shown, each with what becomes of it. Costs what
+    /// `visit_files` costs.
+    pub(crate) fn visit_taken(&self, c: &Compute, scope: Option<&[Text]>) -> Vec<Taken> {
         let Some(stick) = self.stick.get(self.visit.stick) else {
             return Vec::new();
         };
         let mut names: Vec<Text> = stick.files.iter().map(|(n, _)| lower(n)).collect();
         let mut rows = Vec::new();
-        for (name, bytes, _) in self.visit_files(scope) {
+        for (name, bytes, _) in self.visit_files(c, scope) {
             let on = stick
                 .files
                 .iter()
@@ -1243,7 +1252,8 @@ impl Faraday {
             self.sheet = Some(Sheet::WriteOut);
             return;
         }
-        let taken = self.visit_taken(scope.as_deref());
+        let c = self.compute();
+        let taken = self.visit_taken(&c, scope.as_deref());
         if !taken.is_empty() {
             self.visit.set_taken(taken, scope);
             self.sheet = Some(Sheet::Taken);
@@ -1257,9 +1267,17 @@ impl Faraday {
     /// clean locks first, and the lock keeps exactly these names for the
     /// write that follows; the settings file and the Inbox never ride it.
     fn take_write(&mut self) {
+        let c = self.compute();
         let names: Vec<Text> = crate::screens::take_away_names(self)
             .into_iter()
             .filter(|n| self.visit.out.contains(&**n))
+            // Nor does a held signed message wait through a lock.
+            .filter(|n| {
+                !self
+                    .outbox
+                    .iter()
+                    .any(|i| i.name == *n && self.message_file_waits_now(&c, i))
+            })
             .collect();
         if names.is_empty() {
             return;
@@ -1319,7 +1337,7 @@ impl Faraday {
                 false,
             ));
         }
-        for (name, bytes, from_inbox) in self.visit_files(scope) {
+        for (name, bytes, from_inbox) in self.visit_files(&c, scope) {
             if from_inbox {
                 self.visit.writing_inbox_add(&*name);
             }
@@ -1578,7 +1596,7 @@ impl Faraday {
                 .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
                 .map(|i| (i.bytes.clone(), true))
         } else {
-            self.visit_files(None)
+            self.visit_files(c, None)
                 .into_iter()
                 .find(|(n, b, _)| n == name && sha256_of(c, b) == sent)
                 .map(|(_, bytes, from_inbox)| {
@@ -1829,10 +1847,12 @@ impl Faraday {
                 self.visit.set_settings(Some(!self.visit_settings_on()));
             }
             Action::VisitOut(i) => {
+                let c = self.compute();
                 if let Some(item) = self
                     .outbox
                     .get(i)
                     .filter(|it| !self.in_the_backup(&it.name))
+                    .filter(|it| !self.message_file_waits_now(&c, it))
                 {
                     let n = item.name.clone();
                     self.visit.out_toggle(n);
@@ -2372,6 +2392,7 @@ impl Faraday {
             .iter()
             .filter(|i| i.exposure() != secrets::Exposure::Secret)
             .filter(|i| !self.in_the_backup(&i.name))
+            .filter(|i| !self.message_file_waits(i))
             .map(|i| faraday_text::Text::of(&i.name))
             .collect()
     }

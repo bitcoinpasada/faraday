@@ -203,6 +203,8 @@ The Wallets page's tile rows carry no Add a key: the tile keeps its one at
 the foot (Wallets' right tile, above), so no wallet row repeats it (owner,
 2026-11-25).
 
+A signed message's file For the stick whose signing key waits for its backup stays in Files, says so on its row and is neither written nor shown as a QR until the key is backed up (`docs/WALLETS.md`).
+
 - **The pick (the picker; a flow's first step, and each later step that takes one).**
   The flow opens with the pane where its pair has it (§4) and the choice is
   made in the pane. Rows are selectable: a radio button where the flow

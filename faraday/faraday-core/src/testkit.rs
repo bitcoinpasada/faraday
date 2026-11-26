@@ -2242,6 +2242,12 @@ pub fn outbox_file(app: &mut crate::Faraday, name: &str, bytes: &[u8]) {
     app.outbox.push(crate::Item::new(&c, name, bytes.to_vec()));
 }
 
+/// The Outbox file `name` ticked to write, as a tick left standing would
+/// be, though its row cannot be ticked.
+pub fn visit_tick(app: &mut crate::Faraday, name: &str) {
+    app.visit.out_extend([name]);
+}
+
 /// As after "Import and sign" from the stick with this volume serial or
 /// place.
 pub fn imported_from(app: &mut crate::Faraday, identity: &str) {

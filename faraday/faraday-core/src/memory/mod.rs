@@ -439,6 +439,12 @@ impl Faraday {
         if !secret_out.is_empty() {
             out.push(("secret-out".to_string(), secret_out.join("\n").into_bytes()));
         }
+        // Which key signed each signed message's file For the stick, so
+        // the next process holds it back as this one did.
+        let signed = self.message.files_encode();
+        if !signed.is_empty() {
+            out.push(("signed-files".to_string(), signed));
+        }
         // The files For the stick the person renamed and no visit has
         // written yet (`docs/FLOWS.md` decision 61).
         if !self.visit.files_menu().renamed.is_empty() {
@@ -588,6 +594,18 @@ impl Faraday {
                     }
                 }
                 "receipt" => self.visit.set_receipt(crate::Receipt::decode(bytes)),
+                "signed-files" => {
+                    self.message.files_restore(bytes);
+                    // The restored Outbox files are told by their SHA-256
+                    // again, as when they were made.
+                    let c = self.compute();
+                    for item in &mut self.outbox {
+                        let sha = crate::sha256_of(&c, &item.bytes);
+                        if self.message.signers(&item.name, Some(sha)).next().is_some() {
+                            item.sha = Some(sha);
+                        }
+                    }
+                }
                 "renamed" => {
                     self.visit.set_renamed(
                         String::from_utf8_lossy(bytes)

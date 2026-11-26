@@ -95,7 +95,22 @@ impl Faraday {
         self.note_text_files(&held);
         self.session.set_waiting(held);
         self.session.set_waiting_inputs(self.waiting_inputs());
+        self.untick_waiting_files();
         self.message_address(&c);
+    }
+
+    /// A lookup. A signed message's file whose key waits for its backup is
+    /// not ticked to write.
+    fn untick_waiting_files(&mut self) {
+        let waiting: Vec<Text> = self
+            .outbox
+            .iter()
+            .filter(|i| self.message_file_waits(i))
+            .map(|i| Text::of(&i.name))
+            .collect();
+        for name in waiting {
+            self.visit.out_unchoose(&name);
+        }
     }
 
     /// A lookup unless what the held keys are worked out from changed:
