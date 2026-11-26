@@ -27,8 +27,8 @@ pub(crate) enum Kind {
     Tick { ticked: bool },
     /// A way to get what the flow takes (Add a key): no radio.
     WayIn,
-    /// An item whose press opens it rather than chooses it (a wallet that
-    /// cannot sign yet): no radio, the chevron at the end.
+    /// An item whose press leads on from it rather than chooses it (Spend
+    /// from a backup's wallets): no radio, the chevron at the end.
     Opens,
 }
 
@@ -128,7 +128,7 @@ impl Take {
         }
     }
 
-    /// A press opens the item (it cannot be taken yet): the chevron.
+    /// A press opens the item or leads on from it: the chevron.
     pub(crate) fn opens(mut self) -> Self {
         self.opens = true;
         self

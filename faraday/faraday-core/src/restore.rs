@@ -1125,6 +1125,9 @@ impl Faraday {
                     r.described = false;
                     r.absent.clear();
                     r.error = None;
+                    if let Some(s) = r.seeds.as_mut() {
+                        s.ticked.clear();
+                    }
                     r.done[rstep::SEEDS as usize] = false;
                     r.done[rstep::CHECK as usize] = false;
                     r.next(rstep::DESCRIPTION);

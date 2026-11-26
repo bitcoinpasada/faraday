@@ -632,7 +632,10 @@ fn restore_open_slot(
         .map(|(l, st, a)| (l.as_str(), *st, *a))
         .collect();
     cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 6.0;
-    cy += crate::seeds::screen::loaded_keys(app, ui, r.seeds.as_ref(), here, x, cy, w);
+    // A described wallet's slots match the loaded keys by themselves.
+    if !r.described {
+        cy += crate::seeds::screen::loaded_keys(app, ui, r.seeds.as_ref(), here, x, cy, w);
+    }
     cy - y
 }
 

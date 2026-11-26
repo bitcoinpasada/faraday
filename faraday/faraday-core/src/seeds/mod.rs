@@ -189,6 +189,8 @@ impl SeedsState {
         self.fixed = true;
         self.shaping = true;
         self.kind = kind;
+        // The set starts afresh: no tick made for the last one stands.
+        self.ticked.clear();
         if self.n == 0 {
             self.n = 1;
             self.m = 1;
@@ -199,11 +201,17 @@ impl SeedsState {
     /// Lets a seed go, as when its key is removed: the slot it held is
     /// open again.
     pub fn drop_key(&mut self, fp: [u8; 4]) {
+        self.untick(fp);
         let before = self.keys.len();
         self.keys.retain(|k| *k != fp);
         if self.keys.len() != before {
             self.fit();
         }
+    }
+
+    /// Takes the tick off loaded key `fp`.
+    pub(crate) fn untick(&mut self, fp: [u8; 4]) {
+        self.ticked.retain(|f| *f != fp);
     }
 
     /// The first slot with neither a seed nor anything typed for a
@@ -729,23 +737,7 @@ impl Faraday {
             return;
         }
         if let S::UseTicked = a {
-            let ticked = self.seeds().map(|s| s.ticked.clone()).unwrap_or_default();
-            for fp in ticked {
-                // A slot-full refusal stops here; the rest stay ticked.
-                if self
-                    .restore_refusal(faraday_bip::keys::Fingerprint(fp), None)
-                    .is_some()
-                {
-                    break;
-                }
-                if let Some(s) = self.seeds_mut() {
-                    s.ticked.retain(|f| *f != fp);
-                }
-                // A key that asks for its passphrase waits on the sheet.
-                if self.seeds_use_loaded(fp) {
-                    break;
-                }
-            }
+            self.seeds_use_ticked();
             return;
         }
         if let S::FromVault(v, record) = a {
@@ -816,6 +808,35 @@ impl Faraday {
             | S::UseTicked
             | S::FromVault(..)
             | S::UseFile(_) => {}
+        }
+    }
+
+    /// Uses the ticked keys in the order ticked. A tick goes only when its
+    /// key is taken.
+    fn seeds_use_ticked(&mut self) {
+        let mut ticked = self.seeds().map(|s| s.ticked.clone()).unwrap_or_default();
+        // A key no longer loaded, or taken in another way, is not used.
+        ticked.retain(|fp| self.session.keys.position_of(*fp).is_some());
+        if let Some(s) = self.seeds_mut() {
+            ticked.retain(|fp| !s.keys.contains(fp));
+            s.ticked.clone_from(&ticked);
+        }
+        for fp in ticked {
+            // A refusal says why and stops here; the rest stay ticked.
+            if let Some(why) = self.restore_refusal(faraday_bip::keys::Fingerprint(fp), None) {
+                self.restore.set_error(why.as_str());
+                break;
+            }
+            // A key that asks for its passphrase waits on the sheet, still
+            // ticked until the sheet takes it.
+            if self.seeds_use_loaded(fp) {
+                break;
+            }
+            if let Some(s) = self.seeds_mut()
+                && s.keys.contains(&fp)
+            {
+                s.untick(fp);
+            }
         }
     }
 

@@ -320,30 +320,179 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     assert_eq!(desc(&app, w), PASSPHRASE_VECTOR);
 }
 
-/// The loaded keys are checkbox rows: ticked, Use the ticked keys takes
-/// them into the slots, and a key already in the set is dimmed with why.
-#[test]
-fn ticked_loaded_keys_are_used_together_and_a_key_in_the_set_is_dimmed() {
-    use crate::common::{has, offered};
-    let mut app = shown();
+/// Loads these test words from Home with this BIP-39 passphrase, so a
+/// slot takes the key with no question. Returns its fingerprint.
+fn load_with_pass(app: &mut Faraday, word: &str, pass: &str) -> [u8; 4] {
     app.press(Action::Entry(None));
-    type_text(&mut app, &testkit::test_words("summer"));
+    type_text(app, &testkit::test_words(word));
+    let before = app.session.keys.len();
+    crate::common::bip39_passphrase(app, pass);
     app.press(Action::EntryAdd);
-    faraday_core::testkit::keep_published(&mut app);
-    let summer = app.session.keys[0].fingerprint;
+    faraday_core::testkit::keep_published(app);
+    assert_eq!(app.session.keys.len(), before + 1, "no key loaded");
+    app.session.keys.all().last().unwrap().fingerprint.0
+}
+
+/// Restore on its seeds card, a 2-of-3 with no description.
+fn to_loaded_slots(app: &mut Faraday) {
     app.press(Action::RestoreWallet);
     app.press(Action::RKind(MULTI));
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
+}
+
+fn in_set(app: &Faraday) -> Vec<[u8; 4]> {
+    app.restore().unwrap().seeds.as_ref().unwrap().keys.clone()
+}
+
+/// The loaded keys are checkbox rows: one press of Use the ticked keys
+/// takes them in the order ticked, and a key in the set is dimmed with why.
+#[test]
+fn ticked_loaded_keys_are_used_together_and_a_key_in_the_set_is_dimmed() {
+    use crate::common::{has, offered};
+    let mut app = shown();
+    let a = load_with_pass(&mut app, "summer", "one");
+    let b = load_with_pass(&mut app, "summer", "two");
+    to_loaded_slots(&mut app);
     assert!(!has(&mut app, "Already in this set"));
-    assert!(offered(&mut app, Action::Seeds(S::Tick(summer.0))));
-    app.press(Action::Seeds(S::Tick(summer.0)));
+    app.press(Action::Seeds(S::Tick(b)));
+    app.press(Action::Seeds(S::Tick(a)));
+    app.press(Action::Seeds(S::UseTicked));
+    assert_eq!(app.sheet, None);
+    assert_eq!(in_set(&app), [b, a]);
+    assert!(has(&mut app, "Already in this set"));
+    assert!(!offered(&mut app, Action::Seeds(S::Tick(a))));
+    assert!(!offered(&mut app, Action::Seeds(S::Tick(b))));
+}
+
+/// With a description read, its slots match the loaded keys by themselves:
+/// a key of another wallet has no row, and nothing calls it in the set.
+#[test]
+fn a_described_wallet_lists_no_loaded_keys_under_its_slots() {
+    use crate::common::has;
+    let mut app = shown();
+    load_with_pass(&mut app, "summer", "one");
+    app.press(Action::RestoreWallet);
+    app.press(Action::Scan);
+    app.event(Event::Scanned {
+        bytes: testkit::savings().into_bytes(),
+    });
+    faraday_core::testkit::confirm_wallets(&mut app);
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
+    assert!(has(&mut app, "Type the words"), "a slot is open");
+    assert!(!has(&mut app, "Already in this set"));
+    assert!(!has(&mut app, "Use the ticked keys"));
+}
+
+/// A key ticked and then removed with every key is neither counted by the
+/// button nor given a slot.
+#[test]
+fn a_ticked_key_no_longer_loaded_is_not_counted_or_used() {
+    use crate::common::offered;
+    let mut app = shown();
+    let a = load_with_pass(&mut app, "summer", "one");
+    to_loaded_slots(&mut app);
+    app.press(Action::Seeds(S::Tick(a)));
+    app.press(Action::RemoveKeys);
+    app.press(Action::RemoveKeysHold);
+    // Loaded from Home, so it goes into no slot by itself.
+    app.press(Action::Nav(Screen::Home));
+    let b = load_with_pass(&mut app, "summer", "two");
+    app.press(Action::Nav(Screen::Restore));
+    assert_eq!(app.screen, Screen::Restore);
+    assert!(offered(&mut app, Action::Seeds(S::Tick(b))));
+    assert!(!offered(&mut app, Action::Seeds(S::UseTicked)));
+    app.press(Action::Seeds(S::Tick(b)));
+    app.press(Action::Seeds(S::UseTicked));
+    assert_eq!(in_set(&app), [b]);
+}
+
+/// A ticked key taken into the set another way is passed over: the next
+/// ticked key is the one used.
+#[test]
+fn a_ticked_key_already_in_the_set_is_not_used_again() {
+    let mut app = shown();
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words("summer"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    let a = app.session.keys[0].fingerprint.0;
+    let b = load_with_pass(&mut app, "summer", "two");
+    to_loaded_slots(&mut app);
+    app.press(Action::Seeds(S::Tick(a)));
+    // Its words typed into the slot, with no passphrase: the same key.
+    type_seed(&mut app, &testkit::test_words("summer"));
+    assert_eq!(in_set(&app), [a]);
+    app.press(Action::Seeds(S::Tick(b)));
+    app.press(Action::Seeds(S::UseTicked));
+    assert_eq!(app.sheet, None, "the key in the set asked again");
+    assert_eq!(in_set(&app), [a, b]);
+}
+
+/// A key that asks for its passphrase stays ticked while its sheet is
+/// cancelled, and loses its tick when the sheet takes it.
+#[test]
+fn a_tick_goes_only_when_its_key_is_taken() {
+    let mut app = shown();
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words("summer"));
+    app.press(Action::EntryAdd);
+    faraday_core::testkit::keep_published(&mut app);
+    let a = app.session.keys[0].fingerprint.0;
+    to_loaded_slots(&mut app);
+    app.press(Action::Seeds(S::Tick(a)));
     app.press(Action::Seeds(S::UseTicked));
     assert_eq!(app.sheet, Some(Sheet::SeedRead), "it asks first");
+    app.press(Action::Cancel);
+    assert_eq!(app.restore().unwrap().seeds.as_ref().unwrap().ticked, [a]);
+    app.press(Action::Seeds(S::UseTicked));
     sheet_passphrase(&mut app, "TREZOR", "TREZOR");
     app.press(Action::SeedRead(Choice::WithPass));
     assert_eq!(app.sheet, None);
+    assert_eq!(in_set(&app).len(), 1);
+    assert!(
+        app.restore()
+            .unwrap()
+            .seeds
+            .as_ref()
+            .unwrap()
+            .ticked
+            .is_empty()
+    );
+}
+
+/// More keys ticked than slots: the one left over stays ticked and the card
+/// says why. A kind chosen again starts the set with no ticks.
+#[test]
+fn a_key_left_over_says_why_and_a_fresh_set_has_no_ticks() {
+    use crate::common::has;
+    let mut app = shown();
+    let keys: Vec<[u8; 4]> = ["one", "two", "three", "four"]
+        .iter()
+        .map(|p| load_with_pass(&mut app, "summer", p))
+        .collect();
+    to_loaded_slots(&mut app);
+    for &k in &keys {
+        app.press(Action::Seeds(S::Tick(k)));
+    }
+    app.press(Action::Seeds(S::UseTicked));
+    assert_eq!(in_set(&app), keys[..3]);
+    assert_eq!(
+        app.restore().unwrap().seeds.as_ref().unwrap().ticked,
+        keys[3..]
+    );
+    assert!(has(&mut app, "Every slot is filled"));
+    app.press(Action::RKind(MULTI));
+    assert!(
+        app.restore()
+            .unwrap()
+            .seeds
+            .as_ref()
+            .unwrap()
+            .ticked
+            .is_empty()
+    );
 }
 
 #[test]

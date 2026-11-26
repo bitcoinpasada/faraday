@@ -1410,8 +1410,8 @@ fn pi_panel(app: &mut Faraday, size: faraday_core::ui::TextSize) {
 }
 
 /// A wallet's line says whether it can spend, then its shape on a line of
-/// its own, whole: wide, on the phone-size window and on the Pi's panel at
-/// every text size, wrapped and never cut.
+/// its own, whole: wide and on the Pi's panel at every text size, wrapped
+/// and never cut.
 #[test]
 fn a_wallets_line_says_whether_it_can_spend_then_its_whole_shape_below() {
     use faraday_core::strings::EN;

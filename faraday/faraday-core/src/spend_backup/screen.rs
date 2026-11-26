@@ -418,18 +418,22 @@ fn keys_marker(here: usize, need: usize) -> Text {
 /// it, wrapped whole and not cut.
 fn wallet_rows(app: &Faraday) -> Vec<(crate::pick::PickRow, bool)> {
     use crate::pick::{Decl, Take};
-    let ready: Vec<bool> = app
+    // Each wallet's keys here and keys needed, worked out once.
+    let keys: Vec<_> = app
         .session
         .wallets
         .iter()
-        .map(|wl| app.session.held_toward_quorum(wl) >= crate::wallet::needed(wl))
-        .collect();
-    let rows = Decl::new("")
-        .wallets(app, |i, wl| {
-            let (here, need) = (
+        .map(|wl| {
+            (
                 app.session.held_toward_quorum(wl),
                 crate::wallet::needed(wl),
-            );
+            )
+        })
+        .collect();
+    let ready: Vec<bool> = keys.iter().map(|(here, need)| here >= need).collect();
+    let rows = Decl::new("")
+        .wallets(app, |i, wl| {
+            let (here, need) = keys[i];
             let line = Text::fill(
                 EN.spend_backup_shape_and_keys,
                 &[&keys_marker(here, need), &Session::shape(wl)],
