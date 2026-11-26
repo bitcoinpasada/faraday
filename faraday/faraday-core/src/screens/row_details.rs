@@ -46,8 +46,8 @@ pub(crate) fn bar_when(app: &View, ui: &mut Ui, page: &str, stands: bool) -> f32
 }
 
 /// What key `fp` offers: Explore it, and where no wallet uses it, the
-/// ways on that take it (Make a wallet from this key, Add another key,
-/// Restore).
+/// ways on that take it (Make a wallet from this key, Start a multisig
+/// wallet with this key, Restore).
 fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
     let mut list = vec![actions::offer(
         EN.explore_explore,
@@ -61,7 +61,7 @@ fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
             Action::KeyWallet(fp, 1),
         ));
         list.push(actions::offer(
-            EN.loose_card_add_another,
+            EN.loose_card_start_multisig,
             Some(Icon::Add),
             Action::KeyWallet(fp, 2),
         ));

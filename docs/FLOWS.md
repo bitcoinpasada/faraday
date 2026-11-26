@@ -734,7 +734,8 @@ A key added from Wallets with no wallet loaded lands on Wallets (from any
 other screen it returns to that screen), whose card says
 "Key 73c5da0a is loaded. No wallet uses it." with **Make a wallet from
 this key** (Restore's Seeds card with the key in its slot: single key,
-native SegWit, account 0 → **Make the wallet**), **Add another key** (the
+native SegWit, account 0 → **Make the wallet**),
+**Start a multisig wallet with this key** (the
 same card on a 2-of-2 multisig) and **Restore an existing wallet**.
 Several such keys: one line each, the buttons on the one picked. Back
 from the seeds card returns to Wallets with the key still loaded.

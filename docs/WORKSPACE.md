@@ -620,10 +620,10 @@ window never scrolls as a whole.
    Home on the expanded rail only, the rail's windows keeping Home as it is (`row_open`, `screens/row_details.rs`): the open row by what it is (a key
    by its fingerprint, a wallet by its identity, a file by its name and
    size) in its own area; a key's details offer Explore and, where no wallet
-   uses it, Make a wallet from this key, Add another key and Restore; a
-   wallet's are its page; a file's are its shared list, then its kind and
-   size as Files says them. A row with a button opens them on a press beside
-   the button. The offers end in the chevron where they open a page or flow
+   uses it, Make a wallet from this key, Start a multisig wallet with this key
+   and Restore; a wallet's are its page; a file's are its shared list, then
+   its kind and size as Files says them. A row
+   with a button opens them on a press beside the button. The offers end in the chevron where they open a page or flow
    and not where they act at once (F332). A flow begun from the details
    returns to them when it is left by Back; a press on another tab clears
    them. On Home they stand in the second pane's place as a search's results

@@ -16,7 +16,7 @@ macro_rules! words_screens_wallets {
     /// Text in `loose_card`. `{}`: `loose.len()`.
     loose_card_keys_are: "{} keys are loaded. No wallet uses them.",
     /// Text in `loose_card`.
-    loose_card_add_another: "Add another key",
+    loose_card_start_multisig: "Start a multisig wallet with this key",
     /// Text in `loose_card`.
     loose_card_restore: "Restore an existing wallet",
     // ----- wallets (faraday-core/src/screens/wallets.rs) -----

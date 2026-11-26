@@ -216,7 +216,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     let items = [
         (FROM_KEY, Style::Primary, Action::KeyWallet(picked, 1)),
         (
-            EN.loose_card_add_another,
+            EN.loose_card_start_multisig,
             Style::Secondary,
             Action::KeyWallet(picked, 2),
         ),

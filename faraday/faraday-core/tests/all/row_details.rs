@@ -83,7 +83,10 @@ fn a_key_row_opens_its_details_and_tools_stays() {
         app.offers(Action::ExploreKey(fp)),
         "Explore, the first offer"
     );
-    assert!(app.offers(Action::KeyWallet(fp, 2)), "Add another key");
+    assert!(
+        app.offers(Action::KeyWallet(fp, 2)),
+        "Start a multisig wallet with this key"
+    );
     assert!(app.offers(Action::RestoreWallet), "Restore");
     assert!(app.offers(Action::RowClose), "the way back");
 }

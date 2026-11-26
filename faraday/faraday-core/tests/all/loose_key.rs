@@ -2,8 +2,8 @@
 //! Make a wallet from this key opens Restore's seeds card with the key in
 //! and the shape at one key, Native SegWit, account 0; Make the wallet
 //! gives the wallet whose first receive address is BIP-84's published one
-//! for that seed. Add another key opens the same card at two keys. Back
-//! returns to Wallets with the key still loaded.
+//! for that seed. Start a multisig wallet with this key opens the same card
+//! at two keys. Back returns to Wallets with the key still loaded.
 
 use faraday_core::explore::XAction;
 use faraday_core::seeds::SeedsAction as S;
