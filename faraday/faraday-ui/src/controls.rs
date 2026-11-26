@@ -584,6 +584,27 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
     }
 
+    /// Material's filled tonal icon button: an [`ICON_BUTTON`] circle at
+    /// (x, y) in the secondary container, `icon` at [`ICON_GLYPH`] on it,
+    /// its state layer and focus ring in its shape, a press taken on at
+    /// least the touch floor square, and `tip`, its plain tooltip.
+    pub fn tonal_icon_button(
+        &mut self,
+        (x, y): (f32, f32),
+        icon: Icon,
+        tip: &'static str,
+        action: A,
+    ) {
+        use crate::tooltip::TipKind;
+        let s = ICON_BUTTON;
+        let r = shape_full(s);
+        self.fill(x, y, s, s, r, Role::SecondaryContainer);
+        let ink = Role::OnSecondaryContainer.paint();
+        self.press(Shape::new(x, y, s, s, r), ink, action);
+        self.icon(x, y, s, icon, ICON_GLYPH, Role::OnSecondaryContainer);
+        self.tip_anchor((x, y, s, s), action, tip, TipKind::Plain);
+    }
+
     /// A stepper (`docs/DESIGN.md` §4.2): `label`, then its count between
     /// two outlined icon buttons, − pressing `minus` and + pressing
     /// `plus`, in a row [`ICON_BUTTON`] tall at (x, y) in a width `w`. On

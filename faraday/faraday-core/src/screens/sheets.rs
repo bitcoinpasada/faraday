@@ -946,7 +946,9 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     ui.fill(px, py, side_w, side_h, 8.0, Role::SurfaceContainerHighest);
     match sc.card.as_ref() {
-        Some(card) => read_card(ui, (px, py, side_w), card, !app.may_load_keys()),
+        Some(card) => {
+            read_card(ui, (px, py, side_w), card, !app.may_load_keys());
+        }
         None => super::scan_frame::draw(ui, (px, py, side_w, side_h), sc),
     }
     // Paste, beside Type and Cancel, where the scanner takes anything
@@ -1071,12 +1073,12 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// §5.2): Read and what it is, in the warning tone for a secret, the
 /// facts that say which one, worked out at the read, and the lines that
 /// say what the way over carries.
-fn read_card(
+pub(super) fn read_card(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     card: &crate::scan_read::ReadCard,
     stick_in: bool,
-) {
+) -> f32 {
     let (x, w) = (x + T::PAD, w - 2.0 * T::PAD);
     let mut cy = y + T::PAD;
     let tone = if card.kind.secret() {
@@ -1098,13 +1100,14 @@ fn read_card(
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.read_not_kept) + T::GAP;
     }
     if stick_in {
-        ui.wrap_as(
+        cy += ui.wrap_as(
             (x, cy, w),
             BODY_M,
             Role::OnSurfaceVariant,
             EN.read_need_no_stick,
-        );
+        ) + T::GAP;
     }
+    cy
 }
 
 /// A way over's label on the read card.
@@ -1117,7 +1120,7 @@ fn way_label(card: &crate::scan_read::ReadCard, way: &crate::scan_read::Way) -> 
 }
 
 /// **Done** once the code is filed, **Cancel** before.
-fn read_card_leave(card: &crate::scan_read::ReadCard) -> &'static str {
+pub(super) fn read_card_leave(card: &crate::scan_read::ReadCard) -> &'static str {
     if card.filed.is_some() {
         EN.scan_done
     } else {
@@ -1141,19 +1144,13 @@ fn read_card_foot_fits(ui: &Ui, w: f32, card: &crate::scan_read::ReadCard) -> bo
     row_width(ui, &leave) + row_width(ui, &ways) <= w + T::GAP
 }
 
-/// The read card's foot (`docs/SCANNING.md` §5.2, DESIGN §4.13): **Scan
-/// again**, a text button, first; **Cancel** beside it; the ways over at
-/// the end, the last filled, one that loads a key dimmed while a stick is
-/// in. Where they do not fit one row, the ways over stand on the row
-/// above, under the card.
-fn read_card_foot(
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
+/// The ways over of a read card, the last filled, one that loads a key
+/// dimmed while a stick is in.
+pub(super) fn read_card_ways(
     card: &crate::scan_read::ReadCard,
     stick_in: bool,
-) {
-    let ways: Vec<(Text, Style, Action)> = card
-        .ways
+) -> Vec<(Text, Style, Action)> {
+    card.ways
         .iter()
         .enumerate()
         .map(|(i, way)| {
@@ -1166,19 +1163,39 @@ fn read_card_foot(
             };
             (way_label(card, way), style, Action::ReadGo(i as u8))
         })
-        .collect();
-    let leave = [
-        (
-            EN.read_again,
-            if stick_in {
-                Style::GhostOff
-            } else {
-                Style::Ghost
-            },
-            Action::ReadAgain,
-        ),
-        (read_card_leave(card), Style::Secondary, Action::Cancel),
-    ];
+        .collect()
+}
+
+/// The two ways out of a read card, **Scan again** and then Cancel or
+/// Done, under the labels given.
+pub(super) fn read_card_leaves(
+    (again, leave): (&'static str, &'static str),
+    stick_in: bool,
+) -> [(&'static str, Style, Action); 2] {
+    let ghost = if stick_in {
+        Style::GhostOff
+    } else {
+        Style::Ghost
+    };
+    [
+        (again, ghost, Action::ReadAgain),
+        (leave, Style::Secondary, Action::Cancel),
+    ]
+}
+
+/// The read card's foot (`docs/SCANNING.md` §5.2, DESIGN §4.13): **Scan
+/// again**, a text button, first; **Cancel** beside it; the ways over at
+/// the end, the last filled, one that loads a key dimmed while a stick is
+/// in. Where they do not fit one row, the ways over stand on the row
+/// above, under the card.
+fn read_card_foot(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    card: &crate::scan_read::ReadCard,
+    stick_in: bool,
+) {
+    let ways = read_card_ways(card, stick_in);
+    let leave = read_card_leaves((EN.read_again, read_card_leave(card)), stick_in);
     let ww = ways
         .iter()
         .map(|(l, ..)| ui.measure_as(LABEL_L, l) + 2.0 * T::BUTTON_PAD + T::GAP)

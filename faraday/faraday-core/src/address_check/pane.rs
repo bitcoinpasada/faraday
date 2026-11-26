@@ -21,10 +21,17 @@ const PANES: Panes = Panes {
     narrow: Narrow::OneColumn,
 };
 
-/// Whether the scanner opened for this page is on screen to be drawn in
-/// a pane: its picture is up, no read card has replaced it and there is no
-/// camera to choose between (the sheet has the chooser). A lookup.
+/// Whether the scanner on screen stands in a pane, the page beside it
+/// live: this page's own, or the session pane (`session_pane::scan`). A
+/// lookup.
 pub(crate) fn scanning(app: &Faraday) -> bool {
+    own(app) || crate::screens::pane_scanning(app)
+}
+
+/// Whether the scanner opened for this page is on screen to be drawn in
+/// its own pane: its picture is up, no read card has replaced it and there
+/// is no camera to choose between (the sheet has the chooser). A lookup.
+fn own(app: &Faraday) -> bool {
     app.screen == Screen::CheckAddress
         && app.sheet == Some(Sheet::Scan)
         && app.cameras().len() <= 1
@@ -45,7 +52,7 @@ pub(crate) fn place(app: &Faraday, compact: bool, room: f32) -> Option<hub_layou
 /// Whether the page is one that stands as the pair, given the room. A
 /// lookup.
 pub(crate) fn stands(app: &Faraday, compact: bool) -> bool {
-    !compact && scanning(app)
+    !compact && own(app)
 }
 
 /// Whether the pair stands in a `room`: the page's area is then the work
@@ -80,16 +87,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, p: hub_layout::Place, y: f3
     end
 }
 
-/// After an action pressed while the scanner stood in a pane: the page is
-/// live beside it, so a press that leaves the page or puts another sheet
-/// up ends the scan as the sheet's own Cancel does: the camera goes off
-/// and the frame, what was seen and the card go with the scan state. A
-/// scan that ended itself (Cancel, a code read) has nothing left.
-pub(crate) fn left(app: &mut Faraday) {
-    if app.camera.scan().is_none() {
+/// After an action pressed on `from` while the scanner stood in a pane:
+/// the page is live beside it, so a press that leaves the page or puts
+/// another sheet up ends the scan as the sheet's own Cancel does: the
+/// camera goes off and the frame, what was seen and the card go with the
+/// scan state. A read card under another sheet is left to it
+/// (`Faraday::read_card_tidy`). A scan that ended itself (Cancel, a code
+/// read) has nothing left.
+pub(crate) fn left(app: &mut Faraday, from: Screen) {
+    let Some(scan) = app.camera.scan() else {
         return;
-    }
-    if app.screen != Screen::CheckAddress || app.sheet != Some(Sheet::Scan) {
+    };
+    let under = scan.card.is_some() && app.sheet.is_some();
+    if app.screen != from || (app.sheet != Some(Sheet::Scan) && !under) {
         app.camera.close();
         if app.sheet == Some(Sheet::Scan) {
             app.sheet = None;

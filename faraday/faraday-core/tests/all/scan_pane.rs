@@ -416,3 +416,143 @@ fn escape_ends_the_scan_with_a_word_typed_in_the_guides_find() {
     cameras_off(&mut app);
     assert_eq!(app.guide().find, "quorum", "Escape cleared the Find first");
 }
+
+// The sidebar's Scan (`docs/WORKSPACE.md` §4): the viewfinder in the
+// session pane, the page beside it.
+
+/// A session with a wallet, on `screen` at `width` by `height`.
+fn beside(screen: Screen, (width, height): (u16, u16)) -> Faraday {
+    let mut app = kit::on_page();
+    display(&mut app, width, height, 160);
+    app.press(Action::Nav(screen));
+    let _ = app.frame();
+    while app.poll_command().is_some() {}
+    app
+}
+
+fn sidebar_scan(app: &mut Faraday) {
+    app.press(Action::Scan);
+    app.event(frame_event());
+    let _ = app.frame();
+}
+
+fn has(texts: &[faraday_text::Text], want: &str) -> bool {
+    texts.iter().any(|t| t == want)
+}
+
+/// A setup code with no vault open: a read Home's Scan answers with its
+/// card (`docs/SCANNING.md` §5.3).
+fn read_totp(app: &mut Faraday) {
+    app.event(Event::Scanned {
+        bytes: b"otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example".to_vec(),
+    });
+    let _ = app.frame();
+}
+
+#[test]
+fn a_read_with_a_card_shows_it_in_the_pane() {
+    for screen in [Screen::Home, Screen::Catalog, Screen::WalletsStart] {
+        let mut app = beside(screen, (1920, 1080));
+        sidebar_scan(&mut app);
+        read_totp(&mut app);
+        let texts = app.drawn_texts();
+        assert_eq!(app.screen, screen);
+        for want in ["Make a new vault", "Scan again", "Cancel"] {
+            assert!(
+                has(&texts, want),
+                "{screen:?} {want} {:?}",
+                texts.iter().map(|t| t.as_str()).collect::<Vec<_>>()
+            );
+        }
+        assert!(!has(&texts, "This session"), "{screen:?} {texts:?}");
+        app.press(Action::Cancel);
+        let _ = app.frame();
+        gone(&app);
+        assert!(has(&app.drawn_texts(), "This session"), "{screen:?}");
+    }
+}
+
+#[test]
+fn a_read_address_opens_its_check_as_before() {
+    let mut app = beside(Screen::Home, (1920, 1080));
+    sidebar_scan(&mut app);
+    app.event(Event::Scanned {
+        bytes: kit::address(4).into_bytes(),
+    });
+    let _ = app.frame();
+    gone(&app);
+    assert_eq!(app.screen, Screen::CheckAddress);
+}
+
+#[test]
+fn scan_again_turns_the_panes_camera_back_on() {
+    let mut app = beside(Screen::Home, (1920, 1080));
+    sidebar_scan(&mut app);
+    read_totp(&mut app);
+    app.press(Action::ReadAgain);
+    app.event(frame_event());
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(has(&texts, "Scan a QR code"), "{texts:?}");
+    assert!(!has(&texts, "Scan again"), "{texts:?}");
+    assert!(!has(&texts, "This session"), "{texts:?}");
+}
+
+#[test]
+fn the_cards_way_over_leaves_the_pane() {
+    let mut app = beside(Screen::Home, (1920, 1080));
+    sidebar_scan(&mut app);
+    read_totp(&mut app);
+    app.press(Action::ReadGo(0));
+    let _ = app.frame();
+    assert_ne!(app.sheet, Some(Sheet::Scan));
+}
+
+#[test]
+fn leaving_the_page_ends_the_sidebar_scan() {
+    let mut app = beside(Screen::Home, (1920, 1080));
+    sidebar_scan(&mut app);
+    app.press(Action::Nav(Screen::Catalog));
+    let _ = app.frame();
+    gone(&app);
+    cameras_off(&mut app);
+}
+
+#[test]
+fn a_small_panel_keeps_the_scan_sheet() {
+    let mut app = beside(Screen::Home, (480, 640));
+    sidebar_scan(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    let texts = app.drawn_texts();
+    assert!(has(&texts, "Scan a QR code"), "{texts:?}");
+    assert!(!has(&texts, "This session"), "{texts:?}");
+}
+
+#[test]
+fn a_page_with_no_session_pane_keeps_the_scan_sheet() {
+    let mut app = beside(Screen::Settings, (1920, 1080));
+    let before = app.drawn_texts();
+    sidebar_scan(&mut app);
+    let texts = app.drawn_texts();
+    assert!(has(&texts, "Scan a QR code"), "{texts:?}");
+    let gone = before.iter().filter(|t| !texts.contains(t)).count();
+    assert!(gone * 2 >= before.len(), "{texts:?}");
+}
+
+#[test]
+fn lock_leaves_no_scan_when_the_session_pane_scans() {
+    for read in [false, true] {
+        let mut app = beside(Screen::Home, (1920, 1080));
+        sidebar_scan(&mut app);
+        if read {
+            read_totp(&mut app);
+            while app.poll_command().is_some() {}
+        }
+        locked(&mut app);
+        assert!(
+            app.scan().is_none(),
+            "the scan is still held after the lock"
+        );
+        assert_ne!(app.sheet, Some(Sheet::Scan));
+    }
+}

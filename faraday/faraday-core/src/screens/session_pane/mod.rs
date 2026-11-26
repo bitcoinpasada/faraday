@@ -8,6 +8,7 @@ mod band;
 mod page_mode;
 pub(crate) mod pick;
 pub(crate) mod rows;
+pub(crate) mod scan;
 mod vault_marks;
 
 use super::home::{CardLead, lead_card};
@@ -482,17 +483,21 @@ fn pane_card(
 /// box of list rows (what needs you, the keys no wallet uses, All keys).
 /// `lead` is the box's lead; the card has every waiting job in its Waiting
 /// group.
-pub(crate) fn loaded_sections(
-    app: &View,
+pub(crate) fn loaded_sections<'a>(
+    app: &'a View,
     window: Option<f32>,
     lead: Option<CardLead>,
-) -> Vec<Section<'static>> {
+) -> Vec<Section<'a>> {
     let offset = app.scroll.home_box_offset();
     if !app.compact {
         let groups = groups(app);
         let in_bar = app.search_in_bar();
         let band_offset = app.scroll.home_band_offset();
         return vec![Section::block(None, move |ui, (x, y), w| {
+            app.camera.pane_stands(app.screen);
+            if scan::on(app) {
+                return scan::block(app, ui, (x, y), w);
+            }
             pane_card(
                 in_bar,
                 ui,

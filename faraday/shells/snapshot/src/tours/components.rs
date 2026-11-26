@@ -141,7 +141,7 @@ fn rail(ui: &mut Ui<u8>) {
     let top = [dest("Home", true, 5), dest("Wallets", false, 6)];
     (ui.ox, ui.oy) = (640.0, 380.0);
     let rail = Rail {
-        fab: None,
+        button: None,
         top: &top,
         under: &[],
         foot: &[],

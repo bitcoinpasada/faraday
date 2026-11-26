@@ -23,7 +23,7 @@ pub use app_bar::{
 };
 pub use bar::bar;
 pub use chip::{Chip, status_chip};
-pub use rail::{Rail, RailFab, destination_row, rail};
+pub use rail::{Rail, RailButton, destination_row, rail};
 
 use crate::pal::*;
 use crate::{Glyph, Shape, Ui, W};

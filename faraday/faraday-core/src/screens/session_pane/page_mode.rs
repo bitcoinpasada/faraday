@@ -5,6 +5,7 @@
 //! (`rows`), so a row reads the same here as on Home.
 
 use super::rows::{Group, add_key_buttons, key_rows, progress_rows, row, wallet_rows, with_band};
+use super::scan;
 use super::{SessionRow, band, card_surface, list_rows, rows_h};
 use crate::drawing::View;
 use crate::strings::EN;
@@ -250,12 +251,18 @@ pub(crate) fn content_h(ui: &Ui, w: f32, groups: &[Group]) -> f32 {
 /// `offset` down, and the Waiting band at its foot, `band_offset` down.
 /// Returns how far the groups can scroll.
 pub(crate) fn draw(
+    app: &View,
     ui: &mut Ui,
     (x, y, w, h): (f32, f32, f32, f32),
     (offset, band_offset): (f32, f32),
     groups: &[Group],
 ) -> f32 {
     card_surface(ui, (x, y, w, h));
+    app.camera.pane_stands(app.screen);
+    if scan::on(app) {
+        scan::content(app, ui, (x, y, w), h);
+        return 0.0;
+    }
     let head_h = ui.line_as(TITLE_M) + GRID;
     ui.text_as(
         x + PAD + faraday_draw::tokens::LIST_PAD,

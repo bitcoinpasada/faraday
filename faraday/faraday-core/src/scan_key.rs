@@ -61,9 +61,24 @@ pub(crate) struct Camera {
     /// Create's key slot whose scanner read a seed: the key goes into it
     /// once the seed sheet loads it (`docs/SCANNING.md` §4.3).
     slot: Option<u8>,
+    /// The page the last frame drawn stood the session pane beside, for
+    /// Scan to know whether the viewfinder has a place in it.
+    pane_seen: std::cell::Cell<Option<crate::Screen>>,
 }
 
 impl Camera {
+    /// A frame is being drawn: the pane it stands, if any, is noted anew.
+    pub(crate) fn pane_forget(&self) {
+        self.pane_seen.set(None);
+    }
+    /// The session pane stands beside `screen`'s page in this frame.
+    pub(crate) fn pane_stands(&self, screen: crate::Screen) {
+        self.pane_seen.set(Some(screen));
+    }
+    pub(crate) fn pane_seen(&self) -> Option<crate::Screen> {
+        self.pane_seen.get()
+    }
+
     /// The scan sheet's state, while it is open.
     pub(crate) fn scan(&self) -> Option<&ScanState> {
         self.scan.as_ref()
@@ -672,6 +687,8 @@ impl Faraday {
                 let mut scan = ScanState::default();
                 if let Action::ScanFor(ask) = action {
                     scan.ask = ask;
+                } else if !self.is_compact() && self.camera.pane_seen() == Some(self.screen) {
+                    scan.pane = Some(self.screen);
                 }
                 if let Some((decoder, assembler)) = self.camera.take_parts() {
                     scan.decoder = decoder;

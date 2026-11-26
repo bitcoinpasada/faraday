@@ -171,6 +171,7 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
     let room = (h - top - MARGIN_WIDE).max(0.0);
     if crate::row_open::opened(app).is_some() {
         draw_page_pane(
+            app,
             ui,
             (x0 + p.pane_x, top, p.pane_w, room),
             (app.scroll.home_box_offset(), app.scroll.home_band_offset()),
@@ -184,6 +185,7 @@ fn placed(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), body: Body, pan
         crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, p.card_w), body));
     let both = level(pane_need, tile_need, room);
     draw_page_pane(
+        app,
         ui,
         (x0 + p.pane_x, top, p.pane_w, both),
         (app.scroll.home_box_offset(), app.scroll.home_band_offset()),

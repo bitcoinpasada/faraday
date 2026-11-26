@@ -208,7 +208,7 @@ fn navigation(ui: &mut Ui<u8>) {
         ui,
         400.0,
         &Rail {
-            fab: None,
+            button: None,
             top: &top,
             under: &[],
             foot: &[],

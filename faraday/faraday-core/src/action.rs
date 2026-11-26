@@ -1233,7 +1233,7 @@ impl Faraday {
             self.tools.unfocus_home_find();
         }
         let on_entry = self.screen == Screen::Entry;
-        let in_pane = crate::address_check::pane::scanning(self);
+        let in_pane = crate::address_check::pane::scanning(self).then_some(self.screen);
         // Files' tab with a file's details open only closes them: the
         // page's ticks and scroll stay as they were.
         if matches!(action, Action::Nav(Screen::Files)) && crate::row_open::files_open(self) {
@@ -1242,8 +1242,8 @@ impl Faraday {
             self.act_dealt(action);
         }
         self.message_address_after();
-        if in_pane {
-            crate::address_check::pane::left(self);
+        if let Some(from) = in_pane {
+            crate::address_check::pane::left(self, from);
         }
         crate::row_open::after(self, action);
         self.entry_left(on_entry);

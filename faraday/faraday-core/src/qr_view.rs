@@ -155,6 +155,10 @@ pub struct ScanState {
     /// The read card shown in place of the picture, with the code it
     /// holds, while the camera is off (`docs/SCANNING.md` §5).
     pub card: Option<crate::scan_read::ReadCard>,
+    /// The page the sidebar's Scan was pressed on while the session pane
+    /// stood beside it: the viewfinder takes the pane's content there
+    /// (`docs/WORKSPACE.md` §4). `None` is the sheet.
+    pub(crate) pane: Option<crate::Screen>,
 }
 
 /// What a scanner for anything ([`ScanPurpose::Files`]) was opened to

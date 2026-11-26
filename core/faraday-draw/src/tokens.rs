@@ -1387,6 +1387,13 @@ pub const STEP_TOUCH: f32 = 44.0;
 /// The tick in a checked checkbox.
 pub const CHECK_TICK: f32 = 11.0;
 
+/// The viewfinder's height for a width of one, in the session pane.
+pub const SCAN_PANE_ASPECT: f32 = 0.75;
+/// The viewfinder's least height in a short pane.
+pub const SCAN_PANE_MIN_H: f32 = 96.0;
+/// The viewfinder's corners in the session pane.
+pub const SCAN_PANE_RADIUS: f32 = 8.0;
+
 /// A floating action's height on the small panel, and elsewhere.
 pub const FAB_H_COMPACT: f32 = 40.0;
 /// A floating action's height off the small panel.

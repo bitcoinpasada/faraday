@@ -1,7 +1,7 @@
 //! The navigation rail (`docs/LAYOUT.md` §3, DESIGN §4.1): `RAIL_W` at
 //! the window's left, its destinations from the top, those opened then
-//! closed under a divider, what ends the session above its foot and
-//! Scan's FAB at the foot. And
+//! closed under a divider, Scan's button directly under them, what ends the
+//! session at its foot. And
 //! the expanded rail's destination row: icon and label in a row, the
 //! current one on a pill.
 
@@ -9,26 +9,26 @@ use super::{Dest, item};
 use crate::pal::*;
 use crate::{Shape, Ui};
 use faraday_draw::tokens::{
-    BADGE_LARGE, FAB_H_COMPACT, GAP, GRID, ICON_SMALL, LABEL_L, LABEL_M, NAV_ICON, NAV_ICON_GAP,
+    BADGE_LARGE, GAP, GRID, ICON_BUTTON, ICON_SMALL, LABEL_L, LABEL_M, NAV_ICON, NAV_ICON_GAP,
     NAV_ITEM_H, NAV_RAIL_TOP, PAD, RAIL_MARK_H, RAIL_MARK_W, RAIL_W, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 
-/// The FAB at the foot of a rail: Scan, under the destinations.
+/// The tonal icon button directly under a rail's destinations: Scan.
 #[derive(Debug, Clone, Copy)]
-pub struct RailFab<'s, A> {
+pub struct RailButton<A> {
     /// Its icon.
     pub icon: Icon,
-    /// Its label (the expanded rail's word).
-    pub label: &'s str,
+    /// Its label, the button's tooltip.
+    pub label: &'static str,
     /// What a press on it does.
     pub action: A,
 }
 
 /// What a rail holds.
 pub struct Rail<'s, A> {
-    /// The FAB at the foot, under the destinations, on every page.
-    pub fab: Option<RailFab<'s, A>>,
+    /// The button directly under the last destination, on every page.
+    pub button: Option<RailButton<A>>,
     /// The destinations, from the top.
     pub top: &'s [Dest<'s, A>],
     /// Under a divider: what is opened, then closed (the guide, Settings).
@@ -49,23 +49,22 @@ pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
     ui.fill(RAIL_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     let n = r.top.len() + r.under.len() + r.foot.len();
     let divider = if r.under.is_empty() { 0.0 } else { 2.0 * GAP };
-    let fab_h = if r.fab.is_some() {
-        FAB_H_COMPACT + NAV_RAIL_TOP
+    let button_h = if r.button.is_some() {
+        TOUCH + GRID
     } else {
         0.0
     };
     // On a window too short for every destination at a touch target, the
-    // space under the mark gives way first, so nothing meets the FAB.
-    let full = h - 2.0 * NAV_RAIL_TOP - divider - fab_h - RAIL_MARK_H - NAV_RAIL_TOP;
+    // space under the mark gives way first, so nothing meets the button.
+    let full = h - 2.0 * NAV_RAIL_TOP - divider - button_h - RAIL_MARK_H - NAV_RAIL_TOP;
     let short = (n as f32 * TOUCH - full).max(0.0);
     let mark_gap = (NAV_RAIL_TOP - short).max(0.0);
     let mark = if r.mark { RAIL_MARK_H + mark_gap } else { 0.0 };
-    let room = h - 2.0 * NAV_RAIL_TOP - divider - fab_h - mark;
+    let room = h - 2.0 * NAV_RAIL_TOP - divider - button_h - mark;
     // Taller by what its label's line grows (`docs/TEXT-SIZE.md` §5).
     let ih = (room / n.max(1) as f32).clamp(TOUCH, NAV_ITEM_H + ui.line_grown_as(LABEL_M));
     let mut y = NAV_RAIL_TOP;
-    // The shield mark first, then the destinations; Scan's FAB is drawn
-    // last, fixed at the foot as far from it as the mark is from the top.
+    // The shield mark first, then the destinations and Scan's button.
     if r.mark {
         ui.mark(
             (RAIL_W - RAIL_MARK_W) / 2.0,
@@ -87,21 +86,18 @@ pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
             y += ih;
         }
     }
+    if let Some(b) = &r.button {
+        let at = (
+            (RAIL_W - ICON_BUTTON) / 2.0,
+            y + GRID + (TOUCH - ICON_BUTTON) / 2.0,
+        );
+        ui.tonal_icon_button(at, b.icon, b.label, b.action);
+        y += button_h;
+    }
     // The foot from the bottom up, never over what is above it.
-    let foot_top = (h - NAV_RAIL_TOP - fab_h - r.foot.len() as f32 * ih).max(y);
+    let foot_top = (h - NAV_RAIL_TOP - r.foot.len() as f32 * ih).max(y);
     for (i, d) in r.foot.iter().enumerate() {
         item(ui, 0.0, foot_top + i as f32 * ih, RAIL_W, ih, d);
-    }
-    // The FAB never scrolls or moves.
-    if let Some(f) = &r.fab {
-        let fab_y = h - NAV_RAIL_TOP - FAB_H_COMPACT;
-        ui.fab_top(
-            ((RAIL_W - FAB_H_COMPACT) / 2.0, fab_y),
-            None,
-            f.icon,
-            f.label,
-            f.action,
-        );
     }
 }
 

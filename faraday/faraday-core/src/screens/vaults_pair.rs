@@ -71,6 +71,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) -> boo
     let tile_h = (foot - top).max(0.0);
     let groups = page_groups(app, Mode::Vaults);
     draw_page_pane(
+        app,
         ui,
         (x0 + p.pane_x, top, p.pane_w, tile_h),
         (app.scroll.home_box_offset(), app.scroll.home_band_offset()),

@@ -91,6 +91,7 @@ pub(crate) use parts::{
 pub(crate) use restore::{RSTEPS, open_slot_key};
 pub(crate) use session_pane::Mode as PaneMode;
 pub(crate) use session_pane::loaded_sections;
+pub(crate) use session_pane::scan::on as pane_scanning;
 pub(crate) use settings::display_section as settings_display_section;
 pub(crate) use settings::open_head as settings_open;
 pub(crate) use settings::part_guide_key as settings_guide_key;
@@ -293,12 +294,13 @@ pub(crate) fn bar_head_back(app: &View, ui: &mut Ui, name: &str) -> f32 {
 }
 
 /// Whether Check an address's scanner stands in a pane beside its card
-/// on the wide layout, in a window `full_w` wide. A lookup.
+/// on the wide layout, in a window `full_w` wide, or the session pane has
+/// its viewfinder. A lookup.
 fn scanner_in_pane(app: &View, full_w: f32) -> bool {
     let guide = app.guide_pane_shown() && !app.unit_on_show() && !app.guide_beside_pair();
     let nav = if app.held { 0.0 } else { SIDEBAR_W };
     let room = full_w - nav - if guide { hub_layout::guide_room() } else { 0.0 };
-    crate::address_check::pane::place_in(app, room)
+    crate::address_check::pane::place_in(app, room) || pane_scanning(app)
 }
 
 /// A flow's noted heading goes with the flow, in every frame: the
@@ -339,6 +341,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // wide layout: no sheet is drawn, the page stays live.
     let in_pane = scanner_in_pane(app, full_w);
     let frosted = app.sheet.is_some() && !in_pane && ui.frost.is_some();
+    if !frosted {
+        app.camera.pane_forget();
+    }
     let side = crate::glance::sheet::side_now(app);
     clear_flow_head(app);
     if !frosted && app.is_compact() {

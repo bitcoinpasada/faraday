@@ -4,9 +4,9 @@ use super::SIDEBAR_W;
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::pal::*;
-use crate::ui::{Glyph, NameSuffix, Ui};
+use crate::ui::{Glyph, NameSuffix, Style, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{ELEVATION_SHEET, FAB_H, FAB_PAD, ICON_GAP, ICON_GLYPH, LABEL_L};
+use faraday_draw::tokens::{BUTTON_H, ELEVATION_SHEET};
 use faraday_draw::tokens::{GRID, TOUCH};
 use faraday_draw::widgets::Icon;
 
@@ -20,14 +20,12 @@ pub(crate) fn name_suffix(app: &View) -> NameSuffix {
     }
 }
 
-/// The shield's box at the sidebar's top left, and the margin the shield
-/// leaves inside it on every side: Scan's FAB stands on the shield's left
-/// edge and as far above the foot as the shield's top is from the top.
+/// The shield's box at the sidebar's top left; what stands at the foot is
+/// as far above it as the box's top is from the top.
 const MARK_X: f32 = 24.0;
 const MARK_TOP: f32 = 20.0;
 const MARK_W: f32 = 24.0;
 const MARK_H: f32 = 32.0;
-const MARK_MARGIN: f32 = 2.0;
 
 pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // Raised on a menu page and flat in a flow, with no line (F331); a High
@@ -102,23 +100,19 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         y += TOUCH;
     }
 
-    // Lock and Power off are the top app bar's power button's; what holds
-    // the idle lock stands at the sidebar's foot.
-    // Scan is the extended FAB at the foot, as wide as its icon and word,
-    // fixed there on every page, its left edge on the shield's and as far
-    // from the sidebar's foot as the shield is from its top; the pill
-    // stands above it.
-    let fab_y = h - FAB_H - MARK_TOP - MARK_MARGIN;
-    let fab_w = ui.measure_as(LABEL_L, EN.home_scan) + 2.0 * FAB_PAD + ICON_GLYPH + ICON_GAP;
-    ui.fab_top(
-        (MARK_X + MARK_MARGIN, fab_y),
-        Some(fab_w),
+    // Scan stands directly under Settings on every page, a tonal button
+    // (`docs/WORKSPACE.md` §4). Lock and Power off are the top app bar's
+    // power button's; what holds the idle lock stands at the sidebar's
+    // foot.
+    ui.button_icon(
+        (x, y + GRID, Some(w), BUTTON_H),
         Icon::Scan,
         EN.home_scan,
+        Style::Tonal,
         Action::Scan,
     );
     if app.lock_held() {
-        lock_held_tag(ui, 16.0, fab_y - LOCK_TAG_H - GRID, SIDEBAR_W - 32.0);
+        lock_held_tag(ui, 16.0, h - MARK_TOP - LOCK_TAG_H, SIDEBAR_W - 32.0);
     }
 }
 

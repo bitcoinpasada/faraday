@@ -36,6 +36,7 @@ pub(super) fn place(cw: f32, guide: bool) -> Option<Place> {
 pub(super) fn pane(app: &View, ui: &mut Ui, x0: f32, p: &Place, (top, h): (f32, f32)) {
     let groups = page_groups(app, Mode::Wallets);
     draw_page_pane(
+        app,
         ui,
         (x0 + p.pane_x, top, p.pane_w, h),
         (app.scroll.home_box_offset(), app.scroll.home_band_offset()),
