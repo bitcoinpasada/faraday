@@ -82,7 +82,7 @@ fn next_is_off_until_text_is_typed_and_a_press_on_a_row_picks() {
     assert!(app.offers(Action::KefTool(K::Field)));
     touch(&mut app, Action::KefTool(K::Key(0)));
     let s = kef_tool::state(&app).unwrap();
-    assert_eq!(s.key(), Some(0));
+    assert_eq!(s.key(&app.session.keys), Some(0));
     assert!(s.form().is_some());
 }
 

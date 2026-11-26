@@ -93,7 +93,7 @@ pub(super) fn summary(app: &crate::Faraday, s: &KefToolState, step: u8) -> Strin
                 .map(|w| fill(EN.kef_tool_wallet_sum, &[&w.name]))
                 .unwrap_or_default(),
             None if s.key.is_some() => s
-                .key
+                .key(&app.session.keys)
                 .and_then(|i| app.session.keys.info(i))
                 .map(|k| fill(EN.kef_tool_key_sum, &[&k.label, &k.fingerprint.to_string()]))
                 .unwrap_or_default(),
@@ -156,7 +156,7 @@ pub(super) fn pick(app: &crate::Faraday, s: &KefToolState) -> flow::Pick {
     pick::Decl::new(EN.kef_tool_which)
         .keys_many(app, |i, k| {
             let on = offered.contains(&i);
-            let take = pick::Take::of(on && s.key == Some(i), Action::KefTool(K::Key(i)));
+            let take = pick::Take::of(on && s.key == Some(k.id), Action::KefTool(K::Key(i)));
             // A key a code can be made of says what the code holds.
             let take = if on {
                 take.line(EN.kef_tool_key)
@@ -290,7 +290,7 @@ fn type_card(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f3
 /// that has a passphrase: its height, 0 when there is none to say.
 fn words_only(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let has = s
-        .key
+        .key(&app.session.keys)
         .and_then(|i| app.session.keys.info(i))
         .is_some_and(|k| k.has_passphrase);
     if !has {
@@ -328,7 +328,7 @@ fn key_rows(app: &View, s: &KefToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32
             Some(w),
             BUTTON_H,
             &label,
-            choice(s.key == Some(i)),
+            choice(s.key == Some(k.id)),
             Action::KefTool(K::Key(i)),
         );
         cy += BUTTON_H + GAP;

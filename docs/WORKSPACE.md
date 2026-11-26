@@ -651,8 +651,9 @@ window never scrolls as a whole.
    with words; a match is said where the details stand), for a key a wallet
    uses, Show xpub QR and Xpub file (a pair for each different account xpub
    its wallets write, each labelled with the first wallet that writes it
-   where there are several; a key no wallet uses has none, since its path
-   would be a guess), and last Remove this key, in the error tone: the key
+   where there are several, and with its account path where that wallet
+   writes more than one of them; a key no wallet uses has none, since its
+   path would be a guess), and last Remove this key, in the error tone: the key
    leaves the session at once, or, while it is kept nowhere else (in no open
    vault, no copy checked), after a sheet that names it and its hold; the
    wallets that use it stay loaded and the details close; a spend under way

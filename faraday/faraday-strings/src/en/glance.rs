@@ -171,6 +171,10 @@ macro_rules! words_glance {
     /// Row in a key's details with several account xpubs. `{}`: the
     /// wallet's name.
     glance_sheet_xpub_file_of: "Xpub file · {}",
+    /// Row in a key's details where one wallet has several of the key's
+    /// account xpubs. `{}`: the row's label with the wallet's name; the
+    /// account path.
+    glance_sheet_xpub_at: "{} · m/{}",
     /// Row in `view`.
     glance_sheet_explore: "Explore this key",
     /// Row in `view`.

@@ -1449,7 +1449,8 @@ fn a_used_keys_details_offer_a_krux_code_of_that_keys_words() {
     assert_eq!(app.screen, Screen::KefTool);
     let at = app.session.keys.position_of(fp);
     assert!(at.is_some());
-    assert_eq!(faraday_core::kef_tool::state(&app).unwrap().key(), at);
+    let tool = faraday_core::kef_tool::state(&app).unwrap();
+    assert_eq!(tool.key(&app.session.keys), at);
     back_to_details(&mut app, Screen::KefTool, fp);
 }
 
@@ -1586,6 +1587,28 @@ fn a_key_of_two_wallets_with_different_xpubs_has_a_labelled_pair_for_each() {
         files.push(app.outbox.last().expect("a file").bytes.to_vec());
     }
     assert_ne!(files[0], files[1], "each its own wallet's xpub");
+}
+
+#[test]
+fn a_wallet_with_one_seed_at_two_accounts_has_pairs_told_apart_by_the_path() {
+    let wallet = format!("wsh(sortedmulti(2,{},{}))", account(0), account(1));
+    let other = format!("wpkh({})", account(2));
+    let (mut app, _) = details_with_two_wallets(&wallet, &other);
+    let texts = app.drawn_texts();
+    for label in [
+        "Show xpub QR · Savings · m/84h/1h/0h",
+        "Xpub file · Savings · m/84h/1h/0h",
+        "Show xpub QR · Savings · m/84h/1h/1h",
+        "Xpub file · Savings · m/84h/1h/1h",
+        // One pair of its own wallet: no path.
+        "Show xpub QR · Spending",
+        "Xpub file · Spending",
+    ] {
+        assert!(texts.iter().any(|t| t == label), "{label}: {texts:?}");
+    }
+    for slot in 0..2 {
+        assert!(app.offers(Action::WalletKeyOut(0, slot)), "slot {slot}");
+    }
 }
 
 #[test]

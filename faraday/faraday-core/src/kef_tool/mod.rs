@@ -11,6 +11,7 @@ use crate::vault::TextBox;
 use crate::{Action, Faraday, Screen, Sheet, flow};
 use faraday_crypto::work::Compute;
 use faraday_keys::kef::COMPRESS_MAX;
+use faraday_keys::{KeyId, Keys};
 use faraday_shell_api::Key;
 use faraday_text::Text;
 
@@ -88,7 +89,9 @@ pub struct KefToolState {
     pub(crate) typing: bool,
     pub(crate) shown: bool,
     pub(crate) wallet: Option<usize>,
-    pub(crate) key: Option<usize>,
+    /// The key the code is made of, by its id: its place in the session's
+    /// list is looked up at each use, as places move when a key is removed.
+    pub(crate) key: Option<KeyId>,
     pub(crate) form: Option<KefForm>,
     /// The SHA-256 of each file the made code put in the Outbox, taken
     /// when it was put: the picture's, when there is one, and the file's.
@@ -113,9 +116,10 @@ impl KefToolState {
         self.open == Some(kstep::CONTENTS) && self.pick == Some(Pick::Type) && self.typing
     }
 
-    /// The loaded key the code is made of, by its place among the keys.
-    pub fn key(&self) -> Option<usize> {
-        self.key
+    /// The loaded key the code is made of, by its place among the keys
+    /// now; `None` where there is none, or it is no longer loaded.
+    pub fn key(&self, keys: &Keys) -> Option<usize> {
+        self.key.and_then(|id| keys.place_of(id))
     }
 
     /// The text the form holds, in bytes.
@@ -246,7 +250,7 @@ fn begin_key(app: &mut Faraday, i: usize) {
         false,
     );
     form.offer_by_hand();
-    finish_begin(app, form, None, Some(i));
+    finish_begin(app, form, None, Some(id));
 }
 
 /// Runs `f` on the form's passphrase and the check's, where the form is.
@@ -409,7 +413,7 @@ fn begin(app: &mut Faraday, text: Text, fp: Option<[u8; 4]>, wallet: Option<usiz
 }
 
 /// Puts the form in the state and opens its card.
-fn finish_begin(app: &mut Faraday, form: KefForm, wallet: Option<usize>, key: Option<usize>) {
+fn finish_begin(app: &mut Faraday, form: KefForm, wallet: Option<usize>, key: Option<KeyId>) {
     if let Some(s) = st(app) {
         s.form = Some(form);
         s.wallet = wallet;

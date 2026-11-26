@@ -131,10 +131,22 @@ fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
     }
     let xpubs = crate::screens::session_pane::rows::account_keys(app, fp);
     for &(w, slot) in &xpubs {
-        // Several xpubs: each pair says which wallet's it is.
-        let of = |plain: &str, named: &str| match app.session.wallets.get(w) {
-            Some(wallet) if xpubs.len() > 1 => fill(named, &[&wallet.name]),
-            _ => fill(plain, &[]),
+        // Several xpubs: each pair says which wallet's it is, and, where
+        // the wallet has more than one of them, the account path.
+        let wallet = app.session.wallets.get(w);
+        let path = (xpubs.iter().filter(|&&(other, _)| other == w).count() > 1)
+            .then(|| wallet?.policy().keys().get(usize::from(slot))?.path())
+            .flatten()
+            .map(crate::register::path_text);
+        let of = |plain: &str, named: &str| {
+            let label = match wallet {
+                Some(wallet) if xpubs.len() > 1 => fill(named, &[&wallet.name]),
+                _ => fill(plain, &[]),
+            };
+            match &path {
+                Some(path) => fill(EN.glance_sheet_xpub_at, &[&label, path]),
+                None => label,
+            }
         };
         let qr = Action::ShowCode(crate::Code::WalletKey(w, slot));
         let label = of(EN.glance_sheet_show_xpub, EN.glance_sheet_show_xpub_of);

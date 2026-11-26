@@ -364,7 +364,10 @@ fn the_only_loaded_key_is_chosen_at_once_and_its_code_opens_to_its_words() {
     testkit::keep_published(&mut app);
     open(&mut app);
     app.press(Action::KefTool(K::Pick(Pick::Key)));
-    assert_eq!(kef_tool::state(&app).unwrap().key(), Some(0));
+    assert_eq!(
+        kef_tool::state(&app).unwrap().key(&app.session.keys),
+        Some(0)
+    );
     make(&mut app);
     let form = kef_tool::state(&app).unwrap().form().unwrap();
     let envelope = unwrap(&form.made().unwrap().bytes).unwrap();
@@ -390,15 +393,44 @@ fn with_two_keys_loaded_the_one_chosen_is_the_one_sealed() {
     testkit::keep_published(&mut app);
     open(&mut app);
     app.press(Action::KefTool(K::Pick(Pick::Key)));
-    assert_eq!(kef_tool::state(&app).unwrap().key(), None);
+    assert_eq!(kef_tool::state(&app).unwrap().key(&app.session.keys), None);
     app.press(Action::KefTool(K::Key(1)));
-    assert_eq!(kef_tool::state(&app).unwrap().key(), Some(1));
+    assert_eq!(
+        kef_tool::state(&app).unwrap().key(&app.session.keys),
+        Some(1)
+    );
     make(&mut app);
     let form = kef_tool::state(&app).unwrap().form().unwrap();
     let envelope = unwrap(&form.made().unwrap().bytes).unwrap();
     let opened = open_code(&c, envelope);
     assert_eq!(opened, entropy_of(&app, 1));
     assert_ne!(entropy_of(&app, 0), entropy_of(&app, 1));
+}
+
+#[test]
+fn removing_an_earlier_key_leaves_the_tool_on_the_same_key() {
+    let mut app = started();
+    let c = testkit::compute();
+    let third = testkit::test_words("zebra");
+    for (words, name) in [(WORDS, "First"), (OTHER, "Second"), (&*third, "Third")] {
+        app.session.keys.add_words(&c, words, name, None).unwrap();
+    }
+    testkit::keep_published(&mut app);
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Key)));
+    app.press(Action::KefTool(K::Key(2)));
+    let chosen = app.session.keys.info(2).unwrap().fingerprint;
+    let first = app.session.keys.info(0).unwrap().fingerprint;
+    assert!(app.session.keys.remove_one(first));
+    let tool = kef_tool::state(&app).unwrap();
+    let at = tool.key(&app.session.keys).expect("still ticked");
+    assert_eq!(app.session.keys.info(at).unwrap().fingerprint, chosen);
+    let named = format!("Words of Third · {chosen}");
+    let texts = drawn(&mut app);
+    assert!(texts.contains(&named), "{named}: {texts:?}");
+    assert!(app.session.keys.remove_one(chosen));
+    let tool = kef_tool::state(&app).unwrap();
+    assert_eq!(tool.key(&app.session.keys), None, "no key ticked");
 }
 
 #[test]
@@ -467,7 +499,10 @@ fn a_12_word_key_beside_an_18_word_key_is_the_only_one_offered_and_chosen() {
     testkit::keep_published(&mut app);
     open(&mut app);
     app.press(Action::KefTool(K::Pick(Pick::Key)));
-    assert_eq!(kef_tool::state(&app).unwrap().key(), Some(1));
+    assert_eq!(
+        kef_tool::state(&app).unwrap().key(&app.session.keys),
+        Some(1)
+    );
 }
 
 /// Makes the code of the only loaded key with its fingerprint as the id
