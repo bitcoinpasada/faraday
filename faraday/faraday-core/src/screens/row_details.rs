@@ -113,37 +113,13 @@ fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
         let check = Action::CheckKeyCopy(fp);
         offers.push(actions::offer(EN.glance_sheet_scan_my, None, check));
     }
-    if let Some((w, slot)) = account_key(app, fp) {
+    if let Some((w, slot)) = crate::screens::session_pane::rows::account_key(app, fp) {
         let qr = Action::ShowCode(crate::Code::WalletKey(w, slot));
         offers.push(actions::offer(EN.glance_sheet_show_xpub, None, qr));
         let file = Action::WalletKeyOut(w, slot);
         offers.push(actions::offer(EN.glance_sheet_xpub_file, None, file));
     }
     offers
-}
-
-/// The wallet and slot whose account xpub is key `fp`'s: none where no
-/// wallet writes one, or where its wallets write different ones (one press
-/// cannot say which).
-fn account_key(app: &View, fp: [u8; 4]) -> Option<(usize, u8)> {
-    let mut found = None;
-    for (w, wallet) in app.session.wallets.iter().enumerate() {
-        if wallet.policy().silent().is_some() {
-            continue;
-        }
-        for (slot, key) in wallet.policy().keys().iter().enumerate() {
-            if key.fingerprint().is_none_or(|f| f.0 != fp) {
-                continue;
-            }
-            let text = key.key_text();
-            match &found {
-                None => found = Some((w, u8::try_from(slot).ok()?, text)),
-                Some((_, _, first)) if *first != text => return None,
-                Some(_) => {}
-            }
-        }
-    }
-    found.map(|(w, slot, _)| (w, slot))
 }
 
 /// The icon an action carries elsewhere (a wallet's group, the first

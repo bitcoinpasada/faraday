@@ -7,7 +7,7 @@
 mod band;
 mod page_mode;
 pub(crate) mod pick;
-mod rows;
+pub(crate) mod rows;
 mod vault_marks;
 
 use super::home::{CardLead, lead_card};

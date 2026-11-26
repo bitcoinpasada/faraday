@@ -343,3 +343,27 @@ pub(crate) fn compact_rows(
     };
     (rest, keys, Some(all))
 }
+
+/// The wallet and slot whose account xpub is key `fp`'s: none where no
+/// wallet writes one, or where its wallets write different ones (one press
+/// cannot say which).
+pub(crate) fn account_key(app: &View, fp: [u8; 4]) -> Option<(usize, u8)> {
+    let mut found = None;
+    for (w, wallet) in app.session.wallets.iter().enumerate() {
+        if wallet.policy().silent().is_some() {
+            continue;
+        }
+        for (slot, key) in wallet.policy().keys().iter().enumerate() {
+            if key.fingerprint().is_none_or(|f| f.0 != fp) {
+                continue;
+            }
+            let text = key.key_text();
+            match &found {
+                None => found = Some((w, u8::try_from(slot).ok()?, text)),
+                Some((_, _, first)) if *first != text => return None,
+                Some(_) => {}
+            }
+        }
+    }
+    found.map(|(w, slot, _)| (w, slot))
+}
