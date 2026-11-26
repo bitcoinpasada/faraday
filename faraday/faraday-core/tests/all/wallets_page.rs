@@ -477,3 +477,40 @@ fn the_card_offers_check_an_address_and_it_opens() {
     app.press(check);
     assert_eq!(app.screen, Screen::CheckAddress);
 }
+
+#[test]
+fn a_wallet_needing_a_key_lists_add_a_key_first_and_it_opens_for_that_key() {
+    let mut app = with_watch_only_wallet();
+    app.press(Action::OpenWallet(0));
+    let _ = app.frame();
+    // The one empty slot's key: the published words' fingerprint.
+    let add = Action::Entry(Some([0x73, 0xc5, 0xda, 0x0a]));
+    let (_, add_y) = app.where_offered(add).expect("Add a key");
+    let (_, spend) = app.spend_button(&faraday_core::testkit::compute(), 0);
+    let (_, spend_y) = app.where_offered(spend).expect("the spend");
+    assert!(add_y < spend_y, "Add a key leads: {add_y} {spend_y}");
+    app.press(add);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Entry);
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t.contains("Add a key") && t.contains("73c5da0a")),
+        "{:?}",
+        app.drawn_texts()
+    );
+}
+
+#[test]
+fn a_complete_wallets_card_has_no_add_a_key_in_what_you_can_do() {
+    let mut app = with_single_key_wallet();
+    app.press(Action::OpenWallet(0));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    let at = texts
+        .iter()
+        .position(|t| t == EN.wallets_what_you_can_do)
+        .expect("the heading");
+    assert_ne!(texts[at + 1], EN.wallets_add_a_key, "{texts:?}");
+    assert!(!app.offers(Action::Entry(Some([0x73, 0xc5, 0xda, 0x0a]))));
+}

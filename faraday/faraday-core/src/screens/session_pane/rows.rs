@@ -164,20 +164,11 @@ pub(super) fn add_key_buttons(app: &View, mut rows: Vec<SessionRow>) -> Vec<Sess
         let Action::OpenWallet(i) = r.action else {
             continue;
         };
-        let Some(wl) = app.session.wallets.get(i) else {
+        let Some(add) = crate::screens::wallets::actions::add_a_key(app, i) else {
             continue;
-        };
-        if wl.policy().silent().is_some() || app.can_spend(i) {
-            continue;
-        }
-        let slots = app.session.slots(wl);
-        let mut empty = slots.iter().filter(|s| s.held_by.is_none());
-        let only = match (empty.next(), empty.next()) {
-            (Some(slot), None) => slot.fingerprint,
-            _ => None,
         };
         r.open = Some(r.action);
-        r.action = Action::Entry(only.map(|fp| fp.0));
+        r.action = add;
         r.button = Some((EN.wallets_add_a_key, app.may_load_keys()));
     }
     rows

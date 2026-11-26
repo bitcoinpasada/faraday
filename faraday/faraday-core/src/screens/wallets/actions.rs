@@ -42,8 +42,26 @@ pub(crate) fn offer(label: &str, icon: Option<Icon>, action: Action) -> Offer {
     }
 }
 
-/// What wallet `w` offers, likeliest first: the first (a spend, or the
-/// backup it waits on), then the table's others in its order, then the
+/// Add a key to loaded wallet `w` while it needs one: the slot of its
+/// only empty key, else any. None for a wallet with enough keys here and
+/// for a silent payments one. The pane row's press and the card's. A
+/// lookup.
+pub(crate) fn add_a_key(app: &View, w: usize) -> Option<Action> {
+    let wl = app.session.wallets.get(w)?;
+    if wl.policy().silent().is_some() || app.can_spend(w) {
+        return None;
+    }
+    let slots = app.session.slots(wl);
+    let mut empty = slots.iter().filter(|s| s.held_by.is_none());
+    let only = match (empty.next(), empty.next()) {
+        (Some(slot), None) => slot.fingerprint,
+        _ => None,
+    };
+    Some(Action::Entry(only.map(|fp| fp.0)))
+}
+
+/// What wallet `w` offers, likeliest first: Add a key while it needs
+/// one, then a spend (or the backup it waits on), then the table's others in its order, then the
 /// rest in the order the card has always had, Remove from session last.
 /// `new_from`: New wallet from this one is not already on the card's
 /// head. A lookup.
@@ -78,7 +96,11 @@ pub(crate) fn offers(app: &View, w: usize, new_from: bool) -> Vec<Offer> {
     } else {
         Icon::Sign
     };
-    let mut list = vec![offer(&label, Some(first_icon), action)];
+    let mut list = Vec::new();
+    if let Some(add) = add_a_key(app, w) {
+        list.push(offer(EN.wallets_add_a_key, Some(Icon::Add), add));
+    }
+    list.push(offer(&label, Some(first_icon), action));
     // A backup left part way is offered as such.
     let back_up = if app.wallet_backup_unfinished(w) {
         EN.backup_flow_continue
