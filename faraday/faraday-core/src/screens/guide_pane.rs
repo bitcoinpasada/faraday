@@ -11,6 +11,8 @@
 
 use crate::ui::Region;
 use faraday_draw::tokens as T;
+use faraday_draw::widgets::Icon;
+use crate::ui::Shape;
 
 use super::sheets::{GuideLook, guide_body};
 use crate::Action;
@@ -27,11 +29,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let (x, mut y, w, mut view) = super::hub_layout::guide_place((x0, cw, h));
     // Beside a pair the pane is as tall as the pair, tops and feet level;
     // beside any other page it has the window's height
-    // (`docs/WORKSPACE.md` §7.4).
-    if let Some((top, foot)) = ui.pair_span {
+    // (`docs/WORKSPACE.md` §7.4). Its arrow lets it down to the window's
+    // height and folds it back.
+    let full = (y, view);
+    let shorter = ui.pair_span.map(|(top, foot)| {
         let end = foot.min(h - T::MARGIN_WIDE);
-        y = top.max(0.0);
-        view = (end - y).max(T::TOUCH);
+        let top = top.max(0.0);
+        (top, (end - top).max(T::TOUCH))
+    });
+    let tall = app.guide_pane_tall();
+    if let Some(span) = shorter.filter(|_| !tall) {
+        (y, view) = span;
     }
     ui.guide_drawn = Some((x, ui.oy + y, w, view));
     // Nothing of the page under the pane takes a press.
@@ -59,6 +67,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let (clip, max) = guide_body(app, ui, &look, (x, y, w, view));
     let close_x = x + w - T::GAP - T::TOUCH;
     close_button(ui, close_x, y + T::GUIDE_PANE_CLOSE_TOP);
+    if shorter.is_some_and(|span| span != full) {
+        tall_button(ui, close_x - T::TOUCH, y + T::GUIDE_PANE_CLOSE_TOP, tall);
+    }
     // Its edges fade into the pane's own container.
     let region = Region::beside(Slot::GuidePane, clip, app.guide().scroll)
         .on(Role::SurfaceContainer)
@@ -70,4 +81,30 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
 /// standard icon button ([`faraday_ui::nav::close_button`]).
 fn close_button(ui: &mut Ui, x: f32, y: f32) {
     faraday_ui::nav::close_button(ui, x, y, Action::GuideClose, EN.guide_close);
+}
+
+/// The pane's arrow in a `TOUCH` square at (x, y), beside its close
+/// button: a standard icon button (Material 3 Icon buttons), pointing down
+/// to let the pane down to the window's height, up to fold it back.
+fn tall_button(ui: &mut Ui, x: f32, y: f32, tall: bool) {
+    let edge = (T::TOUCH - T::ICON_BUTTON) / 2.0;
+    let (bx, by) = (x + edge, y + edge);
+    let button = Shape::new(
+        bx,
+        by,
+        T::ICON_BUTTON,
+        T::ICON_BUTTON,
+        T::shape_full(T::ICON_BUTTON),
+    );
+    let role = Role::OnSurfaceVariant;
+    ui.press_to(button, (x, y, T::TOUCH, T::TOUCH), role.paint(), Action::GuideTall);
+    let (icon, tip) = if tall {
+        (Icon::ChevronUp, EN.guide_collapse)
+    } else {
+        (Icon::ChevronDown, EN.guide_expand)
+    };
+    let s = T::NAV_ICON;
+    let inset = (T::ICON_BUTTON - s) / 2.0;
+    ui.icon(bx + inset, by + inset, s, icon, s, role);
+    ui.tip_plain((x, y, T::TOUCH, T::TOUCH), Action::GuideTall, tip);
 }
