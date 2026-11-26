@@ -32,16 +32,27 @@ fn dest<'s>(
         Action::Guide => app.sheet == Some(Sheet::Guide),
         _ => false,
     };
+    let flows = flows_of(app, action);
     Dest {
         icon: icon.into(),
         label,
-        action,
+        action: tab_press_of(action, flows),
         current,
         badge: match action {
             Action::Nav(s) => badge_of(app, s),
             _ => Badge::None,
         },
-        flows: flows_of(app, action),
+        flows,
+    }
+}
+
+/// What a press on the destination `action` opens sends: with a flow in
+/// progress under it, a press that is told apart from the other ways to its
+/// page, since it goes to the flow (`docs/WORKSPACE.md` §16).
+pub(crate) fn tab_press_of(action: Action, flows: usize) -> Action {
+    match action {
+        Action::Nav(s) if flows > 0 => Action::Tab(s),
+        a => a,
     }
 }
 

@@ -79,18 +79,19 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // Each tab is one of Material's destinations: icon and label in a
     // row, the current one on a pill (`docs/LAYOUT.md` §3).
     // The flows in progress under a tab are its second badge's number; a
-    // press on the tab is `Action::Nav` as for every tab.
+    // press on such a tab goes to its flow.
     let row = |ui: &mut Ui, y: f32, icon: Glyph, label: &str, active: bool, action: Action| {
+        let flows = crate::nav::screen::flows_of(app, action);
         let d = faraday_ui::nav::Dest {
             icon,
             label,
-            action,
+            action: crate::nav::screen::tab_press_of(action, flows),
             current: active,
             badge: match action {
                 Action::Nav(s) => crate::nav::screen::badge_of(app, s),
                 _ => faraday_ui::nav::Badge::None,
             },
-            flows: crate::nav::screen::flows_of(app, action),
+            flows,
         };
         faraday_ui::nav::destination_row(ui, (x, y, w), &d, None);
     };

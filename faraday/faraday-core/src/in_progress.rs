@@ -71,6 +71,9 @@ pub(crate) struct InProgress {
     /// The screens behind each flow, as Back's trail held them when it was
     /// last on show: what resuming it puts back.
     ways: Vec<(Going, Vec<Spot>)>,
+    /// The flows that have been on show, the one last left at the end: what
+    /// a press on a tab goes to.
+    shown: Vec<Going>,
     /// The Home search's result pressed to open what is on show.
     search: Option<SearchPlace>,
 }
@@ -110,6 +113,7 @@ impl InProgress {
     pub(crate) fn note(&mut self, now: Vec<Going>, screen: Screen, on_screen: Option<Going>) {
         self.begun.retain(|(g, _)| now.contains(g));
         self.ways.retain(|(g, _)| now.contains(g));
+        self.shown.retain(|g| now.contains(g));
         for g in now {
             if !self.begun.iter().any(|(n, _)| *n == g) {
                 self.begun.push((g, screen));
@@ -119,7 +123,16 @@ impl InProgress {
             && let Some(e) = self.begun.iter_mut().find(|(n, _)| *n == g)
         {
             e.1 = screen;
+            self.shown.retain(|n| *n != g);
+            self.shown.push(g);
         }
+    }
+
+    /// Of the flows in `of`, in the order begun, the one last left; the
+    /// last begun where none of them has been on show.
+    fn last_left(&self, of: &[Going]) -> Option<Going> {
+        let seen = self.shown.iter().rev().find(|g| of.contains(g));
+        seen.or(of.last()).copied()
     }
 
     /// Keeps `way`, the screens behind flow `g`, which is on show.
@@ -207,8 +220,10 @@ impl InProgress {
     pub(crate) fn flow_removed(&mut self, i: usize) {
         self.begun.retain(|(g, _)| *g != Going::Flow(i));
         self.ways.retain(|(g, _)| *g != Going::Flow(i));
+        self.shown.retain(|g| *g != Going::Flow(i));
         let begun = self.begun.iter_mut().map(|(g, _)| g);
-        for g in begun.chain(self.ways.iter_mut().map(|(g, _)| g)) {
+        let ways = self.ways.iter_mut().map(|(g, _)| g);
+        for g in begun.chain(ways).chain(&mut self.shown) {
             if let Going::Flow(k) = g
                 && *k > i
             {
@@ -436,6 +451,28 @@ impl Faraday {
     /// The screen of its own flow `g` was last on.
     fn flow_left_on(&self, g: Going) -> Option<Screen> {
         self.in_progress.left_on(g)
+    }
+
+    /// What a press on tab `s`, which has a flow in progress, does
+    /// (`docs/WORKSPACE.md` §16): goes to that flow, to the one last left
+    /// of several; with a flow of this tab on show, opens the tab's menu.
+    pub(crate) fn tab_press(&mut self, s: Screen) -> crate::Action {
+        let c = self.compute();
+        let under: Vec<Going> = self
+            .flows_in_progress_now(&c)
+            .iter()
+            .filter(|r| r.tab == s)
+            .map(|r| r.going)
+            .collect();
+        let on_show = self.flow_on_screen().is_some_and(|g| under.contains(&g));
+        match self.in_progress.last_left(&under) {
+            Some(g) if !on_show => {
+                // As every press on a tab, it leaves the search.
+                self.tools.clear_home_find();
+                crate::Action::Resume(g)
+            }
+            _ => crate::Action::Nav(s),
+        }
     }
 
     /// Opens flow `g` on its open step, as it was left: what its row and

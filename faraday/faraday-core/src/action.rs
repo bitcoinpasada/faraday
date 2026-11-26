@@ -13,6 +13,10 @@ use faraday_shell_api::Command;
 pub enum Action {
     /// Go to a screen.
     Nav(Screen),
+    /// A press on a tab of the sidebar, the rail or the bar that has a flow
+    /// in progress (`docs/WORKSPACE.md` §16). Acted as [`Action::Resume`]
+    /// or [`Action::Nav`].
+    Tab(Screen),
     /// Back: the screen's own way back for what it lets go, then the
     /// screen seen before this one, as it was seen (F77).
     Back,
@@ -1178,6 +1182,10 @@ impl Faraday {
     }
 
     pub(crate) fn act(&mut self, action: Action) {
+        let action = match action {
+            Action::Tab(s) => self.tab_press(s),
+            a => a,
+        };
         let outer = self.vaults.acting_swap(Some(action));
         self.act_noted(action);
         self.vaults.acting_swap(outer);
@@ -1983,8 +1991,9 @@ impl Faraday {
             | Action::Speed(_)
             | Action::Theme(_)) => self.appearance_act(a),
             Action::SettingsSection(k) => self.settings_section(k),
-            // Acted on before (`act_inner`), or never pressed (a mark).
-            Action::StickPill(_) | Action::Mark(..) => {}
+            // Acted on before (`act_inner`), never pressed (a mark), or
+            // turned into `Resume` or `Nav` by `act` (a tab).
+            Action::Tab(_) | Action::StickPill(_) | Action::Mark(..) => {}
         }
     }
 }

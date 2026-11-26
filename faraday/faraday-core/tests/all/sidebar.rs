@@ -470,6 +470,55 @@ fn a_gpg_keys_flow_is_a_number_on_tools() {
     assert_eq!(app.flow().unwrap().step, Step::Sticks);
 }
 
+/// Presses tab `s` as the frame draws it: a tab with a flow in progress.
+fn press_flow_tab(app: &mut Faraday, s: Screen) {
+    assert!(offered(app, Action::Tab(s)), "no flow's tab for {s:?}");
+    app.press(Action::Tab(s));
+}
+
+#[test]
+fn the_tab_of_the_flow_on_screen_opens_its_menu_and_once_more_returns_to_it() {
+    let mut app = create_at_places_from_wallets();
+    press_flow_tab(&mut app, Screen::WalletsStart);
+    assert_eq!(app.screen, Screen::WalletsStart, "the tab's menu");
+    assert!(counted(&mut app, Going::Create), "the mark stays");
+    press_flow_tab(&mut app, Screen::WalletsStart);
+    assert_eq!(app.screen, Screen::Backup, "back to the flow, as left");
+}
+
+#[test]
+fn a_tab_goes_to_its_flow_and_with_several_to_the_one_last_left() {
+    let mut app = create_at_places_from_wallets();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::SignMessage);
+    app.press(Action::MNext(faraday_core::mstep::ADDRESS));
+    app.press(Action::Nav(Screen::Settings));
+    press_flow_tab(&mut app, Screen::WalletsStart);
+    assert_eq!(app.screen, Screen::Message, "the one last left");
+    // The one begun first, once it is the one last left.
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Resume(Going::Create));
+    // A flow of another tab on show: its own tab's menu is not meant.
+    app.press(Action::Nav(Screen::Catalog));
+    crate::common::start(&mut app, Kind::Gpg);
+    app.press(Action::Flow(F::Continue));
+    press_flow_tab(&mut app, Screen::WalletsStart);
+    assert_eq!(app.screen, Screen::Backup);
+    press_flow_tab(&mut app, Screen::Catalog);
+    assert_eq!(app.screen, Screen::BackupFlow);
+}
+
+#[test]
+fn a_tab_with_no_flow_in_progress_opens_its_page() {
+    let mut app = create_at_places_from_wallets();
+    for s in [Screen::Files, Screen::Catalog, Screen::Home] {
+        assert!(!offered(&mut app, Action::Tab(s)), "{s:?}");
+        assert!(offered(&mut app, Action::Nav(s)), "{s:?}");
+        app.press(Action::Nav(s));
+        assert_eq!(app.screen, s);
+    }
+}
+
 #[test]
 fn no_row_before_a_step_is_done() {
     let mut app = testkit::started();
