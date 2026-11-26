@@ -502,9 +502,7 @@ impl Faraday {
                     return;
                 }
                 self.vanity.clear();
-                self.silent
-                    .open_for(&self.session, self.screen, master_fp.0);
-                self.screen = Screen::Silent;
+                self.silent_open_for(master_fp.0);
                 return;
             }
         };

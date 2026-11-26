@@ -1259,7 +1259,8 @@ impl Faraday {
         self.load_sheet_auto();
     }
 
-    /// Costs what `vault_gather_codex32` and the Load sheet cost. The rest
+    /// Costs what `vault_gather_codex32` and the Load sheet cost, and, back
+    /// on the Silent payments page, what `silent_recount` costs. The rest
     /// of an unlock once its copy is taken: at once, or from the
     /// older-copy dialog's **Open** (`docs/VAULT.md` §11).
     pub(crate) fn vault_unlock_go_on(&mut self, for_import: bool) {
@@ -1370,6 +1371,12 @@ impl Faraday {
         // from this vault where the vault holds it.
         if back == Some(Screen::SignerCheck) {
             self.signer_seed_from_vault(false);
+        }
+        // Unlocked from the Silent payments page: its record states the
+        // vault's label count where that is higher.
+        if back == Some(Screen::Silent) {
+            let c = self.compute();
+            self.silent_recount(&c);
         }
         // Landed on the codes screen with the clock not checked this power-on:
         // Set the time first (`docs/TOTP.md` §5.2), coming back to the codes.

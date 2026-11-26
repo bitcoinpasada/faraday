@@ -354,6 +354,54 @@ Not decided: further ways the device
 turns a grey key green (an open vault that holds the key, the key scanned
 from the cosigner's own screen or the paper backup's code).
 
+**A silent payments wallet's labels** are a count in its record, which is
+no part of its id. An open vault's own record of the wallet that states
+fewer labels than the wallet has handed out is raised to that count, in
+every open vault that holds it; the vault then has a change to seal. That
+is done on the press that shows such a label, and when a vault is opened,
+whether or not anything is loaded from it, or the session's wallet comes
+in or takes a higher count while one is open (a vault's load, a file). A
+vault that cannot be written is told of and left as it is, and the load
+goes on. A count is never lowered, a vault whose count is the same or
+higher is not written, and neither is one that is not open or holds no
+record of the wallet. A record put into an open vault with fewer labels
+than the loaded wallet's is raised too. A write a vault refuses is told
+of once, with the vault's name and why, and again when it is tried with
+another count; two vaults refusing at once are named in one message. A
+vault being sealed is not tried and nothing is said of it. Its write,
+and one refused because memory is short or because the seal cannot write
+it, is tried again after each later press, answer of the worker or change
+to the sticks, until the vault takes it. A write refused as more than a
+vault can hold is tried again only once that vault's records have
+changed. A read-only vault's Faraday items are not read
+([VAULT.md](VAULT.md)), so it has no wallet record to raise, and its
+count is not seen either. Loading a
+record of a wallet already loaded gives the loaded one its count when
+that is higher, and nothing else of it.
+
+A label shown on a key's page counts for the loaded wallet the key gives
+at account 0, whether or not the page is that wallet's; another account
+of the key, or a record that only names its fingerprint, is another
+wallet.
+
+The session keeps the most labels handed out for each wallet, whether or
+not it was ever added as a wallet, until Lock or power off: leaving the
+page, removing the wallet or the keys and opening a vault keep it. A
+record of that wallet that comes in with fewer labels, into the
+session's wallets or in a vault that is opened, is raised to it; no
+wallet and no vault record is made by it. On entering a key's page, on
+choosing its key, on coming back from an unlock started on the page and
+on **+** from no label (a guard on the press that hands out a label), the
+page's count is the highest of the one kept, the
+loaded wallet's and every open vault's own record of the wallet; its
+record, and the wallet added from it, state that count. The label on show
+starts at none when another key is chosen. From none, **+** shows the
+first label not yet handed out, one past that count (the last label once
+all are handed out); **-** steps back down through the ones handed out. A
+payment to a label is looked
+for only up to the loaded wallet's count (and the Silent payments page's
+own).
+
 ## 4. Spending
 
 The Wallets tab's order, kept for every kind: **load the wallet → the

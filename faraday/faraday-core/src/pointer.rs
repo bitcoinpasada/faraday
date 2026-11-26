@@ -875,6 +875,7 @@ impl Faraday {
         self.device_sheet();
         self.read_card_tidy();
         self.drop_forged_wallets();
+        self.silent_vaults_catch_up();
     }
 
     /// Whether the last frame drawn offers `action` to a press: for

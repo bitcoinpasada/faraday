@@ -1090,6 +1090,7 @@ impl Faraday {
         self.stick.note_visit(self.stick_visit_on());
         self.storage_left(screen);
         self.drop_forged_wallets();
+        self.silent_vaults_catch_up();
     }
 
     /// A stick held back while the camera was on arrives once it is off.

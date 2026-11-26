@@ -1774,3 +1774,1477 @@ fn an_sp_descriptor_file_added_to_a_vault_keeps_its_record_and_no_scan_key() {
     assert_eq!(loaded.address(), want.address());
     assert_eq!(loaded.labels, want.labels);
 }
+
+/// Opens the vault at place `at` of the vault files with `phrase`, from
+/// the Vaults page, which loads what it says to load at unlock.
+fn open_vault(app: &mut Faraday, at: usize, phrase: &str) {
+    use faraday_core::vault::VaultAction as V;
+    let open = app.vaults().open.len();
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(at)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    crate::common::type_text(app, phrase);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if app.vaults().open.len() > open {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), open + 1);
+    if app.sheet == Some(Sheet::UnlockLoad) {
+        app.press(Action::Vault(V::LoadNotNow));
+    }
+}
+
+/// The labels each silent payments wallet record of open vault `o` states,
+/// in the records' order.
+fn vault_labels(app: &Faraday, o: usize) -> Vec<u32> {
+    use faraday_vault::records::{field, kind};
+    let c = faraday_core::testkit::compute();
+    app.vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[o].id)
+        .of(kind::WALLET)
+        .filter_map(|(_, r)| {
+            let w = faraday_core::wallet::read_wallet(&c, r.text(field::WALLET)?).ok()?;
+            w.silent().map(|s| s.labels)
+        })
+        .collect()
+}
+
+/// A vault file named `name` holding a wallet record of each of `wallets`.
+fn vault_of(name: &str, seed: u8, wallets: &[SilentWallet]) -> Vec<u8> {
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let records = wallets
+        .iter()
+        .map(|w| {
+            Record::new(kind::WALLET)
+                .with(field::WALLET, w.to_text().as_bytes())
+                .with(field::WALLET_NAME, b"Silent")
+        })
+        .collect();
+    faraday_core::testkit::kdbx_vault(name, name, seed, records).unwrap()
+}
+
+fn with_labels(mut record: SilentWallet, labels: u32) -> SilentWallet {
+    record.labels = labels;
+    record
+}
+
+#[test]
+fn labels_handed_out_after_a_save_are_in_the_vault_and_a_payment_to_one_is_found_after_power_off() {
+    use faraday_core::StorageCommand;
+    use faraday_core::testkit;
+    use faraday_core::vault::VaultAction as V;
+    let c = testkit::compute();
+    let secp = Secp256k1::new();
+    let mut app = testkit::started();
+    files(&mut app, &[("vault.kdbx", testkit::test_vault().unwrap())]);
+    add_key(&mut app);
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
+    let (paid, funding_tx) = payment(
+        &r.scan_public_key(&secp),
+        &r.labelled_spend_key(&secp, 3).unwrap(),
+    );
+    open_vault(&mut app, 0, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    app.press(Action::SAddWallet);
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent().is_some())
+        .unwrap();
+    app.press(Action::Vault(V::SaveWallet(w)));
+    assert_eq!(vault_labels(&app, 0), [1]);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    app.press(Action::SLabel(1));
+    assert_eq!(app.session.wallets[w].policy().silent().unwrap().labels, 3);
+    crate::common::top_up(&mut app);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let mut written = Vec::new();
+    while let Some(cmd) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { outbox, .. } = cmd {
+            written = testkit::plain_files(outbox);
+        }
+    }
+    assert_eq!(written.len(), 1, "the vault file was sealed");
+
+    // Power off: a new process with only the written file.
+    written.push(("payment.txn".into(), consensus::serialize(&paid)));
+    written.push(("funding.txn".into(), consensus::serialize(&funding_tx)));
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(written),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    open_vault(&mut app, 0, testkit::VAULT_PASSPHRASE);
+    assert_eq!(vault_labels(&app, 0), [3]);
+    app.press(Action::Vault(V::LoadAll(0)));
+    testkit::settle(&mut app);
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent().is_some())
+        .expect("the saved wallet loads");
+    assert_eq!(app.session.wallets[w].policy().silent().unwrap().labels, 3);
+    app.press(Action::SWallet(w));
+    let payment = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "payment.txn")
+        .unwrap();
+    app.press(Action::SCheck(payment));
+    match checked(&app) {
+        Some(Checked::Paid(p)) => assert_eq!(p[0].label, Some(3)),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn every_open_vault_holding_the_wallet_follows_its_label_count_and_no_other_changes() {
+    let mut app = faraday_core::testkit::started();
+    let wallet = record_of(0, 0, None);
+    files(
+        &mut app,
+        &[
+            // Its own wallet, and beside it one of another origin over
+            // the same address.
+            (
+                "a.kdbx",
+                vault_of(
+                    "Alpha",
+                    1,
+                    &[
+                        with_labels(wallet.clone(), 1),
+                        under_another_fingerprint(with_labels(wallet.clone(), 1)),
+                    ],
+                ),
+            ),
+            ("b.kdbx", vault_of("Beta", 2, std::slice::from_ref(&wallet))),
+            (
+                "c.kdbx",
+                vault_of("Gamma", 3, &[under_another_fingerprint(wallet.clone())]),
+            ),
+        ],
+    );
+    add_key(&mut app);
+    // Opened from a flow, which loads nothing from them.
+    for (at, name) in ["Alpha", "Beta", "Gamma"].iter().enumerate() {
+        use faraday_core::vault::VaultAction as V;
+        app.press(Action::Vault(V::OpenFrom(at, Screen::Files)));
+        crate::common::type_text(&mut app, name);
+        app.press(Action::Vault(V::Unlock));
+        faraday_core::testkit::settle(&mut app);
+        assert_eq!(app.vaults().open.len(), at + 1);
+    }
+    let at = |app: &Faraday, name: &str| {
+        app.vaults()
+            .open
+            .iter()
+            .position(|o| o.name == name)
+            .unwrap()
+    };
+    let (a, b, g) = (at(&app, "a.kdbx"), at(&app, "b.kdbx"), at(&app, "c.kdbx"));
+    let changes = |app: &Faraday, o: usize| app.vaults().open[o].changes;
+    assert_eq!([a, b, g].map(|o| changes(&app, o)), [0; 3]);
+    // The key's page, its wallet not among the session's.
+    app.press(Action::Silent);
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::SLabel(1));
+    // Alpha states label 1 already, so the first new one is 2.
+    assert_eq!(vault_labels(&app, a), [2, 1]);
+    assert_eq!(vault_labels(&app, b), [2]);
+    assert_eq!([a, b, g].map(|o| changes(&app, o)), [1, 1, 0]);
+    // Stepping back down writes nothing.
+    app.press(Action::SLabel(-1));
+    assert_eq!([a, b, g].map(|o| changes(&app, o)), [1, 1, 0]);
+    // With the wallet among the session's.
+    app.press(Action::SAddWallet);
+    app.press(Action::SLabel(1));
+    app.press(Action::SLabel(1));
+    assert_eq!(vault_labels(&app, a), [3, 1]);
+    assert_eq!(vault_labels(&app, b), [3]);
+    assert_eq!(vault_labels(&app, g), [0]);
+    assert_eq!([a, b, g].map(|o| changes(&app, o)), [2, 2, 0]);
+}
+
+#[test]
+fn loading_a_vaults_wallet_gives_the_loaded_one_its_higher_label_count_and_never_a_lower() {
+    use faraday_core::vault::VaultAction as V;
+    let mut app = faraday_core::testkit::started();
+    let wallet = record_of(0, 0, None);
+    files(
+        &mut app,
+        &[
+            (
+                "a.kdbx",
+                vault_of("Alpha", 1, &[with_labels(wallet.clone(), 3)]),
+            ),
+            (
+                "b.kdbx",
+                vault_of("Beta", 2, &[with_labels(wallet.clone(), 2)]),
+            ),
+        ],
+    );
+    add_key(&mut app);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    app.press(Action::SAddWallet);
+    let labels = |app: &Faraday| app.session.wallets[0].policy().silent().unwrap().labels;
+    assert_eq!(labels(&app), 1);
+    for (o, name) in ["Alpha", "Beta"].iter().enumerate() {
+        open_vault(&mut app, o, name);
+        app.press(Action::Vault(V::LoadAll(o)));
+        faraday_core::testkit::settle(&mut app);
+        assert_eq!(app.session.wallets.len(), 1);
+        assert_eq!(labels(&app), 3);
+    }
+}
+
+/// The labels stated by the record the page puts in the Outbox.
+fn record_labels(app: &mut Faraday) -> u32 {
+    app.outbox.clear();
+    app.press(Action::SRecord);
+    let text = String::from_utf8(app.outbox[0].bytes.to_vec()).unwrap();
+    SilentWallet::parse(&text).unwrap().labels
+}
+
+#[test]
+fn choosing_another_key_starts_from_that_keys_own_label_count() {
+    let c = faraday_core::testkit::compute();
+    let mut app = with_key();
+    let x = app.session.keys[0].fingerprint.0;
+    let y = add_other_key(&mut app);
+    // The second key's wallet is added with one label handed out.
+    app.press(Action::Silent);
+    app.press(Action::SKey(y));
+    app.press(Action::SLabel(1));
+    app.press(Action::SAddWallet);
+    app.press(Action::SAnother);
+    app.press(Action::SKey(x));
+    for _ in 0..3 {
+        app.press(Action::SLabel(1));
+    }
+    let third = app.silent_address(&c);
+    // The same key again changes nothing.
+    app.press(Action::SKey(x));
+    assert_eq!(app.silent_address(&c), third);
+    assert_eq!(record_labels(&mut app), 3);
+    app.press(Action::SKey(y));
+    assert_eq!(record_labels(&mut app), 1);
+    // No wallet is held for the first key: the page still counts what it
+    // handed out for it, with no label on show.
+    app.press(Action::SKey(x));
+    assert_eq!(record_labels(&mut app), 3);
+    assert_ne!(app.silent_address(&c), third);
+    // So after starting over, and the wallet added states it.
+    app.press(Action::SAnother);
+    app.press(Action::SKey(x));
+    assert_eq!(record_labels(&mut app), 3);
+    app.press(Action::SAddWallet);
+    assert_eq!(count_of(&app, x), 3);
+}
+
+/// Silent payments labels up to 3 handed out with no vault open, the
+/// wallet added to the session's.
+fn three_labels_and_no_vault(app: &mut Faraday) {
+    add_key(app);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    app.press(Action::SAddWallet);
+    app.press(Action::SLabel(1));
+    app.press(Action::SLabel(1));
+    assert_eq!(app.session.wallets[0].policy().silent().unwrap().labels, 3);
+}
+
+/// Opens vault file `at` as a flow does, which loads nothing from it.
+fn open_loading_nothing(app: &mut Faraday, at: usize, phrase: &str) {
+    use faraday_core::vault::VaultAction as V;
+    let open = app.vaults().open.len();
+    app.press(Action::Vault(V::OpenFrom(at, Screen::Files)));
+    crate::common::type_text(app, phrase);
+    app.press(Action::Vault(V::Unlock));
+    faraday_core::testkit::settle(app);
+    assert_eq!(app.vaults().open.len(), open + 1);
+}
+
+/// Locks, and the files the lock writes.
+fn written_at_lock(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
+    crate::common::top_up(app);
+    app.press(Action::Lock);
+    faraday_core::testkit::settle(app);
+    let mut written = Vec::new();
+    while let Some(cmd) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { outbox, .. } = cmd {
+            written = faraday_core::testkit::plain_files(outbox);
+        }
+    }
+    written
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Way {
+    /// The Vaults list's Unlock: a vault of one wallet loads itself.
+    Unlock,
+    /// Opened, and nothing loaded.
+    Opened,
+    LoadAll,
+    /// Load all of a vault that keeps a seed too, which a job loads.
+    Job,
+}
+
+#[test]
+fn a_vault_opened_after_labels_were_handed_out_follows_the_count() {
+    use faraday_core::testkit;
+    use faraday_core::vault::VaultAction as V;
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let c = testkit::compute();
+    let secp = Secp256k1::new();
+    let wallet = record_of(0, 0, None);
+    let r = Receiver::derive(&c, with_key().session.keys.master_for_tests(0), 0);
+    let (paid, funding_tx) = payment(
+        &r.scan_public_key(&secp),
+        &r.labelled_spend_key(&secp, 3).unwrap(),
+    );
+    for way in [Way::Unlock, Way::Opened, Way::LoadAll, Way::Job] {
+        let mut records = vec![
+            Record::new(kind::WALLET)
+                .with(
+                    field::WALLET,
+                    with_labels(wallet.clone(), 1).to_text().as_bytes(),
+                )
+                .with(field::WALLET_NAME, b"Silent"),
+        ];
+        if way == Way::Job {
+            // A published test seed, made into a record.
+            #[allow(clippy::disallowed_methods)]
+            let words = faraday_bip::bip39::Mnemonic::parse(
+                &c,
+                faraday_bip::bip39::Language::English,
+                &testkit::test_words(testkit::TEST_SEEDS[1].0),
+            )
+            .unwrap();
+            records.push(
+                Record::new(kind::KEY)
+                    .with(field::KEY, &faraday_vault::records::words_payload(&words)),
+            );
+        }
+        let file = testkit::kdbx_vault("Alpha", "Alpha", 1, records).unwrap();
+        let mut app = testkit::started();
+        files(&mut app, &[("a.kdbx", file)]);
+        three_labels_and_no_vault(&mut app);
+        match way {
+            Way::Unlock => {
+                open_vault(&mut app, 0, "Alpha");
+            }
+            Way::Opened => open_loading_nothing(&mut app, 0, "Alpha"),
+            Way::LoadAll | Way::Job => {
+                open_loading_nothing(&mut app, 0, "Alpha");
+                app.press(Action::Vault(V::LoadAll(0)));
+                testkit::settle(&mut app);
+            }
+        }
+        // The job brought the vault's own seed with it.
+        let keys = 1 + usize::from(way == Way::Job);
+        assert_eq!(app.session.keys.len(), keys, "{way:?}");
+        assert_eq!(vault_labels(&app, 0), [3], "{way:?}");
+        assert_eq!(app.vaults().open[0].changes, 1, "{way:?}");
+        let mut written = written_at_lock(&mut app);
+        assert_eq!(written.len(), 1, "the vault file was sealed: {way:?}");
+
+        // Power off: a new process with only the written file.
+        written.push(("payment.txn".into(), consensus::serialize(&paid)));
+        written.push(("funding.txn".into(), consensus::serialize(&funding_tx)));
+        let mut app = testkit::started();
+        app.storage(StorageEvent::Restored {
+            inbox: faraday_core::files_from(written),
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        add_key(&mut app);
+        open_loading_nothing(&mut app, 0, "Alpha");
+        assert_eq!(vault_labels(&app, 0), [3], "{way:?}");
+        app.press(Action::Vault(V::LoadAll(0)));
+        testkit::settle(&mut app);
+        let w = app
+            .session
+            .wallets
+            .iter()
+            .position(|w| w.policy().silent().is_some())
+            .expect("the saved wallet loads");
+        assert_eq!(app.session.wallets[w].policy().silent().unwrap().labels, 3);
+        app.press(Action::SWallet(w));
+        let payment = app
+            .inbox()
+            .iter()
+            .position(|i| i.name == "payment.txn")
+            .unwrap();
+        app.press(Action::SCheck(payment));
+        match checked(&app) {
+            Some(Checked::Paid(p)) => assert_eq!(p[0].label, Some(3), "{way:?}"),
+            other => panic!("{way:?}: {other:?}"),
+        }
+    }
+}
+
+/// As the device runs it, an unlock's answer comes from the worker on a
+/// later tick: the vault follows then, with no press after it.
+#[test]
+fn a_vault_unlocked_on_the_worker_follows_the_count_with_no_press_after_it() {
+    use faraday_core::testkit;
+    use faraday_core::vault::VaultAction as V;
+    let file = vault_of("Alpha", 1, &[with_labels(record_of(0, 0, None), 1)]);
+    let mut app = testkit::started();
+    files(&mut app, &[("a.kdbx", file)]);
+    three_labels_and_no_vault(&mut app);
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
+    crate::common::type_text(&mut app, "Alpha");
+    testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
+    assert!(app.vaults().open.is_empty(), "the unlock waits");
+    for t in 1..6000u64 {
+        if !app.vaults().open.is_empty() && app.busy().is_none() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(vault_labels(&app, 0), [3]);
+    assert_eq!(app.vaults().open[0].changes, 1);
+}
+
+/// The count comes to the session from a second vault's load, a press with
+/// no job: the vault loaded before it follows.
+#[test]
+fn a_higher_count_loaded_from_a_later_vault_reaches_the_vault_open_before() {
+    use faraday_core::vault::VaultAction as V;
+    let mut app = faraday_core::testkit::started();
+    let wallet = record_of(0, 0, None);
+    files(
+        &mut app,
+        &[
+            (
+                "a.kdbx",
+                vault_of("Alpha", 1, &[with_labels(wallet.clone(), 1)]),
+            ),
+            (
+                "b.kdbx",
+                vault_of("Beta", 2, &[with_labels(wallet.clone(), 3)]),
+            ),
+        ],
+    );
+    add_key(&mut app);
+    // Both open, the session holding neither's wallet: nothing differs from
+    // it and neither is written.
+    open_loading_nothing(&mut app, 0, "Alpha");
+    open_loading_nothing(&mut app, 1, "Beta");
+    let at = |app: &Faraday, name: &str| {
+        app.vaults()
+            .open
+            .iter()
+            .position(|o| o.name == name)
+            .unwrap()
+    };
+    let (a, b) = (at(&app, "a.kdbx"), at(&app, "b.kdbx"));
+    assert_eq!([a, b].map(|o| app.vaults().open[o].changes), [0, 0]);
+    app.press(Action::Vault(V::LoadAll(a)));
+    assert_eq!([a, b].map(|o| app.vaults().open[o].changes), [0, 0]);
+    app.press(Action::Vault(V::LoadAll(b)));
+    assert_eq!(app.session.wallets[0].policy().silent().unwrap().labels, 3);
+    assert_eq!(vault_labels(&app, a), [3]);
+    assert_eq!([a, b].map(|o| app.vaults().open[o].changes), [1, 0]);
+}
+
+#[test]
+fn a_vault_whose_counts_agree_or_are_higher_is_not_written_when_opened_and_loaded() {
+    use faraday_core::vault::VaultAction as V;
+    let mut app = faraday_core::testkit::started();
+    let wallet = record_of(0, 0, None);
+    files(
+        &mut app,
+        &[
+            (
+                "a.kdbx",
+                vault_of(
+                    "Alpha",
+                    1,
+                    &[
+                        with_labels(wallet.clone(), 3),
+                        under_another_fingerprint(with_labels(wallet.clone(), 1)),
+                    ],
+                ),
+            ),
+            (
+                "b.kdbx",
+                vault_of("Beta", 2, &[with_labels(wallet.clone(), 4)]),
+            ),
+        ],
+    );
+    three_labels_and_no_vault(&mut app);
+    open_vault(&mut app, 0, "Alpha");
+    app.press(Action::Vault(V::LoadAll(0)));
+    assert_eq!(app.vaults().open[0].changes, 0);
+    assert_eq!(vault_labels(&app, 0), [3, 1]);
+    open_loading_nothing(&mut app, 1, "Beta");
+    assert!(app.vaults().open.iter().all(|o| o.changes == 0));
+    assert_eq!(written_at_lock(&mut app), []);
+}
+
+#[test]
+fn a_read_only_vault_reads_no_wallet_record_and_is_not_written_after_labels_were_handed_out() {
+    use faraday_core::testkit;
+    use faraday_core::vault::VaultAction as V;
+    use faraday_vault::kdbx::items::{Body, Place, put};
+    use faraday_vault::records::{field, kind};
+    const NO_BIN: &str = "<RecycleBinUUID>AAAAAAAAAAAAAAAAAAAAAA==</RecycleBinUUID>";
+    let c = testkit::compute();
+    let wallet = with_labels(record_of(0, 0, None), 1);
+    // Two recycle bins: a file that is opened to read only.
+    let file = testkit::kdbx_edited(
+        "Odd",
+        "Odd",
+        10,
+        |doc| {
+            let record = faraday_vault::Record::new(kind::WALLET)
+                .with(field::WALLET, wallet.to_text().as_bytes())
+                .with(field::WALLET_NAME, b"Silent");
+            put(
+                &c,
+                doc,
+                &Place {
+                    uuid: [7; 16],
+                    group: "Wallets",
+                    group_uuid: [8; 16],
+                    title: "Silent",
+                    now: None,
+                },
+                &Body::Record(record),
+            )
+            .unwrap();
+        },
+        |xml| xml.replace(NO_BIN, &format!("{NO_BIN}{NO_BIN}")),
+    )
+    .unwrap();
+    let mut app = testkit::started();
+    files(&mut app, &[("ro.kdbx", file)]);
+    three_labels_and_no_vault(&mut app);
+    open_loading_nothing(&mut app, 0, "Odd");
+    app.press(Action::Vault(V::LoadAll(0)));
+    testkit::settle(&mut app);
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(vault_labels(&app, 0), [0u32; 0]);
+    assert_eq!(app.vaults().open[0].changes, 0);
+}
+
+/// The labels of the session's account 0 silent payments wallet of key
+/// `fp`, the one the key gives.
+fn count_of(app: &Faraday, fp: [u8; 4]) -> u32 {
+    silent_records(app)
+        .iter()
+        .filter(|w| w.fingerprint.0 == fp && w.account == 0)
+        .filter(|w| w.scan != another_scan_key())
+        .map(|w| w.labels)
+        .next()
+        .expect("the key's wallet is held")
+}
+
+/// Home, which forgets the page, and the Silent payments page again.
+fn home_and_back(app: &mut Faraday) {
+    app.press(Action::Nav(Screen::Home));
+    assert!(app.silent().is_none());
+    app.press(Action::Silent);
+}
+
+#[test]
+fn labels_pressed_after_choosing_a_key_whose_wallet_is_held_count_for_that_wallet() {
+    let c = faraday_core::testkit::compute();
+    let secp = Secp256k1::new();
+    let mut app = with_key();
+    let x = app.session.keys[0].fingerprint.0;
+    add_other_key(&mut app);
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
+    let (paid, funding_tx) = payment(
+        &r.scan_public_key(&secp),
+        &r.labelled_spend_key(&secp, 2).unwrap(),
+    );
+    files(
+        &mut app,
+        &[
+            ("payment.txn", consensus::serialize(&paid)),
+            ("funding.txn", consensus::serialize(&funding_tx)),
+        ],
+    );
+    app.press(Action::Silent);
+    app.press(Action::SKey(x));
+    app.press(Action::SLabel(1));
+    app.press(Action::SAddWallet);
+    home_and_back(&mut app);
+    app.press(Action::SKey(x));
+    app.press(Action::SLabel(1));
+    assert_eq!(count_of(&app, x), 2);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::SWallet(0));
+    app.press(Action::SCheck(0));
+    match checked(&app) {
+        Some(Checked::Paid(p)) => assert_eq!(p[0].label, Some(2)),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn another_accounts_count_never_reaches_the_keys_page() {
+    // Account 1 alone: the key's wallet, added from its page, has none.
+    let mut app = faraday_core::testkit::started();
+    load_record(&mut app, &with_labels(record_of(1, 1, None), 5));
+    add_key(&mut app);
+    let x = app.session.keys[0].fingerprint.0;
+    // One key: the page chooses it as it opens.
+    app.press(Action::Silent);
+    assert_eq!(record_labels(&mut app), 0);
+    app.press(Action::SAddWallet);
+    assert_eq!(count_of(&app, x), 0);
+    add_other_key(&mut app);
+    home_and_back(&mut app);
+    app.press(Action::SKey(x));
+    assert_eq!(record_labels(&mut app), 0);
+
+    // Account 1 first: the account 0 count is still found.
+    let mut app = faraday_core::testkit::started();
+    load_record(&mut app, &record_of(1, 1, None));
+    load_record(&mut app, &with_labels(record_of(0, 0, None), 3));
+    add_key(&mut app);
+    app.press(Action::Silent);
+    assert_eq!(record_labels(&mut app), 3);
+    add_other_key(&mut app);
+    home_and_back(&mut app);
+    app.press(Action::SKey(x));
+    assert_eq!(record_labels(&mut app), 3);
+}
+
+#[test]
+fn a_record_that_does_not_match_its_key_gives_the_keys_page_no_count_either_way() {
+    // The record that does not match states 20 and is alone, or states
+    // none and comes before the key's own at 3.
+    for (forged, own) in [(20, None), (0, Some(3))] {
+        for second in [false, true] {
+            let bad = with_labels(record_of(0, 0, Some(another_scan_key())), forged);
+            let mut app = faraday_core::testkit::started();
+            load_record(&mut app, &bad);
+            add_key(&mut app);
+            if let Some(n) = own {
+                load_record(&mut app, &with_labels(record_of(0, 0, None), n));
+            }
+            let x = app.session.keys[0].fingerprint.0;
+            let want = own.unwrap_or(0);
+            if second {
+                add_other_key(&mut app);
+            }
+            // With one key the page chooses it as it opens.
+            app.press(Action::Silent);
+            if second {
+                app.press(Action::SKey(x));
+            }
+            assert_eq!(record_labels(&mut app), want, "{forged} {second}");
+            app.press(Action::SLabel(1));
+            assert_eq!(record_labels(&mut app), want + 1, "{forged} {second}");
+        }
+    }
+}
+
+#[test]
+fn a_keys_page_starts_from_the_highest_count_of_the_session_and_every_open_vault() {
+    let wallet = record_of(0, 0, None);
+    let two_vaults = |app: &mut Faraday| {
+        files(
+            app,
+            &[
+                (
+                    "a.kdbx",
+                    vault_of("Alpha", 1, &[with_labels(wallet.clone(), 3)]),
+                ),
+                (
+                    "b.kdbx",
+                    vault_of(
+                        "Beta",
+                        2,
+                        &[
+                            with_labels(wallet.clone(), 1),
+                            under_another_fingerprint(with_labels(wallet.clone(), 9)),
+                        ],
+                    ),
+                ),
+            ],
+        );
+        open_loading_nothing(app, 0, "Alpha");
+        open_loading_nothing(app, 1, "Beta");
+    };
+    // As the page is entered, one key chosen.
+    let mut app = faraday_core::testkit::started();
+    two_vaults(&mut app);
+    add_key(&mut app);
+    let x = app.session.keys[0].fingerprint.0;
+    app.press(Action::Silent);
+    assert_eq!(record_labels(&mut app), 3);
+    // Start over, before the page has handed any label out.
+    app.press(Action::SAnother);
+    assert_eq!(record_labels(&mut app), 3);
+    app.press(Action::SLabel(1));
+    assert_eq!(app.silent().unwrap().label, 4);
+    app.press(Action::SAddWallet);
+    assert_eq!(count_of(&app, x), 4);
+
+    // As the key is pressed.
+    let mut app = faraday_core::testkit::started();
+    two_vaults(&mut app);
+    add_key(&mut app);
+    add_other_key(&mut app);
+    app.press(Action::Silent);
+    app.press(Action::SKey(x));
+    assert_eq!(record_labels(&mut app), 3);
+
+    // On the page of a session wallet that states fewer.
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[(
+            "a.kdbx",
+            vault_of("Alpha", 1, &[with_labels(wallet.clone(), 3)]),
+        )],
+    );
+    add_key(&mut app);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    app.press(Action::SAddWallet);
+    app.press(Action::Nav(Screen::Home));
+    open_loading_nothing(&mut app, 0, "Alpha");
+    assert!(app.vaults().open.iter().all(|o| o.changes == 0));
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Silent);
+    assert_eq!(record_labels(&mut app), 3);
+    assert_eq!(count_of(&app, x), 1, "entering raises no wallet");
+    app.press(Action::SAddWallet);
+    assert_eq!(count_of(&app, x), 3);
+}
+
+/// From its card, with no key's page entered: the key's own wallet, and
+/// one of account 1 with no key loaded.
+#[test]
+fn a_wallets_page_opened_from_its_card_starts_from_an_open_vaults_higher_count() {
+    for (account, keyed) in [(0, true), (1, false)] {
+        let wallet = record_of(account, account, None);
+        let mut app = faraday_core::testkit::started();
+        if keyed {
+            add_key(&mut app);
+        }
+        load_record(&mut app, &with_labels(wallet.clone(), 1));
+        files(
+            &mut app,
+            &[("a.kdbx", vault_of("Alpha", 1, &[with_labels(wallet, 3)]))],
+        );
+        open_loading_nothing(&mut app, 0, "Alpha");
+        app.press(Action::Nav(Screen::Home));
+        app.press(Action::SWallet(0));
+        assert_eq!(record_labels(&mut app), 3, "{account} {keyed}");
+        assert_eq!(
+            silent_records(&app)[0].labels,
+            1,
+            "opening raises no wallet"
+        );
+    }
+}
+
+#[test]
+fn a_code_found_by_the_search_opens_with_an_open_vaults_count() {
+    use faraday_core::grind::Dial;
+    use faraday_core::vanity::VanityAction as V;
+    let found = |app: &mut Faraday| {
+        crate::vanity::silent_search(app, Dial::Passphrase);
+        app.press(Action::Vanity(V::Use));
+        assert_eq!(app.screen, Screen::Silent);
+    };
+    // The search finds the same passphrase each time: its record first.
+    let mut app = crate::vanity::with_key();
+    found(&mut app);
+    app.outbox.clear();
+    app.press(Action::SRecord);
+    let text = String::from_utf8(app.outbox[0].bytes.to_vec()).unwrap();
+    let record = SilentWallet::parse(&text).unwrap();
+
+    let mut app = crate::vanity::with_key();
+    files(
+        &mut app,
+        &[("a.kdbx", vault_of("Alpha", 1, &[with_labels(record, 3)]))],
+    );
+    open_loading_nothing(&mut app, 0, "Alpha");
+    app.press(Action::Vanity(V::Open));
+    found(&mut app);
+    assert_eq!(record_labels(&mut app), 3);
+}
+
+#[test]
+fn an_older_record_added_to_an_open_vault_follows_the_count() {
+    use faraday_core::vault::VaultAction as V;
+    let mut app = faraday_core::testkit::started();
+    let older = with_labels(record_of(0, 0, None), 1);
+    files(
+        &mut app,
+        &[
+            ("a.kdbx", vault_of("Alpha", 1, &[])),
+            ("silent-1.txt", older.to_text().into_bytes()),
+        ],
+    );
+    three_labels_and_no_vault(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "silent-1.txt")
+        .unwrap();
+    app.press(Action::Vault(V::AddFile(at)));
+    assert_eq!(vault_labels(&app, 0), [3]);
+}
+
+/// The record file `record` loaded from Files over the wallet already
+/// held: the held record takes its higher count and nothing else.
+#[test]
+fn a_record_file_of_another_test_network_raises_the_count_and_keeps_the_held_network() {
+    use faraday_bip::keys::Network;
+    let held = with_labels(record_of(0, 0, None), 1);
+    let mut other = with_labels(held.clone(), 5);
+    other.network = if held.network == Network::Regtest {
+        Network::Signet
+    } else {
+        Network::Regtest
+    };
+    let mut app = faraday_core::testkit::started();
+    load_record(&mut app, &held);
+    load_record(&mut app, &other);
+    let want = with_labels(held, 5);
+    assert_eq!(silent_records(&app), [want]);
+}
+
+fn no_memory() -> Option<u32> {
+    Some(0)
+}
+
+fn enough_memory() -> Option<u32> {
+    Some(4096)
+}
+
+#[test]
+fn a_vault_that_refuses_a_count_is_told_of_once_and_written_once_there_is_room() {
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("a.kdbx", vault_of("Alpha", 1, &[record_of(0, 0, None)]))],
+    );
+    add_key(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    // A limit a little over what the vault takes: each write has its size
+    // counted, which takes memory, and with memory for that it fits.
+    let c = faraday_core::testkit::compute();
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| s.lower_limit(1));
+    let used = app.vaults().records(id).counted(&c).unwrap();
+    faraday_core::testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 2048));
+    app.set_memory_reader(no_memory);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    let told = |app: &Faraday| {
+        app.toast_text()
+            .is_some_and(|t| t.starts_with("Label count not saved in a.kdbx: Needs "))
+    };
+    assert!(told(&app), "{:?}", app.toast_text());
+    assert_eq!(vault_labels(&app, 0), [0]);
+    // The same count refused again is not told of again.
+    app.press(Action::SRecord);
+    assert!(!told(&app), "{:?}", app.toast_text());
+    app.press(Action::SLabel(-1));
+    app.press(Action::SLabel(-1));
+    assert!(!told(&app), "{:?}", app.toast_text());
+    // Another count is.
+    app.press(Action::SLabel(1));
+    assert!(told(&app), "{:?}", app.toast_text());
+    assert_eq!(vault_labels(&app, 0), [0]);
+    // Memory back, with nothing else changed: the next press writes it.
+    app.set_memory_reader(enough_memory);
+    app.press(Action::SRecord);
+    assert_eq!(vault_labels(&app, 0), [2]);
+    let written = written_at_lock(&mut app);
+    let written: Vec<_> = written
+        .iter()
+        .map(|(n, b)| (n.as_str(), b.clone()))
+        .collect();
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &written);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    assert_eq!(vault_labels(&app, 0), [2]);
+}
+
+#[test]
+fn two_vaults_that_refuse_a_count_at_once_are_both_named_with_why() {
+    let mut app = faraday_core::testkit::started();
+    let wallet = record_of(0, 0, None);
+    files(
+        &mut app,
+        &[
+            (
+                "a.kdbx",
+                vault_of("Alpha", 1, std::slice::from_ref(&wallet)),
+            ),
+            ("b.kdbx", vault_of("Beta", 2, &[wallet])),
+        ],
+    );
+    add_key(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    open_loading_nothing(&mut app, 1, "Beta");
+    // No vault holds more than it does now.
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| s.lower_limit(1));
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Label count not saved in a.kdbx: More than a vault can hold \
+             · Label count not saved in b.kdbx: More than a vault can hold"
+        )
+    );
+    assert_eq!(vault_labels(&app, 0), [0]);
+    assert_eq!(vault_labels(&app, 1), [0]);
+}
+
+/// No open vault holds more than it does now.
+fn fill_every_vault(app: &mut Faraday) {
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(app, id, |s| s.lower_limit(1));
+}
+
+/// A record of open vault `o` is renamed: its records change, and the
+/// count it states does not.
+fn rename_a_wallet_record(app: &mut Faraday, o: usize) {
+    use faraday_vault::records::field;
+    let c = faraday_core::testkit::compute();
+    let id = app.vaults().open[o].id;
+    faraday_core::testkit::vault_edit(app, id, |s| {
+        s.set_publics_in(&c, id, 0, &[(field::WALLET_NAME, b"Renamed")])
+    })
+    .unwrap();
+}
+
+const A_IS_FULL: &str = "Label count not saved in a.kdbx: More than a vault can hold";
+
+#[test]
+fn a_vault_told_of_before_is_left_out_when_another_refuses() {
+    let c = faraday_core::testkit::compute();
+    let mut app = faraday_core::testkit::started();
+    let other = record_of(1, 1, None);
+    files(
+        &mut app,
+        &[
+            ("a.kdbx", vault_of("Alpha", 1, &[record_of(0, 0, None)])),
+            ("c.kdbx", vault_of("Gamma", 3, std::slice::from_ref(&other))),
+        ],
+    );
+    add_key(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    open_loading_nothing(&mut app, 1, "Gamma");
+    fill_every_vault(&mut app);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    assert_eq!(app.toast_text(), Some(A_IS_FULL));
+    // The first vault's records change, so it is tried again, in the same
+    // run as the second is first tried.
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| s.lower_limit(usize::MAX));
+    rename_a_wallet_record(&mut app, 0);
+    fill_every_vault(&mut app);
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Silent",
+            &with_labels(other, 3).to_text(),
+            "a test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    files(&mut app, &[]);
+    assert_eq!(
+        app.toast_text(),
+        Some("Label count not saved in c.kdbx: More than a vault can hold")
+    );
+}
+
+#[test]
+fn a_vault_that_refuses_two_wallets_is_one_line() {
+    let c = faraday_core::testkit::compute();
+    let mut app = faraday_core::testkit::started();
+    let wallets = [record_of(0, 0, None), record_of(1, 1, None)];
+    files(&mut app, &[("a.kdbx", vault_of("Alpha", 1, &wallets))]);
+    add_key(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    fill_every_vault(&mut app);
+    for wallet in wallets {
+        app.session
+            .add_wallet_confirmed(
+                &c,
+                "Silent",
+                &with_labels(wallet, 3).to_text(),
+                "a test",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+    }
+    files(&mut app, &[]);
+    assert_eq!(app.toast_text(), Some(A_IS_FULL));
+    assert_eq!(vault_labels(&app, 0), [0, 0]);
+}
+
+#[test]
+fn two_vaults_of_one_name_that_refuse_a_count_are_two_lines() {
+    let mut app = faraday_core::testkit::started();
+    let wallet = record_of(0, 0, None);
+    let holding = |name, seed| vault_of(name, seed, std::slice::from_ref(&wallet));
+    files(&mut app, &[("a.kdbx", holding("Alpha", 1))]);
+    add_key(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    files(&mut app, &[("a.kdbx", holding("Beta", 2))]);
+    open_loading_nothing(&mut app, 0, "Beta");
+    assert_eq!(app.vaults().open.len(), 2);
+    fill_every_vault(&mut app);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    let both = format!("{A_IS_FULL} · {A_IS_FULL}");
+    assert_eq!(app.toast_text(), Some(&*both));
+}
+
+#[test]
+fn a_full_vault_is_not_tried_again_until_its_records_change() {
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("a.kdbx", vault_of("Alpha", 1, &[record_of(0, 0, None)]))],
+    );
+    add_key(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    fill_every_vault(&mut app);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    assert_eq!(app.toast_text(), Some(A_IS_FULL));
+    // Room with no change of its records: a try would write the count.
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| s.lower_limit(usize::MAX));
+    app.press(Action::SRecord);
+    assert_eq!(vault_labels(&app, 0), [0]);
+    // Nor for a higher count.
+    app.press(Action::SLabel(1));
+    assert_eq!(vault_labels(&app, 0), [0]);
+    rename_a_wallet_record(&mut app, 0);
+    app.press(Action::SRecord);
+    assert_eq!(vault_labels(&app, 0), [2]);
+}
+
+/// A seal of open vault `id` is under way: the vault takes no edit until
+/// it ends.
+fn begin_seal(app: &mut Faraday, id: faraday_keys::vault::VaultId) {
+    let job = faraday_core::testkit::vault_edit(app, id, |s| {
+        let uuids = vec![7; s.uuid_bytes(id).unwrap()];
+        s.seal_job(id, &[7; faraday_keys::vault::SEAL_RANDOM_LEN], &uuids, None)
+    });
+    assert!(job.is_some());
+}
+
+#[test]
+fn a_vault_being_sealed_is_not_said_to_be_full_and_gets_the_count_after() {
+    let mut app = faraday_core::testkit::started();
+    files(
+        &mut app,
+        &[("a.kdbx", vault_of("Alpha", 1, &[record_of(0, 0, None)]))],
+    );
+    add_key(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    let id = app.vaults().open[0].id;
+    begin_seal(&mut app, id);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    let toast = app.toast_text().unwrap_or("");
+    assert!(!toast.starts_with("Label count not saved"), "{toast}");
+    assert_eq!(vault_labels(&app, 0), [0]);
+    // The seal fails, with nothing else changed: the next run writes it.
+    faraday_core::testkit::vault_edit_unseen(&mut app, id, |s| s.seal_ended(id, false));
+    app.press(Action::SRecord);
+    assert_eq!(vault_labels(&app, 0), [1]);
+}
+
+#[test]
+fn a_count_that_waits_is_tried_again_when_a_job_answers() {
+    use faraday_core::testkit;
+    use faraday_core::vault::VaultAction as V;
+    let mut app = testkit::started();
+    files(
+        &mut app,
+        &[
+            ("a.kdbx", vault_of("Alpha", 1, &[record_of(0, 0, None)])),
+            ("b.kdbx", vault_of("Beta", 2, &[])),
+        ],
+    );
+    add_key(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    let id = app.vaults().open[0].id;
+    begin_seal(&mut app, id);
+    app.press(Action::Silent);
+    app.press(Action::SLabel(1));
+    assert_eq!(vault_labels(&app, 0), [0]);
+    app.press(Action::Vault(V::OpenFrom(1, Screen::Files)));
+    // A wrong passphrase: the job answers and no vault opens, so nothing
+    // but the wait brings the write.
+    crate::common::type_text(&mut app, "not Beta's");
+    testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
+    assert!(app.busy().is_some(), "the unlock is on the worker");
+    assert_eq!(vault_labels(&app, 0), [0]);
+    // The seal fails, with no press after it.
+    testkit::vault_edit_unseen(&mut app, id, |s| s.seal_ended(id, false));
+    assert_eq!(vault_labels(&app, 0), [0]);
+    for t in 1..6000u64 {
+        if app.busy().is_none() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(app.busy().is_none());
+    assert_eq!(app.vaults().open.len(), 1);
+    assert_eq!(vault_labels(&app, 0), [1]);
+}
+
+#[test]
+fn plus_after_a_vault_is_unlocked_from_the_page_goes_past_its_labels() {
+    let c = faraday_core::testkit::compute();
+    let mut app = faraday_core::testkit::started();
+    let held = with_labels(record_of(0, 0, None), 5);
+    files(&mut app, &[("a.kdbx", vault_of("Alpha", 1, &[held]))]);
+    add_key(&mut app);
+    app.press(Action::Silent);
+    let fp = app.session.keys.all().next().unwrap().fingerprint.0;
+    app.press(Action::SKey(fp));
+    unlocked_from_the_page(&mut app);
+    app.press(Action::SLabel(1));
+    let page = SilentWallet::parse(&app.silent_record(&c).unwrap()).unwrap();
+    assert_eq!(page.labels, 6);
+    assert_eq!(vault_labels(&app, 0), [6]);
+}
+
+/// The vault named Alpha unlocked from the Silent payments page, the way
+/// the Scan key card offers with no vault open.
+fn unlocked_from_the_page(app: &mut Faraday) {
+    use faraday_core::vault::VaultAction as V;
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Silent)));
+    crate::common::type_text(app, "Alpha");
+    app.press(Action::Vault(V::Unlock));
+    faraday_core::testkit::settle(app);
+    assert_eq!(app.screen, Screen::Silent);
+}
+
+/// The first test key, and a closed vault holding its wallet at five
+/// labels.
+fn five_labels_in_a_closed_vault(app: &mut Faraday) {
+    let held = with_labels(record_of(0, 0, None), 5);
+    files(app, &[("a.kdbx", vault_of("Alpha", 1, &[held]))]);
+    add_key(app);
+}
+
+#[test]
+fn a_wallet_added_after_an_unlock_from_the_page_has_the_vaults_count() {
+    let mut app = faraday_core::testkit::started();
+    five_labels_in_a_closed_vault(&mut app);
+    app.press(Action::Silent);
+    let fp = app.session.keys.all().next().unwrap().fingerprint.0;
+    app.press(Action::SKey(fp));
+    unlocked_from_the_page(&mut app);
+    app.press(Action::SAddWallet);
+    let labels: Vec<u32> = app
+        .session
+        .wallets
+        .iter()
+        .filter_map(|w| w.policy().silent().map(|r| r.labels))
+        .collect();
+    assert_eq!(labels, [5]);
+}
+
+#[test]
+fn plus_on_a_wallets_page_after_an_unlock_from_it_goes_past_the_vaults_labels() {
+    let c = faraday_core::testkit::compute();
+    let mut app = faraday_core::testkit::started();
+    five_labels_in_a_closed_vault(&mut app);
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Silent",
+            &record_of(0, 0, None).to_text(),
+            "a test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::SWallet(app.session.wallets.len() - 1));
+    unlocked_from_the_page(&mut app);
+    let record = SilentWallet::parse(&app.silent_record(&c).unwrap()).unwrap();
+    assert_eq!(record.labels, 5);
+    app.press(Action::SLabel(1));
+    let page = SilentWallet::parse(&app.silent_record(&c).unwrap()).unwrap();
+    assert_eq!(page.labels, 6);
+    assert_eq!(vault_labels(&app, 0), [6]);
+}
+
+#[test]
+fn a_storage_event_has_an_open_vault_follow_the_count() {
+    let c = faraday_core::testkit::compute();
+    let mut app = faraday_core::testkit::started();
+    let wallet = record_of(0, 0, None);
+    files(
+        &mut app,
+        &[(
+            "a.kdbx",
+            vault_of("Alpha", 1, &[with_labels(wallet.clone(), 1)]),
+        )],
+    );
+    open_loading_nothing(&mut app, 0, "Alpha");
+    // The wallet comes in with no press and no job.
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Silent",
+            &with_labels(wallet, 3).to_text(),
+            "a test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    assert_eq!(vault_labels(&app, 0), [1]);
+    files(&mut app, &[]);
+    assert_eq!(vault_labels(&app, 0), [3]);
+}
+
+/// `n` presses of the label's "+".
+fn labels_up(app: &mut Faraday, n: u32) {
+    for _ in 0..n {
+        app.press(Action::SLabel(1));
+    }
+}
+
+/// Three labels on the page of the first test key, never added as a
+/// wallet, then Home.
+fn three_labels_never_added(app: &mut Faraday) {
+    add_key(app);
+    app.press(Action::Silent);
+    labels_up(app, 3);
+    app.press(Action::Nav(Screen::Home));
+}
+
+fn remove_every_key(app: &mut Faraday) {
+    app.press(Action::RemoveKeys);
+    app.press(Action::RemoveKeysHold);
+    assert!(app.session.keys.is_empty());
+}
+
+#[test]
+fn the_labels_of_a_page_never_added_are_kept_when_it_is_left() {
+    let c = faraday_core::testkit::compute();
+    let mut app = with_key();
+    app.press(Action::Silent);
+    labels_up(&mut app, 3);
+    let third = app.silent_address(&c);
+    app.press(Action::SQr(false));
+    assert!(app.qr().is_some());
+    app.press(Action::Cancel);
+    home_and_back(&mut app);
+    assert_eq!(record_labels(&mut app), 3);
+    // No label is on show; "+" is the first not yet handed out, and "-"
+    // steps back down to the third, the same address.
+    assert_eq!(app.silent().unwrap().label, 0);
+    labels_up(&mut app, 1);
+    assert_eq!(app.silent().unwrap().label, 4);
+    assert_eq!(record_labels(&mut app), 4);
+    app.press(Action::SLabel(-1));
+    assert_eq!(app.silent_address(&c), third);
+    for want in [2, 1, 0, 0] {
+        app.press(Action::SLabel(-1));
+        assert_eq!(app.silent().unwrap().label, want);
+    }
+    assert_eq!(record_labels(&mut app), 4);
+    app.press(Action::SAnother);
+    assert_eq!(record_labels(&mut app), 4);
+    assert!(app.session.wallets.is_empty());
+}
+
+/// At the most labels there are, "+" from none shows the last.
+#[test]
+fn plus_from_no_label_with_every_label_handed_out_shows_the_last() {
+    use faraday_bip::silent_wallet::MAX_LABELS;
+    let mut app = faraday_core::testkit::started();
+    load_record(&mut app, &with_labels(record_of(0, 0, None), MAX_LABELS));
+    add_key(&mut app);
+    app.press(Action::SWallet(0));
+    labels_up(&mut app, 1);
+    assert_eq!(app.silent().unwrap().label, MAX_LABELS);
+}
+
+#[test]
+fn the_labels_handed_out_outlast_their_key() {
+    let mut app = faraday_core::testkit::started();
+    add_key(&mut app);
+    remove_every_key(&mut app);
+    assert!(faraday_core::testkit::holds_nothing(&app));
+    three_labels_never_added(&mut app);
+    remove_every_key(&mut app);
+    // The count is something a lock wipes, with nothing else left.
+    assert!(!faraday_core::testkit::holds_nothing(&app));
+    add_key(&mut app);
+    app.press(Action::Silent);
+    assert_eq!(record_labels(&mut app), 3);
+}
+
+#[test]
+fn two_keys_and_two_accounts_keep_their_own_counts() {
+    let mut app = faraday_core::testkit::started();
+    add_key(&mut app);
+    let x = app.session.keys[0].fingerprint.0;
+    let y = add_other_key(&mut app);
+    app.press(Action::Silent);
+    app.press(Action::SKey(x));
+    labels_up(&mut app, 3);
+    app.press(Action::SKey(y));
+    labels_up(&mut app, 1);
+    // Account 1 of the first key, on the page of its record's card.
+    app.press(Action::Nav(Screen::Home));
+    load_record(&mut app, &record_of(1, 1, None));
+    app.press(Action::SWallet(0));
+    labels_up(&mut app, 5);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::RemoveWallet(0));
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::Silent);
+    app.press(Action::SKey(y));
+    assert_eq!(record_labels(&mut app), 1);
+    app.press(Action::SKey(x));
+    assert_eq!(record_labels(&mut app), 3);
+    // Each account's record takes its own count as it is loaded.
+    app.press(Action::Nav(Screen::Home));
+    load_record(&mut app, &record_of(1, 1, None));
+    load_record(&mut app, &record_of(0, 0, None));
+    let counts: Vec<_> = silent_records(&app)
+        .iter()
+        .map(|w| (w.account, w.labels))
+        .collect();
+    assert_eq!(counts, [(1, 5), (0, 3)]);
+    // A record that only names the fingerprint, with its key gone, takes
+    // none.
+    let mut app = faraday_core::testkit::started();
+    three_labels_never_added(&mut app);
+    remove_every_key(&mut app);
+    load_record(&mut app, &under_another_fingerprint(record_of(0, 0, None)));
+    assert_eq!(silent_records(&app)[0].labels, 0);
+}
+
+#[test]
+fn a_record_file_loaded_after_labels_were_handed_out_ends_at_the_higher_count() {
+    for (file, want) in [(1, 3), (7, 7)] {
+        let mut app = faraday_core::testkit::started();
+        three_labels_never_added(&mut app);
+        load_record(&mut app, &with_labels(record_of(0, 0, None), file));
+        assert_eq!(silent_records(&app)[0].labels, want, "{file}");
+        home_and_back(&mut app);
+        assert_eq!(record_labels(&mut app), want, "{file}");
+    }
+}
+
+/// The count kept from a key's page raises a record of another test
+/// network, which keeps its network.
+#[test]
+fn a_record_raised_by_the_kept_count_keeps_its_own_network() {
+    use faraday_bip::keys::Network;
+    let mut other = record_of(0, 0, None);
+    other.network = if other.network == Network::Regtest {
+        Network::Signet
+    } else {
+        Network::Regtest
+    };
+    let mut app = faraday_core::testkit::started();
+    three_labels_never_added(&mut app);
+    load_record(&mut app, &other);
+    assert_eq!(silent_records(&app), [with_labels(other, 3)]);
+}
+
+#[test]
+fn a_vault_opened_after_labels_were_handed_out_is_raised_only_where_it_has_the_wallet() {
+    let mut app = faraday_core::testkit::started();
+    let wallet = with_labels(record_of(0, 0, None), 1);
+    files(
+        &mut app,
+        &[
+            ("a.kdbx", vault_of("Alpha", 1, &[wallet])),
+            ("b.kdbx", vault_of("Beta", 2, &[])),
+        ],
+    );
+    three_labels_never_added(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    open_loading_nothing(&mut app, 1, "Beta");
+    assert_eq!(vault_labels(&app, 0), [3]);
+    assert_eq!(vault_labels(&app, 1), [0u32; 0]);
+    assert_eq!(app.vaults().open[1].changes, 0);
+    assert!(app.session.wallets.is_empty());
+    home_and_back(&mut app);
+    assert_eq!(record_labels(&mut app), 3);
+}
+
+#[test]
+fn lock_and_power_off_leave_no_count_and_a_vaults_record_keeps_its_own() {
+    // Lock with only the count left to wipe.
+    let mut app = faraday_core::testkit::started();
+    three_labels_never_added(&mut app);
+    remove_every_key(&mut app);
+    app.press(Action::Lock);
+    faraday_core::testkit::settle(&mut app);
+    assert!(faraday_core::testkit::holds_nothing(&app));
+    add_key(&mut app);
+    app.press(Action::Silent);
+    assert_eq!(record_labels(&mut app), 0);
+
+    // Lock that writes the vault.
+    let mut app = faraday_core::testkit::started();
+    let wallet = with_labels(record_of(0, 0, None), 1);
+    files(&mut app, &[("a.kdbx", vault_of("Alpha", 1, &[wallet]))]);
+    three_labels_never_added(&mut app);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    let written = written_at_lock(&mut app);
+    add_key(&mut app);
+    app.press(Action::Silent);
+    assert_eq!(record_labels(&mut app), 0);
+    let mut app = faraday_core::testkit::started();
+    let written: Vec<_> = written
+        .iter()
+        .map(|(n, b)| (n.as_str(), b.clone()))
+        .collect();
+    files(&mut app, &written);
+    open_loading_nothing(&mut app, 0, "Alpha");
+    assert_eq!(vault_labels(&app, 0), [3]);
+
+    // Power off.
+    let mut app = faraday_core::testkit::started();
+    three_labels_never_added(&mut app);
+    app.press(Action::PowerOff);
+    assert!(faraday_core::testkit::holds_nothing(&app));
+    add_key(&mut app);
+    app.press(Action::Silent);
+    assert_eq!(record_labels(&mut app), 0);
+}

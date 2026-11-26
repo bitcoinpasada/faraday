@@ -175,6 +175,7 @@ impl Faraday {
         }
         if any {
             self.drop_forged_wallets();
+            self.silent_vaults_catch_up();
         }
         // Keys an answer added are matched to the open vaults at once: no
         // press or tick sees one unmarked. Nothing added costs a lookup,

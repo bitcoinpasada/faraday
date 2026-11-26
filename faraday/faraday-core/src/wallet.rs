@@ -732,6 +732,9 @@ pub struct Session {
     /// first time a wallet names the path, and dropped with the keys
     /// ([`Session::wipe`]).
     pub(crate) key_xpubs: std::cell::RefCell<Vec<crate::register::KeyXpub>>,
+    /// The silent payments labels handed out, kept until
+    /// [`Session::wipe`].
+    pub(crate) silent_handed: crate::silent::HandedOut,
 }
 
 /// A wallet waiting to be confirmed: what [`Session::add_policy`] was
@@ -787,6 +790,7 @@ impl Default for Session {
             wallet_asked_last: 0,
             wallet_covered: None,
             wallet_confirmed: Vec::new(),
+            silent_handed: Default::default(),
             accounts: account::Accounts::default(),
             key_xpubs: std::cell::RefCell::new(Vec::new()),
         }
@@ -873,6 +877,7 @@ impl Session {
             wallet_asked_last: 0,
             wallet_covered: None,
             wallet_confirmed: Vec::new(),
+            silent_handed: Default::default(),
             accounts: account::Accounts::default(),
             key_xpubs: std::cell::RefCell::new(Vec::new()),
         }
@@ -1219,6 +1224,19 @@ impl Session {
         }
         let descriptor = same_wallet(&policy);
         if let Some(i) = self.held_wallet(&descriptor) {
+            // How many labels were handed out is no part of which wallet
+            // a silent payments record is: the one loaded takes a higher
+            // count, never a lower.
+            // Only the count: the held record keeps the rest, its test
+            // network among it.
+            if self.wallets[i].id() == policy.id()
+                && let Some(mut held) = self.wallets[i].policy.silent().cloned()
+                && let Some(new) = policy.silent()
+                && new.labels > held.labels
+            {
+                held.labels = new.labels;
+                self.wallets[i].set_policy(WalletPolicy::of_silent(held));
+            }
             return Ok(i);
         }
         // No key here is forged: refused above.
@@ -1527,6 +1545,7 @@ impl Session {
         self.wallet_covered = None;
         self.wallet_confirmed.clear();
         self.key_xpubs.borrow_mut().clear();
+        self.silent_handed = Default::default();
     }
 
     /// Takes out the wallets made from typed words or seeds that hold the
@@ -5542,7 +5561,7 @@ impl crate::at_lock::AtLock for Session {
         crate::at_lock::Holds {
             kept: self.keys.holds_secret(),
             typed: false,
-            session: !self.wallets.is_empty(),
+            session: !self.wallets.is_empty() || !self.silent_handed.is_empty(),
         }
     }
     fn lock(&mut self) {

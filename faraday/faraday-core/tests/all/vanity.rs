@@ -7,7 +7,7 @@ use faraday_core::vanity::{VanityAction as V, vstep};
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, Event, Key};
 
-fn with_key() -> Faraday {
+pub(crate) fn with_key() -> Faraday {
     let mut app = faraday_core::testkit::started();
     testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.press(Action::Entry(None));
@@ -132,7 +132,7 @@ fn the_address_found_opens_its_code() {
 
 /// Picks the dial at `dial` and the silent payment code, the last kind on
 /// the card, and searches for a code beginning `g` after its fixed part.
-fn silent_search(app: &mut Faraday, dial: faraday_core::grind::Dial) -> String {
+pub(crate) fn silent_search(app: &mut Faraday, dial: faraday_core::grind::Dial) -> String {
     app.press(Action::Vanity(V::Dial(
         faraday_core::grind::Dial::ALL
             .iter()

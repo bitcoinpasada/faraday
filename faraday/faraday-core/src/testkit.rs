@@ -2566,6 +2566,16 @@ pub fn vault_edit<T>(
     app.vaults.edit(id, change)
 }
 
+/// As [`vault_edit`], for a change that nothing following the vaults is
+/// told of, as the end of a seal job that failed is.
+pub fn vault_edit_unseen<T>(
+    app: &mut crate::Faraday,
+    id: faraday_keys::vault::VaultId,
+    change: impl FnOnce(&mut faraday_keys::vault::OpenVaults) -> T,
+) -> T {
+    app.vaults.edit_keeping_descriptions(id, change)
+}
+
 /// The signed-amount memory's records `new` go into open vault `o`, the
 /// oldest leaving while it is over full, as a seal does it.
 pub fn vault_add_amounts(app: &mut crate::Faraday, o: usize, new: Vec<faraday_vault::Record>) {

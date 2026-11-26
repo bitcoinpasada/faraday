@@ -146,6 +146,9 @@ macro_rules! words_silent {
     silent_check: "Check {}",
     /// Line in `check_card`.
     silent_no_transaction: "No transaction in Files",
+    /// Toast in `silent_records_follow`. `{}`: the vault's file name, why
+    /// it refused.
+    silent_label_count_not_saved: "Label count not saved in {}: {}",
         }
     };
 }

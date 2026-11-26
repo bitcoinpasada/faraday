@@ -12,12 +12,15 @@ pub mod check;
 pub(crate) mod screen;
 
 use crate::strings::EN;
+use faraday_bip::policy::{WalletId, WalletPolicy};
 use faraday_bip::silent_wallet::{MAX_LABELS, SilentWallet};
 use faraday_crypto::work::Compute;
 use faraday_keys::silent::Receiver;
+use faraday_keys::vault::{NotSet, VaultId};
 use faraday_text::{Text, text};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
+use std::hash::{Hash, Hasher};
 use zeroize::Zeroizing;
 
 use crate::wallet::{Session, fp_text};
@@ -68,6 +71,115 @@ pub struct SilentState {
     /// What the page shows of the key, kept by what it is derived from
     /// ([`Faraday::silent_shown`]). Public: no key is kept.
     pub(crate) shown: std::cell::RefCell<Option<(SilentShownOf, SilentShown)>>,
+}
+
+/// The labels handed out in this session, by silent payments wallet,
+/// whatever page, key or vault is open. The [`Session`] holds it, so
+/// only [`Session::wipe`] ends it: Lock and power off. Public: a record
+/// is two public keys, where they came from and a count.
+#[derive(Default)]
+pub(crate) struct HandedOut(Vec<Handed>);
+
+/// One wallet's count.
+struct Handed {
+    /// [`crate::wallet::same_wallet`] of `policy`, worked out once.
+    same: Text,
+    /// The record, its `labels` the most handed out.
+    policy: WalletPolicy,
+}
+
+impl Handed {
+    /// Whether this is the wallet of `same` and `id`. A comparison.
+    fn is(&self, same: &str, id: WalletId) -> bool {
+        *self.same == *same && self.policy.id() == id
+    }
+
+    fn labels(&self) -> u32 {
+        self.policy.silent().map_or(0, |r| r.labels)
+    }
+}
+
+impl HandedOut {
+    /// Costs writing `record` out. Its wallet has handed out as many
+    /// labels as it states; the count kept is never lowered.
+    fn keep(&mut self, record: SilentWallet) {
+        let count = record.labels;
+        if count == 0 {
+            return;
+        }
+        let policy = WalletPolicy::of_silent(record);
+        let same = crate::wallet::same_wallet(&policy);
+        match self.0.iter_mut().find(|h| h.is(&same, policy.id())) {
+            Some(h) if h.labels() < count => h.policy = policy,
+            Some(_) => {}
+            None => self.0.push(Handed { same, policy }),
+        }
+    }
+
+    /// The count kept for the wallet of `same` and `id`, or none. A
+    /// lookup.
+    fn of(&self, same: &str, id: WalletId) -> u32 {
+        let kept = self.0.iter().find(|h| h.is(same, id));
+        kept.map_or(0, Handed::labels)
+    }
+
+    /// Costs a lookup of each wallet, and for each one raised a copy of its
+    /// record, a seal of its policy and, at its next
+    /// [`crate::wallet::Wallet::same`], a write of its descriptor. Each of
+    /// `wallets` with fewer labels than were handed out is raised to that
+    /// count; nothing else of its record changes.
+    fn raise(&self, wallets: &mut [crate::wallet::Wallet]) {
+        if self.0.is_empty() {
+            return;
+        }
+        for w in wallets {
+            if w.policy().silent().is_none() {
+                continue;
+            }
+            let count = self.of(w.same(), w.id());
+            if let Some(mut held) = w.policy().silent().cloned()
+                && held.labels < count
+            {
+                held.labels = count;
+                w.set_policy(WalletPolicy::of_silent(held));
+            }
+        }
+    }
+
+    /// Whether no label was handed out.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+/// The record of a key's page: what its key `fp` gives at account 0.
+fn account_zero(r: &Receiver, fp: [u8; 4], labels: u32) -> SilentWallet {
+    SilentWallet {
+        network: r.network(),
+        fingerprint: faraday_bip::keys::Fingerprint(fp),
+        account: 0,
+        scan: r.scan_public_key(),
+        spend: r.spend_public_key(),
+        labels,
+    }
+}
+
+/// Costs two key derivations. The wallet a page of loaded key `fp` is of.
+fn own_record(c: &Compute, session: &Session, fp: [u8; 4]) -> Option<WalletPolicy> {
+    let place = session.keys.position_of(fp)?;
+    let r = session.keys.silent_receiver(c, place, 0)?;
+    Some(WalletPolicy::of_silent(account_zero(&r, fp, 0)))
+}
+
+/// Costs writing `own` out. The session's wallet that is the silent
+/// payments wallet `own`: not another account of its key, nor a record
+/// that only names its fingerprint.
+fn wallet_of(session: &Session, own: &WalletPolicy) -> Option<usize> {
+    let same = crate::wallet::same_wallet(own);
+    session
+        .wallets
+        .iter()
+        .position(|w| w.policy().silent().is_some() && w.same() == &*same && w.id() == own.id())
 }
 
 /// What the DNS record of the address on show comes to, from the name and
@@ -243,6 +355,17 @@ pub(crate) fn ids_of(keys: &faraday_keys::Keys) -> Vec<[u8; 32]> {
 #[derive(Default)]
 pub(crate) struct SilentArea {
     state: Option<SilentState>,
+    /// A sign of the open vaults, the session's label counts and those
+    /// handed out, as
+    /// [`Faraday::silent_vaults_catch_up`] last saw them. Public.
+    followed: Option<u64>,
+    /// The refused writes of a label count already told of
+    /// ([`Faraday::silent_records_follow`]), hashed. Public.
+    told: Vec<u64>,
+    /// Each write a vault refused as more than it can hold, or as
+    /// read-only: the vault and wallet, hashed, and the vault's version
+    /// ([`faraday_keys::vault::OpenVaults::version`]) then. Public.
+    full: Vec<(u64, u64)>,
 }
 
 /// Holds nothing a lock wipes: a fingerprint and the DNS record's text.
@@ -338,20 +461,16 @@ impl SilentArea {
     /// Opens the flow over the session's keys, to return to `back`.
     pub(crate) fn open(&mut self, session: &Session, back: Screen) {
         let key = (session.keys.len() == 1).then(|| session.keys[0].fingerprint.0);
-        self.open_with(session, back, key);
+        self.open_with(back, key);
     }
 
     /// Opens the flow over the loaded key with fingerprint `fp`, to return
     /// to `back`: its address at account 0.
-    pub(crate) fn open_for(&mut self, session: &Session, back: Screen, fp: [u8; 4]) {
-        self.open_with(session, back, Some(fp));
+    pub(crate) fn open_for(&mut self, back: Screen, fp: [u8; 4]) {
+        self.open_with(back, Some(fp));
     }
 
-    fn open_with(&mut self, session: &Session, back: Screen, key: Option<[u8; 4]>) {
-        let wallet = key.and_then(|fp| Self::wallet_of(session, fp));
-        let labels = wallet
-            .and_then(|i| session.wallets[i].policy().silent())
-            .map_or(0, |r| r.labels);
+    fn open_with(&mut self, back: Screen, key: Option<[u8; 4]>) {
         self.state = Some(SilentState {
             open: Some(if key.is_some() {
                 sstep::ADDRESS
@@ -362,8 +481,8 @@ impl SilentArea {
             scroll: flow::Scroll::default(),
             key,
             label: 0,
-            labels,
-            wallet,
+            labels: 0,
+            wallet: None,
             check: None,
             back,
             dns_name: Text::new(),
@@ -371,6 +490,15 @@ impl SilentArea {
             dns_focus: None,
             shown: Default::default(),
         });
+    }
+
+    /// The page's count raised to `most`, and the page made that of
+    /// session wallet `link`, where there is one.
+    fn start_from(&mut self, most: u32, link: Option<usize>) {
+        if let Some(s) = self.state.as_mut() {
+            s.labels = s.labels.max(most);
+            s.wallet = link.or(s.wallet);
+        }
     }
 
     /// Opens the flow as the page of session wallet `i`, a silent
@@ -397,15 +525,6 @@ impl SilentArea {
             shown: Default::default(),
         });
         true
-    }
-
-    /// The session's silent payments wallet over key `fp`, if there is
-    /// one.
-    fn wallet_of(session: &Session, fp: [u8; 4]) -> Option<usize> {
-        session
-            .wallets
-            .iter()
-            .position(|w| w.policy().silent().is_some_and(|r| r.fingerprint.0 == fp))
     }
 
     /// The fingerprint the page names: the record's on a wallet's page
@@ -552,21 +671,17 @@ impl SilentArea {
         if let Some(w) = self.wallet(session) {
             return match self.derived(c, session).0 {
                 Some(RecordCheck::Differs) => None,
-                _ => Some(Text::of(&w.to_text())),
+                _ => {
+                    let mut w = w.clone();
+                    w.labels = self.labels_out(session);
+                    Some(Text::of(&w.to_text()))
+                }
             };
         }
         let s = self.state.as_ref()?;
         let (r, fp) = self.receiver(c, session)?;
         Some(Text::of(
-            &SilentWallet {
-                network: r.network(),
-                fingerprint: faraday_bip::keys::Fingerprint(fp),
-                account: 0,
-                scan: r.scan_public_key(),
-                spend: r.spend_public_key(),
-                labels: s.labels.max(s.label),
-            }
-            .to_text(),
+            &account_zero(&r, fp, s.labels.max(s.label)).to_text(),
         ))
     }
 
@@ -691,6 +806,12 @@ impl SilentArea {
                 }
             }
             A::SKey(fp) => {
+                // On a key's page, another key starts from its own count.
+                // A wallet's page stays that wallet's.
+                if s.wallet.is_none() && s.key != Some(fp) {
+                    s.label = 0;
+                    s.labels = 0;
+                }
                 s.key = Some(fp);
                 s.check = None;
                 s.done[usize::from(sstep::KEY)] = true;
@@ -699,7 +820,14 @@ impl SilentArea {
                 s.scroll.follow = true;
             }
             A::SLabel(d) => {
-                let next = i64::from(s.label) + i64::from(d);
+                // From no label, "+" is the first label not yet handed
+                // out; at the most there is, the last.
+                let next = if s.label == 0 && d > 0 {
+                    let held = record.as_ref().map_or(0, |r| r.labels);
+                    i64::from(s.labels.max(held)) + 1
+                } else {
+                    i64::from(s.label) + i64::from(d)
+                };
                 s.label = next.clamp(0, i64::from(MAX_LABELS)) as u32;
                 s.labels = s.labels.max(s.label);
                 // A label shown is a label handed out: the wallet's record
@@ -734,6 +862,14 @@ impl SilentArea {
         }
     }
 
+    /// The labels the page's wallet has handed out: its record's, or the
+    /// page's own count where that is higher.
+    pub(crate) fn labels_out(&self, session: &Session) -> u32 {
+        self.wallet(session)
+            .map_or(0, |w| w.labels)
+            .max(self.state.as_ref().map_or(0, |s| s.labels))
+    }
+
     /// Costs what `receiver` costs. What a check of `check` comes to, or
     /// `None` while a previous transaction is still missing. An unsigned
     /// input is no answer, and the change label is always looked for.
@@ -756,10 +892,7 @@ impl SilentArea {
         let Some((receiver, _)) = self.receiver(c, session) else {
             return Some(Checked::KeyNotLoaded);
         };
-        let labels_out = self
-            .wallet(session)
-            .map_or(0, |w| w.labels)
-            .max(self.state.as_ref().map_or(0, |s| s.labels));
+        let labels_out = self.labels_out(session);
         let labels: Vec<u32> = (0..=labels_out).collect();
         let scripts: Vec<&[u8]> = prevouts.iter().map(|s| s.as_bytes()).collect();
         match receiver.payments_in(tx, &scripts, &labels) {
@@ -914,10 +1047,79 @@ impl Faraday {
         self.silent.state()
     }
 
-    /// Opens the flow.
+    /// Costs what [`Faraday::silent_count_start`] costs. Opens the flow.
     pub(crate) fn silent_open(&mut self) {
         self.silent.open(&self.session, self.screen);
         self.screen = Screen::Silent;
+        let c = self.compute();
+        self.silent_count_start(&c, true);
+    }
+
+    /// Costs what [`Faraday::silent_count_start`] costs. Opens the flow
+    /// over the loaded key with fingerprint `fp`.
+    pub(crate) fn silent_open_for(&mut self, fp: [u8; 4]) {
+        self.silent.open_for(self.screen, fp);
+        self.screen = Screen::Silent;
+        let c = self.compute();
+        self.silent_count_start(&c, true);
+    }
+
+    /// Costs what `own_record` costs, and what
+    /// [`Faraday::silent_count_known`] costs. On the press that enters a key's page (`entered`)
+    /// or chooses its key, never in drawing: the page's count is raised
+    /// to the highest of what the session has handed out for that wallet,
+    /// the session wallet's and each open vault's own record of it. Entering makes the page that session wallet's; a key press
+    /// never does, and leaves a wallet's page as it is.
+    fn silent_count_start(&mut self, c: &Compute, entered: bool) {
+        let Some((fp, linked)) = self
+            .silent
+            .state()
+            .and_then(|s| Some((s.key?, s.wallet.is_some())))
+        else {
+            return;
+        };
+        if linked && !entered {
+            return;
+        }
+        let Some(own) = own_record(c, &self.session, fp) else {
+            return;
+        };
+        let at = wallet_of(&self.session, &own);
+        let held = at.and_then(|i| self.session.wallets[i].policy().silent());
+        let most = held
+            .map_or(0, |r| r.labels)
+            .max(self.silent_count_known(c, &own));
+        self.silent.start_from(most, at.filter(|_| entered));
+    }
+
+    /// Costs what `silent_record` costs, writing it out and what
+    /// [`Faraday::silent_count_known`] costs. Where an unlock from the
+    /// page lands back on it, where a vault opened since the page's count
+    /// was worked out may have handed out more, and the page's count is
+    /// raised to that; and on "+" from no label, before the step, as a
+    /// guard on the press that hands out a label.
+    pub(crate) fn silent_recount(&mut self, c: &Compute) {
+        let Some(page) = self.silent_record(c).and_then(|t| SilentWallet::parse(&t)) else {
+            return;
+        };
+        let most = self.silent_count_known(c, &WalletPolicy::of_silent(page));
+        self.silent.start_from(most, None);
+    }
+
+    /// Costs writing `own` out, and what `described_of` costs for each
+    /// open vault. The most labels of the silent payments wallet `own`
+    /// that the session has handed out or an open vault's own record of
+    /// it states, or none.
+    fn silent_count_known(&self, c: &Compute, own: &WalletPolicy) -> u32 {
+        let same = crate::wallet::same_wallet(own);
+        let in_vaults = self.vaults.open.iter().flat_map(|o| {
+            self.vaults
+                .described_of(c, o.id, kind::WALLET)
+                .filter(|(_, _, d)| *d.same == *same && d.policy.id() == own.id())
+                .filter_map(|(_, _, d)| d.policy.silent())
+        });
+        let handed = self.session.silent_handed.of(&same, own.id());
+        in_vaults.map(|r| r.labels).fold(handed, u32::max)
     }
 
     /// The record of the wallet the flow is the page of.
@@ -1127,6 +1329,8 @@ impl Faraday {
             A::SWallet(i) => {
                 if self.silent.open_wallet(&self.session, i) {
                     self.screen = Screen::Silent;
+                    let most = self.silent_count_known(&c, self.session.wallets[i].policy());
+                    self.silent.start_from(most, None);
                 }
             }
             A::SCheck(k) => self.silent_check(k),
@@ -1134,9 +1338,18 @@ impl Faraday {
             // count as handed out.
             A::SLabel(_) if self.silent_held(&c) => {}
             _ => {
+                let from_none = self.silent.state().is_some_and(|s| s.label == 0);
+                if matches!(action, A::SLabel(d) if d > 0) && from_none {
+                    self.silent_recount(&c);
+                }
                 if let Some((i, r)) = self.silent.act(action, &self.session) {
-                    self.session.wallets[i]
-                        .set_policy(faraday_bip::policy::WalletPolicy::of_silent(r));
+                    self.session.wallets[i].set_policy(WalletPolicy::of_silent(r));
+                }
+                match action {
+                    A::SKey(_) => self.silent_count_start(&c, false),
+                    A::SAnother => self.silent_count_start(&c, true),
+                    A::SLabel(_) => self.silent_keep_count(&c),
+                    _ => {}
                 }
             }
         }
@@ -1204,6 +1417,201 @@ impl Faraday {
             }
             Err(e) => self.toast(&e.text()),
         }
+    }
+
+    /// Costs `silent_record` and writing the record out, on a label
+    /// press. The labels the page's wallet has handed out are kept in the
+    /// session ([`HandedOut`]); the catch-up after the press raises by
+    /// them. Measured on the build machine (a release test build, medians
+    /// of five alternating runs against the code without the count kept
+    /// or followed, 1 and 4 open vaults of 20 wallet records): a label
+    /// press, this and its catch-up, takes 0.3 to 0.44 ms more.
+    fn silent_keep_count(&mut self, c: &Compute) {
+        if let Some(page) = self.silent_record(c).and_then(|t| SilentWallet::parse(&t)) {
+            self.session.silent_handed.keep(page);
+        }
+    }
+
+    /// Costs a lookup of each session wallet, kept count and open vault,
+    /// and no more unless a vault was opened or closed, a silent payments
+    /// wallet with labels handed out came, went or took another count, or
+    /// a write waits (below); then, for each such wallet, what
+    /// [`Faraday::silent_records_follow`] costs.
+    /// A change of an open vault's records ([`Vaults::edits`]) counts as
+    /// one of these.
+    /// Run after a press, a job's answer and a storage event, never in
+    /// drawing: however a vault or a wallet came in (an unlock, a load, a
+    /// file), a session wallet with fewer labels than the session handed
+    /// out is raised to that count, and an open vault's record of a wallet
+    /// with more labels, in the session's wallets or handed out, follows
+    /// it. One try for each such change. A write waits while its vault is
+    /// being sealed (not tried), and while memory is short for it or the
+    /// seal cannot write it: until it is written, each run does all of the
+    /// above, and tries each write refused for those two reasons. A write
+    /// refused as more than the vault can hold, or because the vault is
+    /// read-only, does not make it wait: it is tried again only once that
+    /// vault's records have changed, which a read-only vault's never do.
+    /// The refusals not yet told of are one toast.
+    /// A vault written has its records read again by the next frame that
+    /// reads them ([`Vaults::changed`]): for the press that hands out a
+    /// new label, that frame took about 1.9 ms more for each open vault
+    /// of 20 records (measured as [`Faraday::silent_keep_count`]'s
+    /// press). A try that a vault refuses is not timed.
+    pub(crate) fn silent_vaults_catch_up(&mut self) {
+        let session = &mut self.session;
+        session.silent_handed.raise(&mut session.wallets);
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        let mut held = Vec::new();
+        let mut have = Vec::new();
+        for w in &self.session.wallets {
+            have.push((w.same(), w.id()));
+            if let Some(r) = w.policy().silent().filter(|r| r.labels > 0) {
+                (w.same(), r.labels).hash(&mut h);
+                held.push((r.labels, w.policy()));
+            }
+        }
+        // A count handed out for a wallet the session does not hold.
+        for k in &self.session.silent_handed.0 {
+            if !have.iter().any(|&(same, id)| k.is(same, id)) {
+                (&*k.same, k.labels()).hash(&mut h);
+                held.push((k.labels(), &k.policy));
+            }
+        }
+        for o in &self.vaults.open {
+            o.id.hash(&mut h);
+        }
+        // A record put into an open vault may state fewer.
+        self.vaults.edits().hash(&mut h);
+        let sign = (!held.is_empty()).then(|| h.finish());
+        if self.silent.followed == sign {
+            return;
+        }
+        let held: Vec<_> = held
+            .into_iter()
+            .map(|(count, policy)| (count, policy.clone()))
+            .collect();
+        let c = self.compute();
+        let mut none_waits = true;
+        let mut tell = Vec::new();
+        for (count, policy) in held {
+            none_waits &= self.silent_records_follow(&c, count, |_| Some(policy), &mut tell);
+        }
+        // While a write waits, the next run tries again: memory may have
+        // come, or a seal ended, with no change that the sign shows.
+        self.silent.followed = sign.filter(|_| none_waits);
+        if !tell.is_empty() {
+            let lines: Vec<Text> = tell.into_iter().map(|(_, line)| line).collect();
+            self.toast(&Text::joined(&lines, " · "));
+        }
+    }
+
+    /// Costs what `described_of` costs for each open vault, and, where a
+    /// silent payments record in one states fewer than `count` labels, what
+    /// `wallet` costs and a walk of the vault for each record written.
+    /// Every open vault's own record of `wallet` is raised to `count`,
+    /// never down: a payment to a label is looked for only up to the count
+    /// of the record loaded. A vault that is not open, or holds no record
+    /// of this wallet, is left as it is. A vault being sealed is not tried;
+    /// a read-only one is refused as one that cannot be written, told of
+    /// once and not tried again; and one that refused this wallet as more than it can
+    /// hold is not tried until its records change. A line naming the vault
+    /// and why goes onto `tell`, with the vault, for each refusal not told
+    /// of before. Returns whether no write waits for the next run
+    /// ([`Faraday::silent_vaults_catch_up`]).
+    fn silent_records_follow(
+        &mut self,
+        c: &Compute,
+        count: u32,
+        wallet: impl FnOnce(&Self) -> Option<WalletPolicy>,
+        tell: &mut Vec<(VaultId, Text)>,
+    ) -> bool {
+        let behind: Vec<_> = self
+            .vaults
+            .open
+            .iter()
+            .flat_map(|o| {
+                self.vaults
+                    .described_of(c, o.id, kind::WALLET)
+                    .filter(|(_, _, d)| d.policy.silent().is_some_and(|r| r.labels < count))
+                    .map(|(i, _, d)| (o.id, i, d.same.duplicate(), d.policy.clone()))
+            })
+            .collect();
+        let mut none_waits = true;
+        if behind.is_empty() {
+            return none_waits;
+        }
+        let Some(wallet) = wallet(self) else {
+            return none_waits;
+        };
+        let same = crate::wallet::same_wallet(&wallet);
+        for (id, i, held, policy) in behind {
+            if held != same || policy.id() != wallet.id() {
+                continue;
+            }
+            let Some(mut raised) = policy.silent().cloned() else {
+                continue;
+            };
+            // A vault being sealed takes no edit until its seal ends. A
+            // read-only one never takes one, so it is not waited for. None
+            // comes this far today: its Faraday records are not read.
+            let read_only = self.vaults.store().read_only(id).is_some();
+            if !read_only && self.vaults.store().is_locked(id) {
+                none_waits = false;
+                continue;
+            }
+            let version = self.vaults.store().version(id);
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            (id, &*same).hash(&mut h);
+            let of = h.finish();
+            if self.silent.full.contains(&(of, version)) {
+                continue;
+            }
+            raised.labels = count;
+            let text = Text::of(&raised.to_text());
+            // The store would refuse a read-only vault's edit as full,
+            // which it is not.
+            let wrote = if read_only {
+                Err(NotSet::Unwritable)
+            } else {
+                self.vaults.edit_or(id, |s| {
+                    s.set_publics_in(c, id, i, &[(field::WALLET, text.as_bytes())])
+                })
+            };
+            // A refusal is told of once, until what is refused changes.
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            (id, &*same, count).hash(&mut h);
+            let refused = h.finish();
+            match wrote {
+                Ok(()) => {
+                    self.silent.told.retain(|t| *t != refused);
+                    self.silent.full.retain(|f| f.0 != of);
+                    self.vaults.changed(id);
+                }
+                Err(why) => {
+                    if read_only || matches!(why, NotSet::Full) {
+                        self.silent.full.retain(|f| f.0 != of);
+                        self.silent.full.push((of, version));
+                    } else {
+                        none_waits = false;
+                    }
+                    if self.silent.told.contains(&refused) {
+                        continue;
+                    }
+                    self.silent.told.push(refused);
+                    let why = self.not_set_text(Some(id), why);
+                    let open = self.vaults.open.iter().find(|o| o.id == id);
+                    let name = open.map_or("", |o| &*o.name);
+                    let line = Text::fill(EN.silent_label_count_not_saved, &[name, &why]);
+                    // Two wallets one vault refuses for one reason are
+                    // one line; two vaults of one name are two.
+                    let line = (id, line);
+                    if !tell.contains(&line) {
+                        tell.push(line);
+                    }
+                }
+            }
+        }
+        none_waits
     }
 
     /// Reads Inbox file `k` as the transaction to check, takes every
