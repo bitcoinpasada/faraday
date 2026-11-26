@@ -129,15 +129,18 @@ const FIVE: [Screen; 5] = [
 ];
 
 /// Whether the last frame has Scan in the navigation: in the sidebar or
-/// the rail, at the window's left and at its foot, and not floating.
+/// the rail, at the window's left and under Settings, and not floating.
 fn scan_in_navigation(app: &Faraday, w: u16, h: u16, nav_w: u16) -> bool {
+    let settings_foot = app
+        .hit_box(Action::Nav(Screen::Settings))
+        .map(|(_, y, _, bh)| y + bh);
     app.hit_box(Action::Scan)
-        .is_some_and(|(x, y, bw, bh)| x + bw <= nav_w && y + bh > h * 3 / 4)
+        .is_some_and(|(x, y, bw, _)| x + bw <= nav_w && settings_foot.is_some_and(|foot| y >= foot))
         && !floats_scan(app, w, h)
 }
 
-/// Scan is at the foot of the sidebar on 1280x800 and of the rail on a rail
-/// window, on every page, and opens the scanner; Back returns to the page.
+/// Scan stands under Settings in the sidebar on 1280x800 and in the rail on
+/// a rail window, on every page, and opens the scanner; Back returns to the page.
 #[test]
 fn scan_is_in_the_navigation_on_every_page_of_the_wide_windows() {
     // The sidebar is 240 wide; the rail 80.
