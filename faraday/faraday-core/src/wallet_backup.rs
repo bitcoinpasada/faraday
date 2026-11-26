@@ -774,8 +774,7 @@ impl BackupState {
     /// loaded: removed, or never here. A key is told by its id, so no key
     /// that takes its place stands in for it.
     pub fn key_at(&self, keys: &faraday_keys::Keys) -> Option<usize> {
-        let id = self.key?;
-        keys.all().position(|k| k.id == id)
+        keys.place_of(self.key?)
     }
 }
 

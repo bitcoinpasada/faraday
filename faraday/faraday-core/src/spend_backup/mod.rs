@@ -1099,7 +1099,7 @@ impl Faraday {
             .guess
             .as_ref()
             .and_then(|g| g.key)
-            .is_some_and(|id| !self.session.keys.all().any(|k| k.id == id));
+            .is_some_and(|id| !self.session.keys.holds(id));
         let in_wallet = self.spend_backup_wallet().is_some_and(|w| {
             self.session
                 .slots(&self.session.wallets[w])
@@ -1704,7 +1704,7 @@ impl Faraday {
     /// guess, the first seed typed on the route, else the last loaded.
     pub(crate) fn spend_backup_words_key(&self) -> Option<usize> {
         if let Some(id) = self.spend_backup.state.guess.as_ref().and_then(|g| g.key) {
-            return self.session.keys.all().position(|k| k.id == id);
+            return self.session.keys.place_of(id);
         }
         self.spend_backup
             .state

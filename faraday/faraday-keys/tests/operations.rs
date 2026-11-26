@@ -1696,3 +1696,25 @@ fn a_key_with_a_passphrase_gives_the_fingerprint_of_its_words_alone() {
     assert_eq!(keys.info(1).unwrap().fingerprint, with);
     assert_eq!(format!("{published}"), "73c5da0a");
 }
+
+#[test]
+fn a_key_is_found_by_its_id_until_it_is_removed() {
+    let c = compute();
+    let mut keys = Keys::on(Network::Testnet);
+    let about = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let above = "letter advice cage absurd amount doctor acoustic avoid letter advice cage above";
+    let first = keys.add_words(&c, about, "", None).expect("a key");
+    let second = keys.add_words(&c, above, "", None).expect("a key");
+    let place = |keys: &Keys, fp| keys.position(fp).expect("loaded");
+    let (a, b) = (place(&keys, first), place(&keys, second));
+    let first_id = keys.all().nth(a).expect("a key").id;
+    let second_id = keys.all().nth(b).expect("a key").id;
+    assert_eq!(keys.place_of(first_id), Some(a));
+    assert_eq!(keys.place_of(second_id), Some(b));
+    keys.remove(a);
+    assert_eq!(keys.place_of(first_id), None);
+    assert!(!keys.holds(first_id));
+    assert_eq!(keys.place_of(second_id), Some(0));
+    assert_eq!(keys.remove_all(), [second]);
+    assert!(!keys.holds(second_id));
+}

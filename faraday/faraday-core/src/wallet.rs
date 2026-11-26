@@ -1281,15 +1281,7 @@ impl Session {
         self.refused_before_sheet(c, policy, &derived, &mut memo, false)
     }
 
-    /// The place of the wallet of the session that is `descriptor`
-    /// ([`same_wallet`]). Writes each one's descriptor out.
-    fn session_place(&self, descriptor: &str) -> Option<usize> {
-        self.wallets
-            .iter()
-            .position(|w| *same_wallet(&w.policy) == *descriptor)
-    }
-
-    /// Costs what [`Self::session_place`] does: whether `policy`
+    /// Costs what [`Self::held_wallet`] does: whether `policy`
     /// (`descriptor`, [`same_wallet`]) is kept only once the person has
     /// confirmed it (F254, F132). A wallet of several keys, or one a key
     /// not of its own can spend alone, is, unless the session holds it or
@@ -1301,7 +1293,7 @@ impl Session {
         let outside = policy.keys().len() > 1 && !confirm::all_keys_loaded(self, policy);
         let other = matches!(policy.key_path(), Some(KeyPath::Other(_)));
         (outside || other)
-            && self.session_place(descriptor).is_none()
+            && self.held_wallet(descriptor).is_none()
             && !self.wallet_confirmed.iter().any(|d| **d == *descriptor)
     }
 
@@ -5284,8 +5276,7 @@ impl Faraday {
                 if self.sheet == Some(crate::Sheet::RemoveKeys) {
                     self.sheet = None;
                 }
-                let gone: Vec<_> = self.session.keys.all().map(|k| k.fingerprint).collect();
-                self.session.keys.remove_all();
+                let gone = self.session.keys.remove_all();
                 self.wallets.clear_spend();
                 // After the removal: the tab puts back a plain seed that
                 // is still held.

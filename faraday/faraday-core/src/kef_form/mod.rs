@@ -20,12 +20,6 @@ use zeroize::Zeroizing;
 
 pub(crate) mod screen;
 
-/// The place in the session's list of the key with id `key`, while it is
-/// loaded.
-fn key_place(app: &Faraday, key: KeyId) -> Option<usize> {
-    app.session.keys.all().position(|k| k.id == key)
-}
-
 /// The dice entry's tag: the form has one passphrase.
 const DICE_TAG: usize = 0;
 
@@ -240,7 +234,7 @@ impl KefForm {
     /// while its key is loaded.
     pub(crate) fn source_here(&self, keys: &faraday_keys::Keys) -> bool {
         match &self.source {
-            Source::Seed { key, .. } => keys.all().any(|k| k.id == *key),
+            Source::Seed { key, .. } => keys.holds(*key),
             Source::Text(_) => true,
         }
     }
@@ -873,7 +867,7 @@ impl KefForm {
                 let same = match &self.source {
                     Source::Seed { key, .. } => {
                         let c = app.compute();
-                        key_place(app, *key).is_some_and(|i| {
+                        app.session.keys.place_of(*key).is_some_and(|i| {
                             faraday_keys::kef::seed_matches(
                                 &app.session.keys,
                                 &c,
@@ -979,7 +973,7 @@ impl KefForm {
         self.error = None;
         let pass = Zeroizing::new(self.pass.as_str().as_bytes().to_vec());
         let started = match &self.source {
-            Source::Seed { key, .. } => match key_place(app, *key) {
+            Source::Seed { key, .. } => match app.session.keys.place_of(*key) {
                 Some(i) => app.kef_make_seed(i, pass, &self.options),
                 None => Err(MakeStart::NotOffered),
             },

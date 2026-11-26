@@ -715,6 +715,16 @@ impl Keys {
         self.entries.iter().position(|e| e.info.fingerprint.0 == fp)
     }
 
+    /// The place of the key with id `id`, while it is loaded.
+    pub fn place_of(&self, id: KeyId) -> Option<usize> {
+        self.entries.iter().position(|e| e.info.id == id)
+    }
+
+    /// Whether the key with id `id` is loaded.
+    pub fn holds(&self, id: KeyId) -> bool {
+        self.place_of(id).is_some()
+    }
+
     /// The key with `fp`.
     pub fn find(&self, fp: Fingerprint) -> Option<&KeyInfo> {
         self.info(self.position(fp)?)
@@ -1259,8 +1269,10 @@ impl Keys {
     /// does. A mark a vault gave a fingerprint, and a key derived from a
     /// published one, stay while the session does ([`Keys::clear`]): a
     /// key typed again after this is marked as it was. Published keys
-    /// kept for testing are not kept: the caution comes again.
-    pub fn remove_all(&mut self) {
+    /// kept for testing are not kept: the caution comes again. Returns the
+    /// fingerprints of the keys dropped, in the list's order.
+    pub fn remove_all(&mut self) -> Vec<Fingerprint> {
+        let gone = self.entries.iter().map(|e| e.info.fingerprint).collect();
         self.entries.clear();
         self.sweep = None;
         self.check = None;
@@ -1269,6 +1281,7 @@ impl Keys {
         self.kept_published.clear();
         self.added.clear();
         self.from_vault.clear();
+        gone
     }
 
     /// Drops every key and every mark the session holds: Lock and exit.
