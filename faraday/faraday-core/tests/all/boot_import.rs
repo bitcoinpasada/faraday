@@ -1375,7 +1375,10 @@ fn a_renamed_file_leaves_the_list() {
 fn zeroing_the_whole_stick_ends_the_import() {
     let files = stick_files();
     let mut app = boot_only(&files);
-    app.press(Action::DeleteFiles);
+    secret_written(&mut app);
+    let _ = app.frame();
+    assert!(app.offers(Action::DeleteUnprotected));
+    app.press(Action::DeleteUnprotected);
     app.press(Action::DeleteWhat(2));
     app.press(Action::DeletePasses(1));
     while app.poll_storage().is_some() {}
@@ -2629,10 +2632,10 @@ fn an_import_pressed_survives_a_changed_listing_and_homes_row_brings_the_step() 
     assert_eq!(app.sheet, Some(Sheet::Import));
 }
 
-/// An import not yet pressed whose stick's listing changed: Home's row
-/// ends it and Files opens, where the stick's card is.
+/// An import not yet pressed whose stick was put back beside another:
+/// Home's row ends it and Files opens, where the stick's card is.
 #[test]
-fn homes_row_over_a_changed_listing_ends_the_import_and_opens_files() {
+fn homes_row_over_a_stick_put_back_beside_another_ends_the_import_and_opens_files() {
     let files = stick_files();
     let mut app = boot_only(&files);
     app.press(Action::Import(I::Later));
