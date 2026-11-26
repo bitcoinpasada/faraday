@@ -42,9 +42,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let mut pane_end = y_pane;
     if let Some(p) = pair {
-        let rows = super::pane::key_rows(app, e.key);
-        pane_end += pick::head(ui, x0 + p.pane_x, pane_end, p.pane_w, EN.session_group_keys);
-        pane_end += pick::rows(ui, x0 + p.pane_x, pane_end, p.pane_w, &rows);
+        let groups = super::pane::key_groups(app, e.key);
+        pane_end += pick::draw_groups(ui, x0 + p.pane_x, pane_end, p.pane_w, &groups);
     } else {
         let mut keys: Vec<(Text, Style, Action)> = app
             .session

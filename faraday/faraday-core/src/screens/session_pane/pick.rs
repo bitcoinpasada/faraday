@@ -13,7 +13,7 @@ use crate::ui::Ui;
 use crate::ui::pal::*;
 use faraday_draw::tokens::{
     BODY_L, BODY_M, DISABLED_CONTENT, GAP, GAP_SMALL, ICON_GLYPH, ICON_GLYPH_BUTTON, LABEL_L,
-    LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, SHAPE_S,
+    LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, PICK_RADIO_DOT_INSET, SHAPE_S,
 };
 use faraday_draw::widgets::Icon;
 
@@ -74,6 +74,229 @@ impl PickRow {
         self.line = reason.to_string();
         self
     }
+}
+
+/// What a flow says of one item it may take: whether it is the chosen one,
+/// what a press does and, when the step cannot take it, why. The item's
+/// row, its icon and its line are the pane's.
+pub(crate) struct Take {
+    pub chosen: bool,
+    pub action: Action,
+    /// The step cannot take it: the row stays, dimmed, with this line.
+    pub refusal: Option<String>,
+    /// The flow's own second line, in place of the pane's.
+    pub line: Option<String>,
+}
+
+impl Take {
+    /// An item the step takes.
+    pub(crate) fn of(chosen: bool, action: Action) -> Self {
+        Take {
+            chosen,
+            action,
+            refusal: None,
+            line: None,
+        }
+    }
+
+    /// The row's second line as the flow says it, in place of the pane's
+    /// (a flow whose rows name what the item makes).
+    pub(crate) fn line(mut self, line: impl Into<String>) -> Self {
+        self.line = Some(line.into());
+        self
+    }
+
+    /// The same item, refused for `reason`.
+    pub(crate) fn refused(mut self, reason: impl Into<String>) -> Self {
+        self.refusal = Some(reason.into());
+        self
+    }
+}
+
+/// A flow's pick as it declares it: which kinds it takes, which item is
+/// chosen and which is refused (each through [`Take`]), and its ways in,
+/// the only rows the flow makes itself. The pane lists the keys, wallets
+/// and files, in its order (Keys, Wallets, Files),
+/// and no flow lists `session.keys` or `session.wallets` for a
+/// row of its own (`lint-components`).
+pub(crate) struct Decl {
+    question: &'static str,
+    keys: Vec<PickRow>,
+    wallets: Vec<PickRow>,
+    files: Vec<PickRow>,
+    ways: Vec<PickRow>,
+}
+
+impl Decl {
+    /// A pick under `question`, taking nothing yet.
+    pub(crate) fn new(question: &'static str) -> Self {
+        Decl {
+            question,
+            keys: Vec::new(),
+            wallets: Vec::new(),
+            files: Vec::new(),
+            ways: Vec::new(),
+        }
+    }
+
+    /// Takes keys: `take` answers for each loaded key (its index and facts),
+    /// `None` for one of a kind the flow never takes (left out). Each row's
+    /// head is the fingerprint and its line the key row's of the pane.
+    pub(crate) fn keys(
+        self,
+        app: &crate::Faraday,
+        take: impl Fn(usize, &faraday_keys::KeyInfo) -> Option<Take>,
+    ) -> Self {
+        self.keys_many(app, |i, k| {
+            let fp = crate::wallet::fp_text(k.fingerprint);
+            take(i, k)
+                .map(|t| (String::from(&*fp), t))
+                .into_iter()
+                .collect()
+        })
+    }
+
+    /// Takes keys with several rows each (Lightning's two nodes of a key):
+    /// `take` gives each row's head and what the flow says of it. The line
+    /// is the key row's of the pane.
+    pub(crate) fn keys_many<H: AsRef<str>>(
+        mut self,
+        app: &crate::Faraday,
+        take: impl Fn(usize, &faraday_keys::KeyInfo) -> Vec<(H, Take)>,
+    ) -> Self {
+        let session = &app.session;
+        self.keys = session
+            .keys
+            .all()
+            .enumerate()
+            .flat_map(|(i, k)| {
+                take(i, k)
+                    .into_iter()
+                    .map(|(head, t)| {
+                        let line = || super::rows::key_line(session, k);
+                        row_of(Icon::Keys, head.as_ref().to_owned(), line, t)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        self
+    }
+
+    /// Takes wallets: `take` answers for the wallet at an index and gives
+    /// the line a taken row carries (a refused one carries its reason).
+    pub(crate) fn wallets(
+        mut self,
+        app: &crate::Faraday,
+        take: impl Fn(usize, &crate::wallet::Wallet) -> Option<(Take, String)>,
+    ) -> Self {
+        self.wallets = app
+            .session
+            .wallets
+            .iter()
+            .enumerate()
+            .filter_map(|(i, w)| {
+                let (t, line) = take(i, w)?;
+                Some(row_of(Icon::Wallet, String::from(&*w.name), || line, t))
+            })
+            .collect();
+        self
+    }
+
+    /// Takes held files: `take` answers for the file at an index of the
+    /// Inbox, `None` for one of a kind the flow never takes (hidden).
+    pub(crate) fn files(
+        mut self,
+        app: &crate::Faraday,
+        take: impl Fn(usize, &crate::item::Item) -> Option<Take>,
+    ) -> Self {
+        self.files = app
+            .inbox
+            .iter()
+            .enumerate()
+            .filter_map(|(i, f)| {
+                let t = take(i, f)?;
+                Some(row_of(Icon::File, f.name.to_string(), String::new, t))
+            })
+            .collect();
+        self
+    }
+
+    /// Rows of its own kind of key that is held but is not in the session's
+    /// keys (the aezeed Convert reads), standing last among the keys.
+    pub(crate) fn also_keys(mut self, rows: Vec<PickRow>) -> Self {
+        self.keys.extend(rows);
+        self
+    }
+
+    /// Its ways in, in the order they stand.
+    pub(crate) fn ways(mut self, rows: Vec<PickRow>) -> Self {
+        self.ways = rows;
+        self
+    }
+
+    /// The groups, each under its heading, empty ones left out; the ways
+    /// in last, headed "Other ways in" while anything loaded is taken.
+    pub(crate) fn groups(self) -> Vec<crate::flow::PickGroup> {
+        let loaded = !(self.keys.is_empty() && self.wallets.is_empty() && self.files.is_empty());
+        let order = [
+            (EN.session_group_keys, self.keys),
+            (EN.session_group_wallets, self.wallets),
+            (EN.session_group_files, self.files),
+        ];
+        let mut groups: Vec<_> = order
+            .into_iter()
+            .filter(|(_, rows)| !rows.is_empty())
+            .map(|(head, rows)| crate::flow::PickGroup { head, rows })
+            .collect();
+        if !self.ways.is_empty() {
+            groups.push(crate::flow::PickGroup {
+                head: ways_in_head(loaded),
+                rows: self.ways,
+            });
+        }
+        groups
+    }
+
+    /// The flow's [`crate::flow::Pick`].
+    pub(crate) fn pick(self) -> crate::flow::Pick {
+        let question = self.question;
+        crate::flow::Pick {
+            question,
+            groups: self.groups(),
+        }
+    }
+}
+
+/// The pane's line is worked out only where the flow gives neither its own
+/// line nor a refusal.
+fn row_of(icon: Icon, head: String, line: impl FnOnce() -> String, t: Take) -> PickRow {
+    let line = if t.refusal.is_some() {
+        String::new()
+    } else {
+        t.line.unwrap_or_else(line)
+    };
+    let row = PickRow::pick(icon, head, line, t.chosen, t.action);
+    match t.refusal {
+        Some(reason) => row.dimmed_for(&reason),
+        None => row,
+    }
+}
+
+/// Draws a pick's groups from `y`, each under its heading, one under
+/// another: the pane's and the narrow card's alike. Returns the height used.
+pub(crate) fn draw_groups(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    groups: &[crate::flow::PickGroup],
+) -> f32 {
+    let mut cy = y;
+    for g in groups {
+        cy += head(ui, x, cy, w, g.head);
+        cy += rows(ui, x, cy, w, &g.rows);
+    }
+    cy - y
 }
 
 /// The ways-in group's heading: "Other ways in", or "Ways in" when
@@ -157,7 +380,7 @@ fn row(ui: &mut Ui, (x, y, w): (f32, f32, f32), r: &PickRow) -> f32 {
             selected_or(on, Role::SurfaceContainerHighest),
         );
         if chosen {
-            ui.dot(cx, cy, d - 5.0, ink(Role::OnSurface));
+            ui.dot(cx, cy, d - PICK_RADIO_DOT_INSET, ink(Role::OnSurface));
         }
         tx += ICON_GLYPH_BUTTON + GAP;
     }

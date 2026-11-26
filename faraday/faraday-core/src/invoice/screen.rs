@@ -210,8 +210,8 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 let mut used = 0.0;
                 // Where the pair stands the pane holds the ways in.
                 if !crate::flow::pair_left(app, &super::flow::INVOICE_STEPS, ui.compact, area_w) {
-                    used += pick::head(ui, x, y, w, pick::ways_in_head(false));
-                    used += pick::rows(ui, x, y + used, w, &super::flow::ways_in());
+                    let ways = pick::Decl::new(EN.invoice_title).ways(super::flow::ways_in());
+                    used += pick::draw_groups(ui, x, y, w, &ways.groups());
                 }
                 used += field(ui, s.text(), invoice_field(), (x, y + used, w), true, None);
                 used += buttons(ui, (x, y + used, w), true);

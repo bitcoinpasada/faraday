@@ -339,32 +339,13 @@ fn body(
 /// The transaction on show, when it came from a held file, is marked.
 pub(crate) fn pick_groups(app: &crate::Faraday) -> Vec<crate::flow::PickGroup> {
     let shown = app.decode().map(|d| &*d.decoded.source);
-    let held: Vec<crate::pick::PickRow> = app
-        .inbox
-        .iter()
-        .enumerate()
-        .filter(|(_, i)| i.kind == crate::wallet::FileKind::Transaction)
-        .map(|(k, i)| {
-            crate::pick::PickRow::pick(
-                faraday_draw::widgets::Icon::File,
-                i.name.to_string(),
-                String::new(),
-                shown.is_some_and(|s| s == &*i.name),
-                Action::DecodeInbox(k),
-            )
+    crate::pick::Decl::new(EN.decode_choose_transaction)
+        .files(app, |k, i| {
+            (i.kind == crate::wallet::FileKind::Transaction).then(|| {
+                crate::pick::Take::of(shown.is_some_and(|s| s == &*i.name), Action::DecodeInbox(k))
+            })
         })
-        .collect();
-    let mut groups = Vec::new();
-    let loaded = !held.is_empty();
-    if loaded {
-        groups.push(crate::flow::PickGroup {
-            head: EN.session_group_files,
-            rows: held,
-        });
-    }
-    groups.push(crate::flow::PickGroup {
-        head: crate::pick::ways_in_head(loaded),
-        rows: vec![
+        .ways(vec![
             crate::pick::PickRow::way_in(
                 faraday_draw::widgets::Icon::Keyboard,
                 EN.decode_way_type,
@@ -380,9 +361,8 @@ pub(crate) fn pick_groups(app: &crate::Faraday) -> Vec<crate::flow::PickGroup> {
                 EN.parts_open_files,
                 Action::Nav(Screen::Files),
             ),
-        ],
-    });
-    groups
+        ])
+        .groups()
 }
 
 /// Decode a transaction as the flow's one card: the pick at the left, the
@@ -431,10 +411,7 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 }
                 // Where the pair stands the pane holds the rows.
                 if !crate::flow::pair_left(app_ref, &flow::DECODE_STEPS, ui.compact, cw) {
-                    for g in pick_groups(app_ref) {
-                        cy += crate::pick::head(ui, x, cy, w, g.head);
-                        cy += crate::pick::rows(ui, x, cy, w, &g.rows);
-                    }
+                    cy += crate::pick::draw_groups(ui, x, cy, w, &pick_groups(app_ref));
                 }
                 if typing {
                     cy += typed_field(app_ref, ui, (x, cy, w), true);

@@ -242,10 +242,7 @@ impl Pane<'_> {
             // group under its own heading.
             ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, pick.question);
             y += ui.line_as(LABEL_L) + tokens::GRID;
-            for g in &pick.groups {
-                y += crate::pick::head(ui, x, y, w, g.head);
-                y += crate::pick::rows(ui, x, y, w, &g.rows);
-            }
+            y += crate::pick::draw_groups(ui, x, y, w, &pick.groups);
             y += foot(ui, x, y, w);
             ui.clip_presses_since(mark, clip);
             ui.region_close(open, (y + CHOICES_INSET - h).max(0.0));
