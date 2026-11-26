@@ -718,6 +718,13 @@ impl RestoreArea {
         }
     }
 
+    /// Takes the last refusal away.
+    pub(crate) fn clear_error(&mut self) {
+        if let Some(r) = self.state.as_mut() {
+            r.error = None;
+        }
+    }
+
     /// How far the column is scrolled, units, while the flow is open.
     pub(crate) fn scroll_y(&self) -> Option<f32> {
         self.state.as_ref().map(|r| r.scroll.y)
@@ -992,6 +999,7 @@ impl Faraday {
                     // nothing.
                     if r.open_step() != Some(k) {
                         r.open = Some(k);
+                        r.error = None;
                         r.scroll.follow = true;
                     }
                 }
