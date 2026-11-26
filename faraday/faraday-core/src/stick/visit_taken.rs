@@ -553,14 +553,6 @@ impl VisitArea {
         self.files_menu.renaming = Some(r);
     }
 
-    /// Whether the popup open is the stick's own name.
-    pub(crate) fn renaming_stick(&self) -> bool {
-        self.files_menu
-            .renaming
-            .as_ref()
-            .is_some_and(|r| matches!(r.what, crate::file_menu::Named::Stick(_)))
-    }
-
     pub(crate) fn take_renaming(&mut self) -> Option<crate::file_menu::Renaming> {
         self.files_menu.renaming.take()
     }
@@ -1811,18 +1803,13 @@ impl Faraday {
 
     /// Handles the stick visit's actions (`Action::Visit*`).
     pub(crate) fn visit_act(&mut self, action: Action) {
-        // Nothing of the stick is read, copied or written before Import:
-        // the import's list stands where the stick's own card does, so
-        // every action of that card is refused, except the ways off the
-        // page (From the stick, the tab and the bar are views).
+        // Nothing of the stick is read before Import: the stick's own
+        // Import, and Import and load, are refused while the import's list
+        // stands where the stick's card does.
         if self.import_tile_up()
-            && !matches!(
+            && matches!(
                 action,
-                Action::VisitFrom(..)
-                    | Action::VisitTab(..)
-                    | Action::VisitBar(..)
-                    | Action::NameTakenBeside
-                    | Action::NameTakenOverwrite
+                Action::VisitCopy | Action::VisitCopyAndLoad | Action::VisitCopyAndSign
             )
         {
             return;

@@ -377,21 +377,6 @@ impl Faraday {
 
     /// A press about a file row's ⋮.
     pub(crate) fn file_act(&mut self, p: FilePress) {
-        // Nothing of the stick's own is done before Import: its list
-        // stands where the stick's files do.
-        if self.import_tile_up()
-            && match p {
-                FilePress::Menu(row)
-                | FilePress::Rename(row)
-                | FilePress::Details(row)
-                | FilePress::Decode(row) => matches!(row, Row::Stick(_)),
-                FilePress::StickDelete(_) | FilePress::NameStick => true,
-                FilePress::RenameGo => self.visit.renaming_stick(),
-                _ => false,
-            }
-        {
-            return;
-        }
         let c = self.compute();
         // A choice in the menu leaves it.
         if matches!(
@@ -617,18 +602,6 @@ impl Faraday {
     /// name, which the next visit writes it under; a file on the stick is
     /// asked of the disk process.
     fn file_rename_go(&mut self) {
-        // A name for the stick or one of its files is nothing the list
-        // before Import may do, whatever sheet state is left over it.
-        if self.import_tile_up()
-            && self
-                .visit
-                .files_menu()
-                .renaming
-                .as_ref()
-                .is_some_and(|r| matches!(r.what, Named::Stick(_) | Named::File(Row::Stick(_))))
-        {
-            return;
-        }
         let Ok(to) = self.rename_checked() else {
             return;
         };

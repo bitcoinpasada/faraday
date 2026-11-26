@@ -790,9 +790,9 @@ all** above them →
 - the stick pulled before a choice → the list stays as it is, Import
   waiting for the stick, the list staying on Files; put back, the list
   is as it was, ticks kept; another stick, or this one with other files
-  (names or sizes), takes the list down and the stick is visited as it is;
+  (names or sizes) than it last held while in, takes the list down and the stick is visited as it is;
 - nothing on the medium but the settings file → no list; Home, with no Files on the stick tile (the first look was the visit);
-- while the list is up, In Faraday's own controls (ticks, Select all, Write, the end row, the secret-file notice's Delete) are not drawn live, as with no stick, and are refused if pressed; a name-taken answer from an earlier write still works.
+- while the list is up, Delete files, Write, In Faraday's ticks and the stick's menu are allowed; a listed file that is deleted or no longer on the stick leaves the list, a file written to the stick does not join it, and with none left the import ends (F328).
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →
 - opens → Home, whose lead is the next step of what is in Files (a PSBT
