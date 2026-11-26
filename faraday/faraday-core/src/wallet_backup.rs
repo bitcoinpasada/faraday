@@ -4145,7 +4145,16 @@ impl Faraday {
         self.backup
             .state()
             .and_then(|b| self.session.wallets.get(b.wallet))
-            .is_some_and(|w| self.backup_seed_fps_of(w).iter().any(|(f, _)| *f == fp))
+            .is_some_and(|w| {
+                // A silent payments wallet has no keys in its policy: its
+                // slot's key is the one its backup holds.
+                self.backup_seed_fps_of(w).iter().any(|(f, _)| *f == fp)
+                    || self
+                        .session
+                        .slots(w)
+                        .iter()
+                        .any(|slot| slot.fingerprint == Some(fp))
+            })
     }
 
     /// A key was taken off the session: Back up ends what it held of it
