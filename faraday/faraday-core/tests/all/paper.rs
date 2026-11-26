@@ -103,6 +103,8 @@ fn a_spanish_key_is_given_no_seed_xor_paper() {
         }
     });
     assert_eq!(app.session.keys[0].language, Language::Spanish);
+    // Not a key of the wallet, so the backup is on it only once picked.
+    app.press(Action::BKey(0));
     app.press(Action::BXor(3));
     assert!(app.backup().unwrap().paper.is_none());
     assert_eq!(
