@@ -390,12 +390,6 @@ macro_rules! words_screens_sheets {
     /// The close button's label in the guide's supporting pane
     /// (`screens/guide_pane.rs`).
     guide_close: "Close",
-    /// Tooltip on the pin of the guide's supporting pane while it is off: a
-    /// press keeps the pane open across screens (`screens/guide_pane.rs`).
-    guide_pin: "Keep open",
-    /// Tooltip on the pin of the guide's supporting pane while it is on: a
-    /// press lets the pane close at the next screen.
-    guide_unpin: "Unpin",
     /// The first tab of the guide sheet and of the supporting pane (§8.2).
     guide_tab_how: "Cryptography",
     /// The head of the Starter's sheet of blocks (§8.4).

@@ -273,36 +273,26 @@ room left of it, so nothing of the page is under it and the page takes
 presses as before; the top bar's search and Home's pills stand where they do with the guide shut, placed from the bar's whole room (the pane stands under the bar), at every width; nothing else opens it, on any screen or size (owner,
 2026-10-29). The pane
 is a card in the surface-container role, Material's large shape. Its
-header row, as Material's side sheet has, holds, at its end, the pin and
-the close button (no headline: F308), each
-Material's standard icon button in a 48 dp target
-(`GUIDE_PANE_CLOSE_TOP`); the pin is a toggle, the push pin outlined
-in on-surface-variant while off ("Keep open") and filled in primary
-while on ("Unpin"), sized to read as large as the × beside it
-(`GUIDE_PANE_PIN_GLYPH`), its button at the end of its target nearest
-the close button's, the two targets meeting without overlapping
-(owner, 2026-10-29). The tabs stand under it (`GUIDE_PANE_TABS_TOP`)
+header row, as Material's side sheet has, holds, at its end, the close
+button (no headline: F308), Material's standard icon button in a 48 dp
+target (`GUIDE_PANE_CLOSE_TOP`). The tabs stand under it (`GUIDE_PANE_TABS_TOP`)
 across the pane's whole width, a single divider under them, so
 each label shows whole (Material 3 Tabs: Guide, and Cryptography
 where the screen offers it). Its tabs are the sheet's; the guide's
 page title is in Title L, pinned under the tabs while the text scrolls
 under it, its section headings in Title S and its text in Body M; the
 scrollbar is always shown while the page is longer than the pane (F308). The close button, the
-? pressed again, Escape and the mouse's back button put it away, and
-take its pin off. When the person moves to another screen the pane
-closes, unless it is pinned (owner, 2026-10-29); pinned, it stays open
-as the person moves on until it is closed or unpinned. The pin is kept
-for the session in memory only: a lock or a power-off clears it. When
-the step changes, or a pinned pane's screen, the pane shows that
-screen's page of the guide, at the section of the step.
+? pressed again, Escape and the mouse's back button put it away. It
+stays open across pages and flows until it is closed, and has no pin
+(owner, 2026-11-22). When the step or the screen changes, the pane shows
+that screen's page of the guide, at the section of the step.
 One pane stands at a time: the codex32 entry (its dice sheet's
 column), Back up and a wallet's backup flow (the board's lists) keep
 the place for their own, and Guide is the sheet there; a pane open on
-arriving there is put away. A flow whose card is a column is not one of
+arriving there waits and comes back after it. A flow whose card is a column is not one of
 them: Guide's pane stands beside its unit from 1536 dp, not 1600
 (`docs/FLOW-CONTAINER.md` §4). A window resized across 1600 dp moves
-Guide between the pane and the sheet, on the page it shows; the sheet
-has no pin, so a pane that comes back from it is unpinned.
+Guide between the pane and the sheet, on the page it shows.
 
 **Your choices** (`docs/FLOW-CONTAINER.md` §4) stands among the panes for
 every flow (all draw on the container): on the wide layout a pane at

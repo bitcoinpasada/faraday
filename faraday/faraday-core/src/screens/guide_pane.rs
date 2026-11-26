@@ -2,21 +2,20 @@
 //! window, the guide stands in a pane at the right, beside the page
 //! it explains, instead of the sheet over it. The pane holds its place
 //! while the page scrolls beside it and scrolls within itself where it
-//! is taller than the window. Its header row holds the pin, which keeps
-//! it open across screens, and the close button, which puts it away (Material 3 Side sheets, Icon buttons), so the
+//! is taller than the window. It stays open across screens and flows,
+//! and its header row holds the close button, which puts it away
+//! (Material 3 Side sheets, Icon buttons), so the
 //! tabs under it run the pane's whole width; its tabs, page and contents
 //! are the sheet's (`sheets::guide_body`). Which page it shows is kept
 //! on the guide's state (`Faraday::guide_place`); drawing reads it.
 
 use crate::ui::Region;
 use faraday_draw::tokens as T;
-use faraday_draw::widgets::Icon;
 
 use super::sheets::{GuideLook, guide_body};
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
-use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Slot, Ui};
 
@@ -49,43 +48,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     };
     let (clip, max) = guide_body(app, ui, &look, (x, y, w, view));
     let close_x = x + w - T::GAP - T::TOUCH;
-    pin_button(
-        ui,
-        close_x - T::TOUCH,
-        y + T::GUIDE_PANE_CLOSE_TOP,
-        app.guide_pinned(),
-    );
     close_button(ui, close_x, y + T::GUIDE_PANE_CLOSE_TOP);
     // Its edges fade into the pane's own container.
     let region = Region::beside(Slot::GuidePane, clip, app.guide().scroll)
         .on(Role::SurfaceContainer)
         .bar_shown();
     ui.region_reported(region, max);
-}
-
-/// The pane's pin in a `TOUCH` square at (x, y), the close button's
-/// target next after it: Material's standard icon button as a toggle,
-/// `ICON_BUTTON` across at the end of its target nearest the close
-/// button, its state layer on hover and press, the push pin
-/// `GUIDE_PANE_PIN_GLYPH` across so it reads the size of the × (owner,
-/// 2026-10-29). Off, outlined in on-surface-variant, as the ×; on,
-/// filled in primary.
-fn pin_button(ui: &mut Ui, x: f32, y: f32, on: bool) {
-    let a = Action::GuidePin;
-    let edge = (T::TOUCH - T::ICON_BUTTON) / 2.0;
-    let (bx, by) = (x + 2.0 * edge, y + edge);
-    let r = T::shape_full(T::ICON_BUTTON);
-    let button = Shape::new(bx, by, T::ICON_BUTTON, T::ICON_BUTTON, r);
-    let (icon, ink, tip) = if on {
-        (Icon::Pinned, Role::Primary, EN.guide_unpin)
-    } else {
-        (Icon::Pin, Role::OnSurfaceVariant, EN.guide_pin)
-    };
-    ui.press_to(button, (x, y, T::TOUCH, T::TOUCH), ink.paint(), a);
-    let size = T::GUIDE_PANE_PIN_GLYPH;
-    let glyph = (T::ICON_BUTTON - size) / 2.0;
-    ui.icon(bx + glyph, by + glyph, size, icon, size, ink);
-    ui.tip_plain((x, y, T::TOUCH, T::TOUCH), a, tip);
 }
 
 /// The pane's close button in a `TOUCH` square at (x, y): Material's

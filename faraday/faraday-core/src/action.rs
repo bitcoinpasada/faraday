@@ -755,9 +755,6 @@ pub enum Action {
     /// The guide's supporting pane's close button: puts the pane away
     /// (`docs/LAYOUT.md` §6).
     GuideClose,
-    /// The guide's supporting pane's pin: kept open across screens while on,
-    /// put away at the next screen while off (`docs/LAYOUT.md` §6).
-    GuidePin,
     /// Show the page in place `i` of the guide's contents.
     GuidePage(u8),
     /// Show the definition of glossary word `i` (its place in
@@ -1480,7 +1477,6 @@ impl Faraday {
             Action::Guide | Action::GuideClose => self.guide_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::GuideShares => self.guide_shares(),
-            Action::GuidePin => self.guide_button(action),
             Action::Osk(p) => self.osk_press(p),
             Action::PassEye => self.typing.pass_eye.toggle(),
             a @ (Action::ScanPaste

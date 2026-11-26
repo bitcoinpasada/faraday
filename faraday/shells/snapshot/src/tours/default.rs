@@ -82,7 +82,7 @@ pub(crate) fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
         dy: 260,
     });
     t.shot("learn-randomness-sources")?;
-    t.press(Action::Cancel);
+    t.press(Action::GuideClose);
     t.press(Action::KLock);
     t.shot("keygen-slot-key-locked")?;
     Ok(())

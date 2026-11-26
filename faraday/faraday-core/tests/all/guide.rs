@@ -183,14 +183,11 @@ fn at_1280_guide_opens_as_the_sheet() {
 }
 
 #[test]
-fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
+fn the_open_pane_follows_the_step_and_the_screens_to_their_pages() {
     let mut app = guide_on_settings(1920, 1080);
     // The pane shows the page of the screen.
     assert_eq!(shown(&app), "settings");
     assert!(app.offers(Action::GuideClose));
-    app.press(Action::GuidePin);
-    frame(&mut app);
-    assert!(app.guide_pinned());
     // A new key is a flow on the container: Your choices keeps the pane's
     // place, so the guide is the sheet there and the pane is away.
     app.press(Action::Entry(None));
@@ -206,7 +203,6 @@ fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
     frame(&mut app);
     assert_eq!(shown(&app), "entry", "the next screen's page");
     assert!(app.offers(Action::GuideClose));
-    assert!(app.guide_pinned(), "the pin came through the flow");
 }
 
 #[test]
@@ -422,62 +418,49 @@ fn the_cryptography_tab_is_offered_only_where_the_screen_has_blocks() {
     }
 }
 
-/// Unpinned, the pane goes when the person moves to another screen;
-/// pinned, it stays open there; closed, it opens next time unpinned.
+/// The pane stays open as the person moves from page to page, on each
+/// one's page of the guide; on a screen that keeps its place it waits and
+/// comes back after it; closed, it stays away.
 #[test]
-fn the_pane_closes_at_another_screen_unless_pinned() {
+fn the_pane_stays_open_across_screens_until_it_is_closed() {
     use faraday_core::Screen;
-    let mut app = faraday_core::testkit::started();
-    window(&mut app, 1920, 1080);
-    app.press(Action::Nav(Screen::Settings));
-    app.press(Action::Guide);
+    let mut app = guide_on_settings(1920, 1080);
+    for (screen, page) in [(Screen::Tools, "tools"), (Screen::Files, "files")] {
+        app.press(Action::Nav(screen));
+        frame(&mut app);
+        assert!(app.offers(Action::GuideClose), "still open on {screen:?}");
+        assert_eq!(app.sheet, None);
+        assert_eq!(shown(&app), page, "on that screen's page");
+    }
+    // Back up keeps the place for its board's lists.
+    app.press(Action::Nav(Screen::Backup));
     frame(&mut app);
-    assert!(app.offers(Action::GuidePin), "the pane's pin");
-    assert!(!app.guide_pinned());
-    app.press(Action::Nav(Screen::Home));
-    frame(&mut app);
-    assert!(!app.offers(Action::GuideClose), "closed on Home");
-    assert_eq!(app.sheet, None);
-
-    app.press(Action::Guide);
-    frame(&mut app);
-    app.press(Action::GuidePin);
-    frame(&mut app);
-    assert!(app.guide_pinned());
+    assert!(!app.offers(Action::GuideClose), "the board has the place");
+    assert_eq!(app.sheet, None, "and nothing comes over it");
     app.press(Action::Nav(Screen::Settings));
     frame(&mut app);
-    assert!(app.offers(Action::GuideClose), "still open on Settings");
-    assert_eq!(shown(&app), "settings", "on Settings' page");
-    app.press(Action::Nav(Screen::Tools));
-    frame(&mut app);
-    assert!(app.offers(Action::GuideClose), "and on Tools");
+    assert!(app.offers(Action::GuideClose), "back after it");
+    assert_eq!(shown(&app), "settings");
 
     app.press(Action::GuideClose);
     frame(&mut app);
-    assert!(!app.guide_pinned(), "closing it takes the pin off");
-    app.press(Action::Guide);
+    app.press(Action::Nav(Screen::Tools));
     frame(&mut app);
-    assert!(app.offers(Action::GuideClose));
-    assert!(!app.guide_pinned(), "it opens unpinned");
-    app.press(Action::Nav(Screen::Home));
-    frame(&mut app);
-    assert!(
-        !app.offers(Action::GuideClose),
-        "and closes at the next screen"
-    );
+    assert!(!app.offers(Action::GuideClose), "closed, it stays away");
+    assert_eq!(app.sheet, None);
 }
 
-/// The guide pressed on the next screen, before a frame has put the last
-/// screen's pane away, opens the pane there rather than closing it.
+/// The guide pressed on the next screen, before a frame has drawn it, is
+/// the open pane pressed again: it puts the pane away.
 #[test]
-fn guide_pressed_straight_after_moving_on_opens_the_pane_there() {
+fn guide_pressed_straight_after_moving_on_puts_the_open_pane_away() {
     use faraday_core::Screen;
-    let mut app = faraday_core::testkit::started();
-    window(&mut app, 1920, 1080);
-    app.press(Action::Nav(Screen::Settings));
+    let mut app = guide_on_settings(1920, 1080);
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::Guide);
     frame(&mut app);
-    app.press(Action::Nav(Screen::Files));
+    assert!(!app.offers(Action::GuideClose), "the pane is away");
+    assert_eq!(app.sheet, None);
     app.press(Action::Guide);
     frame(&mut app);
     assert!(app.offers(Action::GuideClose), "the pane on Files");

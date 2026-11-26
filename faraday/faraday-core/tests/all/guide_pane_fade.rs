@@ -1,8 +1,8 @@
 //! the guide's supporting pane on an extra-large window fades in and out as
 //! a change of screen does (`docs/MOTION.md` §3.5): opening, closing,
-//! the close at another screen when unpinned, a change of its tab; one
-//! fade, not two, when a pinned pane follows a change of screen; none
-//! with reduce motion.
+//! a change of its tab; one fade, not two, when the open pane follows a
+//! change of screen or waits out a screen that keeps its place; none with
+//! reduce motion.
 
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -58,20 +58,22 @@ fn a_change_to_the_contents_in_the_pane_fades() {
 }
 
 #[test]
-fn an_unpinned_pane_put_away_at_another_screen_fades_once_with_the_screen() {
+fn a_pane_waiting_out_a_screen_and_coming_back_fades_once_with_each() {
     let mut app = wide();
     app.press(Action::Guide);
     let _ = counts(&mut app);
-    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Nav(Screen::Backup));
     assert_eq!(counts(&mut app), (1, 0));
-    assert!(!app.offers(Action::GuideClose));
+    assert!(!app.offers(Action::GuideClose), "the board has the place");
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(counts(&mut app), (1, 0));
+    assert!(app.offers(Action::GuideClose), "the pane came back");
 }
 
 #[test]
-fn a_pinned_pane_following_to_another_screen_fades_once() {
+fn a_pane_following_to_another_screen_fades_once() {
     let mut app = wide();
     app.press(Action::Guide);
-    app.press(Action::GuidePin);
     let _ = counts(&mut app);
     app.press(Action::Nav(Screen::Tools));
     assert_eq!(counts(&mut app), (1, 0), "one fade for the screen and pane");

@@ -242,7 +242,7 @@ The guide's sheet and pane (DESIGN §4.12, Explainer; LAYOUT §6):
   **Done**.
 - **On extra-large, the supporting pane** at the right, 400 dp, beside
   the page, laid out in the room left of it; its header row holds
-  the pin and the close button, no heading.
+  the close button, no heading.
 - **What it shows.** The place's page, its title in Title L pinned under
   the tabs (it stays on screen wherever the page is scrolled, the text
   scrolling under it, and the page does not draw it again at its top), its
@@ -267,9 +267,10 @@ The guide's sheet and pane (DESIGN §4.12, Explainer; LAYOUT §6):
   back button) closes the guide (F77: the screen under it keeps its state, and Back
   over the screen reopens the sheet). On a page opened from the
   contents, Back returns to the contents, then to the place's page.
-- **The pin** is the pane's (LAYOUT §6).
+- **Staying open.** The pane stays open across pages and flows until it
+  is closed; it has no pin (LAYOUT §6).
 - **Nothing on it is acted on** but scrolling, Contents, the pages it
-  lists, the tabs, the pin and closing it. It never starts or changes
+  lists, the tabs and closing it. It never starts or changes
   anything in the app.
 
 ### 4.3 The contents
@@ -322,8 +323,8 @@ the start guides' own.
 - **`MAKERS`, `guide_id`, `guide_address`, `GUIDES`** are the start
   guides' table and addresses, in **`faraday/faraday-starter/src/start_pages.rs`**.
 - **`faraday/faraday-core/src/guide.rs`** is the guide's state: it
-  works out the key of §1.2 (`guide_key`); it holds the sheet, the pane,
-  the pin and the How tab. A page has no ticked steps and the Spend tab
+  works out the key of §1.2 (`guide_key`); it holds the sheet, the pane
+  and the How tab. A page has no ticked steps and the Spend tab
   no step-by-step row (the guide acts on nothing, §4.2).
 
 ### 5.4 About

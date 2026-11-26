@@ -401,7 +401,7 @@ extent; a motion left from another screen or sheet is stopped.
   - a change of screen or sheet, of the Learn sheet's tab, or of Learn's
     supporting pane (it opening, closing or changing its tab, which
     Material's side sheets animate, LAYOUT §6; `Faraday::fade_begin`
-    keeps whether the pane stood in what a frame drew, so a pinned pane
+    keeps whether the pane stood in what a frame drew, so the open pane
     following a change of screen is one fade),
     takes the Speed's time (Settings > Appearance, Quick 250 ms,
     Medium 400 ms, Relaxed 600 ms) on the emphasized easing

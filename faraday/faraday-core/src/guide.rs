@@ -681,13 +681,6 @@ impl Faraday {
         self.guide.open_at(key, &mut self.sheet);
     }
 
-    /// The pane's pin, which turns it on or off.
-    pub(crate) fn guide_button(&mut self, action: crate::Action) {
-        if action == crate::Action::GuidePin {
-            self.guide.toggle_pin(self.screen);
-        }
-    }
-
     /// Whether the window holds the guide as a supporting pane beside the
     /// page (`docs/LAYOUT.md` §6): an extra-large window (1600 dp and
     /// over) beside the sidebar, not held. Below it the guide is the sheet.
@@ -720,12 +713,10 @@ impl Faraday {
     }
 
     /// Whether the guide stands as the supporting pane this frame: open as
-    /// the pane, pinned or on the screen it was opened beside, on a
-    /// window and a screen that hold it, with no chart's side sheet in
+    /// the pane, on a window and a screen that hold it, with no chart's side sheet in
     /// the pane's place. A lookup.
     pub(crate) fn guide_pane_shown(&self) -> bool {
         self.guide.pane_open()
-            && self.guide.stays_beside(self.screen)
             && self.guide_pane_room()
             && self.guide_pane_place_free()
             && crate::glance::sheet::side_now(self).is_none()
@@ -772,14 +763,13 @@ impl Faraday {
     /// pane's page the screen's: called before every frame is drawn and
     /// after the guide opens. The sheet becomes the pane once the window
     /// holds one (extra-large), and the pane the sheet once it does not,
-    /// unless another sheet is up; a pane on a screen that keeps the
-    /// pane's place for its own goes (a pinned one waits and returns after
-    /// it), and so does an unpinned pane once
-    /// the screen is another than the one it stood beside (owner,
-    /// 2026-10-29). While the pane is open it follows the screen: a new
-    /// step scrolls to its section, a new place opens its page; the
-    /// contents stays where the person has it until then. Costs a lookup
-    /// of the screen's key while the guide is open.
+    /// unless another sheet is up. The pane stays open across screens and
+    /// flows until it is closed (owner, 2026-11-22); on a screen that
+    /// keeps the pane's place for its own it waits and returns after it.
+    /// While the pane is shown it follows the screen: a new step scrolls
+    /// to its section, a new place opens its page; the contents stays
+    /// where the person has it until then. Costs a lookup of the screen's
+    /// key while the guide is open.
     pub(crate) fn guide_place(&mut self) {
         if self.guide.state().how && !self.how_offered() {
             self.guide.drop_how();
@@ -793,18 +783,7 @@ impl Faraday {
                 self.scroll.went_to(crate::ui::Slot::Page);
                 return;
             }
-            // Unpinned, it goes when the person moves to another screen.
-            if self.guide.left_screen(self.screen) {
-                self.guide_close();
-                return;
-            }
-            if !self.guide_pane_place_free() {
-                // A pinned pane waits out a screen that keeps the place
-                // for its own and comes back, on that page, after it.
-                if !self.guide.pinned() {
-                    self.guide_close();
-                }
-            } else {
+            if self.guide_pane_place_free() {
                 let now = self.screen_key();
                 self.guide.follow(now);
             }
@@ -813,7 +792,7 @@ impl Faraday {
             && self.guide_pane_place_free()
         {
             let now = self.screen_key();
-            self.guide.move_to_pane(&mut self.sheet, now, self.screen);
+            self.guide.move_to_pane(&mut self.sheet, now);
         }
     }
 
@@ -854,11 +833,6 @@ impl Faraday {
     pub fn guide(&self) -> &GuideState {
         self.guide.state()
     }
-
-    /// Whether the guide's pane is pinned open across screens.
-    pub fn guide_pinned(&self) -> bool {
-        self.guide.pinned()
-    }
 }
 
 /// The guide sheet's area: its state.
@@ -868,14 +842,6 @@ pub(crate) struct GuideArea {
     /// The guide is open as the supporting pane beside the page, on an
     /// extra-large window (`docs/LAYOUT.md` §6), not as the sheet.
     pane: bool,
-    /// The pane's pin is on: the pane stays open as the person moves to
-    /// another screen. Session state only, in memory; off whenever the
-    /// pane is not open.
-    pinned: bool,
-    /// The screen the pane last stood beside, kept in step with the
-    /// screen by [`Faraday::guide_place`] before every frame. `None`
-    /// while the pane is not open.
-    beside: Option<crate::Screen>,
     /// The screen's key as the pane last followed it. Kept in step with
     /// the screen by [`Faraday::guide_place`] before every frame: once
     /// the screen's key is another, the pane shows it. Empty while the
@@ -985,48 +951,12 @@ impl GuideArea {
         self.pane
     }
 
-    /// The open sheet becomes the pane, on the page it shows, beside
-    /// `on`; `screen` is the screen's key now, which the pane follows
-    /// from here.
-    pub(crate) fn move_to_pane(
-        &mut self,
-        sheet: &mut Option<crate::Sheet>,
-        screen: &'static str,
-        on: crate::Screen,
-    ) {
+    /// The open sheet becomes the pane, on the page it shows; `screen`
+    /// is the screen's key now, which the pane follows from here.
+    pub(crate) fn move_to_pane(&mut self, sheet: &mut Option<crate::Sheet>, screen: &'static str) {
         *sheet = None;
         self.pane = true;
-        self.beside = Some(on);
         self.followed = screen;
-    }
-
-    /// Whether the pane's pin is on.
-    pub(crate) fn pinned(&self) -> bool {
-        self.pinned
-    }
-
-    /// The pin pressed on the pane beside `on`: on, the pane stays open
-    /// across screens; off, it goes at the next one.
-    pub(crate) fn toggle_pin(&mut self, on: crate::Screen) {
-        if self.pane {
-            self.pinned = !self.pinned;
-            self.beside = Some(on);
-        }
-    }
-
-    /// Whether the pane still stands beside `screen`: pinned, or on the
-    /// screen it last stood beside.
-    pub(crate) fn stays_beside(&self, screen: crate::Screen) -> bool {
-        self.pinned || self.beside.is_none_or(|s| s == screen)
-    }
-
-    /// Notes that the pane stands beside `screen` now. True when the
-    /// pane is unpinned and that is another screen than the one it stood
-    /// beside: it is then put away.
-    pub(crate) fn left_screen(&mut self, screen: crate::Screen) -> bool {
-        let left = !self.stays_beside(screen);
-        self.beside = Some(screen);
-        left
     }
 
     /// The pane becomes the sheet, on the pages and tab it shows.
@@ -1035,11 +965,9 @@ impl GuideArea {
         *sheet = Some(crate::Sheet::Guide);
     }
 
-    /// The pane is put away, and its pin taken off.
+    /// The pane is put away.
     pub(crate) fn close_pane(&mut self) {
         self.pane = false;
-        self.pinned = false;
-        self.beside = None;
         self.followed = "";
     }
 
