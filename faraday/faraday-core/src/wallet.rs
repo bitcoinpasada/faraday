@@ -3138,6 +3138,25 @@ pub struct Spend {
     pub wallet_id: Option<WalletId>,
 }
 
+/// Whether an input is still open to signing: it is not finalized.
+fn input_open(input: &faraday_bip::bitcoin::psbt::Input) -> bool {
+    input.final_script_sig.is_none() && input.final_script_witness.is_none()
+}
+
+/// The fingerprints an input's own origins name.
+fn named_on(input: &faraday_bip::bitcoin::psbt::Input) -> impl Iterator<Item = Fingerprint> + '_ {
+    input
+        .bip32_derivation
+        .values()
+        .map(|(fp, _)| Fingerprint::from(*fp))
+        .chain(
+            input
+                .tap_key_origins
+                .values()
+                .map(|(_, (fp, _))| Fingerprint::from(*fp)),
+        )
+}
+
 /// A MuSig2 partial signature this device wrote: the input, the
 /// participant's key and the partial's bytes, all public.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3557,10 +3576,7 @@ impl Spend {
         };
         let inner = self.psbt.inner();
         let open: Vec<usize> = (0..inner.inputs.len())
-            .filter(|i| {
-                let input = &inner.inputs[*i];
-                input.final_script_sig.is_none() && input.final_script_witness.is_none()
-            })
+            .filter(|i| input_open(&inner.inputs[*i]))
             .collect();
         // Each open input's own wallet: the one that holds the script it
         // spends, by the places its own origins state. An input of no
@@ -3609,17 +3625,7 @@ impl Spend {
                 }
                 continue;
             }
-            let named = input
-                .bip32_derivation
-                .values()
-                .map(|(fp, _)| Fingerprint::from(*fp))
-                .chain(
-                    input
-                        .tap_key_origins
-                        .values()
-                        .map(|(_, (fp, _))| Fingerprint::from(*fp)),
-                );
-            for fp in named {
+            for fp in named_on(input) {
                 if !per_input[*i].contains(&fp) && !to_sign.contains(&fp) {
                     to_sign.push(fp);
                 }
@@ -4588,9 +4594,11 @@ impl Faraday {
     }
 
     /// Whether the spend under way involves the key `fp`: its wallet has
-    /// a slot of it, or it is named as signed or still to sign, or the
-    /// MuSig2 session holds a nonce for a participant the PSBT says is
-    /// its. A lookup over the spend as it was last refreshed.
+    /// a slot of it, it signed here or is named as signed or still to
+    /// sign, an open input's origins name it, or the MuSig2 session holds
+    /// a nonce, or this device wrote a partial signature, for a
+    /// participant the PSBT says is its. A lookup over the spend as it
+    /// was last refreshed.
     fn spend_uses_key(&self, fp: faraday_bip::keys::Fingerprint) -> bool {
         let Some(s) = self.wallets.spend() else {
             return false;
@@ -4604,20 +4612,35 @@ impl Faraday {
                     .iter()
                     .any(|slot| slot.fingerprint == Some(fp))
             });
-        let in_musig = s.musig.as_ref().is_some_and(|m| {
-            let inputs = &s.spend.psbt.inner().inputs;
-            m.view().held.iter().any(|(i, participant)| {
-                inputs
-                    .get(*i)
-                    .and_then(|input| {
-                        input
-                            .tap_key_origins
-                            .get(&participant.x_only_public_key().0)
-                    })
-                    .is_some_and(|(_, (of, _))| of.to_bytes() == fp.0)
-            })
-        });
-        in_wallet || s.to_sign.contains(&fp.0) || s.signers.contains(&fp.0) || in_musig
+        let inputs = &s.spend.psbt.inner().inputs;
+        let is_its = |i: usize, participant: &faraday_bip::bitcoin::secp256k1::PublicKey| {
+            inputs
+                .get(i)
+                .and_then(|input| {
+                    input
+                        .tap_key_origins
+                        .get(&participant.x_only_public_key().0)
+                })
+                .is_some_and(|(_, (of, _))| of.to_bytes() == fp.0)
+        };
+        let in_musig = s
+            .musig
+            .as_ref()
+            .is_some_and(|m| m.view().held.iter().any(|(i, p)| is_its(*i, p)))
+            || s.spend
+                .wrote
+                .iter()
+                .any(|w| is_its(w.input, &w.participant));
+        let named = inputs
+            .iter()
+            .filter(|input| input_open(input))
+            .any(|input| named_on(input).any(|of| of.0 == fp.0));
+        in_wallet
+            || named
+            || s.spend.signed_here.iter().any(|of| of.0 == fp.0)
+            || s.to_sign.contains(&fp.0)
+            || s.signers.contains(&fp.0)
+            || in_musig
     }
 
     /// Opens **Published words** when a key held on Mainnet has published

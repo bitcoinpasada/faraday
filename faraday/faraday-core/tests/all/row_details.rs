@@ -1971,6 +1971,145 @@ fn removing_a_key_of_the_spends_wallet_ends_the_spend() {
     assert!(app.spend().is_none());
 }
 
+/// A spend of two inputs: the wallet `spending`'s (test seed 0, loaded)
+/// and one of a single-key wallet of test seed 1 that is not loaded.
+fn two_input_spend() -> faraday_psbt::Psbt {
+    use faraday_core::testkit;
+    let spending = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let second = testkit::Kit {
+        id: "second",
+        name: "Second",
+        descriptor: format!("wpkh({}/<0;1>/*)", testkit::key(1, "m/84'/1'/0'")),
+        cosigner: None,
+        fee: 1_000,
+    };
+    let mut inner = testkit::unsigned(&spending).unwrap().into_inner();
+    let other = testkit::unsigned(&second).unwrap().into_inner();
+    // The fee stays as it was: the new input's value goes to the output.
+    inner.unsigned_tx.output[0].value += other.inputs[0].witness_utxo.as_ref().unwrap().value;
+    inner
+        .unsigned_tx
+        .input
+        .push(other.unsigned_tx.input[0].clone());
+    inner.inputs.push(other.inputs[0].clone());
+    faraday_psbt::Psbt::from(inner)
+}
+
+/// `psbt` open as a spend with the wallet `spending` loaded and the keys
+/// of the test seeds `seeds` held: their fingerprints, in that order.
+fn spend_of_two(psbt: &faraday_psbt::Psbt, seeds: &[usize]) -> (Faraday, Vec<[u8; 4]>) {
+    use faraday_core::testkit;
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (faraday_text::Text::of("spend.psbt"), psbt.to_bytes()),
+            (
+                faraday_text::Text::of("spending-wallet.txt"),
+                kit.descriptor.clone().into_bytes(),
+            ),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::load_wallet(&mut app, 1);
+    let fps = seeds
+        .iter()
+        .map(|&n| add_key(&mut app, &testkit::test_words(testkit::TEST_SEEDS[n].0)))
+        .collect();
+    app.press(Action::StartSpend(0));
+    (app, fps)
+}
+
+fn sign_here(app: &mut Faraday) {
+    faraday_core::testkit::steps_before_sign_done(app);
+    app.press(Action::Step(faraday_core::wallet::step::SIGN));
+    app.press(Action::SignHere);
+}
+
+/// How many of the spend's inputs carry a signature or are final.
+fn inputs_signed(app: &Faraday) -> usize {
+    app.spend()
+        .unwrap()
+        .spend
+        .psbt
+        .inner()
+        .inputs
+        .iter()
+        .filter(|i| !i.partial_sigs.is_empty() || i.final_script_witness.is_some())
+        .count()
+}
+
+#[test]
+fn removing_a_key_that_signed_only_the_second_input_ends_the_spend() {
+    let (mut app, fps) = spend_of_two(&two_input_spend(), &[0, 1]);
+    sign_here(&mut app);
+    assert_eq!(inputs_signed(&app), 2);
+    // Neither key signed every input, and neither is still to sign.
+    assert_eq!(app.spend().unwrap().signers, [[0u8; 4]; 0]);
+    assert_eq!(app.spend().unwrap().to_sign, [[0u8; 4]; 0]);
+    app.press(Action::RemoveKeyHold(fps[1]));
+    assert_eq!(app.session.keys.len(), 1);
+    assert!(app.spend().is_none());
+}
+
+#[test]
+fn removing_a_key_whose_signature_came_in_the_file_ends_the_spend() {
+    // The second key alone signs its input; the first is still to sign.
+    let (mut app, _) = spend_of_two(&two_input_spend(), &[1]);
+    sign_here(&mut app);
+    assert_eq!(inputs_signed(&app), 1);
+    let signed = app.spend().unwrap().spend.psbt.clone();
+    let (mut app, fps) = spend_of_two(&signed, &[1]);
+    assert!(app.spend().unwrap().spend.signed_here.is_empty());
+    let to_sign = app.spend().unwrap().to_sign.clone();
+    assert!(
+        !to_sign.is_empty() && !to_sign.contains(&fps[0]),
+        "{to_sign:?}"
+    );
+    app.press(Action::RemoveKeyHold(fps[0]));
+    assert!(app.session.keys.is_empty());
+    assert!(app.spend().is_none());
+}
+
+#[test]
+fn removing_the_backups_own_seed_with_another_key_held_ends_its_open_item() {
+    let (mut app, own, _) = spend_with_a_second_key();
+    app.press(Action::Backup(0));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
+    app.press(Action::BQ(faraday_core::qstep::PLAN));
+    app.press(Action::BChecklist);
+    assert!(app.backup().unwrap().open.is_some());
+    app.press(Action::RemoveKeyHold(own));
+    assert_eq!(app.session.keys.len(), 1);
+    assert!(app.backup().is_none_or(|b| b.open.is_none()));
+}
+
+#[test]
+fn removing_a_silent_payments_wallets_key_ends_its_backups_open_item() {
+    let mut app = faraday_core::testkit::started();
+    let fp = add_key(
+        &mut app,
+        &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0),
+    );
+    app.press(Action::Silent);
+    app.press(Action::SAddWallet);
+    app.press(Action::Backup(0));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
+    app.press(Action::BQ(faraday_core::qstep::PLAN));
+    app.press(Action::BChecklist);
+    assert!(app.backup().unwrap().open.is_some());
+    app.press(Action::RemoveKeyHold(fp));
+    assert!(app.session.keys.is_empty());
+    assert!(app.backup().is_none_or(|b| b.open.is_none()));
+}
+
 #[test]
 fn removing_a_key_the_backup_does_not_use_leaves_its_item_open() {
     let (mut app, _, other) = spend_with_a_second_key();

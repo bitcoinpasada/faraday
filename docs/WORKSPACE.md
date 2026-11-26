@@ -657,9 +657,9 @@ window never scrolls as a whole.
    leaves the session at once, or, while it is kept nowhere else (in no open
    vault, no copy checked), after a sheet that names it and its hold; the
    wallets that use it stay loaded and the details close; a spend under way
-   ends only where its wallet, its signatures, its keys still to sign or its
-   MuSig2 round involve the key, and a backup under way is touched only where
-   its wallet uses the key. A tool opens
+   ends only where its wallet, its signatures, its keys still to sign, an
+   open input's key origins or its MuSig2 round involve the key, and a backup
+   under way is touched only where its wallet uses the key. A tool opens
    with the key picked; a wallet's are its page; a file's are its shared list, then
    its kind and size as Files says them. A row
    with a button opens them on a press beside the button. The offers end in the chevron where they open a page or flow
