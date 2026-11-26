@@ -751,11 +751,11 @@ fn shows_down(app: &mut Faraday, want: &str) -> bool {
         if shows(app, want) {
             return true;
         }
-        app.event(Event::Scroll {
-            x: 400,
-            y: 384,
-            dy: 300,
-        });
+        // Over the step: Your choices may be the card's left half.
+        let x = app.frame().width / 4 * 3;
+        app.event(Event::Scroll { x, y: 384, dy: 300 });
+        // The page glides there.
+        testkit::settle(app);
     }
     false
 }
