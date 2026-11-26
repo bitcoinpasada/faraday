@@ -492,9 +492,14 @@ fn a_tab_goes_to_its_flow_and_with_several_to_the_one_last_left() {
     app.press(Action::Nav(Screen::Home));
     app.press(Action::SignMessage);
     app.press(Action::MNext(faraday_core::mstep::ADDRESS));
-    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Nav(Screen::Catalog));
+    for c in "slip".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    assert_eq!(testkit::home_find(&app), "slip");
     press_flow_tab(&mut app, Screen::WalletsStart);
     assert_eq!(app.screen, Screen::Message, "the one last left");
+    assert!(testkit::home_find(&app).is_empty(), "the search is left");
     // The one begun first, once it is the one last left.
     app.press(Action::Nav(Screen::Settings));
     app.press(Action::Resume(Going::Create));
