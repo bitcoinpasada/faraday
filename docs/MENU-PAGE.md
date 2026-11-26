@@ -205,6 +205,10 @@ the area less `compact::M` at each side: the top app bar names the page
 under 600 dp, so it is one column there; a rail window wide enough takes
 two.
 
+Off the compact layouts the container says the page's height, from the
+top bar to the column's end, and the guide's supporting pane stands that
+tall beside it (`docs/LAYOUT.md` §6).
+
 - **Home** on the one-column layouts is drawn by the container too:
   `compact::home`'s own grid of places is gone, and its places are a tiles
   section. The Pi's panel
