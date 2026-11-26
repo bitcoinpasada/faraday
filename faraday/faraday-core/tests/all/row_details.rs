@@ -6,6 +6,7 @@
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::Fingerprint;
+use faraday_core::address_check::AddressPress;
 use faraday_core::convert::ConvertAction as C;
 use faraday_core::lightning::NodeSource;
 use faraday_core::seeds::SeedsAction as S;
@@ -358,6 +359,68 @@ fn a_press_beside_a_rows_button_opens_the_details_and_the_button_loads() {
     touch(&mut app, at);
     assert!(!app.offers(Action::RowClose), "the button is its own press");
     assert!(!app.session.wallets.is_empty(), "Load loaded the wallet");
+}
+
+/// Files with the wallet file `name` of `descriptor`, its details open.
+fn details_of_wallet_file(name: &str, descriptor: String) -> Faraday {
+    let mut app = desktop();
+    faraday_core::testkit::inbox_file(&mut app, name, descriptor.into_bytes());
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::RowOpen(Row::File(0)));
+    let _ = app.frame();
+    app
+}
+
+fn kit_descriptor(id: &str) -> String {
+    faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == id)
+        .unwrap()
+        .descriptor
+}
+
+const CHECK_ADDRESS: Action = Action::AddressCheck(AddressPress::LoadThen(0));
+
+#[test]
+fn check_an_address_on_a_wallet_file_not_loaded_loads_it_and_opens_the_page() {
+    let mut app = details_of_wallet_file("spending-wallet.txt", kit_descriptor("spending"));
+    assert!(app.session.wallets.is_empty());
+    assert!(shown(&mut app, CHECK_ADDRESS), "the details offer it");
+    app.press(CHECK_ADDRESS);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    assert_eq!(app.screen, Screen::CheckAddress);
+    assert_eq!(app.address_check_state().unwrap().back(), Screen::Files);
+}
+
+#[test]
+fn check_an_address_on_a_wallet_file_held_for_its_sheet_opens_after_the_hold() {
+    let mut app = details_of_wallet_file("savings-wallet.txt", kit_descriptor("savings"));
+    app.press(CHECK_ADDRESS);
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    assert_eq!(app.screen, Screen::Files);
+    assert!(app.session.wallets.is_empty());
+    app.press(Action::WalletHold);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    assert_eq!(app.screen, Screen::CheckAddress);
+}
+
+#[test]
+fn check_an_address_on_a_wallet_file_that_does_not_load_opens_nothing() {
+    // MuSig2 over two accounts of one seed is refused at load.
+    let [a, b] = ["m/86'/1'/0'", "m/86'/1'/1'"].map(|p| faraday_core::testkit::key(0, p));
+    let descriptor = faraday_core::wallet::read_wallet(
+        &faraday_core::testkit::compute(),
+        &format!("tr(musig({a},{b})/<0;1>/*)"),
+    )
+    .unwrap()
+    .to_descriptor_checksummed()
+    .to_string();
+    let mut app = details_of_wallet_file("musig.txt", descriptor);
+    app.press(CHECK_ADDRESS);
+    assert!(app.toast_text().is_some(), "the refusal is said");
+    assert!(app.session.wallets.is_empty());
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Files);
 }
 
 #[test]
