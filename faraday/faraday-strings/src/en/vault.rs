@@ -72,8 +72,13 @@ macro_rules! words_vault {
     vault_key_file_empty: "{} is empty.",
     /// Under Unlock: the key file is a vault. `{}`: its name.
     vault_key_file_vault: "{} is a vault, not a key file.",
-    /// Under Unlock: the chosen key file is no longer in Files. `{}`: its name.
+    /// Under Unlock, and the toast when the file Add to vault asked about
+    /// is gone: it is no longer in Files. `{}`: its name.
     vault_key_file_gone: "{} is no longer in Files.",
+    /// The toast when the confirmation sheet Add to vault asked is held
+    /// and its vault is closed or another is the current one. `{}`: the
+    /// file's name.
+    vault_add_other_vault: "{} was not added: its vault is no longer the one shown.",
     /// Text in `unlock_compact`. `{}`: `mib_text(m)`.
     vault_this_computer_free: "This computer: {} free",
     /// Text in `unlock_compact`.

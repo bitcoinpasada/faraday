@@ -4,6 +4,8 @@
 //! from Files itself.
 
 use crate::common::RecordsOf as _;
+use faraday_bip::keys::Fingerprint;
+use faraday_core::strings::EN;
 use faraday_core::testkit;
 use faraday_core::testkit::Plain;
 use faraday_core::vault::VaultAction as V;
@@ -827,4 +829,1022 @@ fn the_outbox_says_ready_unprotected_and_written_after_lock_with_the_unsaved_cha
         texts.iter().any(|t| t.contains("unsaved change")),
         "{texts:?}"
     );
+}
+
+/// Sparrow's descriptor file, as some other tool might have written it: a
+/// comment, CRLF lines, `'` for hardened steps and no checksum. With it,
+/// the descriptor Faraday reads from it.
+fn respelled_descriptor() -> (String, String) {
+    let c = testkit::compute();
+    let read = faraday_core::wallet::read_wallet(
+        &c,
+        include_str!("../vectors/interop/sparrow/descriptor-multipath.txt"),
+    )
+    .unwrap()
+    .to_descriptor_checksummed()
+    .to_string();
+    let body = read.split('#').next().unwrap();
+    let other = body.replace("h/", "'/").replace("h]", "']");
+    assert_ne!(other, body, "nothing to respell");
+    (format!("# kept for the shop\r\n{other}\r\n"), read)
+}
+
+/// An empty vault, open, with `name` in Files.
+fn empty_vault_with(name: &str, bytes: &[u8]) -> Faraday {
+    let vault = testkit::kdbx_vault("Test vault", testkit::VAULT_PASSPHRASE, 0x7a, Vec::new());
+    let mut app = with_files(vec![
+        ("vault.kdbx".to_string(), vault.unwrap()),
+        (name.to_string(), bytes.to_vec()),
+    ]);
+    open_first_vault(&mut app);
+    app
+}
+
+fn open_first_vault(app: &mut Faraday) {
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    crate::common::type_text(app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Vault(V::LoadNotNow));
+}
+
+/// The text of each wallet item in the open vault.
+fn wallet_items(app: &Faraday) -> Vec<String> {
+    app.vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .of(kind::WALLET)
+        .map(|(_, r)| r.text(field::WALLET).unwrap_or_default().to_string())
+        .collect()
+}
+
+/// The vault sealed, the device powered off, and the vault opened again
+/// by a new process holding only the written file.
+fn sealed_and_reopened(mut app: Faraday) -> Faraday {
+    crate::common::top_up(&mut app);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let mut written = Vec::new();
+    while let Some(cmd) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { outbox, .. } = cmd {
+            written = testkit::plain_files(outbox);
+        }
+    }
+    assert_eq!(written.len(), 1, "the vault file was sealed");
+    let mut app = with_files(written);
+    open_first_vault(&mut app);
+    app
+}
+
+/// `bytes` added to a vault from Files, the confirmation sheet held where
+/// it asks: the item holds `want`, before power off and after, and Load
+/// gives that wallet with nothing asked.
+fn goes_in_as(name: &str, bytes: &[u8], want: &str) {
+    let mut app = empty_vault_with(name, bytes);
+    assert_eq!(app.inbox()[at(&app, name)].kind, FileKind::Wallet);
+    app.press(Action::Vault(V::AddFile(at(&app, name))));
+    if app.sheet == Some(Sheet::WalletConfirm) {
+        app.press(Action::WalletHold);
+    }
+    assert_eq!(wallet_items(&app), [want], "{:?}", app.toast_text());
+    let mut app = sealed_and_reopened(app);
+    assert_eq!(wallet_items(&app), [want], "after power off");
+    app.press(Action::Vault(V::LoadAll(0)));
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    let loaded: Vec<String> = app
+        .session
+        .wallets
+        .iter()
+        .map(|w| w.policy().to_descriptor_checksummed().to_string())
+        .collect();
+    assert_eq!(loaded, [want], "{:?}", app.toast_text());
+}
+
+#[test]
+fn a_descriptor_file_spelled_another_way_goes_into_the_vault_as_faraday_read_it() {
+    let (file, read) = respelled_descriptor();
+    goes_in_as("shop.txt", file.as_bytes(), &read);
+}
+
+#[test]
+fn another_wallets_file_goes_into_the_vault_as_its_descriptor() {
+    let file = include_str!("../vectors/interop/sparrow/electrum-multisig-wallet.json");
+    let c = testkit::compute();
+    let read = faraday_core::wallet::read_wallet(&c, file)
+        .unwrap()
+        .to_descriptor_checksummed();
+    goes_in_as("electrum.json", file.as_bytes(), &read);
+}
+
+/// Coldcard's export of one key's single-sig accounts and its silent
+/// payments account: Add to vault asks which, and keeps the one chosen.
+#[test]
+fn add_to_vault_asks_which_account_of_a_coldcard_export_and_keeps_that_one() {
+    use faraday_core::wallet::Account;
+    let file = include_str!("../vectors/interop/sparrow/cc-singlesig-sp-keystore-1.json");
+    let c = testkit::compute();
+    let single = faraday_core::wallet::read_wallet(&c, file)
+        .unwrap()
+        .to_descriptor_checksummed();
+    let asked = || {
+        let mut app = empty_vault_with("cc.json", file.as_bytes());
+        app.press(Action::Vault(V::AddFile(at(&app, "cc.json"))));
+        assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
+        assert!(wallet_items(&app).is_empty(), "kept before a choice");
+        app
+    };
+
+    let mut app = asked();
+    app.press(Action::LoadAccount(None));
+    assert!(wallet_items(&app).is_empty(), "kept after Cancel");
+
+    let mut app = asked();
+    app.press(Action::LoadAccount(Some(Account::SingleSig)));
+    assert_eq!(wallet_items(&app), [single.as_str()]);
+    assert!(app.session.wallets.is_empty(), "loaded, not only kept");
+    let mut app = sealed_and_reopened(app);
+    assert_eq!(wallet_items(&app), [single.as_str()], "after power off");
+    app.press(Action::Vault(V::LoadAll(0)));
+    let loaded = app.session.wallets[0].policy().to_descriptor_checksummed();
+    assert_eq!(loaded.to_string(), single.as_str());
+
+    let mut app = asked();
+    app.press(Action::LoadAccount(Some(Account::Silent)));
+    let kept = wallet_items(&app);
+    assert_eq!(kept.len(), 1, "{:?}", app.toast_text());
+    assert!(app.session.wallets.is_empty(), "loaded, not only kept");
+    let record = faraday_bip::silent_wallet::SilentWallet::parse(&kept[0]).expect("a record");
+    assert_eq!(record.to_text(), kept[0]);
+    assert_eq!(record.fingerprint.to_string(), "0f056943");
+    let mut app = sealed_and_reopened(app);
+    assert_eq!(wallet_items(&app), kept, "after power off");
+    app.press(Action::Vault(V::LoadAll(0)));
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    let loaded = app.session.wallets[0].policy().silent().expect("silent");
+    assert_eq!(loaded.to_text(), kept[0]);
+}
+
+const CC_EXPORT: &str = include_str!("../vectors/interop/sparrow/cc-singlesig-sp-keystore-1.json");
+
+/// Add to vault pressed on the export, its account dialog open.
+fn asked_which_account() -> Faraday {
+    let mut app = empty_vault_with("cc.json", CC_EXPORT.as_bytes());
+    app.press(Action::Vault(V::AddFile(at(&app, "cc.json"))));
+    assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
+    app
+}
+
+/// `name` read from a stick into Files.
+fn read_in(app: &mut Faraday, name: &str, bytes: &[u8]) {
+    app.storage(StorageEvent::Read {
+        stick: faraday_text::Text::of("s"),
+        name: faraday_text::Text::of(name),
+        bytes: bytes.to_vec().into(),
+    });
+}
+
+/// Files holding only `name`, with `bytes`, as a kept list brought back
+/// would. A stick read keeps no secret the person did not tick, so a file
+/// with one comes in this way.
+fn listed(app: &mut Faraday, name: &str, bytes: &[u8]) {
+    let name = faraday_text::Text::of(name);
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(name, bytes.to_vec())]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+}
+
+/// The silent payments account chosen in the open dialog went into the
+/// vault, once, and no wallet was loaded.
+fn chooses_silent_into_the_vault(app: &mut Faraday) {
+    app.press(Action::LoadAccount(Some(
+        faraday_core::wallet::Account::Silent,
+    )));
+    let kept = wallet_items(app);
+    assert_eq!(kept.len(), 1, "{:?}", app.toast_text());
+    faraday_bip::silent_wallet::SilentWallet::parse(&kept[0]).expect("a record");
+    assert!(app.session.wallets.is_empty(), "loaded, not kept");
+}
+
+#[test]
+fn a_file_arriving_under_the_account_dialog_leaves_add_to_vault_adding() {
+    let mut app = asked_which_account();
+    read_in(&mut app, "later.txt", CODES.as_bytes());
+    chooses_silent_into_the_vault(&mut app);
+}
+
+#[test]
+fn add_to_vault_finds_its_file_when_files_moved_it() {
+    let mut app = asked_which_account();
+    let before = at(&app, "cc.json");
+    read_in(&mut app, "later.txt", CODES.as_bytes());
+    let later = app.inbox()[at(&app, "later.txt")].duplicate();
+    testkit::inbox_retain(&mut app, |i| i.name.as_str() != "later.txt");
+    testkit::inbox_insert(&mut app, 0, later);
+    assert_ne!(at(&app, "cc.json"), before);
+    chooses_silent_into_the_vault(&mut app);
+}
+
+/// The asked-for file gone, or another file now under its name (here the
+/// export's own single-sig descriptor, an export of the same silent account
+/// with another single-sig one, and the export with seed words beside it):
+/// said, and nothing kept or loaded.
+#[test]
+fn add_to_vault_says_when_the_file_it_asked_about_is_gone() {
+    use faraday_core::wallet::Account;
+    let c = testkit::compute();
+    let single = faraday_core::wallet::read_wallet(&c, CC_EXPORT)
+        .unwrap()
+        .to_descriptor_checksummed()
+        .to_string();
+    let mut another: serde_json::Value = serde_json::from_str(CC_EXPORT).unwrap();
+    assert!(another.as_object_mut().unwrap().remove("bip84").is_some());
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let beside = CC_EXPORT.replacen('{', &format!(r#"{{"note":"{}","#, &*words), 1);
+    for other in [None, Some(single), Some(another.to_string()), Some(beside)] {
+        let mut app = asked_which_account();
+        testkit::inbox_retain(&mut app, |i| i.name.as_str() != "cc.json");
+        if let Some(other) = &other {
+            listed(&mut app, "cc.json", other.as_bytes());
+            at(&app, "cc.json");
+        }
+        app.press(Action::LoadAccount(Some(Account::Silent)));
+        assert!(wallet_items(&app).is_empty(), "{other:?}");
+        assert!(app.session.wallets.is_empty(), "{other:?}");
+        assert_eq!(app.sheet, None, "{other:?}");
+        assert_eq!(
+            app.toast_text(),
+            Some("cc.json is no longer in Files."),
+            "{other:?}"
+        );
+    }
+}
+
+/// The name a wallet file carries names the vault's wallet, as it names
+/// the one Files' Load gives.
+#[test]
+fn the_vaults_wallet_takes_the_name_its_file_carries() {
+    let (_, read) = respelled_descriptor();
+    let file = format!(r#"{{"label":"Shop","blockheight":0,"descriptor":"{read}"}}"#);
+    let mut app = empty_vault_with("export.json", file.as_bytes());
+    app.press(Action::Vault(V::AddFile(at(&app, "export.json"))));
+    assert_eq!(wallet_items(&app).len(), 1, "{:?}", app.toast_text());
+    let mut app = sealed_and_reopened(app);
+    app.press(Action::Vault(V::LoadAll(0)));
+    assert_eq!(app.session.wallets[0].name.as_str(), "Shop");
+}
+
+/// An account chosen for a load does not answer Add to vault, which asks
+/// each time, and what Add to vault is told does not change what loads.
+#[test]
+fn add_to_vault_asks_each_time_and_leaves_the_loads_account_as_it_was() {
+    use faraday_core::wallet::Account;
+    let mut app = empty_vault_with("cc.json", CC_EXPORT.as_bytes());
+    let load = |app: &mut Faraday| app.press(Action::LoadWallet(at(app, "cc.json")));
+    let silent_loaded = |app: &Faraday| {
+        assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+        assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+        assert!(app.session.wallets[0].policy().silent().is_some());
+    };
+    app.press(Action::Vault(V::AddFile(at(&app, "cc.json"))));
+    app.press(Action::LoadAccount(Some(Account::SingleSig)));
+    assert_eq!(wallet_items(&app).len(), 1, "{:?}", app.toast_text());
+    load(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
+    app.press(Action::LoadAccount(Some(Account::Silent)));
+    silent_loaded(&app);
+
+    for (chosen, items) in [(Account::SingleSig, 2), (Account::Silent, 3)] {
+        app.press(Action::Vault(V::AddFile(at(&app, "cc.json"))));
+        assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
+        assert_eq!(wallet_items(&app).len(), items - 1);
+        app.press(Action::LoadAccount(Some(chosen)));
+        let kept = wallet_items(&app);
+        assert_eq!(kept.len(), items, "{:?}", app.toast_text());
+        let silent = faraday_bip::silent_wallet::SilentWallet::parse(&kept[items - 1]);
+        assert_eq!(silent.is_some(), chosen == Account::Silent, "{kept:?}");
+
+        app.session.wallets.clear();
+        load(&mut app);
+        silent_loaded(&app);
+    }
+}
+
+/// A 1-of-2 over two keys no loaded key is, and keys of its own choosing:
+/// the descriptor, checksummed.
+fn planted_descriptor() -> String {
+    let p = "m/48'/1'/0'/2'";
+    let (a, b) = (testkit::key(1, p), testkit::key(2, p));
+    checksummed(&format!("wsh(sortedmulti(1,{a}/<0;1>/*,{b}/<0;1>/*))"))
+}
+
+/// `d` as Faraday writes the wallet it reads there.
+fn checksummed(d: &str) -> String {
+    faraday_core::wallet::read_wallet(&testkit::compute(), d)
+        .unwrap()
+        .to_descriptor_checksummed()
+        .to_string()
+}
+
+/// Test seed `n` typed in and added to the session's keys.
+fn loads_seed(app: &mut Faraday, n: usize) {
+    app.press(Action::Entry(None));
+    crate::common::type_text(app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+    app.press(Action::EntryAdd);
+}
+
+/// Load pressed on `name` asks the confirmation sheet and loads nothing.
+fn load_asks(app: &mut Faraday, name: &str) {
+    app.press(Action::LoadWallet(at(app, name)));
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::WalletConfirm),
+        "Load of {name}: {:?}",
+        app.toast_text()
+    );
+    assert!(app.session.wallets.is_empty(), "{name}: loaded");
+}
+
+/// A planted 1-of-2 in each form a file brings one in.
+fn planted_files() -> [(&'static str, String); 4] {
+    let d = planted_descriptor();
+    // Two of the cosigners of Sparrow's published Electrum wallet.
+    let all: serde_json::Value = serde_json::from_str(include_str!(
+        "../vectors/interop/sparrow/electrum-multisig-wallet.json"
+    ))
+    .unwrap();
+    let electrum = serde_json::json!({
+        "x1/": all["x1/"], "x2/": all["x2/"],
+        "wallet_type": "1of2", "use_encryption": false, "seed_version": 17,
+    });
+    let p = "m/48'/1'/0'/2'";
+    let line = |n| {
+        let key = testkit::key(n, p);
+        let (origin, xpub) = key.split_once(']').unwrap();
+        format!("{}: {xpub}\n", origin[1..9].to_uppercase())
+    };
+    let config = format!(
+        "Name: Planted\nPolicy: 1 of 2\nDerivation: {p}\nFormat: P2WSH\n\n{}{}",
+        line(1),
+        line(2)
+    );
+    [
+        ("electrum.json", electrum.to_string()),
+        (
+            "wallet.json",
+            format!(r#"{{"label":"Shop","blockheight":0,"descriptor":"{d}"}}"#),
+        ),
+        ("config.txt", config),
+        ("planted.txt", d),
+    ]
+}
+
+/// The places each wallet item of open vault `v` records as checked.
+fn item_ticks(app: &Faraday, v: usize) -> Vec<Vec<usize>> {
+    app.vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[v].id)
+        .of(kind::WALLET)
+        .map(|(_, r)| faraday_vault::records::keys_checked(r))
+        .collect()
+}
+
+fn add(app: &mut Faraday, name: &str) {
+    app.press(Action::Vault(V::AddFile(at(app, name))));
+}
+
+/// Add to vault pressed on `name`, its confirmation sheet open and
+/// nothing kept or loaded yet.
+fn asked_before_keeping(app: &mut Faraday, name: &str) {
+    add(app, name);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::WalletConfirm),
+        "{name}: {:?}",
+        app.toast_text()
+    );
+    nothing_kept(app, name);
+}
+
+fn nothing_kept(app: &Faraday, name: &str) {
+    assert!(wallet_items(app).is_empty(), "{name}: kept");
+    assert!(app.session.wallets.is_empty(), "{name}: loaded");
+}
+
+/// The text Save to vault writes for the wallet of `name` once Load's
+/// sheet is held.
+fn as_save_to_vault_writes(name: &str, bytes: &[u8]) -> Vec<String> {
+    let mut app = empty_vault_with(name, bytes);
+    app.press(Action::LoadWallet(at(&app, name)));
+    app.press(Action::WalletHold);
+    app.press(Action::Vault(V::SaveWallet(0)));
+    wallet_items(&app)
+}
+
+#[test]
+fn add_to_vault_asks_before_the_vault_keeps_a_wallet_of_several_keys() {
+    for (name, file) in planted_files() {
+        let saved = as_save_to_vault_writes(name, file.as_bytes());
+        assert_eq!(saved.len(), 1, "{name}");
+        let mut app = empty_vault_with(name, file.as_bytes());
+        asked_before_keeping(&mut app, name);
+        app.press(Action::WalletHold);
+        assert_eq!(wallet_items(&app), saved, "{name}: {:?}", app.toast_text());
+        assert!(app.session.wallets.is_empty(), "{name}: loaded");
+        assert_eq!(app.sheet, None, "{name}");
+        let mut app = sealed_and_reopened(app);
+        assert_eq!(wallet_items(&app), saved, "{name}: after power off");
+        app.press(Action::Vault(V::LoadAll(0)));
+        assert_eq!(app.sheet, None, "{name}: {:?}", app.toast_text());
+        assert_eq!(app.session.wallets.len(), 1, "{name}");
+    }
+}
+
+#[test]
+fn cancel_at_add_to_vaults_sheet_keeps_nothing_and_the_next_press_asks_again() {
+    let d = planted_descriptor();
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "planted.txt");
+    app.press(Action::WalletCancel);
+    nothing_kept(&app, "planted.txt");
+    assert_eq!(app.sheet, None);
+    asked_before_keeping(&mut app, "planted.txt");
+}
+
+#[test]
+fn the_ticks_of_add_to_vaults_sheet_are_the_vaults() {
+    let d = planted_descriptor();
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "planted.txt");
+    app.press(Action::KeyTick(faraday_core::wallet::KeyBlockOf::Asked, 1));
+    app.press(Action::WalletHold);
+    assert_eq!(item_ticks(&app, 0), [vec![1]]);
+    let mut app = sealed_and_reopened(app);
+    app.press(Action::Vault(V::LoadAll(0)));
+    assert_eq!(app.session.wallets[0].key_ticks(), [false, true]);
+}
+
+#[test]
+fn add_to_vault_asks_nothing_for_a_wallet_of_one_key() {
+    let key = testkit::key(1, "m/84'/1'/0'");
+    let d = format!("wpkh({key}/<0;1>/*)");
+    let mut app = empty_vault_with("one.txt", d.as_bytes());
+    add(&mut app, "one.txt");
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    assert_eq!(wallet_items(&app).len(), 1);
+}
+
+#[test]
+fn add_to_vault_asks_nothing_for_a_wallet_confirmed_already() {
+    let d = planted_descriptor();
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "planted.txt");
+    app.press(Action::WalletHold);
+    add(&mut app, "planted.txt");
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    assert_eq!(wallet_items(&app).len(), 2);
+}
+
+/// A wallet the session holds without a sheet, here from a vault's own
+/// record, is asked about no more.
+#[test]
+fn add_to_vault_asks_nothing_for_a_wallet_the_session_holds() {
+    let d = planted_descriptor();
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "planted.txt");
+    app.press(Action::WalletHold);
+    let mut app = sealed_and_reopened(app);
+    app.press(Action::Vault(V::LoadAll(0)));
+    assert_eq!(app.session.wallets.len(), 1);
+    read_in(&mut app, "again.txt", d.as_bytes());
+    add(&mut app, "again.txt");
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    assert_eq!(wallet_items(&app).len(), 2);
+}
+
+#[test]
+fn add_to_vault_asks_nothing_when_every_key_is_a_loaded_ones() {
+    let d = testkit::savings();
+    let mut app = empty_vault_with("ours.txt", d.as_bytes());
+    for (seed, _) in &testkit::TEST_SEEDS[..3] {
+        app.press(Action::Entry(None));
+        crate::common::type_text(&mut app, &testkit::test_words(seed));
+        app.press(Action::EntryAdd);
+    }
+    add(&mut app, "ours.txt");
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    assert_eq!(wallet_items(&app).len(), 1);
+}
+
+#[test]
+fn the_hold_at_add_to_vault_takes_its_file_wherever_files_now_has_it() {
+    let d = planted_descriptor();
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "planted.txt");
+    let before = at(&app, "planted.txt");
+    read_in(&mut app, "later.txt", CODES.as_bytes());
+    let later = app.inbox()[at(&app, "later.txt")].duplicate();
+    testkit::inbox_retain(&mut app, |i| i.name.as_str() != "later.txt");
+    testkit::inbox_insert(&mut app, 0, later);
+    assert_ne!(at(&app, "planted.txt"), before);
+    app.press(Action::WalletHold);
+    assert_eq!(wallet_items(&app), [d.as_str()], "{:?}", app.toast_text());
+    assert!(app.session.wallets.is_empty(), "loaded");
+}
+
+/// The file gone; or another wallet, the same keys written in another
+/// order, or the same wallet with seed words beside it now under its name.
+/// Nothing was kept, so a load of the wallet still asks.
+#[test]
+fn the_hold_at_add_to_vault_keeps_nothing_once_its_file_is_gone() {
+    let d = planted_descriptor();
+    let p = "m/48'/1'/0'/2'";
+    let (a, b) = (testkit::key(1, p), testkit::key(2, p));
+    let reordered = checksummed(&format!("wsh(sortedmulti(1,{b}/<0;1>/*,{a}/<0;1>/*))"));
+    assert_ne!(reordered, d);
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let beside = format!("{d}\n# {}\n", &*words);
+    for other in [
+        None,
+        Some(testkit::savings()),
+        Some(reordered),
+        Some(beside),
+    ] {
+        let mut app = empty_vault_with("planted.txt", d.as_bytes());
+        asked_before_keeping(&mut app, "planted.txt");
+        testkit::inbox_retain(&mut app, |i| i.name.as_str() != "planted.txt");
+        if let Some(other) = &other {
+            listed(&mut app, "planted.txt", other.as_bytes());
+            at(&app, "planted.txt");
+        }
+        app.press(Action::WalletHold);
+        nothing_kept(&app, "planted.txt");
+        assert_eq!(
+            app.toast_text(),
+            Some("planted.txt is no longer in Files."),
+            "{other:?}"
+        );
+        testkit::inbox_retain(&mut app, |i| i.name.as_str() != "planted.txt");
+        read_in(&mut app, "planted.txt", d.as_bytes());
+        load_asks(&mut app, "planted.txt");
+    }
+}
+
+#[test]
+fn the_hold_at_add_to_vault_never_puts_the_wallet_in_another_vault() {
+    let d = planted_descriptor();
+    let second = testkit::kdbx_vault("Second", testkit::VAULT_PASSPHRASE, 0x7b, Vec::new());
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    read_in(&mut app, "second.kdbx", &second.unwrap());
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(1)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 100..160u64 {
+        if app.vaults().open.len() == 2 {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 2, "{:?}", app.toast_text());
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::Vault(V::Show(0)));
+    let first = app.vaults().current_id();
+    add(&mut app, "planted.txt");
+    assert_eq!(app.sheet, Some(Sheet::WalletConfirm));
+    app.press(Action::Vault(V::Show(1)));
+    assert_ne!(app.vaults().current_id(), first);
+    app.press(Action::WalletHold);
+    assert_eq!(item_ticks(&app, 0).len(), 0, "the first vault");
+    assert_eq!(item_ticks(&app, 1).len(), 0, "the other vault");
+    assert!(app.session.wallets.is_empty(), "loaded");
+    assert_eq!(
+        app.toast_text(),
+        Some("planted.txt was not added: its vault is no longer the one shown.")
+    );
+    load_asks(&mut app, "planted.txt");
+}
+
+/// The same wallet under the same file name, now labelled otherwise: the
+/// vault gets no name the sheet did not show.
+#[test]
+fn the_hold_at_add_to_vault_keeps_nothing_under_a_name_the_sheet_did_not_show() {
+    let d = planted_descriptor();
+    let file = |label| format!(r#"{{"label":"{label}","blockheight":0,"descriptor":"{d}"}}"#);
+    let mut app = empty_vault_with("wallet.json", file("Shop").as_bytes());
+    asked_before_keeping(&mut app, "wallet.json");
+    testkit::inbox_retain(&mut app, |i| i.name.as_str() != "wallet.json");
+    read_in(&mut app, "wallet.json", file("Till").as_bytes());
+    at(&app, "wallet.json");
+    app.press(Action::WalletHold);
+    nothing_kept(&app, "wallet.json");
+    assert_eq!(app.toast_text(), Some("wallet.json is no longer in Files."));
+}
+
+/// A 1-of-2 over test seed 0's fingerprint and path with a key that is
+/// not there, and a key of another seed.
+fn forged_descriptor() -> String {
+    let p = "m/48'/1'/0'/2'";
+    two_keys(&forged_key(), &testkit::key(1, p))
+}
+
+/// Test seed 0's fingerprint and path over a key that is not there.
+fn forged_key() -> String {
+    let ours = testkit::key(0, "m/48'/1'/0'/2'");
+    let elsewhere = testkit::key(0, "m/48'/1'/7'/2'");
+    format!(
+        "{}]{}",
+        ours.split_once(']').unwrap().0,
+        elsewhere.split_once(']').unwrap().1
+    )
+}
+
+fn two_keys(a: &str, b: &str) -> String {
+    checksummed(&format!("wsh(sortedmulti(1,{a}/<0;1>/*,{b}/<0;1>/*))"))
+}
+
+/// A MuSig2 wallet over two accounts of test seed 0.
+fn musig_of_one_seed() -> String {
+    let [a, b] = ["m/86'/1'/0'", "m/86'/1'/1'"].map(|p| testkit::key(0, p));
+    checksummed(&format!("tr(musig({a},{b})/<0;1>/*)"))
+}
+
+/// A silent payments record of test seed 0's points: under its own
+/// fingerprint with another's scan key, or with `under` its own points under
+/// that fingerprint.
+#[expect(
+    clippy::disallowed_types,
+    reason = "the test makes a record by hand, from the test seed's points and a made-up key"
+)]
+fn silent_record(under: Option<Fingerprint>) -> String {
+    use faraday_bip::bitcoin::secp256k1::{Secp256k1, SecretKey};
+    use faraday_bip::silent::Receiver;
+    use faraday_bip::silent_wallet::SilentWallet;
+
+    let c = testkit::compute();
+    let mut app = with_files(Vec::new());
+    loads_seed(&mut app, 0);
+    let secp = Secp256k1::new();
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
+    let other = SecretKey::from_slice(&[7; 32]).unwrap().public_key(&secp);
+    SilentWallet {
+        network: app.session.network(),
+        fingerprint: under.unwrap_or(app.session.keys[0].fingerprint),
+        account: 0,
+        scan: under.map_or(other, |_| r.scan_public_key(&secp)),
+        spend: r.spend_public_key(),
+        labels: 0,
+    }
+    .to_text()
+}
+
+/// Add to vault pressed on `name` is refused: nothing asked, kept or
+/// loaded, the vault not changed and the file as it was. Its words.
+fn add_refused(app: &mut Faraday, name: &str) -> String {
+    let changes = app.vaults().open[0].changes;
+    let file = app.inbox()[at(app, name)].bytes.to_vec();
+    let said = app.toast_text().map(str::to_string);
+    add(app, name);
+    assert_eq!(app.sheet, None, "{name}: {:?}", app.toast_text());
+    nothing_kept(app, name);
+    assert_eq!(app.vaults().open[0].changes, changes, "{name}");
+    assert_eq!(app.inbox()[at(app, name)].bytes.to_vec(), file, "{name}");
+    let words = app.toast_text().map(str::to_string);
+    assert_ne!(words, said, "{name}: Add says nothing");
+    words.expect("Add says why")
+}
+
+/// Load pressed on `name` is refused. Its words.
+fn load_refused(app: &mut Faraday, name: &str) -> String {
+    app.press(Action::LoadWallet(at(app, name)));
+    assert_eq!(app.sheet, None, "Load of {name}: {:?}", app.toast_text());
+    assert!(app.session.wallets.is_empty(), "{name}: loaded");
+    app.toast_text().expect("Load says why").to_string()
+}
+
+#[test]
+fn add_to_vault_refuses_in_loads_words_what_load_refuses() {
+    let elsewhere = silent_record(Some(Fingerprint([0, 0, 0, 1])));
+    for (what, name, file, seed) in [
+        ("a forged key", "forged.txt", forged_descriptor(), true),
+        ("one seed twice", "musig.txt", musig_of_one_seed(), false),
+        ("a silent record", "silent.txt", silent_record(None), true),
+        ("another key's silent record", "silent.txt", elsewhere, true),
+    ] {
+        let mut app = empty_vault_with(name, file.as_bytes());
+        if seed {
+            loads_seed(&mut app, 0);
+        }
+        let by_add = add_refused(&mut app, name);
+        assert_eq!(load_refused(&mut app, name), by_add, "{what}");
+    }
+}
+
+/// The export, its fingerprint made a loaded key's, so that its silent
+/// payments account is not that key's: refused once the account dialog has
+/// run Add to vault again, in the words Load comes to the same way.
+#[test]
+fn add_to_vault_refuses_after_the_account_dialog_what_load_refuses() {
+    use faraday_core::wallet::Account;
+    let mut app = empty_vault_with("later.txt", b"read below");
+    loads_seed(&mut app, 0);
+    app.press(Action::Back);
+    let fp = app.session.keys[0].fingerprint.to_string().to_uppercase();
+    let export = CC_EXPORT.replace("0F056943", &fp);
+    assert_ne!(export, CC_EXPORT);
+    read_in(&mut app, "cc.json", export.as_bytes());
+    let changes = app.vaults().open[0].changes;
+    add(&mut app, "cc.json");
+    assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
+    app.press(Action::LoadAccount(Some(Account::Silent)));
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    nothing_kept(&app, "cc.json");
+    assert_eq!(app.vaults().open[0].changes, changes);
+    let by_add = app.toast_text().expect("Add says why").to_string();
+    app.press(Action::LoadWallet(at(&app, "cc.json")));
+    assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
+    app.press(Action::LoadAccount(Some(Account::Silent)));
+    assert!(app.session.wallets.is_empty(), "loaded");
+    assert_eq!(app.toast_text(), Some(by_add.as_str()));
+}
+
+#[test]
+fn add_to_vault_keeps_with_nothing_loaded_what_only_a_loaded_key_shows() {
+    let forged = forged_descriptor();
+    let mut app = empty_vault_with("forged.txt", forged.as_bytes());
+    asked_before_keeping(&mut app, "forged.txt");
+    app.press(Action::WalletHold);
+    assert_eq!(wallet_items(&app), [forged], "{:?}", app.toast_text());
+
+    let record = silent_record(None);
+    let mut app = empty_vault_with("silent.txt", record.as_bytes());
+    add(&mut app, "silent.txt");
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    assert_eq!(wallet_items(&app), [record], "{:?}", app.toast_text());
+}
+
+#[test]
+fn a_forged_key_loaded_under_add_to_vaults_sheet_is_refused_at_the_hold() {
+    let d = forged_descriptor();
+    let mut app = empty_vault_with("forged.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "forged.txt");
+    let changes = app.vaults().open[0].changes;
+    loads_seed(&mut app, 0);
+    app.press(Action::WalletHold);
+    nothing_kept(&app, "forged.txt");
+    assert_eq!(app.vaults().open[0].changes, changes);
+    let at_the_hold = app.toast_text().expect("the hold says why").to_string();
+    assert_eq!(load_refused(&mut app, "forged.txt"), at_the_hold);
+}
+
+/// Test seed 0 loaded and waiting for its backup, and its key under the
+/// origin fingerprint `00000001`, which no key here has.
+fn waiting_under_another_fingerprint(app: &mut Faraday) -> String {
+    loads_seed(app, 0);
+    let fp = app.session.keys[0].fingerprint;
+    testkit::mark_made_here(app, fp);
+    app.press(Action::Back);
+    let key = testkit::key(0, "m/48'/1'/0'/2'");
+    format!("[00000001{}", &key[9..])
+}
+
+/// A key waiting for its backup under another fingerprint: Add to vault
+/// asks and keeps it. Its hold does not stand in for Load's sheet, which
+/// Load comes to once the backup is done.
+#[test]
+fn add_to_vault_keeps_a_waiting_keys_wallet_and_load_still_asks_once_backed_up() {
+    let mut app = empty_vault_with("later.txt", b"read below");
+    let waiting = waiting_under_another_fingerprint(&mut app);
+    let d = two_keys(&waiting, &testkit::key(1, "m/48'/1'/0'/2'"));
+    read_in(&mut app, "waiting.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "waiting.txt");
+    app.press(Action::WalletHold);
+    assert_eq!(wallet_items(&app), [d], "{:?}", app.toast_text());
+    let words = load_refused(&mut app, "waiting.txt");
+    assert!(words.contains("not backed up"), "{words}");
+    let fp = app.session.keys[0].fingerprint;
+    testkit::release_made(&mut app, fp);
+    app.press(Action::Back);
+    load_asks(&mut app, "waiting.txt");
+}
+
+/// A waiting key written before a forged one does not hide it.
+#[test]
+fn add_to_vault_refuses_a_forged_key_on_either_side_of_a_waiting_one() {
+    let mut app = empty_vault_with("later.txt", b"read below");
+    let waiting = waiting_under_another_fingerprint(&mut app);
+    let forged = forged_key();
+    let after = two_keys(&forged, &waiting);
+    let before = two_keys(&waiting, &forged);
+    assert_ne!(after, before, "the order written is kept");
+    read_in(&mut app, "after.txt", after.as_bytes());
+    read_in(&mut app, "before.txt", before.as_bytes());
+    let words = add_refused(&mut app, "after.txt");
+    assert_eq!(load_refused(&mut app, "after.txt"), words);
+    // Load stops at the first key it refuses.
+    let first = load_refused(&mut app, "before.txt");
+    assert!(first.contains("not backed up"), "{first}");
+    assert_eq!(add_refused(&mut app, "before.txt"), words);
+}
+
+#[test]
+fn a_vault_full_at_add_to_vaults_hold_keeps_nothing_and_load_still_asks() {
+    let d = planted_descriptor();
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "planted.txt");
+    let id = app.vaults().open[0].id;
+    // The most a vault may hold, lowered to just over what it holds. Past
+    // a limit of nothing the size is counted, not bounded.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(0));
+    let used = app.vaults().records(id).used(&testkit::compute());
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 20));
+    app.press(Action::WalletHold);
+    nothing_kept(&app, "planted.txt");
+    assert_eq!(app.toast_text(), Some(EN.vaults_slot_too_small));
+    load_asks(&mut app, "planted.txt");
+}
+
+#[test]
+fn backups_know_the_vault_has_the_wallet_as_soon_as_add_to_vaults_hold() {
+    let d = planted_descriptor();
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "planted.txt");
+    app.press(Action::WalletHold);
+    app.press(Action::LoadWallet(at(&app, "planted.txt")));
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    assert_eq!(
+        app.backup_line(&testkit::compute(), 0).as_str(),
+        EN.backups_no_plan_kept
+    );
+}
+
+/// A `tr()` wallet whose one tree key is loaded and whose key path a bare
+/// public key holds.
+#[test]
+fn add_to_vault_asks_about_a_key_path_another_key_holds() {
+    // secp256k1's generator, x only: a public key that is not BIP 341's H.
+    let bare = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+    let key = testkit::key(0, "m/86'/1'/0'");
+    let d = checksummed(&format!("tr({bare},pk({key}/<0;1>/*))"));
+    let mut app = empty_vault_with("ours.txt", d.as_bytes());
+    loads_seed(&mut app, 0);
+    asked_before_keeping(&mut app, "ours.txt");
+}
+
+#[test]
+fn escape_and_lock_in_add_to_vaults_sheet_keep_nothing() {
+    let d = planted_descriptor();
+    let mut app = empty_vault_with("planted.txt", d.as_bytes());
+    asked_before_keeping(&mut app, "planted.txt");
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(app.sheet, None);
+    assert!(app.session.wallet_asked().is_none(), "a sheet waits");
+    nothing_kept(&app, "planted.txt");
+    asked_before_keeping(&mut app, "planted.txt");
+    app.press(Action::Lock);
+    assert!(app.restart_requested(), "{:?}", app.toast_text());
+    assert!(app.session.wallet_asked().is_none(), "a sheet waits");
+    app.press(Action::WalletHold);
+    assert!(app.session.wallets.is_empty(), "loaded");
+}
+
+/// A wallet in each of the other forms a policy takes: Add to vault asks,
+/// and what it keeps loads after power off as the wallet Load gives.
+#[test]
+fn add_to_vault_keeps_each_form_of_policy_as_load_reads_it() {
+    let p = "m/48'/1'/0'/2'";
+    let [a, b, c] = [1, 2, 0].map(|n| testkit::key(n, p));
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "taproot-multisig")
+        .expect("kit");
+    let musig = testkit::musig_policy()
+        .expect("the MuSig2 wallet")
+        .to_descriptor_checksummed();
+    let forms: [(&str, String); 4] = [
+        (
+            "miniscript.txt",
+            format!("wsh(or_d(pk({a}/<0;1>/*),and_v(v:pkh({b}/<0;1>/*),older(1000))))"),
+        ),
+        (
+            "tree.txt",
+            format!("tr({a}/<0;1>/*,{{pk({b}/<0;1>/*),pk({c}/<0;1>/*)}})"),
+        ),
+        ("multi_a.txt", kit.descriptor.to_string()),
+        ("musig.txt", musig.to_string()),
+    ];
+    let loaded = |app: &Faraday| {
+        assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+        let policy = app.session.wallets[0].policy();
+        policy.to_descriptor_checksummed().to_string()
+    };
+    for (name, file) in forms {
+        let mut app = empty_vault_with(name, file.as_bytes());
+        load_asks(&mut app, name);
+        app.press(Action::WalletHold);
+        let by_load = loaded(&app);
+
+        let mut app = empty_vault_with(name, file.as_bytes());
+        asked_before_keeping(&mut app, name);
+        app.press(Action::WalletHold);
+        let kept = wallet_items(&app);
+        assert_eq!(kept.len(), 1, "{name}: {:?}", app.toast_text());
+        let mut app = sealed_and_reopened(app);
+        assert_eq!(wallet_items(&app), kept, "{name}: after power off");
+        app.press(Action::Vault(V::LoadAll(0)));
+        assert_eq!(app.sheet, None, "{name}: {:?}", app.toast_text());
+        assert_eq!(loaded(&app), by_load, "{name}");
+    }
+}
+
+/// A wallet of one key is not asked about: the vault's record has the name
+/// a load gives it. A label refused as a name, or reading as the name of no
+/// name, gives that name; with no label it is the file's name in words.
+#[test]
+fn the_vaults_wallet_of_one_key_has_the_name_a_load_gives() {
+    let key = testkit::key(1, "m/84'/1'/0'");
+    let d = checksummed(&format!("wpkh({key}/<0;1>/*)"));
+    let json = |label: &str| format!(r#"{{"label":"{label}","blockheight":0,"descriptor":"{d}"}}"#);
+    // A word of the seed list over and over reads as seed words.
+    let words = "shop ".repeat(12);
+    for (name, file, want) in [
+        (
+            "export.json",
+            json(words.trim_end()),
+            EN.wallet_default_name,
+        ),
+        (
+            "export.json",
+            json(EN.wallet_default_name),
+            EN.wallet_default_name,
+        ),
+        ("export.txt", d.clone(), "Export"),
+    ] {
+        let mut app = empty_vault_with(name, file.as_bytes());
+        add(&mut app, name);
+        assert_eq!(item_names(&app), [want], "{file}: {:?}", app.toast_text());
+        app.press(Action::LoadWallet(at(&app, name)));
+        assert_eq!(&*app.session.wallets[0].name, want, "{file}");
+    }
+}
+
+/// The names of the open vault's wallet items.
+fn item_names(app: &Faraday) -> Vec<String> {
+    app.vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[0].id)
+        .of(kind::WALLET)
+        .map(|(_, r)| r.text(field::WALLET_NAME).unwrap_or_default().to_string())
+        .collect()
+}
+
+/// The name on the confirmation sheet that is open.
+fn asked_name(app: &Faraday) -> String {
+    let asked = app.session.wallet_asked().expect("a sheet waits");
+    asked.name.to_string()
+}
+
+/// A file with no name in it: Add to vault's sheet and the vault's record
+/// say what Load's sheet says, the file's name in words, cut as a name is.
+#[test]
+fn add_to_vault_names_a_wallet_as_load_does() {
+    let d = testkit::savings();
+    let long = format!("{}.txt", "zzqx-".repeat(24));
+    for (name, want) in [
+        ("savings.txt", Some("Savings")),
+        ("my-old_cold-wallet.txt", Some("My Old Cold")),
+        (long.as_str(), None),
+    ] {
+        let mut app = empty_vault_with(name, d.as_bytes());
+        load_asks(&mut app, name);
+        let by_load = asked_name(&app);
+        match want {
+            Some(want) => assert_eq!(by_load, want, "{name}"),
+            None => assert!(by_load.starts_with("Zzqx Zzqx"), "{by_load}"),
+        }
+        app.press(Action::WalletCancel);
+        asked_before_keeping(&mut app, name);
+        assert_eq!(asked_name(&app), by_load, "{name}");
+        app.press(Action::WalletHold);
+        assert_eq!(
+            item_names(&app),
+            [by_load],
+            "{name}: {:?}",
+            app.toast_text()
+        );
+    }
 }

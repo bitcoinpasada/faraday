@@ -131,7 +131,7 @@ macro_rules! words_wallet {
     /// A MuSig2 wallet two of whose keys come from one seed, refused.
     wallet_musig_one_seed: "Two keys of this wallet come from one seed. This device cannot sign for both.",
     /// The account dialog's title.
-    wallet_account_head: "Which account to load?",
+    wallet_account_head: "Which account?",
     /// The account dialog's line. `{}`: the wallet's name.
     wallet_account_line: "{} holds a single-sig account and a silent payments account",
     /// The account dialog's single-sig choice. `{}`: its BIP, "BIP-84".

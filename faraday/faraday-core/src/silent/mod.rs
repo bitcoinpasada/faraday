@@ -834,7 +834,13 @@ impl Faraday {
     /// accounts waiting, to run again once one is chosen, and opens the
     /// account dialog over what is on screen while one waits.
     pub(crate) fn account_after(&mut self, asked: bool, action: crate::Action) {
-        if !asked && crate::wallet::replays(action) {
+        // Add to vault loads nothing, so it is not among the presses
+        // `replays` names for a held wallet; it does wait for an account.
+        let adds = matches!(
+            action,
+            crate::Action::Vault(crate::vault::VaultAction::AddFile(_))
+        );
+        if !asked && (crate::wallet::replays(action) || adds) {
             let inbox = self.inbox_print();
             self.session.account_replay(action, inbox);
         }
@@ -844,9 +850,11 @@ impl Faraday {
     }
 
     /// Costs what `add_policy` costs: the account dialog's choice, or its
-    /// Cancel (`None`). The choice is kept for the session; the press
+    /// Cancel (`None`). A load's choice is kept for the session; the press
     /// that asked runs again while Files holds what it held, and an
-    /// export that came in any other way is added here.
+    /// export that came in any other way is added here. Add to vault
+    /// loads nothing: it runs again on the file it asked about, wherever
+    /// Files now holds it, or says that file is gone.
     pub(crate) fn account_act(&mut self, chosen: Option<crate::wallet::Account>) {
         self.sheet = None;
         let Some(account) = chosen else {
@@ -856,6 +864,26 @@ impl Faraday {
         let Some(ask) = self.session.account_choose(account) else {
             return;
         };
+        if let Some((crate::Action::Vault(crate::vault::VaultAction::AddFile(_)), _)) = ask.replay {
+            let c = self.compute();
+            let at = self.inbox.iter().position(|item| {
+                item.kind == crate::wallet::FileKind::Wallet
+                    && *item.name == *ask.source
+                    && ask.is_export(&c, &faraday_text::Text::from_utf8_lossy(&item.bytes))
+            });
+            match at {
+                Some(k) => {
+                    self.session.account_for_add(Some(account));
+                    self.act(crate::Action::Vault(crate::vault::VaultAction::AddFile(k)));
+                    self.session.account_for_add(None);
+                }
+                None => {
+                    let said = faraday_text::Text::fill(EN.vault_key_file_gone, &[&ask.source]);
+                    self.toast(&said);
+                }
+            }
+            return;
+        }
         if let Some((press, inbox)) = ask.replay
             && inbox == self.inbox_print()
         {

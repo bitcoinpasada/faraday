@@ -13,6 +13,7 @@ use faraday_bip::bitcoin::{OutPoint, Transaction, Txid};
 use faraday_bip::keys::{Fingerprint, Network, ScriptType};
 use faraday_bip::policy::{KeyPath, Template, WalletId, WalletPolicy, Wrapper};
 use faraday_crypto::work::Compute;
+use faraday_keys::vault::VaultId;
 use faraday_psbt::verify::Verdict;
 use faraday_psbt::{Context, Inspection, KeyRef, Psbt};
 use faraday_shell_api::Key as KeyIn;
@@ -756,6 +757,9 @@ pub struct WalletAsk {
     /// The wallet was asked for by Restore, which goes on from the wallet
     /// once the hold adds it ([`Session::wallet_for_restore`]).
     pub restore: bool,
+    /// Add to vault asked: the hold puts the wallet in this vault and
+    /// the session does not load it.
+    pub(crate) vault: Option<VaultId>,
 }
 
 /// How a `tr()` wallet's key path line reads (F132): its text, and
@@ -944,7 +948,7 @@ impl Session {
     ) -> Result<usize, Refusal> {
         let name = &*safe_name(c, name);
         let read = read_wallet(c, text)?;
-        let policy = self.account_of(c, text, read, (name, source, origin))?;
+        let policy = self.account_of(c, text, read, (name, source, origin), None)?;
         self.add_checked(
             c,
             name,
@@ -960,13 +964,16 @@ impl Session {
     /// of `policy` under a loaded fingerprint (one of `only`, when given),
     /// and a key derivation per key waiting for its backup (one of `only`,
     /// when given) for each key of `policy` under a fingerprint that is
-    /// not loaded: the second is none when no key waits.
+    /// not loaded: the second is none when no key waits or
+    /// `see_waiting` is false.
     ///
     /// The refusal for a key of `policy` that is under a loaded
     /// fingerprint and is not what that key gives at the key's origin path
     /// ([`Refusal::NotYourKey`]), or that is under no loaded fingerprint
     /// and is what a key waiting for its backup gives there
-    /// ([`Refusal::NotBackedUp`]). Only the stated origin path is
+    /// ([`Refusal::NotBackedUp`], never when `see_waiting` is false,
+    /// so that no waiting key hides a later key of the first kind). Only
+    /// the stated origin path is
     /// compared: a file that also states another origin path for the same
     /// key is not caught, and whoever can write that could name a key of
     /// their own.
@@ -977,6 +984,7 @@ impl Session {
         only: Option<&[Fingerprint]>,
         derived: &faraday_keys::job::Derived,
         memo: &mut confirm::Gives,
+        see_waiting: bool,
     ) -> Option<Refusal> {
         for key in policy.keys() {
             let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
@@ -987,7 +995,8 @@ impl Session {
                 // key waiting for its backup: the hold finds a key by
                 // fingerprint, so the wallet is refused.
                 if self.keys.all().enumerate().any(|(j, k)| {
-                    self.waiting.contains(&k.fingerprint)
+                    see_waiting
+                        && self.waiting.contains(&k.fingerprint)
                         && only.is_none_or(|o| o.contains(&k.fingerprint))
                         && self.keys.xpub_at(c, j, path).is_some_and(|x| {
                             x.public_key == key.xpub().public_key
@@ -1081,6 +1090,7 @@ impl Session {
                     Some(&only),
                     &Default::default(),
                     &mut memo,
+                    true,
                 )
             };
             match forged {
@@ -1197,55 +1207,17 @@ impl Session {
         confirm: bool,
     ) -> Result<usize, Refusal> {
         let name = &*safe_name(c, name);
-        if let Some(w) = policy.silent()
-            && crate::silent::check_record(c, &self.keys, w).0
-                == crate::silent::RecordCheck::Differs
-        {
-            return Err(silent_refusal(c, &self.keys, w));
-        }
-        if musig_one_seed(&policy) {
-            return Err(Refusal::MuSigOneSeed);
-        }
         let mut memo = confirm::Gives::new();
-        if let Some(refusal) = self.forged_key(c, &policy, None, derived, &mut memo) {
+        if let Some(refusal) = self.refused_before_sheet(c, &policy, derived, &mut memo, true) {
             return Err(refusal);
         }
         let descriptor = same_wallet(&policy);
-        if let Some(i) = self
-            .wallets
-            .iter()
-            .position(|w| same_wallet(&w.policy) == descriptor)
-        {
+        if let Some(i) = self.session_place(&descriptor) {
             return Ok(i);
         }
-        // A wallet of several keys, or one a key not of its own can spend
-        // alone, is added only once the person has confirmed it (F254,
-        // F132): it waits, and the sheet that asks reads its rows from
-        // here. A wallet whose every key is a loaded key's own at its
-        // path (no key under a loaded fingerprint is forged, above) came
-        // from nothing outside and is not held back.
-        let outside = policy.keys().len() > 1 && !confirm::all_keys_loaded(self, &policy);
-        let other = matches!(policy.key_path(), Some(KeyPath::Other(_)));
-        if confirm && (outside || other) && !self.wallet_confirmed.contains(&descriptor) {
-            if let Some(at) = self
-                .wallet_asked
-                .iter()
-                .position(|a| same_wallet(&a.policy) == descriptor)
-            {
-                self.wallet_asked_last = at;
-            } else {
-                let rows = Rows::of(self, c, &policy, false);
-                self.wallet_asked.push_back(WalletAsk {
-                    rows,
-                    name: Text::of(name),
-                    policy,
-                    source: Text::of(source),
-                    origin,
-                    replay: None,
-                    restore: false,
-                });
-                self.wallet_asked_last = self.wallet_asked.len() - 1;
-            }
+        // No key here is forged: refused above.
+        if confirm && self.held_for_sheet(&policy, &descriptor) {
+            self.ask_wallet(c, name, policy, source, origin, None);
             return Err(Refusal::Unconfirmed);
         }
         self.follow(policy_network(&policy, self.network()))?;
@@ -1256,6 +1228,117 @@ impl Session {
         wallet.waited.clone_from(&self.waiting);
         self.wallets.push(wallet);
         Ok(self.wallets.len() - 1)
+    }
+
+    /// Costs what [`Self::forged_key`] costs, and for a silent payments
+    /// record its check against a loaded key: why `policy` is refused
+    /// before any sheet asks about it. `see_waiting` as in
+    /// [`Self::forged_key`].
+    fn refused_before_sheet(
+        &self,
+        c: &Compute,
+        policy: &WalletPolicy,
+        derived: &faraday_keys::job::Derived,
+        memo: &mut confirm::Gives,
+        see_waiting: bool,
+    ) -> Option<Refusal> {
+        if let Some(w) = policy.silent()
+            && crate::silent::check_record(c, &self.keys, w).0
+                == crate::silent::RecordCheck::Differs
+        {
+            return Some(silent_refusal(c, &self.keys, w));
+        }
+        if musig_one_seed(policy) {
+            return Some(Refusal::MuSigOneSeed);
+        }
+        self.forged_key(c, policy, None, derived, memo, see_waiting)
+    }
+
+    /// Costs a key derivation (of at most `MAX_PATH_STEPS` steps) per key
+    /// of `policy` under a loaded fingerprint, and for a silent payments
+    /// record its check against the loaded keys
+    /// ([`crate::silent::check_record`]); none for a waiting key. On Add
+    /// to vault's press and again on its sheet's hold, never while
+    /// drawing.
+    ///
+    /// Why Add to vault does not keep `policy`: what
+    /// [`Self::refused_before_sheet`] refuses a load, except a key waiting
+    /// for its backup under another fingerprint
+    /// ([`Refusal::NotBackedUp`]), which the vault keeps.
+    pub(crate) fn add_to_vault_refusal(
+        &self,
+        c: &Compute,
+        policy: &WalletPolicy,
+    ) -> Option<Refusal> {
+        let derived = faraday_keys::job::Derived::default();
+        let mut memo = confirm::Gives::new();
+        self.refused_before_sheet(c, policy, &derived, &mut memo, false)
+    }
+
+    /// The place of the wallet of the session that is `descriptor`
+    /// ([`same_wallet`]). Writes each one's descriptor out.
+    fn session_place(&self, descriptor: &str) -> Option<usize> {
+        self.wallets
+            .iter()
+            .position(|w| *same_wallet(&w.policy) == *descriptor)
+    }
+
+    /// Costs what [`Self::session_place`] does: whether `policy`
+    /// (`descriptor`, [`same_wallet`]) is kept only once the person has
+    /// confirmed it (F254, F132). A wallet of several keys, or one a key
+    /// not of its own can spend alone, is, unless the session holds it or
+    /// it was confirmed already. A wallet whose every key is a loaded
+    /// key's own at its path came from nothing outside and is not held
+    /// back; the caller has refused a key under a loaded fingerprint that
+    /// is not that key's.
+    fn held_for_sheet(&self, policy: &WalletPolicy, descriptor: &str) -> bool {
+        let outside = policy.keys().len() > 1 && !confirm::all_keys_loaded(self, policy);
+        let other = matches!(policy.key_path(), Some(KeyPath::Other(_)));
+        (outside || other)
+            && self.session_place(descriptor).is_none()
+            && !self.wallet_confirmed.iter().any(|d| **d == *descriptor)
+    }
+
+    /// Costs what [`Self::held_for_sheet`] does: whether Add to vault
+    /// asks about `policy`, which [`Self::add_to_vault_refusal`] did not
+    /// refuse, before the vault keeps it.
+    pub(crate) fn asks_before_keeping(&self, policy: &WalletPolicy) -> bool {
+        self.held_for_sheet(policy, &same_wallet(policy))
+    }
+
+    /// Costs what [`Rows::of`] costs: `policy` waits for its sheet, for
+    /// the session, or with `vault` for that vault alone, unless it waits
+    /// for the same already.
+    pub(crate) fn ask_wallet(
+        &mut self,
+        c: &Compute,
+        name: &str,
+        policy: WalletPolicy,
+        source: &str,
+        origin: Origin,
+        vault: Option<VaultId>,
+    ) {
+        let descriptor = same_wallet(&policy);
+        if let Some(at) = self
+            .wallet_asked
+            .iter()
+            .position(|a| a.vault == vault && same_wallet(&a.policy) == descriptor)
+        {
+            self.wallet_asked_last = at;
+            return;
+        }
+        let rows = Rows::of(self, c, &policy, false);
+        self.wallet_asked.push_back(WalletAsk {
+            rows,
+            name: Text::of(name),
+            policy,
+            source: Text::of(source),
+            origin,
+            replay: None,
+            restore: false,
+            vault,
+        });
+        self.wallet_asked_last = self.wallet_asked.len() - 1;
     }
 
     /// Toggles the person's tick of key `key` in the rows of the wallet
@@ -1340,12 +1423,32 @@ impl Session {
     /// Writes the descriptor out. The person confirmed the wallet waiting
     /// first: the same wallet is added without asking again in this
     /// session, and it is handed back for its press to run again or, with
-    /// none, to be added. `None` when none waits.
+    /// none, to be added. `None` when none waits. Add to vault's hold
+    /// counts only once its vault keeps the wallet
+    /// ([`Self::wallet_confirmed_by_add`]).
     pub(crate) fn wallet_confirm(&mut self) -> Option<WalletAsk> {
         let ask = self.wallet_asked.pop_front()?;
-        self.wallet_confirmed.push(same_wallet(&ask.policy));
+        if ask.vault.is_none() {
+            self.wallet_confirmed.push(same_wallet(&ask.policy));
+        }
         self.wallet_asked_next();
         Some(ask)
+    }
+
+    /// Costs what [`Self::refused_before_sheet`] does: a vault kept
+    /// `policy` on the hold of Add to vault's sheet. A load of it asks no
+    /// more, unless a load would refuse it before its sheet now: that
+    /// hold never stands in for the sheet such a load comes to once the
+    /// refusal is gone.
+    pub(crate) fn wallet_confirmed_by_add(&mut self, c: &Compute, policy: &WalletPolicy) {
+        let derived = faraday_keys::job::Derived::default();
+        let mut memo = confirm::Gives::new();
+        if self
+            .refused_before_sheet(c, policy, &derived, &mut memo, true)
+            .is_none()
+        {
+            self.wallet_confirmed.push(same_wallet(policy));
+        }
     }
 
     /// The person confirmed `policy` on the register sheet, whose hold is
@@ -4532,6 +4635,11 @@ impl Faraday {
         let Some(ask) = self.session.wallet_confirm() else {
             return;
         };
+        // Add to vault loads nothing: nothing below runs for it.
+        if let Some(vault) = ask.vault {
+            self.vault_add_held(&ask, vault);
+            return;
+        }
         // The press that asked runs again and goes on as it would
         // have, while Files holds what it held; a wallet that came
         // in any other way is added here, and the toast says so.

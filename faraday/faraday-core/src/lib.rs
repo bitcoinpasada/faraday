@@ -577,7 +577,7 @@ pub enum Sheet {
     WalletConfirm,
     /// A file For the stick no stick holds, asked about before it is deleted: what is lost, a hold and Cancel (`visit_taken`).
     OutboxDelete,
-    /// **Which account to load?**: a Coldcard export of a single-sig and a silent payments account.
+    /// **Which account?**: a Coldcard export of a single-sig and a silent payments account.
     Account,
     /// The wallet a spend's PSBT defines, to register with a hold (F135).
     Register,

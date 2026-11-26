@@ -384,12 +384,25 @@ secret in Files (`wallet::holds_secret`, as an Electrum file with an
 49, 44; its `bip352` account is the wallet where the export has no
 single-sig account (`faraday_bip::coldcard::silent` reads it on its
 own). An export holding both asks which to load (owner, 2026-10-29):
-**Which account to load?**, a dialog naming the file, with **Cancel**,
+**Which account?**, a dialog naming the file, with **Cancel**,
 **Single-sig · BIP-84** (the account read) and **Silent payments ·
 BIP-352** (`Sheet::Account`, `Action::LoadAccount`), the export waiting
 on the session with both wallets read (`faraday-core`'s
-`wallet/account.rs`); the choice is kept for the session and the press
-that asked runs again, as the key path sheet's does (F132). The writer is
+`wallet/account.rs`); a load's choice is kept for the session and the
+press that asked runs again, as the key path sheet's does (F132). Files'
+**Add to vault** asks each time (owner, 2026-11-25) and keeps in the vault
+the account chosen there, loading nothing; that choice does not become the
+one a load uses. It does this even when Files changed under the dialog: it takes the export it
+asked about, or says the file is no longer in Files. The item of any
+wallet file holds the wallet as read, in the text Save to vault writes,
+never the file's own text, under the name a load gives it: the one an
+`addwallet` command or a wallet `.json`'s `"label"` carries, else the
+file's name in words (a multisig config's `Name:` line is not used); a
+name that is itself secret text gives the default name. The confirmation
+sheet is asked first only for a wallet of several keys where one is not a
+loaded key's own, or one whose key path another key holds. A forged key,
+a MuSig2 wallet of one seed and a silent payments record that does not
+match are not kept (`docs/WALLETS.md` §3.5). The writer is
 **sp() descriptor** ("Sparrow, Keystone · holds the scan key") under
 Public files' More options (`Action::SDescriptorOut`), from the loaded
 key whose scan and spend keys are the record's, through the secret sheet

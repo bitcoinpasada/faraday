@@ -295,6 +295,26 @@ restored from it); and the public samples Load samples adds. Several
 held at once are asked one after another, "{i} of {n}", and Cancel
 drops only the wallet on the sheet.
 
+Files' **Add to vault** first refuses, in the words a load refuses them
+in and keeping nothing, a key under a loaded key's fingerprint that is
+not that key's at its path, a MuSig2 wallet with two keys of one seed
+and a silent payments record that does not match the loaded keys, at the
+press and again at the sheet's hold. The first and the last are seen
+only while the key is loaded. A key waiting for its backup under another
+fingerprint, which a load refuses, is kept, and does not hide a refused
+key listed after it.
+
+It asks the same sheet, under the same condition, before the vault keeps
+a file's wallet. Its hold loads nothing: it puts the wallet, with the
+sheet's ticks, in the vault that was the current one at the press, from
+the wallet file of that name wherever Files now has it, while it reads
+as the keys, in their order, and the name the sheet showed. Where that
+vault is closed or another is shown, or Files has no such file, nothing
+is kept and a toast says so. Cancel keeps nothing. A vault that would
+not take the wallet says why before the sheet. The hold counts for a
+later load, which then asks nothing, only where the vault kept the
+wallet and a load would not refuse it before its sheet then.
+
 **Each key carries a check** (F286). The sheet's keys, and everywhere
 else a wallet of several keys shows them, are one block
 (`faraday/faraday-core/src/wallet/confirm.rs`): per key its number,

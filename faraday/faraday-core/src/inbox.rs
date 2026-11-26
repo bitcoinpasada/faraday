@@ -1258,22 +1258,7 @@ impl Faraday {
         let Some(item) = items.get(index) else {
             return Text::new();
         };
-        let text = Text::from_utf8_lossy(&item.bytes);
-        let name = stem(&item.name);
-        let mut words = Text::new();
-        for (n, w) in name
-            .strip_suffix("-wallet")
-            .unwrap_or(&name)
-            .split(['-', '_'])
-            .enumerate()
-        {
-            if n > 0 {
-                words.push(' ');
-            }
-            words.push_str(&Text::first_uppercase(w));
-        }
-        let carried = crate::wallet::carried_name(&text).map_or(words, |t| Text::of(&t));
-        Text::of(&faraday_intake::wallet::one_line(&carried))
+        file_wallet_name(&item.name, &Text::from_utf8_lossy(&item.bytes))
     }
 
     /// Loads the chosen wallets the Inbox describes, each with the seeds
@@ -1903,6 +1888,28 @@ pub(crate) fn stem(name: &str) -> Text {
         Some(i) if i > 0 => Text::of(&name[..i]),
         _ => Text::of(name),
     }
+}
+
+/// Costs a JSON parse of a text that starts as JSON. The name the wallet
+/// file `file`, reading `text`, gives its wallet, on one line and not yet
+/// cut to a name's length: the one the text carries, or else the file's
+/// name in words. A load and Add to vault both name a wallet by it.
+pub(crate) fn file_wallet_name(file: &str, text: &str) -> Text {
+    let name = stem(file);
+    let mut words = Text::new();
+    for (n, w) in name
+        .strip_suffix("-wallet")
+        .unwrap_or(&name)
+        .split(['-', '_'])
+        .enumerate()
+    {
+        if n > 0 {
+            words.push(' ');
+        }
+        words.push_str(&Text::first_uppercase(w));
+    }
+    let carried = crate::wallet::carried_name(text).map_or(words, |t| Text::of(&t));
+    Text::of(&faraday_intake::wallet::one_line(&carried))
 }
 
 /// The stem a wallet's public files are named by: its name in lower case,

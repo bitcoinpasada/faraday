@@ -848,7 +848,7 @@ impl Faraday {
                 }
             }
             V::ImportEntries(k) => self.vault_import_entries(&[k]),
-            V::AddFile(k) => self.vault_add_file(k),
+            V::AddFile(k) => self.vault_add_file(k, None),
             V::ImportAllEntries => {
                 let all: Vec<usize> = self
                     .inbox
@@ -2128,7 +2128,9 @@ impl Faraday {
     }
 
     /// Inbox file k into the open vault, as the record its kind is.
-    fn vault_add_file(&mut self, k: usize) {
+    /// `ticks` is `None` for the press, and the confirmation sheet's, one
+    /// per key, once its hold confirmed a wallet.
+    fn vault_add_file(&mut self, k: usize, ticks: Option<&[bool]>) {
         if self.vaults.open.is_empty() {
             self.toast(EN.vaults_unlock_a_vault);
             return;
@@ -2174,22 +2176,58 @@ impl Faraday {
                 )
             }
             FileKind::Wallet => {
-                // A silent payments wallet is kept as its record, the
-                // rule of `wallet_text`: the file's own spelling (CRLF, a
-                // comment, an `sp()` line with the scan key) is not what
-                // a vault reads back. Any other wallet's text stays as
-                // the file has it.
-                let kept = match crate::wallet::read_wallet(&c, &text)
-                    .ok()
-                    .and_then(|p| p.silent().map(|s| Text::of(&s.to_text())))
-                {
-                    Some(record) => record,
-                    None => Text::of(text.trim()),
+                // The item keeps the wallet as it was read, never the
+                // file's bytes: a vault does not read back another
+                // spelling (a comment, another wallet's file). An export
+                // of two accounts waits for the account dialog, which
+                // runs this press again.
+                let title = vault_wallet_title(&c, &text, &it.name);
+                let named = (title.as_str(), it.name.as_str());
+                let kept = match self.session.read_wallet_to_add(&c, &text, named) {
+                    Ok(policy) => policy,
+                    Err(why) => {
+                        self.toast(&why.text());
+                        return;
+                    }
                 };
+                if let Some(why) = self.session.add_to_vault_refusal(&c, &kept) {
+                    self.toast(&why.text());
+                    return;
+                }
+                let policy = kept;
+                let kept = policy_text(&policy);
+                let mut record = Record::new(kind::WALLET)
+                    .with(field::WALLET, kept.as_bytes())
+                    .with(field::WALLET_NAME, title.as_bytes());
+                match ticks {
+                    Some(ticks) => {
+                        let places: Vec<usize> = ticks
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(i, t)| t.then_some(i))
+                            .collect();
+                        records::set_keys_checked(&mut record, &places);
+                    }
+                    // What Load would ask about, asked before the vault
+                    // keeps it (F254), once the vault would take it.
+                    None if self.session.asks_before_keeping(&policy) => {
+                        let Some(id) = self.vaults.current_id() else {
+                            return;
+                        };
+                        if let Some(why) = self.vault_refuses(&c, id, &[], &[&record]) {
+                            self.toast(&why);
+                            return;
+                        }
+                        let source = it.name.clone();
+                        let origin = crate::wallet::Origin::Named;
+                        self.session
+                            .ask_wallet(&c, &title, policy, &source, origin, Some(id));
+                        return;
+                    }
+                    None => {}
+                }
                 (
-                    Record::new(kind::WALLET)
-                        .with(field::WALLET, kept.as_bytes())
-                        .with(field::WALLET_NAME, stem.as_bytes()),
+                    record,
                     Text::fill(EN.vaults_is_in_the_vault_as, &[&it.name]),
                     1,
                 )
@@ -2201,6 +2239,48 @@ impl Faraday {
         if self.vaults.open.get(self.vaults.current).map(|v| v.changes) != before {
             self.vaults.state.category = category;
         }
+    }
+
+    /// Costs reading the files of that name as wallets, what Add to
+    /// vault costs, what a load costs to refuse a wallet before its sheet,
+    /// and what a press on a vault does to what is remembered of it: the
+    /// hold of the sheet Add to vault asked. Only the
+    /// vault `vault`, still the current one, gets the wallet, from the
+    /// wallet file of that name that still reads as what the sheet showed,
+    /// its keys and its name, wherever Files now holds it.
+    pub(crate) fn vault_add_held(&mut self, ask: &crate::wallet::WalletAsk, vault: VaultId) {
+        if self.vaults.current_id() != Some(vault) {
+            let said = Text::fill(EN.vault_add_other_vault, &[&ask.source]);
+            self.toast(&said);
+            return;
+        }
+        let c = self.compute();
+        // The same keys in the same order: the ticks are places.
+        let shown = policy_text(&ask.policy);
+        let at = self.inbox.iter().position(|item| {
+            if item.kind != FileKind::Wallet || *item.name != *ask.source {
+                return false;
+            }
+            let text = wiped_text(&item.bytes);
+            vault_wallet_title(&c, &text, &item.name) == ask.name
+                && crate::wallet::read_wallet(&c, &text).is_ok_and(|p| *policy_text(&p) == *shown)
+        });
+        match at {
+            Some(k) => {
+                let changes = |f: &Self| f.vaults.open.get(f.vaults.current).map(|v| v.changes);
+                let before = changes(self);
+                self.vault_add_file(k, Some(&ask.rows.ticks()));
+                if changes(self) != before {
+                    self.session.wallet_confirmed_by_add(&c, &ask.policy);
+                }
+            }
+            None => {
+                let said = Text::fill(EN.vault_key_file_gone, &[&ask.source]);
+                self.toast(&said);
+            }
+        }
+        // This hold is no `Action::Vault`, whose press does this.
+        self.vault_summaries_refresh_kept();
     }
 
     fn vault_save_key_with(&mut self, k: usize, with_passphrase: bool, without: &[u8]) {
@@ -4863,10 +4943,23 @@ impl Faraday {
 
     /// The text a vault keeps a wallet under, as Vaults saves it.
     pub(crate) fn wallet_text(w: &crate::wallet::Wallet) -> Text {
-        match w.policy().silent() {
-            Some(s) => Text::of(&s.to_text()),
-            None => Text::of(&w.policy().to_descriptor_checksummed()),
-        }
+        policy_text(w.policy())
+    }
+}
+
+/// Costs a JSON parse of a text that starts as JSON, and what
+/// [`crate::wallet::safe_name`] does (a text check of a long name). The
+/// name Add to vault shows and keeps the wallet of the file `file`,
+/// reading `text`, under: the one Files' Load gives it.
+fn vault_wallet_title(c: &Compute, text: &str, file: &str) -> Text {
+    crate::wallet::safe_name(c, &crate::inbox::file_wallet_name(file, text))
+}
+
+/// [`Faraday::wallet_text`] of a wallet that is not loaded.
+fn policy_text(p: &faraday_bip::policy::WalletPolicy) -> Text {
+    match p.silent() {
+        Some(s) => Text::of(&s.to_text()),
+        None => Text::of(&p.to_descriptor_checksummed()),
     }
 }
 

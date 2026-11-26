@@ -255,6 +255,62 @@ fn a_read_only_vault_says_why_and_an_edit_and_a_seal_write_nothing() {
     }
 }
 
+/// A wallet a read-only vault would not take is not asked about first.
+#[test]
+fn add_to_vault_says_a_vault_cannot_be_written_before_it_asks_about_a_wallet() {
+    let p = "m/48'/1'/0'/2'";
+    let (a, b) = (testkit::key(1, p), testkit::key(2, p));
+    let wallet = format!("wsh(sortedmulti(1,{a}/<0;1>/*,{b}/<0;1>/*))");
+    for (name, file, _) in read_only_files() {
+        let mut app = process(vec![
+            ("ro.kdbx".into(), file),
+            ("w.txt".into(), wallet.clone().into_bytes()),
+        ]);
+        try_unlock(&mut app, PHRASE);
+        assert_eq!(app.vaults().open.len(), 1, "{name}");
+        app.press(Action::Vault(V::LoadNotNow));
+        let k = app.inbox().iter().position(|i| i.name == "w.txt").unwrap();
+        app.press(Action::Vault(V::AddFile(k)));
+        assert_ne!(
+            app.sheet,
+            Some(faraday_core::Sheet::WalletConfirm),
+            "{name}"
+        );
+        assert_eq!(app.toast_text(), Some(EN.vaults_cannot_write), "{name}");
+    }
+}
+
+/// A wallet a full vault would not take is not asked about first, and
+/// nothing of it is kept or waits.
+#[test]
+fn add_to_vault_says_a_vault_is_full_before_it_asks_about_a_wallet() {
+    let p = "m/48'/1'/0'/2'";
+    let (a, b) = (testkit::key(1, p), testkit::key(2, p));
+    let wallet = format!("wsh(sortedmulti(1,{a}/<0;1>/*,{b}/<0;1>/*))");
+    let vault = testkit::kdbx_vault("Full", PHRASE, 7, Vec::new()).unwrap();
+    let mut app = process(vec![
+        ("full.kdbx".into(), vault),
+        ("w.txt".into(), wallet.into_bytes()),
+    ]);
+    try_unlock(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Vault(V::LoadNotNow));
+    let id = app.vaults().open[0].id;
+    // The most a vault may hold, lowered to just over what it holds. Past
+    // a limit of nothing the size is counted, not bounded.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(0));
+    let used = app.vaults().records(id).used(&testkit::compute());
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 20));
+    let held = app.vaults().records(id).len();
+    let k = app.inbox().iter().position(|i| i.name == "w.txt").unwrap();
+    app.press(Action::Vault(V::AddFile(k)));
+    assert_eq!(app.sheet, None, "{:?}", app.toast_text());
+    assert_eq!(app.toast_text(), Some(EN.vaults_slot_too_small));
+    assert!(app.session.wallet_asked().is_none(), "a sheet waits");
+    assert!(app.session.wallets.is_empty(), "loaded");
+    assert_eq!(app.vaults().records(id).len(), held, "kept");
+}
+
 #[test]
 fn a_read_only_vault_shows_no_add_and_the_add_action_opens_nothing() {
     let adds = [

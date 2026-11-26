@@ -3,13 +3,15 @@
 //! the person's choice (owner, 2026-10-29). The export waits here, both
 //! wallets read, while the account dialog asks; the choice is kept for
 //! the session, so the press that asked runs again and loads the one
-//! chosen.
+//! chosen. Add to vault asks each time (owner, 2026-11-25): its choice
+//! is for that press run again and is not kept.
 
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 
 use super::{Origin, Refusal, Session, same_wallet};
 use crate::Action;
+use crate::vault::VaultAction;
 
 /// Which of an export's two accounts loads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,14 +44,30 @@ pub struct AccountAsk {
     pub replay: Option<(Action, u64)>,
 }
 
-/// The export waiting, and the accounts chosen in this session, by the
-/// single-sig wallet's descriptor ([`same_wallet`]).
+impl AccountAsk {
+    /// Costs what [`super::read_wallet`] does, an elliptic-curve
+    /// multiplication and the export read again. Whether `text` is the
+    /// export asked about: both its wallets.
+    pub(crate) fn is_export(&self, c: &Compute, text: &str) -> bool {
+        super::read_wallet(c, text).is_ok_and(|read| read == self.single)
+            && matches!(
+                faraday_bip::coldcard::silent(c, text),
+                Some(Ok(silent)) if WalletPolicy::of_silent(silent.clone()) == self.silent
+            )
+    }
+}
+
+/// The export waiting, and the accounts chosen for a load in this
+/// session, by the single-sig wallet's descriptor ([`same_wallet`]).
 #[derive(Default)]
 pub struct Accounts {
     /// The export waiting for its account, if one does.
     asked: Option<Box<AccountAsk>>,
     /// The choices made, by the single-sig account's descriptor.
     chosen: Vec<(faraday_text::Text, Account)>,
+    /// The account just chosen for Add to vault, held only while that
+    /// press runs again.
+    adding: Option<Account>,
 }
 
 impl Session {
@@ -57,15 +75,17 @@ impl Session {
     /// silent payments account beside a single-sig one, an
     /// elliptic-curve multiplication and the export read again. The
     /// wallet `read` from `text` stands for, unless `text` is a Coldcard
-    /// export with both accounts: then the one chosen in this session,
-    /// or, with none chosen, the export waits for the account dialog and
-    /// is refused for now.
+    /// export with both accounts: then the one chosen, or, with none
+    /// chosen, the export waits for the account dialog and is refused
+    /// for now. The choice is the session's for a load; `add` is `Some`
+    /// for Add to vault, and holds the one chosen for this very press.
     pub(super) fn account_of(
         &mut self,
         c: &Compute,
         text: &str,
         read: WalletPolicy,
         (name, source, origin): (&str, &str, Origin),
+        add: Option<Option<Account>>,
     ) -> Result<WalletPolicy, Refusal> {
         if read.silent().is_some() || !faraday_bip::coldcard::looks_like_export(text) {
             return Ok(read);
@@ -76,9 +96,13 @@ impl Session {
             return Ok(read);
         };
         let key = same_wallet(&read);
-        match self.accounts.chosen.iter().find(|(k, _)| *k == key) {
-            Some((_, Account::SingleSig)) => return Ok(read),
-            Some((_, Account::Silent)) => return Ok(WalletPolicy::of_silent(silent)),
+        let chosen = add.unwrap_or_else(|| {
+            let kept = self.accounts.chosen.iter().find(|(k, _)| *k == key);
+            kept.map(|(_, account)| *account)
+        });
+        match chosen {
+            Some(Account::SingleSig) => return Ok(read),
+            Some(Account::Silent) => return Ok(WalletPolicy::of_silent(silent)),
             None => {}
         }
         if self.accounts.asked.is_none() {
@@ -94,6 +118,23 @@ impl Session {
             }));
         }
         Err(Refusal::AccountUnchosen)
+    }
+
+    /// Costs what [`super::read_wallet`] and [`Self::account_of`] do:
+    /// the wallet of file text `text`, for a press that keeps it without
+    /// loading it (Add to vault): an export of two accounts waits for
+    /// the dialog each time, whatever was chosen before. `name` and
+    /// `source` are as in [`Self::add_wallet`].
+    pub(crate) fn read_wallet_to_add(
+        &mut self,
+        c: &Compute,
+        text: &str,
+        (name, source): (&str, &str),
+    ) -> Result<WalletPolicy, Refusal> {
+        let read = super::read_wallet(c, text)?;
+        let name = super::safe_name(c, name);
+        let add = Some(self.accounts.adding.take());
+        self.account_of(c, text, read, (&name, source, Origin::Named), add)
     }
 
     /// Whether `text` is a Coldcard export of a single-sig and a silent
@@ -132,13 +173,25 @@ impl Session {
         }
     }
 
-    /// The person chose `account` for the waiting export: kept for the
-    /// session, and the export handed back. `None` when none waits.
+    /// Holds `account` for the Add to vault press about to run again,
+    /// and `None` once it has run.
+    pub(crate) fn account_for_add(&mut self, account: Option<Account>) {
+        self.accounts.adding = account;
+    }
+
+    /// The person chose `account` for the waiting export, which is
+    /// handed back: a load's choice is kept for the session, Add to
+    /// vault's is not. `None` when none waits.
     pub(crate) fn account_choose(&mut self, account: Account) -> Option<AccountAsk> {
         let ask = self.accounts.asked.take()?;
-        self.accounts
-            .chosen
-            .push((same_wallet(&ask.single), account));
+        if !matches!(
+            ask.replay,
+            Some((Action::Vault(VaultAction::AddFile(_)), _))
+        ) {
+            self.accounts
+                .chosen
+                .push((same_wallet(&ask.single), account));
+        }
         Some(*ask)
     }
 
