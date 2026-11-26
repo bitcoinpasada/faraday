@@ -41,6 +41,38 @@ pub(crate) fn open(app: &mut Faraday) {
     app.screen = Screen::SeedCheck;
 }
 
+/// The flow opened with the held file at `k` taken on its Seed card: a
+/// words file as typed words are, a share as a part scanned there.
+fn open_on_file(app: &mut Faraday, k: usize) {
+    use crate::wallet::FileKind;
+    if crate::stick::refuses_secret(app) {
+        return;
+    }
+    let c = app.compute();
+    let Some(item) = app.inbox.get(k) else { return };
+    match item.kind {
+        FileKind::Words => {
+            let words = std::str::from_utf8(&item.bytes)
+                .ok()
+                .and_then(|t| crate::inbox::words_of(&c, t))
+                .map(|m| words_text(&m));
+            open(app);
+            match words {
+                Some(w) => take_words(app, &w),
+                None => not_a_seed(app),
+            }
+        }
+        FileKind::SeedPart => match crate::inbox::part_form(&item.bytes) {
+            Some((form, text)) => {
+                open(app);
+                take_part(app, form, &text);
+            }
+            None => app.toast(EN.seed_check_not_seed),
+        },
+        _ => {}
+    }
+}
+
 /// Check a multisig setup's Check a seed against it: the flow begins
 /// with nothing taken, for that page's screen, which stays on show.
 pub(crate) fn open_for_check(app: &mut Faraday) {
@@ -164,6 +196,7 @@ fn reset_cards(app: &mut Faraday, from: u8, forget: bool) {
 pub(crate) fn act(app: &mut Faraday, action: A) {
     match action {
         A::Open => open(app),
+        A::File(k) => open_on_file(app, k),
         A::Step(k) => step_to(app, k),
         A::Show(k) => open_card(app, k),
         A::Type => {

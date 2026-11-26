@@ -710,6 +710,18 @@ pub(crate) fn words_of(c: &Compute, text: &str) -> Option<Mnemonic> {
 use crate::sha256_of;
 pub(crate) use faraday_intake::{Part, part_of};
 
+/// The form a held share file's text is typed on, and the text.
+pub(crate) fn part_form(
+    bytes: &[u8],
+) -> Option<(crate::forms::Form, crate::secret_text::SecretText)> {
+    let text = std::str::from_utf8(bytes).ok()?.trim();
+    let form = match part_of(text)? {
+        Part::Slip39(_) => crate::forms::Form::Slip39,
+        Part::Codex32(_) => crate::forms::Form::Codex32,
+    };
+    Some((form, crate::secret_text::SecretText::of(text)))
+}
+
 impl Faraday {
     /// Costs what `secret_in` costs. The secret a seed source gives.
     pub(crate) fn inbox_secret(&self, c: &Compute, source: &SeedSource) -> Option<Secret> {

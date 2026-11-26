@@ -1326,3 +1326,135 @@ fn spend_from_backup_on_a_two_account_export_asks_the_account_and_takes_the_one_
     assert!(app.session.wallets[0].policy().silent().is_some());
     assert_eq!(app.spend_backup_wallet(), Some(0));
 }
+
+const HELD_WORDS: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+/// SLIP-39 vector 4, one of its two shares.
+const HELD_SHARE: &str = "shadow pistol academic always adequate wildlife fancy gross oasis \
+    cylinder mustang wrist rescue view short owner flip making coding armed";
+
+/// Files with one held file of `text`.
+fn held_file(text: &str) -> Faraday {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    faraday_core::testkit::inbox_file_at(&mut app, 0, "backup.txt", text.as_bytes().to_vec());
+    app.press(Action::Nav(Screen::Files));
+    app
+}
+
+fn stick_in(app: &mut Faraday) {
+    app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+}
+
+/// The ⋮'s `label` of the held file, pressed.
+fn pick(app: &mut Faraday, label: &str) {
+    menu_of(app, Row::In(0));
+    choose(app, label);
+    let _ = app.frame();
+}
+
+fn slip39_lines(app: &Faraday) -> usize {
+    faraday_core::testkit::entry(app)
+        .parts
+        .lines(faraday_core::forms::Form::Slip39)
+        .len()
+}
+
+#[test]
+fn a_words_file_restores_with_its_key_and_a_loaded_key_is_refused() {
+    let mut app = held_file(HELD_WORDS);
+    assert_eq!(
+        menu_of(&mut app, Row::In(0))[..4],
+        [
+            "Load this key",
+            "Restore",
+            "Spend from backup",
+            "Check a backup"
+        ]
+    );
+    choose(&mut app, "Restore");
+    assert_eq!(app.screen, Screen::Restore);
+    assert_eq!(app.session.keys.all().count(), 1);
+    app.press(Action::Nav(Screen::Files));
+    pick(&mut app, "Restore");
+    assert_eq!(
+        app.session.keys.all().count(),
+        1,
+        "refused as typed words are"
+    );
+}
+
+#[test]
+fn a_words_file_opens_spend_from_backup_and_not_with_a_stick_in() {
+    let mut app = held_file(HELD_WORDS);
+    pick(&mut app, "Spend from backup");
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.session.keys.all().count(), 1);
+
+    let mut app = held_file(HELD_WORDS);
+    stick_in(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    pick(&mut app, "Spend from backup");
+    assert_ne!(app.screen, Screen::SpendBackup);
+    assert!(app.session.keys.is_empty(), "no key while a stick is in");
+}
+
+#[test]
+fn a_words_file_is_checked_as_typed_words_and_not_with_a_stick_in() {
+    let mut app = held_file(HELD_WORDS);
+    pick(&mut app, "Check a backup");
+    assert_eq!(app.screen, Screen::SeedCheck);
+    app.press(Action::SeedCheck(
+        faraday_core::seed_check::SeedAction::NoPass,
+    ));
+    let held = app.session.keys.check_facts().expect("the check holds it");
+    assert_eq!(held.fingerprint.to_string(), "73c5da0a");
+    assert!(app.session.keys.is_empty(), "no key was loaded");
+
+    let mut app = held_file(HELD_WORDS);
+    stick_in(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    pick(&mut app, "Check a backup");
+    assert_ne!(app.screen, Screen::SeedCheck);
+    assert!(app.session.keys.check_facts().is_none());
+}
+
+#[test]
+fn a_share_file_restores_as_the_first_share_and_not_with_a_stick_in() {
+    let mut app = held_file(HELD_SHARE);
+    let lines = menu_of(&mut app, Row::In(0));
+    assert_eq!(lines[..2], ["Restore", "Check a backup"]);
+    assert!(!lines.iter().any(|l| l == "Spend from backup"));
+    choose(&mut app, "Restore");
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(slip39_lines(&app), 1);
+
+    let mut app = held_file(HELD_SHARE);
+    stick_in(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    pick(&mut app, "Restore");
+    assert_ne!(app.screen, Screen::Entry);
+    assert_eq!(slip39_lines(&app), 0);
+}
+
+#[test]
+fn a_share_file_is_checked_as_a_scanned_share_and_not_with_a_stick_in() {
+    let mut app = held_file(HELD_SHARE);
+    pick(&mut app, "Check a backup");
+    assert_eq!(app.screen, Screen::SeedCheck);
+    assert_eq!(slip39_lines(&app), 1);
+
+    let mut app = held_file(HELD_SHARE);
+    stick_in(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    pick(&mut app, "Check a backup");
+    assert_ne!(app.screen, Screen::SeedCheck);
+    assert_eq!(slip39_lines(&app), 0);
+}

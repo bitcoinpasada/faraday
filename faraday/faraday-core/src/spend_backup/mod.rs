@@ -150,6 +150,9 @@ pub enum SpendBackupAction {
     /// Open the flow on the wallet file at this Inbox place, from Files:
     /// the tab, then [`SpendBackupAction::UseWallet`].
     FromFile(usize),
+    /// Open the flow with the seed words file at this Inbox place taken,
+    /// from Files.
+    FromSeedFile(usize),
     /// [`SpendBackupAction::UseWallet`] for the file `FromFile` started
     /// on: the flow starts again once the wallet is taken.
     TakeFile(usize),
@@ -794,6 +797,7 @@ impl Faraday {
             F::UseWallet(i) => self.spend_backup_take(i, false),
             F::TakeFile(i) => self.spend_backup_take(i, true),
             F::FromFile(i) => self.spend_backup_from_file(i),
+            F::FromSeedFile(i) => self.spend_backup_from_words(i),
             F::Rebuild => {
                 let names: Vec<Text> = self
                     .inbox
@@ -1981,6 +1985,22 @@ impl Faraday {
         self.spend_backup.state.walkthrough = true;
         self.spend_backup.state.scroll.follow = true;
         self.act(Action::SpendBackup(SpendBackupAction::TakeFile(i)));
+    }
+
+    /// Spend from backup with the seed words file at Inbox place `i`: its
+    /// key is taken on What do you have? as Add a key takes it for this
+    /// flow, with its refusals.
+    fn spend_backup_from_words(&mut self, i: usize) {
+        if !self.may_load_keys()
+            || self.inbox.get(i).map(|it| it.kind) != Some(crate::wallet::FileKind::Words)
+        {
+            return;
+        }
+        self.act(Action::Nav(Screen::SpendBackup));
+        self.spend_backup.state.open = Some(Open::Page(page::HOLDING));
+        self.spend_backup.state.walkthrough = true;
+        self.spend_backup.state.scroll.follow = true;
+        self.load_key_for(i, Some(Screen::SpendBackup));
     }
 
     /// The flow starts again for the wallet taken from Inbox file `i`

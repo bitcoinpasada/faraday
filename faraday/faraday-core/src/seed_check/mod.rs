@@ -295,6 +295,9 @@ pub const FORMS: [crate::forms::Form; 4] = [
 pub enum SeedAction {
     /// The Tools tile.
     Open,
+    /// The flow on the seed words or share file at this Files place, from
+    /// its details.
+    File(usize),
     /// A card's header: open it, or take it again.
     Step(u8),
     /// A card opened as it was, by Back or Forward: nothing is taken

@@ -121,6 +121,9 @@ pub(crate) fn pull_what(app: &Faraday, action: Action) -> Option<&'static str> {
         | Action::ScanKey(_)
         | Action::ScanPart
         | Action::LoadKey(_)
+        | Action::RestoreSeedFile(_)
+        | Action::SpendBackup(crate::spend_backup::SpendBackupAction::FromSeedFile(_))
+        | Action::SeedCheck(crate::seed_check::SeedAction::File(_))
         | Action::KeyGen(None)
         | Action::PLoad
         | Action::CSlotVault(..)

@@ -260,6 +260,8 @@ macro_rules! words_screens_files {
     inbox_actions_load_wallet: "Load the wallet",
     /// Text in `inbox_actions`. `{}`: the share files.
     inbox_actions_restore: "Restore the wallet · {} shares",
+    /// What you can do with a seed words or share file: check it.
+    files_check_a_backup: "Check a backup",
     /// Note in `inbox_actions`. `{}`: `m.have.len()`, `m.n`.
     inbox_actions_of_keys: "{} of {} keys in hand",
     /// Text in `inbox_actions`.

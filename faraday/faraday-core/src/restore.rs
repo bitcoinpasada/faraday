@@ -1176,6 +1176,7 @@ impl Faraday {
                 self.restore_open_on_shares(&shares);
             }
             Action::RestoreShareAt(k) => self.restore_open_on_shares(&[k]),
+            Action::RestoreSeedFile(k) => self.restore_open_on_seed_file(k),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
@@ -1376,6 +1377,60 @@ impl Faraday {
         let whole = self.restore_merged(&c).is_ok_and(|m| m.whole.is_some());
         if whole {
             self.act(Action::RRebuild);
+        }
+    }
+
+    /// Restore opened on its Seeds card with the seed words or share file
+    /// at Files place `k` taken: words as Add a key takes a words file
+    /// for a slot, a share as the first part typed on its form, each with
+    /// that step's refusals. A Restore under way and not yet made keeps
+    /// what it has.
+    fn restore_open_on_seed_file(&mut self, k: usize) {
+        if !self.may_load_keys() {
+            return;
+        }
+        let Some(item) = self.inbox.get(k) else {
+            return;
+        };
+        let part = match item.kind {
+            FileKind::Words => None,
+            FileKind::SeedPart => match crate::inbox::part_form(&item.bytes) {
+                Some(p) => Some(p),
+                None => {
+                    self.toast(EN.seed_check_not_seed);
+                    return;
+                }
+            },
+            _ => return,
+        };
+        let mut r = match self.restore.state.take() {
+            Some(r) if !r.keys_made() => r,
+            _ => {
+                self.kept.pooled_drop();
+                RestoreState {
+                    owner: self.fresh_owner(),
+                    opener: Some(self.screen),
+                    ..RestoreState::new()
+                }
+            }
+        };
+        r.open = Some(rstep::SEEDS);
+        r.error = None;
+        r.scroll.follow = true;
+        self.restore.state = Some(r);
+        self.screen = Screen::Restore;
+        match part {
+            None => {
+                self.load_key_for(k, Some(Screen::Restore));
+            }
+            Some((form, text)) => {
+                self.act(Action::Entry(None));
+                if self.screen == Screen::Entry {
+                    self.entry.choose_form(form);
+                    self.entry.set_typed(&text);
+                    self.form_add_part();
+                }
+            }
         }
     }
 

@@ -6,7 +6,7 @@
 **Key:** seed-check
 **Words:** seed, fingerprint, xpub, multisig
 
-This page shows what a seed makes, so you can compare it with what a wallet app and a signer show: the fingerprints, an account's extended public key and its first receive and change addresses. It opens from Tools and returns there; nothing is needed first, and it loads no key unless you press **Keep this key**.
+This page shows what a seed makes, so you can compare it with what a wallet app and a signer show: the fingerprints, an account's extended public key and its first receive and change addresses. It opens from Tools, or from **Check a backup** on a seed words file or a SLIP-39 or codex32 share file in Files, which it takes on the Seed card, and returns where it was opened; nothing is needed first, and it loads no key unless you press **Keep this key**.
 
 ## Seed
 

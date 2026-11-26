@@ -981,6 +981,9 @@ pub enum Action {
     Slide(u8, u8),
     /// Restore's Description card with the shares in Files ticked.
     RestoreShares,
+    /// Restore with the seed words or share file at this Files place
+    /// picked, as its seed's step takes it.
+    RestoreSeedFile(usize),
     /// Restore's Description card with the share Files holds at this
     /// index ticked (a share just scanned).
     RestoreShareAt(usize),
@@ -1847,6 +1850,7 @@ impl Faraday {
             | Action::RSeeds
             | Action::KeyWallet(..)
             | Action::RestoreShares
+            | Action::RestoreSeedFile(..)
             | Action::RestoreShareAt(..)) => self.restore_act(a, &c),
             a @ Action::Cancel => self.cancel_act(a),
             Action::File(p) => self.file_act(p),

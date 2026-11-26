@@ -91,6 +91,9 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
             | Action::LResolve
             | Action::LFile(_)
             | Action::LoadKey(_)
+            | Action::RestoreSeedFile(_)
+            | Action::SpendBackup(crate::spend_backup::SpendBackupAction::FromSeedFile(_))
+            | Action::SeedCheck(crate::seed_check::SeedAction::File(_))
             | Action::Lock
             | Action::LockUnsealed
             | Action::NewWalletFrom(_)

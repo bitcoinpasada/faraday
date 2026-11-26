@@ -77,10 +77,24 @@ pub(crate) fn offer(
         FileKind::Key | FileKind::KeyWithSecret | FileKind::KeyLine => {
             Offer::with_button(vec![use_key(k, item.kind)])
         }
-        FileKind::Words => {
-            Offer::with_button([add_key(k)].into_iter().chain(into_vault(app, k)).collect())
-        }
-        FileKind::SeedPart => Offer::without_button(into_vault(app, k).into_iter().collect()),
+        FileKind::Words => Offer::with_button(
+            [
+                add_key(k),
+                restore_from(k),
+                spend_from_words(k),
+                check_backup(k),
+            ]
+            .into_iter()
+            .chain(into_vault(app, k))
+            .collect(),
+        ),
+        // Spend from backup takes no split seed, so it is not offered.
+        FileKind::SeedPart => Offer::without_button(
+            [restore_from(k), check_backup(k)]
+                .into_iter()
+                .chain(into_vault(app, k))
+                .collect(),
+        ),
         FileKind::Share => Offer::with_button(vec![restore_shares(app)]),
         FileKind::Message => Offer::with_button(vec![(
             EN.inbox_actions_check.to_string(),
@@ -237,6 +251,30 @@ fn use_key(k: usize, kind: FileKind) -> Pick {
 
 fn add_key(k: usize) -> Pick {
     (EN.inbox_actions_load.to_string(), Action::LoadKey(k))
+}
+
+/// Restore with this seed words or share file picked.
+fn restore_from(k: usize) -> Pick {
+    (
+        EN.home_ways_restore_short.to_string(),
+        Action::RestoreSeedFile(k),
+    )
+}
+
+/// Spend from backup with this seed words file picked.
+fn spend_from_words(k: usize) -> Pick {
+    (
+        EN.home_ways_spend_short.to_string(),
+        Action::SpendBackup(crate::spend_backup::SpendBackupAction::FromSeedFile(k)),
+    )
+}
+
+/// Check a backup with this seed words or share file picked.
+fn check_backup(k: usize) -> Pick {
+    (
+        EN.files_check_a_backup.to_string(),
+        Action::SeedCheck(crate::seed_check::SeedAction::File(k)),
+    )
 }
 
 fn restore_shares(app: &Faraday) -> Pick {

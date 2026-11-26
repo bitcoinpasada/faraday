@@ -6,7 +6,7 @@
 **Key:** restore
 **Words:** seed, descriptor, quorum, xpub, share, vault, multisig
 
-Restore rebuilds a wallet from its backup, one card per step, from the kind of wallet to what to do with it once it is back. The wallet is made from the seeds when you press **Make the wallet** on the Keys card, and you compare its first addresses on Check.
+Restore rebuilds a wallet from its backup, one card per step, from the kind of wallet to what to do with it once it is back. The wallet is made from the seeds when you press **Make the wallet** on the Keys card, and you compare its first addresses on Check; **Restore** on a held seed words or share file opens it with that file taken.
 
 ## Kind
 

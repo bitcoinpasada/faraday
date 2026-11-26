@@ -20,7 +20,7 @@ The map lists the six stops: what you have, open the wallet here, check the bala
 
 Bring in everything from the envelope here, in any order; each new thing asks only the next question. The card also holds the start from the stick.
 
-**Unlock** with a vault's name opens a vault found in Files, using its passphrase. **Scan the QR codes you have** and **Type the words you have** take seeds, descriptors and split sheets. **Or bring in what is on paper** is offered beside an open vault. **Rebuild the wallet** joins split sheets that add up. **Not sure what you have?** shows what each thing looks like. **Start over** clears what you brought in.
+**Unlock** with a vault's name opens a vault found in Files, using its passphrase. **Scan the QR codes you have** and **Type the words you have** take seeds, descriptors and split sheets. **Or bring in what is on paper** is offered beside an open vault. **Rebuild the wallet** joins split sheets that add up. **Spend from backup** on a seed words file in Files opens this page with its seed taken. **Not sure what you have?** shows what each thing looks like. **Start over** clears what you brought in.
 
 ## Check the money is really there
 
