@@ -799,12 +799,10 @@ fn paper(
 }
 
 /// A stick box `r` with its head: the stick glyph and "Stick n" in slate,
-/// a press there `zone`, its layer under the head. Returns the head's
-/// height.
-fn stick_box(ui: &mut Ui, glyph: Glyph, label: &str, r: Box4, zone: Action) -> f32 {
+/// a press there `zone`, its layer under the head, which is `hh` high.
+fn stick_box(ui: &mut Ui, glyph: Glyph, label: &str, r: Box4, hh: f32, zone: Action) {
     let (x, y, w, h) = r;
     let sp = tokens::BOARD_STICK_PAD;
-    let hh = tokens::BOARD_STICK_HEAD;
     let mark = tokens::BOARD_MARK;
     ui.fill(x, y, w, h, tokens::GAP, Role::SurfaceContainerHighest);
     outline(
@@ -834,7 +832,6 @@ fn stick_box(ui: &mut Ui, glyph: Glyph, label: &str, r: Box4, zone: Action) -> f
         Role::OnSurfaceVariant,
         label,
     );
-    hh
 }
 
 /// The **+ stick** box `r`: a new stick for what is dropped on it, in the
@@ -1340,12 +1337,18 @@ fn vault_head(
     }
 }
 
+/// The height of the head of a stick box with a × ([`stick`]): a touch
+/// target, so that the files box under it takes none of the ×'s.
+fn stick_head(ui: &Ui) -> f32 {
+    ui.touch
+}
+
 /// A stick box's own height `w` wide: its head, its files box, its vault
 /// box.
 fn stick_h(ui: &Ui, st: &crate::board::StickView, w: f32) -> f32 {
     let (files_h, vault_hs) = stick_parts(ui, st, w);
     let vaults: f32 = vault_hs.iter().map(|h| tokens::BOARD_STICK_PAD + h).sum();
-    tokens::BOARD_STICK_HEAD + files_h + vaults + tokens::BOARD_STICK_PAD
+    stick_head(ui) + files_h + vaults + tokens::BOARD_STICK_PAD
 }
 
 /// A stick box's parts `w` wide: its files box's height (a chip row at
@@ -1381,7 +1384,8 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
     // The stick box outside its files box and vault box still keeps a
     // drop as a file (§17.17 item 2).
     let zone = Action::Board(BoardPress::Zone(fz));
-    let hh = stick_box(ui, fr.stick_glyph, &st.label, r, zone);
+    let hh = stick_head(ui);
+    stick_box(ui, fr.stick_glyph, &st.label, r, hh, zone);
     // Its × (after the lock, only for a stick that carries a vault alone:
     // its files stay as made, §17.8); none while the board is read-only.
     if custom && !(fr.locked && !files.is_empty()) {
@@ -1493,7 +1497,8 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
     if let Some(&r) = lay.sticks.first() {
         let z = Zone::SoftStick;
         let zone = Action::Board(BoardPress::Zone(z));
-        let hh = stick_box(ui, fr.stick_glyph, &sv.stick_label, r, zone);
+        let hh = tokens::BOARD_STICK_HEAD;
+        stick_box(ui, fr.stick_glyph, &sv.stick_label, r, hh, zone);
         let sp = tokens::BOARD_STICK_PAD;
         let fh = paper_h(ui, chips, r.2 - 2.0 * sp);
         let files_box = (r.0 + sp, r.1 + hh, r.2 - 2.0 * sp, fh);
@@ -2327,7 +2332,8 @@ pub(crate) fn card_stick(
     zone: Action,
     takes: bool,
 ) -> f32 {
-    let hh = stick_box(ui, fr.0.stick_glyph, label, r, zone);
+    let hh = tokens::BOARD_STICK_HEAD;
+    stick_box(ui, fr.0.stick_glyph, label, r, hh, zone);
     let under = fr.0.drag.is_none_or(|p| inside(p, r));
     if takes && under {
         edge(ui, r, tokens::GAP, Role::Primary.paint());

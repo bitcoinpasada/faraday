@@ -668,9 +668,10 @@ pub const BOARD_MENU_DOT: f32 = 3.0;
 /// Opacity (of 255) of the thin rule between a chip and its ⋮, drawn in
 /// the ⋮'s colour.
 pub const BOARD_MENU_RULE: u8 = 120;
-/// Height in dp of a stick box's head on a place card ("Stick 1" and the
-/// × that takes the stick off): the second of the board's three nested
-/// boxes, place, stick, vault.
+/// Height in dp of the head of a stick box with no × (the software
+/// zone's, a checklist card's and the guide figures'): the second of the
+/// board's three nested boxes, place, stick, vault. A place card's stick,
+/// whose head has the ×, is headed a touch target high.
 pub const BOARD_STICK_HEAD: f32 = 24.0;
 /// Padding in dp inside a stick box, round its vault box and its files.
 pub const BOARD_STICK_PAD: f32 = GAP_SMALL;

@@ -12,7 +12,7 @@ desktop_1280x800 SpendBackup Vault 3
 desktop_1280x800 Transfer TransferSend 5
 desktop_1280x800 VaultContents OpenCodes 1
 desktop_1280x800 VaultContents Vault 1
-small_240x320 Backup Board 17
+small_240x320 Backup Board 16
 small_240x320 Backup KefTool 48
 small_240x320 CreateVault WordList 3
 small_240x320 KeyGen Codex32 9
@@ -21,7 +21,7 @@ small_240x320 KeyGen WordList 3
 small_240x320 Restore Slide 14
 small_240x320 Wallets PickKey 1
 small_480x640 Backup BC32 1
-small_480x640 Backup Board 17
+small_480x640 Backup Board 16
 small_480x640 Backup KefTool 48
 small_480x640 CreateVault WordList 3
 small_480x640 KeyGen Codex32 17
@@ -33,7 +33,7 @@ small_480x640 VaultContents CodePng 2
 small_480x640 VaultContents ShowCode 2
 small_480x640 Wallets PickKey 2
 stick_1024x600 Backup BC32 15
-stick_1024x600 Backup Board 41
+stick_1024x600 Backup Board 38
 stick_1024x600 Backup EntryKey 25
 stick_1024x600 Backup EntryKeyBack 1
 stick_1024x600 Backup Osk 38
