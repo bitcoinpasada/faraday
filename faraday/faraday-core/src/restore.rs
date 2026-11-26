@@ -1433,14 +1433,7 @@ impl Faraday {
             None => {
                 self.load_key_for(k, Some(Screen::Restore));
             }
-            Some((form, text)) => {
-                self.act(Action::Entry(None));
-                if self.screen == Screen::Entry {
-                    self.entry.choose_form(form);
-                    self.entry.set_typed(&text);
-                    self.form_add_part();
-                }
-            }
+            Some((form, text)) => self.entry_open_on_part(form, &text),
         }
     }
 

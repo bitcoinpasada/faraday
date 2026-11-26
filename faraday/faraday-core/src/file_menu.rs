@@ -285,11 +285,17 @@ impl Faraday {
                         .get_or_init(|| self.inbox.found(&self.session, |i| self.found_in(&c, i)))
                         .loaded_at_file(k)
                 };
+                let enough = |k: usize| {
+                    found
+                        .get_or_init(|| self.inbox.found(&self.session, |i| self.found_in(&c, i)))
+                        .shares_enough(k)
+                };
                 let list = crate::items::offer(
                     self,
                     k,
                     &|seen| self.session.spends_from(&c, seen),
                     &loaded_at,
+                    &enough,
                 )
                 .list;
                 out.extend(list);

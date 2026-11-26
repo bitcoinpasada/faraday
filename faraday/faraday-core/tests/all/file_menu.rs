@@ -1430,7 +1430,7 @@ fn a_words_file_is_checked_as_typed_words_and_not_with_a_stick_in() {
 fn a_share_file_restores_as_the_first_share_and_not_with_a_stick_in() {
     let mut app = held_file(HELD_SHARE);
     let lines = menu_of(&mut app, Row::In(0));
-    assert_eq!(lines[..2], ["Restore", "Check a backup"]);
+    assert_eq!(lines[..3], ["Restore", "Check a backup", "Load this key"]);
     assert!(!lines.iter().any(|l| l == "Spend from backup"));
     choose(&mut app, "Restore");
     assert_eq!(app.screen, Screen::Entry);
@@ -1457,4 +1457,41 @@ fn a_share_file_is_checked_as_a_scanned_share_and_not_with_a_stick_in() {
     pick(&mut app, "Check a backup");
     assert_ne!(app.screen, Screen::SeedCheck);
     assert_eq!(slip39_lines(&app), 0);
+}
+
+#[test]
+fn a_share_file_loads_as_the_first_share_on_add_a_key_and_not_with_a_stick_in() {
+    let mut app = held_file(HELD_SHARE);
+    pick(&mut app, "Load this key");
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(slip39_lines(&app), 1);
+    assert!(app.session.keys.is_empty(), "one of two shares is no key");
+
+    let mut app = held_file(HELD_SHARE);
+    stick_in(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    pick(&mut app, "Load this key");
+    assert_ne!(app.screen, Screen::Entry);
+    assert_eq!(slip39_lines(&app), 0);
+}
+
+/// SLIP-39 vector 4, the other of its two shares.
+const OTHER_SHARE: &str = "shadow pistol academic acid actress prayer class unknown daughter \
+    sweater depict flip twice unkind craft early superior advocate guest smoking";
+
+#[test]
+fn a_share_file_has_a_row_button_once_the_held_shares_make_the_seed() {
+    let restore = Action::RestoreSeedFile(0);
+    let mut app = held_file(HELD_SHARE);
+    let _ = app.frame();
+    assert!(!app.offers(restore), "one of two shares: no row button");
+
+    faraday_core::testkit::inbox_file_at(&mut app, 1, "other.txt", OTHER_SHARE.into());
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    scroll_to(&mut app, restore);
+    app.press(restore);
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(slip39_lines(&app), 1);
 }

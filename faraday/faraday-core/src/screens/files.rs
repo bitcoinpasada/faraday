@@ -1349,7 +1349,8 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
     // the row's menu agree; a kind the list does not cover keeps its own.
     let found = std::cell::OnceCell::new();
     let loaded_at = |k: usize| found.get_or_init(|| app.inbox_found()).loaded_at_file(k);
-    let offer = crate::items::offer(app, k, &|seen| app.spends_from(seen), &loaded_at);
+    let enough = |k: usize| found.get_or_init(|| app.inbox_found()).shares_enough(k);
+    let offer = crate::items::offer(app, k, &|seen| app.spends_from(seen), &loaded_at, &enough);
     if let Some((label, action)) = offer.button() {
         let style = if matches!(action, Action::StartSpend(_)) {
             Style::Tonal

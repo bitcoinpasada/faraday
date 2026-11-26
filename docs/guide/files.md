@@ -89,7 +89,7 @@ One row per file copied in from the stick, under the heading **From the stick** 
 
 A row's button by kind.
 
-**Load the wallet** is a wallet file not loaded yet, **Load this key** a words file or key line, **Use key** a key file and **Read the wallet** a Bitcoin Core wallet. **Open** is a Krux encrypted code. **Sign** is a PSBT a loaded wallet can sign, or **Add to signatures** when it is the open spend's own transaction; one no loaded wallet can sign has **Check a signer**. **Decode** is a transaction. **Check the signature** is a signed message and **Make PDF** a sheet, online only. **Unlock** (not while a stick is attached) or **Contents** is a vault. **Import into the vault** is an entries file. A text file has no button. **Restore the wallet** is a set of shares, with a count; it opens Restore with them ticked.
+**Load the wallet** is a wallet file not loaded yet, **Load this key** a words file or key line, **Use key** a key file and **Read the wallet** a Bitcoin Core wallet. **Open** is a Krux encrypted code. **Sign** is a PSBT a loaded wallet can sign, or **Add to signatures** when it is the open spend's own transaction; one no loaded wallet can sign has **Check a signer**. **Decode** is a transaction. **Check the signature** is a signed message and **Make PDF** a sheet, online only. **Unlock** (not while a stick is attached) or **Contents** is a vault. **Import into the vault** is an entries file. A text file has no button. **Restore** takes a SLIP-39 or codex32 share once the shares held make its seed. **Restore the wallet** is a set of shares, with a count; it opens Restore with them ticked.
 
 ## Inbox menu
 

@@ -127,6 +127,7 @@ impl View<'_> {
                 let found = std::cell::OnceCell::new();
                 let loaded_at =
                     |k: usize| found.get_or_init(|| self.inbox_found()).loaded_at_file(k);
+                let enough = |k: usize| found.get_or_init(|| self.inbox_found()).shares_enough(k);
                 Rc::new(
                     (0..self.inbox.len())
                         .map(|k| {
@@ -135,6 +136,7 @@ impl View<'_> {
                                 k,
                                 &|seen| self.spends_from(seen),
                                 &loaded_at,
+                                &enough,
                             );
                             let (label, action) = offer.button()?;
                             Some((crate::items::button_label(label, *action)?, *action))

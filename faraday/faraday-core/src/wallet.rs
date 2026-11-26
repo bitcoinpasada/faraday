@@ -5389,7 +5389,13 @@ impl Faraday {
             Action::Primary => self.primary(),
             Action::LoadWallet(i) => self.load_wallet(i),
             Action::LoadKey(i) => {
-                if self.load_key(i) {
+                if self
+                    .inbox
+                    .get(i)
+                    .is_some_and(|f| f.kind == FileKind::SeedPart)
+                {
+                    self.add_key_open_on_share(i);
+                } else if self.load_key(i) {
                     self.inbox_load_named();
                 }
             }

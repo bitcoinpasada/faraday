@@ -1096,6 +1096,32 @@ impl Faraday {
         self.selftest_passed() && !self.stick.in_the_way()
     }
 
+    /// Add a key on the share file at Files place `k`: its form, with the
+    /// share taken as the first part typed, with that step's refusals.
+    pub(crate) fn add_key_open_on_share(&mut self, k: usize) {
+        if !self.may_load_keys() {
+            return;
+        }
+        let Some(item) = self.inbox.get(k) else {
+            return;
+        };
+        match crate::inbox::part_form(&item.bytes) {
+            Some((form, text)) => self.entry_open_on_part(form, &text),
+            None => self.toast(EN.seed_check_not_seed),
+        }
+    }
+
+    /// Add a key opened from the screen on show on `form`, `text` taken as
+    /// its first part.
+    pub(crate) fn entry_open_on_part(&mut self, form: forms::Form, text: &str) {
+        self.act(Action::Entry(None));
+        if self.screen == Screen::Entry {
+            self.entry.choose_form(form);
+            self.entry.set_typed(text);
+            self.form_add_part();
+        }
+    }
+
     /// Where leaving Add a key goes: where it was opened from, else
     /// Wallets.
     pub(crate) fn entry_leave(&self) -> Screen {

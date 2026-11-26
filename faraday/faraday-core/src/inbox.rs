@@ -609,6 +609,14 @@ impl Found {
             .and_then(|w| w.at)
     }
 
+    /// Whether the share file at Inbox place `k` is of a SLIP-39 or
+    /// codex32 set whose held shares make its seed.
+    pub(crate) fn shares_enough(&self, k: usize) -> bool {
+        self.seeds.iter().flat_map(|s| &s.sources).any(
+            |s| matches!(s, SeedSource::Slip39(ks) | SeedSource::Codex32(ks) if ks.contains(&k)),
+        )
+    }
+
     /// Wallets not loaded yet.
     pub fn to_load(&self) -> Vec<&FoundWallet> {
         self.wallets.iter().filter(|w| !w.loaded).collect()

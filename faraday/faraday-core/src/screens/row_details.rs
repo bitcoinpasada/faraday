@@ -163,7 +163,8 @@ fn offer_icon(action: Action) -> Option<Icon> {
 fn file_offers(app: &View, k: usize) -> Vec<Offer> {
     let found = std::cell::OnceCell::new();
     let loaded_at = |k: usize| found.get_or_init(|| app.inbox_found()).loaded_at_file(k);
-    crate::items::offer(app, k, &|seen| app.spends_from(seen), &loaded_at)
+    let enough = |k: usize| found.get_or_init(|| app.inbox_found()).shares_enough(k);
+    crate::items::offer(app, k, &|seen| app.spends_from(seen), &loaded_at, &enough)
         .list
         .into_iter()
         .map(|(label, action)| actions::offer(&label, offer_icon(action), action))

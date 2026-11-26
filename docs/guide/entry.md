@@ -22,7 +22,7 @@ A passphrase field has an eye that shows what is typed. Hardware keyboard keys a
 
 **Key:** entry.shares
 
-Type one share at a time, 20 or 33 words, in any order. Every share you have typed is listed, headed by how many are in.
+Type one share at a time, 20 or 33 words, in any order. **Load this key** on a held share file, SLIP-39 or codex32, opens its form with that share in. Every share you have typed is listed, headed by how many are in.
 
 **Add this one** takes the share you typed. **Scan a QR code** takes a share from a code. **Passphrase** takes the passphrase of the backup, if it has one. **Make the key** needs as many shares as the backup's threshold. Fewer rebuild nothing, and shares of different backups are refused.
 

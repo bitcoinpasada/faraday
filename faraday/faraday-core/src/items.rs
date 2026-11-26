@@ -59,12 +59,17 @@ pub(crate) type SpendsFrom<'a> = &'a dyn Fn(&PsbtSeen) -> Option<usize>;
 /// is not there.
 pub(crate) type LoadedAs<'a> = &'a dyn Fn(usize) -> Option<usize>;
 
+/// Whether the held shares of the share file at this place make its
+/// seed; from the Inbox's kept answer, as for [`LoadedAs`].
+pub(crate) type SharesEnough<'a> = &'a dyn Fn(usize) -> bool;
+
 /// The offer of Inbox file `k`, by its kind.
 pub(crate) fn offer(
     app: &Faraday,
     k: usize,
     spends_from: SpendsFrom,
     loaded_as: LoadedAs,
+    enough: SharesEnough,
 ) -> Offer {
     let Some(item) = app.inbox.get(k) else {
         return Offer::none();
@@ -88,13 +93,7 @@ pub(crate) fn offer(
             .chain(into_vault(app, k))
             .collect(),
         ),
-        // Spend from backup takes no split seed, so it is not offered.
-        FileKind::SeedPart => Offer::without_button(
-            [restore_from(k), check_backup(k)]
-                .into_iter()
-                .chain(into_vault(app, k))
-                .collect(),
-        ),
+        FileKind::SeedPart => seed_part(app, k, enough(k)),
         FileKind::Share => Offer::with_button(vec![restore_shares(app)]),
         FileKind::Message => Offer::with_button(vec![(
             EN.inbox_actions_check.to_string(),
@@ -114,11 +113,26 @@ pub(crate) fn offer(
     }
 }
 
+/// A SLIP-39 or codex32 share file: Restore is its row button once the
+/// held shares make the seed. Spend from backup takes no split seed, so
+/// it is not offered.
+fn seed_part(app: &Faraday, k: usize, enough: bool) -> Offer {
+    let list = [restore_from(k), check_backup(k), add_key(k)]
+        .into_iter()
+        .chain(into_vault(app, k))
+        .collect();
+    if enough {
+        Offer::with_button(list)
+    } else {
+        Offer::without_button(list)
+    }
+}
+
 /// The words of a row button as the text the strings hold them in, for a
 /// row that keeps them as such. The shares' list entry says how many it
 /// restores from; their row's button says Restore alone.
 pub(crate) fn button_label(label: &str, action: Action) -> Option<&'static str> {
-    if action == Action::RestoreShares {
+    if matches!(action, Action::RestoreShares | Action::RestoreSeedFile(_)) {
         return Some(EN.home_ways_restore_short);
     }
     [
