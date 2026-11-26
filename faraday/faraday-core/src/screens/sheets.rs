@@ -721,7 +721,7 @@ pub(super) fn remove_keys_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// Remove this key, while it is kept nowhere else: that key and the hold.
 pub(super) fn remove_key_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, fp: [u8; 4]) {
-    let Some(k) = app.session.keys.all().find(|k| k.fingerprint.0 == fp) else {
+    let Some(k) = app.session.keys.find_of(fp) else {
         return;
     };
     // The name as the Lock sheet lists the key. That it is kept nowhere
