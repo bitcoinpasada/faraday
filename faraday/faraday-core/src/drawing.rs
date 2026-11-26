@@ -916,7 +916,10 @@ impl Faraday {
                 reach = ui.take_presses();
                 self.pointer.set_cut(std::mem::take(&mut ui.cut));
                 follow_to = follow_to.or(ui.follow_to);
-                self.fade.keep_frost(frost_key, ui.frost.take());
+                // A spoiled pass is drawn again, and so is the page under
+                // a sheet: its frosted copy is not kept.
+                self.fade
+                    .keep_frost(frost_key, ui.frost.take().filter(|_| !ui.spoiled));
                 // The card's place, for a step's fade through the surface.
                 self.fade.set_card(ui.flow_card.take().map(|(x, y, w, h)| {
                     faraday_draw::Rect::new(ui.px(x), ui.px(y), ui.px(w), ui.px(h))
