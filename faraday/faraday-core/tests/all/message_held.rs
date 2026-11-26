@@ -4,11 +4,14 @@
 //! was held stays in Files, and is neither written nor shown as a code
 //! until the key is backed up.
 
+use faraday_core::address_check::AddressPress;
 use faraday_core::catalog::Go;
 use faraday_core::file_menu::{FilePress, Row};
+use faraday_core::scan_read::Way;
 use faraday_core::strings::EN;
+use faraday_core::work::Work;
 use faraday_core::{
-    Action, Code, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, testkit,
+    Action, Ask, Code, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, testkit,
 };
 use faraday_psbt::message::{Format, Signed};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -97,9 +100,35 @@ fn a_held_wallet_is_not_offered() {
 #[test]
 fn sign_is_refused() {
     let mut app = held_flow();
+    let before = faraday_core::work::snapshot();
     app.press(Action::MSign);
+    assert_eq!(
+        faraday_core::work::since(&before).of(Work::Sign),
+        0,
+        "nothing was signed"
+    );
     assert!(testkit::message(&app).unwrap().signed.is_none());
     assert_refused(&app);
+}
+
+#[test]
+fn the_address_checks_sign_button_opens_nothing_for_a_held_key() {
+    let mut app = app();
+    let address = signature(&app).address;
+    hold(&mut app);
+    app.press(Action::ScanFor(Ask::Address));
+    app.event(Event::Scanned {
+        bytes: address.as_bytes().to_vec(),
+    });
+    let _ = app.frame();
+    let way = app
+        .address_check_state()
+        .and_then(|s| s.ways().iter().position(|w| matches!(w, Way::SignAddress)))
+        .expect("the result's way to Sign a message");
+    app.press(Action::AddressCheck(AddressPress::Way(way as u8)));
+    assert!(testkit::message(&app).is_none());
+    assert_ne!(app.screen, Screen::Message);
+    assert_eq!(app.toast_text(), Some(EN.message_waits_backup));
 }
 
 #[test]
