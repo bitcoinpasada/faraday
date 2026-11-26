@@ -1936,14 +1936,9 @@ pub fn drawn_whole(app: &mut Faraday) -> String {
 
 /// A public value on screen opens its code (`docs/QR.md` §7): `code` is
 /// offered on the screen drawn now, which shows `want`; its QR sheet's code
-/// reads back as `want`, public, whole under it, offering no picture, and
+/// reads back as `want`, public, whole under it as `shown` (an address in
+/// groups of four), offering no picture, and
 /// PNG of it puts nothing For the stick. The sheet is closed after.
-pub fn opens_its_code(app: &mut Faraday, code: faraday_core::Code, want: &str) {
-    opens_its_code_shown(app, code, want, want);
-}
-
-/// `opens_its_code` for a code whose text under it is `shown`, not the
-/// text the code holds (an address in groups of four).
 pub fn opens_its_code_shown(app: &mut Faraday, code: faraday_core::Code, want: &str, shown: &str) {
     assert!(
         offered(app, Action::ShowCode(code)),
