@@ -1519,3 +1519,107 @@ fn a_key_waiting_for_its_backup_is_not_offered_silent_payments() {
     assert!(shown(&mut app, Action::KeyTool(KeyTool::Derive, fp)));
     assert!(!app.offers(Action::KeyTool(KeyTool::Silent, fp)));
 }
+
+/// A tall desktop on Tools with `WORDS` held and a wallet of each of
+/// `wraps` (`wpkh(@)` and the like, `@` the key's own), the key's details
+/// open.
+fn details_over(wraps: &[&str]) -> (Faraday, [u8; 4], String) {
+    let c = faraday_core::testkit::compute();
+    let mut app = desktop_of(1200);
+    let fp = add_key(&mut app, WORDS);
+    let text = faraday_core::create::NewKind::NativeSegwit
+        .key_text(&c, app.session.keys.master_for_tests(0))
+        .unwrap();
+    for (n, wrap) in wraps.iter().enumerate() {
+        let d = wrap.replace('@', &format!("{}/<0;1>/*", &*text));
+        app.session
+            .add_wallet_confirmed(
+                &c,
+                &format!("Wallet {n}"),
+                &d,
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
+            .expect("reads");
+    }
+    go(&mut app, Screen::Catalog);
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(details_of(&mut app, fp));
+    (app, fp, text.to_string())
+}
+
+#[test]
+fn a_keys_one_wallet_signs_a_message_and_back_returns_to_the_details() {
+    let (mut app, fp, _) = details_over(&["wpkh(@)"]);
+    assert!(!app.offers(Action::SignMessageKey(fp)));
+    assert!(app.offers(Action::SignMessageWith(0)));
+    app.press(Action::SignMessageWith(0));
+    assert_eq!(app.screen, Screen::Message);
+    let m = faraday_core::testkit::message(&app).unwrap();
+    assert_eq!(m.wallet, Some(0));
+    assert_eq!(m.open, Some(faraday_core::mstep::TEXT));
+    // As from a wallet's page: Back to the address card, then out.
+    app.event(Event::Back);
+    let _ = app.frame();
+    let m = faraday_core::testkit::message(&app).unwrap();
+    assert_eq!(m.open, Some(faraday_core::mstep::ADDRESS));
+    app.event(Event::Back);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(details_of(&mut app, fp));
+}
+
+#[test]
+fn a_keys_two_wallets_alone_are_offered_for_a_message() {
+    let (mut app, fp, _) = details_over(&["wpkh(@)", "pkh(@)"]);
+    // Another loaded key's wallet, which the step leaves out.
+    add_key(&mut app, OTHER_WORDS);
+    let c = faraday_core::testkit::compute();
+    let other = faraday_core::create::NewKind::NativeSegwit
+        .key_text(&c, app.session.keys.master_for_tests(1))
+        .unwrap();
+    add_wallet(&mut app, &format!("wpkh({}/<0;1>/*)", &*other));
+    go(&mut app, Screen::Catalog);
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(shown(&mut app, Action::SignMessageKey(fp)));
+    app.press(Action::SignMessageKey(fp));
+    assert_eq!(app.screen, Screen::Message);
+    let _ = app.frame();
+    let m = faraday_core::testkit::message(&app).unwrap();
+    assert_eq!(m.wallet, Some(0));
+    assert_eq!(m.open, Some(faraday_core::mstep::ADDRESS));
+    assert!(app.offers(Action::MWallet(0)));
+    assert!(app.offers(Action::MWallet(1)));
+    assert!(!app.offers(Action::MWallet(2)));
+    app.event(Event::Back);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(details_of(&mut app, fp));
+}
+
+#[test]
+fn a_key_in_a_multisig_wallet_alone_offers_no_message() {
+    let c = faraday_core::testkit::compute();
+    let (mut app, fp, mine) = details_over(&[]);
+    let theirs = faraday_core::testkit::key(1, "m/48'/1'/0'/2'");
+    let d = format!("wsh(sortedmulti(2,{mine}/<0;1>/*,{theirs}/<0;1>/*))");
+    app.session
+        .add_wallet_confirmed(&c, "Both", &d, "test", faraday_core::wallet::Origin::Named)
+        .expect("reads");
+    assert!(details_of(&mut app, fp));
+    assert!(!app.offers(Action::SignMessageWith(0)));
+    assert!(!app.offers(Action::SignMessageKey(fp)));
+}
+
+#[test]
+fn a_key_waiting_for_its_backup_offers_no_message() {
+    for wraps in [&["wpkh(@)"][..], &["wpkh(@)", "pkh(@)"]] {
+        let (mut app, fp, _) = details_over(wraps);
+        faraday_core::testkit::mark_made_here(&mut app, Fingerprint(fp));
+        app.press(Action::RowClose);
+        app.press(Action::RowOpen(Row::Key(fp)));
+        assert!(details_of(&mut app, fp));
+        assert!(!app.offers(Action::SignMessageWith(0)));
+        assert!(!app.offers(Action::SignMessageKey(fp)));
+    }
+}

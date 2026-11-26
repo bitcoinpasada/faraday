@@ -639,7 +639,10 @@ window never scrolls as a whole.
    wallet uses it (a key a wallet uses can go into another): its details offer
    Explore, Child seeds and passwords, Convert, Krux code (where one can be
    made of its words), Vanity address, Silent payments (not while the key waits
-   for its backup), Lightning node key (a key with words), Make a wallet from
+   for its backup), Lightning node key (a key with words), Sign a message (a
+   key a loaded single-key wallet uses, not while the key waits for its backup:
+   one such wallet is picked, several are the only ones the wallet step lists),
+   Make a wallet from
    this key, Start a multisig wallet with this key, Restore with the key in it,
    Add to vault while one vault is open that can take it, Scan my copy (a key
    with words; a match is said where the details stand) and, for a key whose

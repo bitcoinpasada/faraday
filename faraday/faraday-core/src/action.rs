@@ -543,6 +543,9 @@ pub enum Action {
     /// Start signing a message with the wallet at this index, the one a
     /// card was opened on.
     SignMessageWith(usize),
+    /// Start signing a message with a wallet of this key: the wallet step
+    /// offers its single-key wallets alone.
+    SignMessageKey([u8; 4]),
     /// Done: leave the signed message and go back to where it was opened.
     MDone,
     /// Open or close a message card.
@@ -1952,6 +1955,7 @@ impl Faraday {
             Action::AddressCheck(p) => address_check::act(self, p),
             a @ (Action::SignMessage
             | Action::SignMessageWith(..)
+            | Action::SignMessageKey(..)
             | Action::MDone
             | Action::MStep(..)
             | Action::MNext(..)

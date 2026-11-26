@@ -48,8 +48,9 @@ pub(crate) fn bar_when(app: &View, ui: &mut Ui, page: &str, stands: bool) -> f32
 /// What key `fp` offers, every action that can open with it picked, whether
 /// or not a wallet uses it: Explore it, derive from it, Convert it, make a
 /// Krux code of its words (where one can be made), search a vanity address,
-/// its silent payments and its Lightning node key (all in the order of
-/// Tools), Make a wallet from this key, Start a multisig wallet with this
+/// its silent payments, its Lightning node key (all in the order of
+/// Tools) and Sign a message with a single-key wallet of it (not while the
+/// key waits for its backup), Make a wallet from this key, Start a multisig wallet with this
 /// key, Restore with it, Add to vault where the open vault can take it,
 /// check a copy of its words (a key with words) and show its account xpub or
 /// put it in a file (a key in a wallet). A tool that would not take the key
@@ -84,6 +85,19 @@ fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
     // The node key is made from BIP-39 words.
     if info.is_some_and(|k| k.has_words()) {
         offers.push(tool(EN.catalog_lightning_node, KeyTool::Lightning));
+    }
+    // One wallet of the key: it is picked. Several: they alone are offered.
+    let sign = match app.message_offered_of(fp)[..] {
+        [] => None,
+        [wallet] => Some(Action::SignMessageWith(wallet)),
+        _ => Some(Action::SignMessageKey(fp)),
+    };
+    if let Some(sign) = sign {
+        offers.push(actions::offer(
+            EN.catalog_sign_a_message,
+            Some(Icon::Sign),
+            sign,
+        ));
     }
     offers.extend([
         actions::offer(

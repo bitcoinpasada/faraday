@@ -1056,6 +1056,9 @@ pub struct MessageState {
     pub scroll: flow::Scroll,
     /// The wallet, by index into the session.
     pub wallet: Option<usize>,
+    /// Opened from this key's details: the wallet step lists its wallets
+    /// alone.
+    pub of_key: Option<[u8; 4]>,
     /// The receive address's index.
     pub index: u32,
     /// An address of a loaded key by its path, which the address check
@@ -1594,6 +1597,31 @@ impl Faraday {
         wallets
     }
 
+    /// A lookup. [`Faraday::message_offered`], those of key `fp` alone.
+    pub(crate) fn message_offered_of(&self, fp: [u8; 4]) -> Vec<usize> {
+        let mut wallets = self.message_offered();
+        wallets.retain(|&w| self.wallet_of_key(w, fp));
+        wallets
+    }
+
+    /// A lookup. Whether key `fp` is the first key of wallet `w`.
+    fn wallet_of_key(&self, w: usize, fp: [u8; 4]) -> bool {
+        self.session
+            .wallets
+            .get(w)
+            .and_then(|wl| wl.policy().keys().first()?.fingerprint())
+            .is_some_and(|f| f.0 == fp)
+    }
+
+    /// A lookup. Whether the open message's wallet step lists wallet `w`:
+    /// every wallet, or those of the key it was opened for.
+    pub(crate) fn message_lists(&self, w: usize) -> bool {
+        self.message
+            .state()
+            .and_then(|m| m.of_key)
+            .is_none_or(|fp| self.wallet_of_key(w, fp))
+    }
+
     /// A lookup. Whether what a message would be signed with, the address
     /// picked (`at`) or else `wallet`, waits for its key's backup, from the
     /// keys kept as waiting: for drawing.
@@ -1728,6 +1756,17 @@ impl Faraday {
                     self.message_open_at(c, wallet, 0);
                 } else {
                     self.act(Action::SignMessage);
+                }
+            }
+            // From a key's details: its wallets alone, the first picked.
+            Action::SignMessageKey(fp) => {
+                let mut wallets = self.message_offered_of(fp);
+                wallets.retain(|&w| !self.message_waits_now(c, None, Some(w)));
+                self.act(Action::SignMessage);
+                if let Some((m, &first)) = self.message.state.as_mut().zip(wallets.first()) {
+                    m.of_key = Some(fp);
+                    m.wallet = Some(first);
+                    self.message_format_fit();
                 }
             }
             Action::MDone => {

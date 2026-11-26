@@ -133,6 +133,9 @@ impl crate::flow::Contained for MessageSteps {
         Some(
             crate::pick::Decl::new(EN.message_which_wallet)
                 .wallets(app, |i, wl| {
+                    if !app.message_lists(i) {
+                        return None;
+                    }
                     let on = usable.contains(&i);
                     let single = matches!(
                         crate::wallet::Kind::of(wl.policy()),
@@ -251,7 +254,8 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
             // (`flow::Contained::pick`); on other sizes they are buttons here.
             if !flow::pair_left(app, &MESSAGE_STEPS, ui.compact, area_w) {
                 let mut bx = x;
-                let wallets = app.session.message_wallets();
+                let mut wallets = app.session.message_wallets();
+                wallets.retain(|&w| app.message_lists(w));
                 let any = !wallets.is_empty();
                 let mut waiting = false;
                 for wi in wallets {
