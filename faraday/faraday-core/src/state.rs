@@ -997,6 +997,12 @@ fn add_xor(c: &Compute, parts: &mut forms::Parts, text: &str) -> Result<(), fara
 }
 
 impl MessageState {
+    /// Drops the signature and the id of the key that made it.
+    fn drop_signature(&mut self) {
+        self.signed = None;
+        self.signer = None;
+    }
+
     /// The name the signed message's file is made under, from the last
     /// six characters of the address.
     pub(crate) fn file_name(&self) -> Option<faraday_text::Text> {
@@ -1067,6 +1073,10 @@ pub struct MessageState {
     pub bip322: bool,
     /// The signature, once made.
     pub signed: Option<faraday_psbt::message::Signed>,
+    /// All 32 bytes of what tells the key that made `signed` from another,
+    /// taken as it was made: its files are recorded with it, whatever is
+    /// loaded by then. Public.
+    signer: Option<faraday_keys::KeyId>,
     /// The name the signed message's file went out under.
     pub out_name: Option<faraday_text::Text>,
     /// The signed text is itself a secret (a seed, a key or a share): its
@@ -1235,11 +1245,21 @@ impl MessageArea {
         }
     }
 
+    /// The id of the key that made the open flow's signature.
+    pub(crate) fn signer(&self) -> Option<faraday_keys::KeyId> {
+        self.state.as_ref()?.signer
+    }
+
     /// For the testkit: a signature put in the open flow, no step run.
     #[cfg(feature = "testkit")]
-    pub(crate) fn put_signed(&mut self, signed: faraday_psbt::message::Signed) {
+    pub(crate) fn put_signed(
+        &mut self,
+        signed: faraday_psbt::message::Signed,
+        signer: Option<faraday_keys::KeyId>,
+    ) {
         if let Some(m) = self.state.as_mut() {
             m.signed = Some(signed);
+            m.signer = signer;
         }
     }
 
@@ -1394,17 +1414,17 @@ impl MessageArea {
                 m.wallet = Some(i);
                 m.at = None;
                 m.index = 0;
-                m.signed = None;
+                m.drop_signature();
             }
             Action::MIndex(d) if m.at.is_none() => {
                 m.index = (i64::from(m.index) + i64::from(d)).clamp(0, 9999) as u32;
-                m.signed = None;
+                m.drop_signature();
             }
             Action::MIndex(_) => {}
             Action::MType => m.typing = !m.typing,
             Action::MFormat(b) => {
                 m.bip322 = b;
-                m.signed = None;
+                m.drop_signature();
             }
             _ => return false,
         }
@@ -1420,15 +1440,15 @@ impl MessageArea {
         match key {
             K::Char(c) => {
                 m.text.push(c);
-                m.signed = None;
+                m.drop_signature();
             }
             K::Enter => {
                 m.text.push('\n');
-                m.signed = None;
+                m.drop_signature();
             }
             K::Backspace => {
                 m.text.pop();
-                m.signed = None;
+                m.drop_signature();
             }
             K::Escape => m.typing = false,
             _ => {}
@@ -1483,7 +1503,7 @@ impl Faraday {
         if m.signed.is_some() && self.message_waits(m.at.as_ref(), m.wallet) {
             self.message.made = None;
             if let Some(m) = self.message.state.as_mut() {
-                m.signed = None;
+                m.drop_signature();
                 m.out_name = None;
                 m.out_sha = None;
                 m.out_refused = false;
@@ -1701,6 +1721,9 @@ impl Faraday {
                 if self.message_refused(c) {
                     return;
                 }
+                // While the key is loaded to sign: only one of its
+                // fingerprint can be.
+                let signer = self.message_signer().and_then(|fp| self.loaded_key_id(fp));
                 if let Some(m) = self.message.state.as_mut()
                     && (m.at.is_some() || m.wallet.is_some())
                 {
@@ -1719,6 +1742,7 @@ impl Faraday {
                     match made {
                         Ok(signed) => {
                             m.signed = Some(signed);
+                            m.signer = signer;
                             m.out_name = None;
                             m.out_sha = None;
                             m.out_refused = false;
@@ -1780,7 +1804,7 @@ impl Faraday {
                         // With the key that signed it: the file is held
                         // back while that key waits for its backup.
                         if let Some(key) = self.message_signer() {
-                            let id = self.loaded_key_id(key);
+                            let id = self.message.signer();
                             self.message.file_signed(&name, sha, key, id);
                         }
                         if let Some(m) = self.message.state.as_mut() {
@@ -1859,7 +1883,7 @@ impl Faraday {
         if let Some(m) = self.message.state.as_mut() {
             m.text = text;
             m.typing = false;
-            m.signed = None;
+            m.drop_signature();
             m.error = None;
             self.scan_close();
         } else {

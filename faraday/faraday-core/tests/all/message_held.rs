@@ -7,6 +7,7 @@
 use faraday_core::address_check::AddressPress;
 use faraday_core::catalog::Go;
 use faraday_core::file_menu::{FilePress, Row};
+use faraday_core::in_progress::Going;
 use faraday_core::scan_read::Way;
 use faraday_core::strings::EN;
 use faraday_core::vault::VaultAction;
@@ -506,6 +507,43 @@ fn only_the_key_that_signed_releases_a_held_file() {
         assert_eq!(next.session.keys.all().count(), 0);
         assert_eq!(row_says_it_waits(&mut next), another);
     }
+}
+
+/// A picture made of the signature while its key is away is recorded with the
+/// key that signed: held once that key is back and waits for its backup, it
+/// stays held in the next process.
+#[test]
+fn a_picture_made_with_the_signing_key_away_is_held_back() {
+    let (mut app, text) = signed_file();
+    app.press(Action::RemoveKeys);
+    app.press(Action::RemoveKeysHold);
+    assert_eq!(app.session.keys.all().count(), 0);
+    app.press(Action::Resume(Going::Message));
+    app.press(Action::MQr);
+    app.press(Action::QrPng);
+    if app.qr().is_some() {
+        app.press(Action::Cancel);
+    }
+    let picture = app
+        .outbox
+        .iter()
+        .map(|i| i.name.to_string())
+        .find(|n| n.ends_with(".png"))
+        .expect("the picture");
+    load_the_key(&mut app);
+    hold(&mut app);
+    // The text file goes, so the first row is the picture's.
+    app.press(Action::Nav(Screen::Files));
+    assert_eq!(app.outbox[0].name.as_str(), text);
+    app.press(Action::OutboxRemove(0));
+    if app.sheet.is_some() {
+        app.press(Action::OutboxDeleteHold);
+    }
+    assert_eq!(app.outbox.len(), 1);
+    testkit::outbox_file(&mut app, "other.txt", b"other");
+    let mut next = restarted(app);
+    assert_eq!(next.session.keys.all().count(), 0);
+    assert_held_without_the_key(&mut next, &picture);
 }
 
 #[test]
