@@ -1148,12 +1148,12 @@ impl MessageArea {
     pub(crate) fn sync_holds(
         &mut self,
         held: &[faraday_bip::keys::Fingerprint],
-        loaded: &[faraday_keys::KeyId],
+        loaded: impl Fn(faraday_keys::KeyId) -> bool,
     ) {
         for f in &mut self.files {
             if held.contains(&f.key) {
                 f.held = f.id.is_some();
-            } else if f.id.is_some_and(|id| loaded.contains(&id)) {
+            } else if f.id.is_some_and(&loaded) {
                 f.held = false;
             }
         }
@@ -1594,7 +1594,7 @@ impl Faraday {
     /// A lookup. Whether `f` was held back and its key is not loaded to say
     /// that its backup is done.
     fn hold_stands(&self, f: &SignedFile) -> bool {
-        f.held && !self.session.keys.all().any(|k| Some(k.id) == f.id)
+        f.held && !f.id.is_some_and(|id| self.session.keys.holds(id))
     }
 
     /// Costs what `key_held` costs for each key that signed `item`, and
