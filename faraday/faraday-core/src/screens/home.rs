@@ -645,7 +645,6 @@ pub(crate) fn action_h(
 /// Returns the height it takes, the gap under it counted (`docs/HOME.md`
 /// §5).
 pub(super) fn top_row(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    use super::catalog::Bar;
     use faraday_draw::tokens::{GAP, SEARCH_BAR_H};
     // A rail window of the compact class (400 x 500): the field and the one
     // **Start** button beside it, as the bar places them.
@@ -653,7 +652,7 @@ pub(super) fn top_row(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
         super::bar_search::group(
             app,
             ui,
-            (Bar::Home, true, false),
+            (true, false),
             ((x, x + w), x + w / 2.0),
             (y, f32::MAX),
         );
@@ -676,7 +675,7 @@ pub(super) fn top_row(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
     let beside = widths.iter().map(|bw| MENU_GAP + bw).sum::<f32>();
     let one_row = w - beside >= HOME_SEARCH_MIN;
     let sw = if one_row { w - beside } else { w };
-    super::catalog::home_search_bar(app, ui, (x, y, sw), None, Bar::Home);
+    super::catalog::home_search_bar(app, ui, (x, y, sw), None);
     let (mut bx, by, step) = if one_row {
         (x + sw + MENU_GAP, y, None)
     } else {

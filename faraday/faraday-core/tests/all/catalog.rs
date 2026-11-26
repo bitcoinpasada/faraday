@@ -78,9 +78,9 @@ fn typing_on_the_page_goes_to_find_a_tool() {
     for c in "slip".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    assert_eq!(testkit::catalog_find(&app), "slip");
+    assert_eq!(testkit::home_find(&app), "slip");
     app.event(Event::Key(Key::Escape));
-    assert!(testkit::catalog_find(&app).is_empty());
+    assert!(testkit::home_find(&app).is_empty());
 }
 
 #[test]
@@ -373,7 +373,7 @@ fn tools_has_its_search_in_the_top_bar() {
     let mut app = shown();
     let _ = app.frame();
     let (x, y, w, h) = app
-        .hit_box(Action::TypeHere(faraday_core::edit::Here::Find))
+        .hit_box(Action::TypeHere(faraday_core::edit::Here::HomeFind))
         .expect("Tools offers its search");
     assert!(x > 240 && w > 0 && y + h <= 64, "{x},{y} {w}x{h}");
 }

@@ -8,14 +8,14 @@
 
 use super::{Left, Panes, home_area, level};
 use crate::drawing::View;
-use crate::screens::catalog::{Bar, home_results};
+use crate::screens::catalog::home_results;
 use crate::screens::menu_page::{Page, Section, page_span, sections_height};
 use crate::screens::session_pane::{
     draw_page_pane, page_content_h, pane_groups, stacked_card, stacked_card_h,
 };
 use crate::ui::pal::*;
 use crate::ui::{Region, Ui};
-use faraday_draw::tokens::{ELEVATION_FAB, MARGIN_WIDE, PAD, PANE_TOP_BAR, SHAPE_M};
+use faraday_draw::tokens::{ELEVATION_SHEET, MARGIN_WIDE, PAD, PANE_TOP_BAR, SHAPE_M};
 
 /// Where Home's card stands in a room `room` wide: its left edge from the
 /// room's and its width.
@@ -26,8 +26,13 @@ fn home_span(room: f32) -> (f32, f32) {
 
 /// The tile's surface: raised, as the cards beside it.
 fn tile_surface(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
-    ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_FAB);
+    // Everything raised on a menu page rests at level 1 (F331); a High
+    // contrast theme casts no shadow, so an outline stands in its place.
+    ui.shadow(x, y, w, h, SHAPE_M, ELEVATION_SHEET);
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+    if ui.theme.is_high_contrast() {
+        ui.stroke(x, y, w, h, SHAPE_M, Role::Outline);
+    }
 }
 
 /// What fills the tile: draws from `(x, y)`, `w` wide, and returns its
@@ -56,17 +61,29 @@ pub(crate) fn draw(
     placed(app, ui, area, &body, panes)
 }
 
-/// Draws the results of the search typed in `bar` placed the same way.
+/// Draws the results of the search typed placed the same way.
 /// Returns false, drawing nothing, where the room holds neither.
-pub(crate) fn draw_results(
-    app: &View,
-    ui: &mut Ui,
-    area: (f32, f32, f32),
-    bar: Bar,
-    panes: Panes,
-) -> bool {
-    let body = |ui: &mut Ui, at: (f32, f32), w: f32| home_results(app, ui, at, w, bar);
+pub(crate) fn draw_results(app: &View, ui: &mut Ui, area: (f32, f32, f32), panes: Panes) -> bool {
+    let body = |ui: &mut Ui, at: (f32, f32), w: f32| home_results(app, ui, at, w);
     placed(app, ui, area, &body, panes)
+}
+
+/// Draws the results of the search typed alone, in the place of a
+/// flow's card (`docs/WORKSPACE.md` §4): no This session beside them. The
+/// flow underneath is not drawn, so a secret it shows is gone at once.
+pub(crate) fn draw_results_alone(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
+    let body = |ui: &mut Ui, at: (f32, f32), w: f32| home_results(app, ui, at, w);
+    let (cx, w) = super::pair::pair(cw, app.guide_pane_shown())
+        .map_or_else(|| super::detail_alone(cw), |p| (p.card_x, p.card_w));
+    let top = PANE_TOP_BAR;
+    let tile_h = crate::menu::measure(ui, &mut |ui| tile_content(ui, (0.0, 0.0, w), &body));
+    let clip = ui.rect(x0, 0.0, cw, h);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    tile_surface(ui, (x0 + cx, top, w, tile_h));
+    tile_content(ui, (x0 + cx, top, w), &body);
+    let content = top + tile_h + MARGIN_WIDE;
+    app.scroll.content_h().set(content);
+    ui.region_close(open, content - h);
 }
 
 /// Draws the open row's details placed the same way, on Home: under

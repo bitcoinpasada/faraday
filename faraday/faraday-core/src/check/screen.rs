@@ -49,7 +49,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let page = Page {
         name: EN.compact_check,
         back: true,
-        search: None,
+        search: crate::screens::page_search(app),
         most_columns: usize::MAX,
         fixed_columns: None,
         above: None,

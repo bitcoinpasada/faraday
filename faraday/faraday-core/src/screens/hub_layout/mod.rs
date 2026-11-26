@@ -9,7 +9,7 @@ mod pair;
 mod turn;
 
 pub(crate) use lines::{limits, lines};
-pub(crate) use page::{draw, draw_details, draw_results};
+pub(crate) use page::{draw, draw_details, draw_results, draw_results_alone};
 pub(crate) use turn::{Kind, STEP_MS, page_turn};
 
 use super::session_pane::Mode;

@@ -640,28 +640,32 @@ pub(crate) fn power_menu_sheet(
 /// window (Material's menu: no title, no icons, rows 48 tall, kept inside
 /// the window).
 pub(crate) fn start_menu_sheet(
-    _app: &View,
+    app: &View,
     ui: &mut Ui,
     w: f32,
     h: f32,
     anchor: Option<(i32, i32, i32, i32)>,
 ) {
     use faraday_ui::menu::{Menu, MenuLine};
+    // The way whose flow is on screen is off in the menu, with its reason.
+    let line = |label: &'static str, way: Way, action: Action| {
+        if crate::screens::way_is_here(app.screen, action) {
+            MenuLine::Off(label, EN.home_ways_open_here)
+        } else {
+            MenuLine::Item(label, Action::NavMenu(MenuPress::Way(way)), false)
+        }
+    };
     let lines = [
-        MenuLine::Item(
-            EN.home_ways_new_short,
-            Action::NavMenu(MenuPress::Way(Way::New)),
-            false,
-        ),
-        MenuLine::Item(
+        line(EN.home_ways_new_short, Way::New, Action::CreateWallet),
+        line(
             EN.home_ways_restore_short,
-            Action::NavMenu(MenuPress::Way(Way::Restore)),
-            false,
+            Way::Restore,
+            Action::RestoreWallet,
         ),
-        MenuLine::Item(
+        line(
             EN.home_ways_spend_short,
-            Action::NavMenu(MenuPress::Way(Way::Spend)),
-            false,
+            Way::Spend,
+            Action::Nav(Screen::SpendBackup),
         ),
     ];
     let m = Menu {

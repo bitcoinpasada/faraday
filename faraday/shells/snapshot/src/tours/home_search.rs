@@ -6,7 +6,7 @@ use faraday_core::{Action, Screen};
 use faraday_shell_api::{App, Event};
 
 /// Home's search bar with nothing typed, with "send" typed, with "theme", "orange" and "time" typed
-/// (a Settings card shows), with "quorum" typed (a glossary word shows) and with a word nothing has.
+/// (a Settings card shows), with "quorum" typed (a glossary word shows) and with a word nothing has; then every menu page with the search at one place, and a flow with a search typed over its step.
 pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));
     let find = Action::TypeHere(Here::HomeFind);
@@ -77,5 +77,26 @@ pub(crate) fn home_search_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("tools-find-word")?;
     scroll(t, 400);
     t.shot("tools-find-word-scrolled")?;
+    // The one search stands still on every menu page, and in a flow a search
+    // typed shows its results alone in the card's place.
+    t.press(Action::HomeSearchClear);
+    for (page, name) in [
+        (Screen::Home, "home"),
+        (Screen::Catalog, "tools"),
+        (Screen::Check, "check"),
+        (Screen::WalletsStart, "wallets"),
+        (Screen::Files, "files"),
+        (Screen::Vaults, "vaults"),
+        (Screen::Settings, "settings"),
+    ] {
+        t.press(Action::Nav(page));
+        t.shot(&format!("menu-{name}"))?;
+    }
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::CreateWallet);
+    t.shot("flow-step")?;
+    t.press(find);
+    type_text(t, "sign");
+    t.shot("flow-search")?;
     Ok(())
 }

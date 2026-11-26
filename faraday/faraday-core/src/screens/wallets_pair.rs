@@ -171,7 +171,7 @@ pub(super) fn draw_start(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) 
     let inner = p.card_w - 2.0 * PAD;
     let head = ui.line_as(TITLE_M) + GAP;
     let body = rows_h(app, ui, inner);
-    let ways = offered(super::bar_search::on(app.screen).is_some_and(|(_, w)| w));
+    let ways = offered(super::bar_search::pills_stand(app));
     let ways_h = ways_height((ways.0.len(), ways.1));
     let fit = 2.0 * PAD + head + body + GAP + ways_h;
     let room = (foot - top).max(0.0);
