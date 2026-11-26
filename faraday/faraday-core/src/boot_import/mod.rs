@@ -688,6 +688,12 @@ impl Faraday {
         }
     }
 
+    /// Whether an import of `stick` waits: its list up or not, put off with
+    /// Later or being answered, until it is over.
+    pub(crate) fn import_waits_on(&self, stick: &str) -> bool {
+        self.import.state().is_some_and(|i| i.stick == stick)
+    }
+
     /// Whether the import still waits for the read of a file of `stick`:
     /// the one named `name`, or any for `None`. FAT names match whatever
     /// their case.

@@ -792,7 +792,7 @@ all** above them →
   is as it was, ticks kept; another stick, or this one with other files
   (names or sizes) than it last held while in, takes the list down and the stick is visited as it is;
 - nothing on the medium but the settings file → no list; Home, with no Files on the stick tile (the first look was the visit);
-- while the list is up, Delete files, Write, In Faraday's ticks and the stick's menu are allowed; a listed file that is deleted or no longer on the stick leaves the list, a file written to the stick does not join it, and with none left the import ends (F328). The list draws Delete files, Rename stick and each file's menu as the stick's own card does; a file's Rename onto another file's name, the two listed at one length a vault can have, is refused while the list stands; after Import, a file still being read is not deleted or renamed, nor the whole stick zeroed (F328).
+- while the list is up, Delete files, Write, In Faraday's ticks and the stick's menu are allowed; a listed file that is deleted or no longer on the stick leaves the list, a file written to the stick does not join it, and with none left the import ends (F328). The list draws Delete files, Rename stick and each file's menu as the stick's own card does; a file's Rename onto another file's name, the two listed at one length a vault can have, is refused while the import waits on that stick, the list up or not, after Later too, until the import is over; after Import, a file still being read is not deleted or renamed, nor the whole stick zeroed (F328).
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →
 - opens → Home, whose lead is the next step of what is in Files (a PSBT

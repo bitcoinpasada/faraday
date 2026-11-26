@@ -1330,10 +1330,11 @@ fn renames(app: &mut Faraday) -> Vec<String> {
 }
 
 /// A rename onto a vault of the stick has the disk process read and hash
-/// both files for its answer: it is refused while the list stands, as
-/// Details is, and goes after Later. A free name goes either way.
+/// both files for its answer: it is refused while the import waits, with
+/// the list up and after Later, and goes once the import is over. A free
+/// name goes either way.
 #[test]
-fn a_rename_onto_a_vault_of_the_stick_is_refused_while_the_list_stands() {
+fn a_rename_onto_a_vault_of_the_stick_is_refused_while_the_import_waits() {
     use faraday_core::file_menu::{FilePress as P, Row};
     let mut files = stick_files();
     files.push(("spare.kdbx".into(), spare_vault()));
@@ -1362,8 +1363,77 @@ fn a_rename_onto_a_vault_of_the_stick_is_refused_while_the_list_stands() {
     app.press(Action::Import(I::Later));
     app.press(Action::Nav(Screen::Files));
     assert!(!app.import_tile_up());
+    assert!(app.import().is_some(), "the import waits");
     while app.poll_storage().is_some() {}
     open(&mut app);
+    type_name(&mut app, "spare");
+    assert!(!app.offers(go), "after Later");
+    app.press(go);
+    assert_eq!(renames(&mut app), Vec::<String>::new());
+    type_name(&mut app, "other");
+    tap(&mut app, go);
+    assert_eq!(renames(&mut app), ["other.kdbx"]);
+
+    // The stick back with a listing the import does not hold ends it.
+    let mut now = files.clone();
+    now.push(("new.txt".into(), b"new".to_vec()));
+    pull(&mut app);
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&now)]));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(app.import().is_none(), "the import is over");
+    while app.poll_storage().is_some() {}
+    open(&mut app);
+    type_name(&mut app, "spare");
+    tap(&mut app, go);
+    assert_eq!(renames(&mut app), ["spare.kdbx"]);
+}
+
+/// A second stick takes the list down while the import still waits: a
+/// Rename popup left open still gives no file of the boot stick a vault's
+/// name. A file of another stick is judged by its own stick.
+#[test]
+fn a_rename_onto_a_vault_waits_for_the_import_of_its_own_stick_alone() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let mut files = stick_files();
+    files.push(("spare.kdbx".into(), spare_vault()));
+    let vault = files.iter().position(|(n, _)| n == "vault.kdbx").unwrap();
+    let other = || StickInfo {
+        id: faraday_text::Text::of("other"),
+        boot: false,
+        ..boot_stick(&files)
+    };
+    let go = Action::File(P::RenameGo);
+
+    for listed in [
+        vec![boot_stick(&files), other()],
+        vec![other(), boot_stick(&files)],
+    ] {
+        let mut app = boot_only(&files);
+        tap(&mut app, Action::File(P::Menu(Row::Stick(vault))));
+        tap(&mut app, Action::File(P::Rename(Row::Stick(vault))));
+        type_name(&mut app, "spare");
+        while app.poll_storage().is_some() {}
+        app.storage(StorageEvent::Sticks(listed));
+        let _ = app.frame();
+        assert!(!app.import_tile_up(), "the list is down");
+        assert!(app.import().is_some(), "the import waits");
+        assert_eq!(app.sheet, Some(Sheet::Rename));
+        assert!(!app.offers(go));
+        app.press(go);
+        assert_eq!(renames(&mut app), Vec::<String>::new());
+    }
+
+    // The other stick alone, with the boot stick's import put off.
+    let mut app = boot_only(&files);
+    app.press(Action::Import(I::Later));
+    app.storage(StorageEvent::Sticks(vec![other()]));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(app.import().is_some(), "the import waits");
+    while app.poll_storage().is_some() {}
+    tap(&mut app, Action::File(P::Menu(Row::Stick(vault))));
+    tap(&mut app, Action::File(P::Rename(Row::Stick(vault))));
     type_name(&mut app, "spare");
     tap(&mut app, go);
     assert_eq!(renames(&mut app), ["spare.kdbx"]);

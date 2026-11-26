@@ -627,24 +627,25 @@ impl Faraday {
         if to == r.from {
             return Err(None);
         }
-        // Refused as Details is, with no line: onto a vault of the stick,
-        // the disk process reads and hashes the two files to word its
-        // answer, and nothing of the import's stick is read before Import
-        // (F328 point 2). It reads two files of one vault length, so the
+        // Refused with no line while the import waits on the file's stick,
+        // its list up or not: onto a vault of the stick, the disk process
+        // reads and hashes the two files to word its answer, and nothing of
+        // the import's stick is read for that until the import is over
+        // (F328). It reads two files of one vault length, so the
         // listed sizes say which names those can be: the vaults the
         // listing marks are not all of them.
         if matches!(r.what, Named::File(Row::Stick(_)))
-            && self.import_tile_up()
             && self.renaming_stick(r).is_some_and(|s| {
-                s.files
-                    .iter()
-                    .find(|(n, _)| **n == *r.from)
-                    .is_some_and(|(_, size)| {
-                        faraday_codec::vault_file::is_vault_len(*size)
-                            && s.files.iter().any(|(n, other)| {
-                                **n != *r.from && n.eq_ignore_ascii_case(&to) && other == size
-                            })
-                    })
+                self.import_waits_on(&s.id)
+                    && s.files
+                        .iter()
+                        .find(|(n, _)| **n == *r.from)
+                        .is_some_and(|(_, size)| {
+                            faraday_codec::vault_file::is_vault_len(*size)
+                                && s.files.iter().any(|(n, other)| {
+                                    **n != *r.from && n.eq_ignore_ascii_case(&to) && other == size
+                                })
+                        })
             })
         {
             return Err(None);
