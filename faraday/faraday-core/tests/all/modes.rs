@@ -307,6 +307,22 @@ fn shown_on(app: &mut Faraday, compact: bool) {
     }));
 }
 
+/// Scrolls the wide Settings page as a person would until a segment of
+/// Mode's card, which stands under Appearance's, is offered.
+fn scroll_to_mode_card(app: &mut Faraday) {
+    for _ in 0..20 {
+        if crate::common::offered(app, Action::Mode(Mode::Testnet)) {
+            return;
+        }
+        app.event(Event::Scroll {
+            x: 683,
+            y: 384,
+            dy: 120,
+        });
+    }
+    panic!("Mode's card is never offered");
+}
+
 const PAGES: [Screen; 5] = [
     Screen::Home,
     Screen::Wallets,
@@ -370,10 +386,7 @@ fn on_mainnet_no_pill_shows_and_settings_mode_row_opens_the_sheet_on_the_small_p
         } else {
             // A wide window shows the modes in the card itself.
             assert!(!crate::common::offered(&mut app, Action::ModeSheet));
-            assert!(crate::common::offered(
-                &mut app,
-                Action::Mode(Mode::Testnet)
-            ));
+            scroll_to_mode_card(&mut app);
         }
     }
 }
@@ -427,6 +440,7 @@ fn settings_mode_card_on_a_wide_window_shows_every_mode_and_presses_the_ones_off
     let mut app = demo_app();
     shown_on(&mut app, false);
     app.press(Action::Nav(Screen::Settings));
+    scroll_to_mode_card(&mut app);
     let names = crate::common::texts(&mut app);
     for want in ["Mode", "Practice", "Testnet", "Signet", "Regtest"] {
         assert!(names.iter().any(|t| t == want), "{want}: {names:?}");

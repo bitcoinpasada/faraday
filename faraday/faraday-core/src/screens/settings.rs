@@ -100,11 +100,11 @@ fn choice_row<T: Copy + PartialEq>(
     top + ui.choices_with((cx, top, cw, SEGMENTED_H), LABEL_L.size, &items, on, &dim) - y
 }
 
-/// Settings' sections, in their order (`docs/LAYOUT.md` §17): Mode
-/// first, where a short panel reaches it without scrolling (on Mainnet,
-/// where no pill shows, it is the only door to the sheet), then the rest.
-/// On two columns they read down the first and then the second, divided
-/// where the columns' heights come out closest (owner, 2026-11-21).
+/// Settings' sections, listed in the order of the compact list
+/// (`docs/LAYOUT.md` §17): Mode first, where a short panel reaches it
+/// without scrolling (on Mainnet, where no pill shows, it is the only door
+/// to the sheet), then the rest. The wide tile has its own order,
+/// [`TILE`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Part {
     Mode,
@@ -116,6 +116,16 @@ enum Part {
     Remembered,
     About,
 }
+
+/// The cards in the wide tile's order (`docs/WORKSPACE.md` §9). On two
+/// columns they read down the first and then the second, divided where the
+/// columns' heights come out closest (owner, 2026-11-21).
+const TILE: [Part; 8] = {
+    use Part::*;
+    [
+        Appearance, Mode, Session, Time, Randomness, Display, Remembered, About,
+    ]
+};
 
 /// The sections, the same in every app. The preview size is Faraday
 /// Demo's host's (`docs/DESKTOP-HOST.md`).
@@ -562,7 +572,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let tile = |ui: &mut Ui, (x, y): (f32, f32), w: f32| -> f32 {
         let (ix, iw) = (x + PAD, w - 2.0 * PAD);
         let columns = grid(iw, 2).columns().clamp(1, 2);
-        let cards: Vec<BlockFn> = parts()
+        let cards: Vec<BlockFn> = TILE
             .into_iter()
             .map(|p| {
                 // The card without the gap `part_on` leaves under it.
