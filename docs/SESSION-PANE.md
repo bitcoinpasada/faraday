@@ -31,7 +31,7 @@ with no rows is not drawn:
    is no All keys row and no Make a wallet button.
 2. **Wallets.** Every loaded wallet, a wallet that needs something with the
    warning icon and colour; Backups last, while something is not backed up. A
-   wallet's row has no button.
+   wallet that needs a key carries Add a key (below).
 3. **Waiting** (the band). The jobs of `docs/HOME.md` §2, each one row, always, with keys
    and wallets loaded too: the spend under way, a backup not finished, one row
    for each PSBT in Files that waits to be signed (fewest signatures first),
@@ -90,7 +90,15 @@ when the frame ends), so a lock, a load or a change of the files shows in the
 next frame; the offer reads the Inbox's and the spend's kept answers. A file
 whose kind has no button keeps its row, which opens Files. A split sheet's
 button says Restore (the list's entry says how many sheets), and a PSBT
-keeps the rows of Waiting. A wallet's row still has no button.
+keeps the rows of Waiting.
+
+A wallet's row on Home, Tools and Check carries Add a key while too few of
+its keys are here to sign, but for a silent payments wallet's. With one key
+slot empty the button is Add a key for that slot, which refuses any other
+key; with several, Add a key, which takes any of them. It is dimmed while
+keys cannot be loaded. A press on the rest of the row opens the wallet.
+Vaults' wallet rows have Save instead, and the cards of the phone and the Pi
+keep one press a row.
 
 ### Where it stands, for the change of page
 

@@ -985,3 +985,196 @@ fn files_the_box_ticks_and_the_rest_of_the_row_opens_the_details() {
         }
     }
 }
+
+/// The 2-of-2 or 2-of-3 over the first `n` test seeds.
+fn multi_of(n: usize) -> String {
+    let keys: Vec<String> = (0..n)
+        .map(|k| faraday_core::testkit::key(k, "m/48'/1'/0'/2'") + "/<0;1>/*")
+        .collect();
+    format!("wsh(sortedmulti(2,{}))", keys.join(","))
+}
+
+fn single() -> String {
+    format!(
+        "wpkh({}/<0;1>/*)",
+        faraday_core::testkit::key(0, "m/84'/1'/0'")
+    )
+}
+
+fn add_wallet(app: &mut Faraday, descriptor: &str) {
+    let c = faraday_core::testkit::compute();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Savings",
+            descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("reads");
+}
+
+/// The fingerprint of slot `k` of the first wallet.
+fn slot(app: &Faraday, k: usize) -> [u8; 4] {
+    app.session.slots(&app.session.wallets[0])[k]
+        .fingerprint
+        .expect("a fingerprint")
+        .0
+}
+
+/// The pages whose pane gives a wallet's row its button.
+const ROW_PAGES: [Screen; 3] = [Screen::Home, Screen::Catalog, Screen::Check];
+
+fn go(app: &mut Faraday, page: Screen) {
+    app.press(Action::Nav(page));
+    let _ = app.frame();
+}
+
+/// Whether `action`'s button is drawn inside the first wallet's row.
+fn in_wallet_row(app: &Faraday, action: Action) -> bool {
+    let row = app.hit_box(Action::RowOpen(Row::Wallet(0)));
+    match (row, app.where_offered(action)) {
+        (Some((x, y, w, h)), Some((px, py))) => px >= x && px < x + w && py >= y && py < y + h,
+        _ => false,
+    }
+}
+
+#[test]
+fn a_wallet_with_one_empty_slot_has_add_a_key_for_that_slot() {
+    // A single key's wallet, and a 2-of-2 with one of its keys here.
+    for (descriptor, held) in [(single(), None), (multi_of(2), Some("zebra"))] {
+        let mut app = desktop();
+        if let Some(word) = held {
+            add_key(&mut app, &faraday_core::testkit::test_words(word));
+        }
+        add_wallet(&mut app, &descriptor);
+        let slots = app.session.slots(&app.session.wallets[0]);
+        let k = slots
+            .iter()
+            .position(|s| s.held_by.is_none())
+            .expect("an empty slot");
+        let one = Action::Entry(Some(slot(&app, k)));
+        for page in ROW_PAGES {
+            go(&mut app, page);
+            assert!(in_wallet_row(&app, one), "{page:?} {descriptor}");
+            let at = app.where_offered(one).expect("the button");
+            touch(&mut app, at);
+            assert_eq!(app.screen, Screen::Entry, "{page:?}");
+        }
+    }
+}
+
+#[test]
+fn a_wallet_with_several_empty_slots_has_the_general_add_a_key() {
+    let mut app = desktop();
+    add_wallet(&mut app, &multi_of(3));
+    for page in ROW_PAGES {
+        go(&mut app, page);
+        for k in 0..3 {
+            let one = Action::Entry(Some(slot(&app, k)));
+            assert!(!app.offers(one), "{page:?}");
+        }
+        assert!(in_wallet_row(&app, Action::Entry(None)), "{page:?}");
+    }
+}
+
+#[test]
+fn a_press_beside_add_a_key_opens_the_wallets_details() {
+    for page in ROW_PAGES {
+        let mut app = desktop();
+        add_wallet(&mut app, &single());
+        go(&mut app, page);
+        let details = Action::RowOpen(Row::Wallet(0));
+        let (x, y, _, _) = app.hit_box(details).expect("the row");
+        touch(&mut app, (x + 24, y + 12));
+        assert_eq!(app.screen, page);
+        assert!(shown(&mut app, Action::Backup(0)), "{page:?}: its page");
+    }
+}
+
+#[test]
+fn a_wallet_that_can_spend_has_no_row_button() {
+    let mut app = desktop();
+    add_key(&mut app, &faraday_core::testkit::test_words("bacon"));
+    add_wallet(&mut app, &single());
+    for page in ROW_PAGES {
+        go(&mut app, page);
+        assert!(app.offers(Action::RowOpen(Row::Wallet(0))), "{page:?}");
+        let one = Action::Entry(Some(slot(&app, 0)));
+        assert!(!app.offers(one), "{page:?}");
+        assert!(!in_wallet_row(&app, Action::Entry(None)), "{page:?}");
+    }
+}
+
+#[test]
+fn a_silent_wallet_without_its_key_has_no_row_button() {
+    let c = faraday_core::testkit::compute();
+    let mut keyed = desktop();
+    add_key(&mut keyed, &faraday_core::testkit::test_words("bacon"));
+    keyed.press(Action::Silent);
+    let record = keyed.silent_record(&c).expect("its record");
+    let record = faraday_bip::silent_wallet::SilentWallet::parse(&record).unwrap();
+    let fp = record.fingerprint.0;
+    let mut app = desktop();
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            "silent-0.txt".to_string(),
+            record.to_text().into_bytes(),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    faraday_core::testkit::load_wallet(&mut app, 0);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    for page in ROW_PAGES {
+        go(&mut app, page);
+        assert!(app.offers(Action::RowOpen(Row::Wallet(0))), "{page:?}");
+        assert!(!app.offers(Action::Entry(Some(fp))), "{page:?}");
+        assert!(!in_wallet_row(&app, Action::Entry(None)), "{page:?}");
+    }
+}
+
+#[test]
+fn with_a_stick_attached_the_rows_add_a_key_does_nothing() {
+    let mut app = desktop();
+    add_wallet(&mut app, &single());
+    let one = Action::Entry(Some(slot(&app, 0)));
+    go(&mut app, Screen::Check);
+    let at = app.where_offered(one).expect("the button, no stick");
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: faraday_text::Text::of("a"),
+            label: faraday_text::Text::of("STICK"),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    for page in ROW_PAGES {
+        go(&mut app, page);
+        assert!(!app.offers(one), "{page:?}: dimmed");
+    }
+    go(&mut app, Screen::Check);
+    touch(&mut app, at);
+    assert_ne!(app.screen, Screen::Entry);
+}
+
+#[test]
+fn vaults_wallet_rows_have_no_add_a_key() {
+    let mut app = desktop();
+    // With no vault file, Vaults is its New vault flow.
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![(
+            "cellar.kdbx".to_string(),
+            crate::common::vault("Cellar", "correct horse battery", 1),
+        )]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    add_wallet(&mut app, &single());
+    go(&mut app, Screen::Vaults);
+    assert!(app.offers(Action::OpenWallet(0)), "the wallet's row");
+    assert!(!app.offers(Action::Entry(Some(slot(&app, 0)))));
+}

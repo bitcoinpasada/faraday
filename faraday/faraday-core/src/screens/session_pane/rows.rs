@@ -33,7 +33,10 @@ fn home_groups(app: &View) -> Vec<Group> {
     with_band(
         [
             (EN.session_group_keys, key_rows(app)),
-            (EN.session_group_wallets, wallet_rows(app)),
+            (
+                EN.session_group_wallets,
+                add_key_buttons(app, wallet_rows(app)),
+            ),
         ],
         waiting_rows(app),
     )
@@ -146,6 +149,36 @@ pub(super) fn wallet_rows(app: &View) -> Vec<SessionRow> {
             fill(EN.home_ways_not_backed, &[&without.to_string()]),
             Action::Nav(Screen::Backups),
         ));
+    }
+    rows
+}
+
+/// `rows` with Add a key on each wallet that needs one (`docs/WORKSPACE.md`
+/// §2): not a silent payments wallet, and too few of its keys here to sign.
+/// With one slot empty the button is Add a key for that slot, which refuses
+/// any other key; with several, Add a key, which takes any of them. The
+/// press beyond the button opens the wallet. Vaults' rows have Save
+/// instead, so Home, Tools and Check ask for this and Vaults does not.
+pub(super) fn add_key_buttons(app: &View, mut rows: Vec<SessionRow>) -> Vec<SessionRow> {
+    for r in &mut rows {
+        let Action::OpenWallet(i) = r.action else {
+            continue;
+        };
+        let Some(wl) = app.session.wallets.get(i) else {
+            continue;
+        };
+        if wl.policy().silent().is_some() || app.can_spend(i) {
+            continue;
+        }
+        let slots = app.session.slots(wl);
+        let mut empty = slots.iter().filter(|s| s.held_by.is_none());
+        let only = match (empty.next(), empty.next()) {
+            (Some(slot), None) => slot.fingerprint,
+            _ => None,
+        };
+        r.open = Some(r.action);
+        r.action = Action::Entry(only.map(|fp| fp.0));
+        r.button = Some((EN.wallets_add_a_key, app.may_load_keys()));
     }
     rows
 }

@@ -4,7 +4,7 @@
 //! files to write and Backups are not in it. The rows are the pane's
 //! (`rows`), so a row reads the same here as on Home.
 
-use super::rows::{Group, key_rows, progress_rows, row, wallet_rows, with_band};
+use super::rows::{Group, add_key_buttons, key_rows, progress_rows, row, wallet_rows, with_band};
 use super::{SessionRow, band, card_surface, list_rows, rows_h};
 use crate::drawing::View;
 use crate::strings::EN;
@@ -149,6 +149,11 @@ fn opening(app: &View, groups: &mut [Group]) {
             r.selected = opened == Some(Opened::File(k));
             continue;
         }
+        if let Some(Action::OpenWallet(i)) = r.open {
+            r.open = Some(Action::RowOpen(Row::Wallet(i)));
+            r.selected = opened == Some(Opened::Wallet(i));
+            continue;
+        }
         let (row, now) = match r.action {
             Action::ExploreKey(fp) => (Row::Key(fp), Opened::Key(fp)),
             Action::OpenWallet(i) => (Row::Wallet(i), Opened::Wallet(i)),
@@ -175,6 +180,7 @@ fn built_groups(app: &View, mode: Mode) -> Vec<Group> {
         .into_iter()
         .filter(|r| r.action != Action::Nav(Screen::Backups))
         .collect();
+    let wallets = add_key_buttons(app, wallets);
     let order = match mode {
         Mode::Tools => [Slotted::Keys, Slotted::Wallets, Slotted::Files],
         Mode::Wallets | Mode::Vaults => unreachable!("their groups are built before"),
