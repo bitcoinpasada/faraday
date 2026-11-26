@@ -7,7 +7,7 @@
 use super::wallets::actions::{self, Offer};
 use crate::drawing::View;
 use crate::row_open::Opened;
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Region, Ui};
 use crate::{Action, KeyTool};
@@ -53,9 +53,10 @@ pub(crate) fn bar_when(app: &View, ui: &mut Ui, page: &str, stands: bool) -> f32
 /// Tools) and Sign a message with a single-key wallet of it (not while the
 /// key waits for its backup), Make a wallet from this key, Start a multisig wallet with this
 /// key, Restore with it, Add to vault where the open vault can take it,
-/// check a copy of its words (a key with words) and show its account xpub or
-/// put it in a file (a key in a wallet). A tool that would not take the key
-/// is left out.
+/// check a copy of its words (a key with words), show each account xpub or
+/// put it in a file (a key in a wallet, each pair named by its wallet where
+/// there are several), and last Remove this key. A tool that would not take
+/// the key is left out.
 fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
     let convert = Action::Convert(crate::convert::ConvertAction::OpenOn(fp));
     let tool = |label, tool| actions::offer(label, None, Action::KeyTool(tool, fp));
@@ -128,12 +129,25 @@ fn key_offers(app: &View, fp: [u8; 4]) -> Vec<Offer> {
         let check = Action::CheckKeyCopy(fp);
         offers.push(actions::offer(EN.glance_sheet_scan_my, None, check));
     }
-    if let Some((w, slot)) = crate::screens::session_pane::rows::account_key(app, fp) {
+    let xpubs = crate::screens::session_pane::rows::account_keys(app, fp);
+    for &(w, slot) in &xpubs {
+        // Several xpubs: each pair says which wallet's it is.
+        let of = |plain: &str, named: &str| match app.session.wallets.get(w) {
+            Some(wallet) if xpubs.len() > 1 => fill(named, &[&wallet.name]),
+            _ => fill(plain, &[]),
+        };
         let qr = Action::ShowCode(crate::Code::WalletKey(w, slot));
-        offers.push(actions::offer(EN.glance_sheet_show_xpub, None, qr));
+        let label = of(EN.glance_sheet_show_xpub, EN.glance_sheet_show_xpub_of);
+        offers.push(actions::offer(&label, None, qr));
         let file = Action::WalletKeyOut(w, slot);
-        offers.push(actions::offer(EN.glance_sheet_xpub_file, None, file));
+        let label = of(EN.glance_sheet_xpub_file, EN.glance_sheet_xpub_file_of);
+        offers.push(actions::offer(&label, None, file));
     }
+    offers.push(actions::offer(
+        EN.settings_remove_key,
+        Some(Icon::Trash),
+        Action::RemoveKey(fp),
+    ));
     offers
 }
 

@@ -1526,6 +1526,111 @@ fn a_loose_key_has_no_account_xpub_to_offer() {
     assert!(!app.offers(Action::WalletKeyOut(0, 0)));
 }
 
+/// Test seed 0's account `account` as a wallet's key.
+fn account(account: u32) -> String {
+    let path = format!("m/84'/1'/{account}'");
+    format!("{}/<0;1>/*", faraday_core::testkit::key(0, &path))
+}
+
+/// Test seed 0 held, used by two wallets, its details open.
+fn details_with_two_wallets(first: &str, second: &str) -> (Faraday, [u8; 4]) {
+    let mut app = desktop_of(1400);
+    let words = faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0);
+    let fp = add_key(&mut app, &words);
+    for (name, descriptor) in [("Savings", first), ("Spending", second)] {
+        let c = faraday_core::testkit::compute();
+        app.session
+            .add_wallet_confirmed(
+                &c,
+                name,
+                descriptor,
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
+            .expect("reads");
+    }
+    app.press(Action::Nav(Screen::Catalog));
+    let _ = app.frame();
+    app.press(Action::RowOpen(Row::Key(fp)));
+    let _ = app.frame();
+    (app, fp)
+}
+
+#[test]
+fn a_key_of_two_wallets_with_different_xpubs_has_a_labelled_pair_for_each() {
+    let first = format!("wpkh({})", account(0));
+    let second = format!("wpkh({})", account(1));
+    let (mut app, fp) = details_with_two_wallets(&first, &second);
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    for label in [
+        "Show xpub QR · Savings",
+        "Xpub file · Savings",
+        "Show xpub QR · Spending",
+        "Xpub file · Spending",
+    ] {
+        assert!(texts.iter().any(|t| t == label), "{label}: {texts:?}");
+    }
+    let mut files = Vec::new();
+    for w in 0..2 {
+        let qr = Action::ShowCode(Code::WalletKey(w, 0));
+        assert!(shown(&mut app, qr), "wallet {w}");
+        app.press(qr);
+        let _ = app.frame();
+        assert!(app.qr().is_some(), "no code on screen");
+        app.press(Action::Cancel);
+        assert!(details_of(&mut app, fp));
+        let file = Action::WalletKeyOut(w, 0);
+        assert!(shown(&mut app, file), "wallet {w}");
+        app.press(file);
+        files.push(app.outbox.last().expect("a file").bytes.to_vec());
+    }
+    assert_ne!(files[0], files[1], "each its own wallet's xpub");
+}
+
+#[test]
+fn a_key_of_two_wallets_with_one_xpub_has_one_unlabelled_pair() {
+    let first = format!("wpkh({})", account(0));
+    let second = format!("pkh({})", account(0));
+    let (mut app, _) = details_with_two_wallets(&first, &second);
+    assert!(shown(&mut app, Action::ShowCode(Code::WalletKey(0, 0))));
+    assert!(app.offers(Action::WalletKeyOut(0, 0)));
+    assert!(!app.offers(Action::ShowCode(Code::WalletKey(1, 0))));
+    assert!(!app.offers(Action::WalletKeyOut(1, 0)));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Show xpub QR"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t.starts_with("Show xpub QR ·")));
+}
+
+#[test]
+fn remove_this_key_of_a_key_kept_nowhere_lists_it_and_takes_a_hold() {
+    let mut app = desktop_of(1400);
+    let fp = add_key(&mut app, WORDS);
+    let other = add_key(&mut app, OTHER_WORDS);
+    app.press(Action::Nav(Screen::Catalog));
+    let _ = app.frame();
+    app.press(Action::RowOpen(Row::Key(fp)));
+    assert!(shown(&mut app, Action::RemoveKey(fp)));
+    app.press(Action::RemoveKey(fp));
+    assert_eq!(app.sheet, Some(Sheet::RemoveKey(fp)));
+    assert_eq!(app.session.keys.len(), 2, "a press alone removes nothing");
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Hold to remove"), "{texts:?}");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.keys.len(), 2);
+    assert!(details_of(&mut app, fp));
+    app.press(Action::RemoveKey(fp));
+    app.press(Action::RemoveKeyHold(fp));
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    let left: Vec<[u8; 4]> = app.session.keys.all().map(|k| k.fingerprint.0).collect();
+    assert_eq!(left, [other]);
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(!app.offers(Action::RowClose), "the details stayed");
+}
+
 #[test]
 fn a_used_keys_details_offer_another_form_with_the_key_picked() {
     let (mut app, fp) = used_key_press(|fp| Action::Convert(C::OpenOn(fp)));
@@ -1599,6 +1704,15 @@ fn a_keys_details_offer_add_to_vault_and_it_saves_that_key() {
     let _ = app.frame();
     assert_eq!(records(&app), before + 1, "the vault has the key");
     assert!(!app.offers(save), "offered again");
+    // Kept in a vault now: Remove this key acts at once, its wallet stays.
+    add_wallet(&mut app, &single());
+    app.press(Action::RemoveKey(fp));
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    assert!(app.session.keys.is_empty());
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(!app.offers(Action::RowClose), "the details stayed");
 }
 
 /// Back until the flow on `flow` is left: the key's details are there again.

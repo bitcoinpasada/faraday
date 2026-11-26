@@ -285,9 +285,19 @@ impl Faraday {
     /// nowhere else: in no open vault and with no copy checked, as the
     /// Lock sheet lists it.
     pub(crate) fn keys_kept_nowhere(&self, c: &Compute) -> bool {
-        self.session.keys.all().enumerate().any(|(i, k)| {
-            self.key_vault(c, i).is_none() && !self.seed_copy_checked(c, k.fingerprint.0)
-        })
+        self.session
+            .keys
+            .all()
+            .any(|k| self.key_kept_nowhere(c, k.fingerprint.0))
+    }
+
+    /// Costs a parse of the key's words. Whether key `fp` is held and kept
+    /// nowhere else, by [`Self::keys_kept_nowhere`]'s test.
+    pub(crate) fn key_kept_nowhere(&self, c: &Compute, fp: [u8; 4]) -> bool {
+        self.session
+            .keys
+            .position_of(fp)
+            .is_some_and(|i| self.key_vault(c, i).is_none() && !self.seed_copy_checked(c, fp))
     }
 
     /// The vaults the Inbox and Outbox hold: one row per vault, the

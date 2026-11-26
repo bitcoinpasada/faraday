@@ -29,7 +29,7 @@ pub(crate) struct Offer {
 /// Whether a press of `action` acts where it stands, with no page or flow
 /// opening (F332).
 fn acts_at_once(action: Action) -> bool {
-    matches!(action, Action::RemoveWallet(_))
+    matches!(action, Action::RemoveWallet(_) | Action::RemoveKey(_))
 }
 
 pub(crate) fn offer(label: &str, icon: Option<Icon>, action: Action) -> Offer {
@@ -38,7 +38,7 @@ pub(crate) fn offer(label: &str, icon: Option<Icon>, action: Action) -> Offer {
         icon,
         action,
         opens: !acts_at_once(action),
-        danger: matches!(action, Action::RemoveWallet(_)),
+        danger: matches!(action, Action::RemoveWallet(_) | Action::RemoveKey(_)),
     }
 }
 

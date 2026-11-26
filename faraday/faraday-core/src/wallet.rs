@@ -4558,6 +4558,24 @@ impl Faraday {
         h.finish()
     }
 
+    /// What follows the keys `gone` leaving the session by Remove this
+    /// key or Remove every key. Wallets stay loaded.
+    fn after_keys_removed(&mut self, gone: Vec<faraday_bip::keys::Fingerprint>) {
+        self.wallets.clear_spend();
+        // After the removal: the tab puts back a plain seed that is still
+        // held.
+        for fp in gone {
+            self.restore_key_gone(fp);
+            self.spend_backup_forget_key(fp);
+            self.create.key_removed_with_all(fp.0);
+        }
+        crate::wallet_backup::kef::dropped(self);
+        self.backup_key_removed();
+        if self.spend_backup.state().open.is_some() {
+            self.spend_backup_settle_cards();
+        }
+    }
+
     /// Opens **Published words** when a key held on Mainnet has published
     /// words and no sheet is open. Whether it opened. A lookup over the keys.
     pub(crate) fn published_sheet_open(&mut self) -> bool {
@@ -5302,18 +5320,22 @@ impl Faraday {
                     self.sheet = None;
                 }
                 let gone = self.session.keys.remove_all();
-                self.wallets.clear_spend();
-                // After the removal: the tab puts back a plain seed that
-                // is still held.
-                for fp in gone {
-                    self.restore_key_gone(fp);
-                    self.spend_backup_forget_key(fp);
-                    self.create.key_removed_with_all(fp.0);
+                self.after_keys_removed(gone);
+            }
+            Action::RemoveKey(fp) | Action::RemoveKeyHold(fp) => {
+                if action == Action::RemoveKey(fp) {
+                    let c = self.compute();
+                    if self.key_kept_nowhere(&c, fp) {
+                        self.sheet = Some(crate::Sheet::RemoveKey(fp));
+                        return;
+                    }
                 }
-                crate::wallet_backup::kef::dropped(self);
-                self.backup_key_removed();
-                if self.spend_backup.state().open.is_some() {
-                    self.spend_backup_settle_cards();
+                if self.sheet == Some(crate::Sheet::RemoveKey(fp)) {
+                    self.sheet = None;
+                }
+                let fp = faraday_bip::keys::Fingerprint(fp);
+                if self.session.keys.remove_one(fp) {
+                    self.after_keys_removed(vec![fp]);
                 }
             }
             Action::StartSpend(i) => {

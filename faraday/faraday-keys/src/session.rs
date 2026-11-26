@@ -918,9 +918,29 @@ impl Keys {
 
     /// Drops the published key `fp`, as the caution's Remove does.
     pub fn remove_published(&mut self, fp: Fingerprint) {
-        if let Some(i) = self.position(fp) {
-            self.remove(i);
+        self.remove_one(fp);
+    }
+
+    /// Drops the key `fp` and what is held of it: its published-for-testing
+    /// answer, its place among the keys just added or loaded from a vault,
+    /// and a checked seed or aezeed that is this key. A key swept and a
+    /// SLIP-39 set typed name no fingerprint and stay, as do the marks
+    /// [`Keys::remove_all`] leaves. Whether the key was held.
+    pub fn remove_one(&mut self, fp: Fingerprint) -> bool {
+        let Some(i) = self.position(fp) else {
+            return false;
+        };
+        self.remove(i);
+        if self.check.as_ref().is_some_and(|c| c.fingerprint() == fp) {
+            self.check = None;
         }
+        if self.aezeed.as_ref().is_some_and(|a| a.fingerprint() == fp) {
+            self.aezeed = None;
+        }
+        self.kept_published.retain(|f| *f != fp);
+        self.added.retain(|f| *f != fp);
+        self.from_vault.retain(|f| *f != fp);
+        true
     }
 
     // ---- adding and forgetting ----

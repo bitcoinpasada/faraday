@@ -98,7 +98,8 @@ pub(crate) use settings::part_guide_key as settings_guide_key;
 use sheets::{
     devices_sheet, guide_sheet, idle_warn_sheet, lock_ask_sheet, lock_sheet, locked_sheet,
     new_input_sheet, potential_sheet, power_sheet, published_sheet, pull_sheet, qr_sheet,
-    remove_keys_sheet, scan_sheet, secret_out_sheet, wallet_confirm_sheet, write_out_sheet,
+    remove_key_sheet, remove_keys_sheet, scan_sheet, secret_out_sheet, wallet_confirm_sheet,
+    write_out_sheet,
 };
 use sidebar::sidebar;
 pub(crate) use sidebar::{leave_label, lock_held_tag, name_suffix};
@@ -504,6 +505,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Lock => lock_sheet(app, ui, w, h),
             Sheet::LockAsk => lock_ask_sheet(app, ui, w, h),
             Sheet::RemoveKeys => remove_keys_sheet(app, ui, w, h),
+            Sheet::RemoveKey(fp) => remove_key_sheet(app, ui, w, h, fp),
             Sheet::Power => power_sheet(app, ui, w, h),
             Sheet::Qr => qr_sheet(app, ui, w, h),
             Sheet::Scan => scan_sheet(app, ui, w, h),

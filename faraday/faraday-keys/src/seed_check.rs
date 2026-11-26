@@ -46,6 +46,11 @@ pub(crate) struct HeldCheck {
 }
 
 impl HeldCheck {
+    /// The held key's fingerprint.
+    pub(crate) fn fingerprint(&self) -> Fingerprint {
+        self.facts.fingerprint
+    }
+
     /// What a job that compares reads, for the time it runs: the master
     /// behind the same `Arc`, and a copy of the words, wiped as it drops,
     /// for the key the same words make with no passphrase. No passphrase

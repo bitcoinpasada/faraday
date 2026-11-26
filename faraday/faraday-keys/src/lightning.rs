@@ -164,6 +164,11 @@ pub struct HeldAezeed {
 }
 
 impl HeldAezeed {
+    /// The held seed's fingerprint.
+    pub(crate) fn fingerprint(&self) -> faraday_bip::keys::Fingerprint {
+        self.info.fingerprint
+    }
+
     /// Lends the entropy and master key as a conversion's source.
     pub(crate) fn secrets(&self) -> Secrets<'_> {
         Secrets {

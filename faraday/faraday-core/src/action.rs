@@ -114,6 +114,11 @@ pub enum Action {
     RemoveKeys,
     /// Remove every key from the session, held ([`Action::RemoveKeys`]).
     RemoveKeysHold,
+    /// Remove one key, by fingerprint; a sheet first while it is kept
+    /// nowhere else.
+    RemoveKey([u8; 4]),
+    /// Remove that key, held ([`Action::RemoveKey`]).
+    RemoveKeyHold([u8; 4]),
     /// Start signing the Inbox PSBT at this index.
     StartSpend(usize),
     /// Open or close a step card.
@@ -1163,6 +1168,7 @@ pub fn is_hold(a: Action) -> bool {
             | Action::HoldPowerOff
             | Action::HoldRestart
             | Action::RemoveKeysHold
+            | Action::RemoveKeyHold(_)
             | Action::SecretHold
             | Action::WalletHold
             | Action::PublishedHold
@@ -1764,6 +1770,8 @@ impl Faraday {
             | Action::RemoveWallet(..)
             | Action::RemoveKeys
             | Action::RemoveKeysHold
+            | Action::RemoveKey(..)
+            | Action::RemoveKeyHold(..)
             | Action::StartSpend(..)
             | Action::Step(..)
             | Action::StepNext(..)

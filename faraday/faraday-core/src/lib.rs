@@ -509,6 +509,8 @@ pub enum Sheet {
     /// Remove every key, while a key is kept nowhere else: the list, and
     /// the hold.
     RemoveKeys,
+    /// Remove this key, while it is kept nowhere else: the hold.
+    RemoveKey([u8; 4]),
     /// Power off with files in the Outbox.
     Power,
     /// A QR code, or an animated run of them.

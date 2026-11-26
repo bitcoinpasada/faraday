@@ -335,11 +335,11 @@ pub(crate) fn compact_rows(
     (rest, keys, Some(all))
 }
 
-/// The wallet and slot whose account xpub is key `fp`'s: none where no
-/// wallet writes one, or where its wallets write different ones (one press
-/// cannot say which).
-pub(crate) fn account_key(app: &View, fp: [u8; 4]) -> Option<(usize, u8)> {
-    let mut found = None;
+/// A wallet and slot for each different account xpub the wallets write for
+/// key `fp`, the first wallet that writes it; none where no wallet does.
+pub(crate) fn account_keys(app: &View, fp: [u8; 4]) -> Vec<(usize, u8)> {
+    let mut seen = Vec::new();
+    let mut found = Vec::new();
     for (w, wallet) in app.session.wallets.iter().enumerate() {
         if wallet.policy().silent().is_some() {
             continue;
@@ -348,13 +348,15 @@ pub(crate) fn account_key(app: &View, fp: [u8; 4]) -> Option<(usize, u8)> {
             if key.fingerprint().is_none_or(|f| f.0 != fp) {
                 continue;
             }
+            let Ok(slot) = u8::try_from(slot) else {
+                continue;
+            };
             let text = key.key_text();
-            match &found {
-                None => found = Some((w, u8::try_from(slot).ok()?, text)),
-                Some((_, _, first)) if *first != text => return None,
-                Some(_) => {}
+            if !seen.contains(&text) {
+                seen.push(text);
+                found.push((w, slot));
             }
         }
     }
-    found.map(|(w, slot, _)| (w, slot))
+    found
 }

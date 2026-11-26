@@ -35,6 +35,15 @@ macro_rules! words_screens_settings {
     settings_remove_every_line: "Keys kept nowhere else are lost",
     /// What the sheet says follows.
     settings_remove_every_then: "Every key loaded is removed from memory",
+    /// Row in a key's details, and the title of the sheet it opens while
+    /// the key is kept nowhere else.
+    settings_remove_key: "Remove this key",
+    /// The hold on that sheet.
+    settings_hold_remove_key: "Hold to remove",
+    /// The line above the key on that sheet.
+    settings_remove_key_line: "A key kept nowhere else is lost",
+    /// What that sheet says follows.
+    settings_remove_key_then: "This key is removed from memory",
     /// Button in `settings`.
     settings_power_off_button: "Power off",
     /// Button in `settings` in the desktop app, where there is no power to turn off.

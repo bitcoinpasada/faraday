@@ -648,8 +648,14 @@ window never scrolls as a whole.
    Make a wallet from
    this key, Start a multisig wallet with this key, Restore with the key in it,
    Add to vault while one vault is open that can take it, Scan my copy (a key
-   with words; a match is said where the details stand) and, for a key whose
-   wallets write one account xpub, Show xpub QR and Xpub file; a tool opens
+   with words; a match is said where the details stand), for a key a wallet
+   uses, Show xpub QR and Xpub file (a pair for each different account xpub
+   its wallets write, each labelled with the first wallet that writes it
+   where there are several; a key no wallet uses has none, since its path
+   would be a guess), and last Remove this key, in the error tone: the key
+   leaves the session at once, or, while it is kept nowhere else (in no open
+   vault, no copy checked), after a sheet that names it and its hold; the
+   wallets that use it stay loaded and the details close. A tool opens
    with the key picked; a wallet's are its page; a file's are its shared list, then
    its kind and size as Files says them. A row
    with a button opens them on a press beside the button. The offers end in the chevron where they open a page or flow
@@ -1335,7 +1341,7 @@ button and has the chevron too once its press opens its details (§2). Built: th
 backup line and chart boxes, the wallet's source tag, the sidebar's lock tag, the
 phone's Settings rows, the network pill's arrow (the sidebar layout only), "What you can do", the one
 chevron token (`CHEVRON`, drawn by `Ui::row_chevron`) and the error tone of
-Remove every key, Remove from session and Delete from the stick. **Open:**
+Remove every key, Remove this key, Remove from session and Delete from the stick. **Open:**
 the phone's Home rows (the loaded card in `nav/`), Files' rows, the session
 pane's own chevron, Who signs' one filled button, Delete files' first press,
 and the accent text of `plan/cards.rs` and `screens/entry.rs`; the three lints

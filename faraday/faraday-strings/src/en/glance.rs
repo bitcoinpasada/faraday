@@ -165,6 +165,12 @@ macro_rules! words_glance {
     glance_sheet_show_xpub: "Show xpub QR",
     /// Row in `view`.
     glance_sheet_xpub_file: "Xpub file",
+    /// Row in a key's details with several account xpubs. `{}`: the
+    /// wallet's name.
+    glance_sheet_show_xpub_of: "Show xpub QR · {}",
+    /// Row in a key's details with several account xpubs. `{}`: the
+    /// wallet's name.
+    glance_sheet_xpub_file_of: "Xpub file · {}",
     /// Row in `view`.
     glance_sheet_explore: "Explore this key",
     /// Row in `view`.

@@ -719,6 +719,55 @@ pub(super) fn remove_keys_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
+/// Remove this key, while it is kept nowhere else: that key and the hold.
+pub(super) fn remove_key_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, fp: [u8; 4]) {
+    let Some(k) = app.session.keys.all().find(|k| k.fingerprint.0 == fp) else {
+        return;
+    };
+    // The name as the Lock sheet lists the key. That it is kept nowhere
+    // else was worked out at the press that opened the sheet.
+    let text = crate::wallet::fp_text(k.fingerprint);
+    let name = if k.label.is_empty() || k.label.eq_ignore_ascii_case(&text) {
+        Text::fill(EN.vaults_seed_n, &[&text])
+    } else {
+        Text::of(&k.label)
+    };
+    let line = text!("{} · {}", &*name, EN.vaults_nowhere_else);
+    kept_sheet(
+        app,
+        ui,
+        (w, h),
+        (
+            Icon::Error.into(),
+            Role::Error.paint(),
+            EN.settings_remove_key,
+        ),
+        (EN.settings_remove_key_line, Role::Error.paint(), None, None),
+        &[
+            (
+                EN.kept_sections_wiped,
+                vec![(line, Role::Error.paint(), None)],
+            ),
+            (
+                EN.kept_sections_then,
+                vec![(
+                    Text::of(EN.settings_remove_key_then),
+                    Role::OnSurface.paint(),
+                    None,
+                )],
+            ),
+        ],
+        &[
+            (EN.power_cancel, Style::Secondary, Action::Cancel),
+            (
+                EN.settings_hold_remove_key,
+                Style::Primary,
+                Action::RemoveKeyHold(fp),
+            ),
+        ],
+    );
+}
+
 /// Writing what is For the stick from a session that held a secret: the
 /// lock comes first, and this says what it keeps and wipes.
 pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
