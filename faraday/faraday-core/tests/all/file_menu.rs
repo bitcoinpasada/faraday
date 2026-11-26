@@ -865,6 +865,36 @@ fn a_wallet_file_not_loaded_offers_load_and_the_flows_that_take_it() {
     assert!(menu.iter().any(|l| l == "Spend from backup"), "{menu:?}");
 }
 
+/// The wallet is loaded once on the page: by the summary card, whose heading
+/// is its own, and not by its file's row; the row's menu keeps it.
+#[test]
+fn a_wallet_the_summary_card_loads_has_no_second_load_on_its_files_row() {
+    for size in [(1366, 768, 160), (480, 640, 286)] {
+        let mut app = with_wallet_file(false);
+        app.event(Event::Display(faraday_shell_api::DisplayInfo {
+            width: size.0,
+            height: size.1,
+            dpi: size.2,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
+            memory_mib: None,
+        }));
+        let _ = app.frame();
+        let texts = app.drawn_texts();
+        let n = |t: &str| texts.iter().filter(|x| ***x == *t).count();
+        assert_eq!(n("Found in these files"), 1, "{size:?} {texts:?}");
+        assert!(n("From the stick") <= 1, "{size:?} {texts:?}");
+        assert_eq!(n("Load the wallet"), 1, "the card's, {size:?} {texts:?}");
+    }
+    let mut app = with_wallet_file(false);
+    let menu = menu_of(&mut app, Row::In(0));
+    assert_eq!(menu[0], "Load the wallet", "{menu:?}");
+}
+
 #[test]
 fn a_wallet_file_loaded_offers_no_load_but_back_up_and_spend_from_backup() {
     let mut app = with_wallet_file(true);

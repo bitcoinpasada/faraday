@@ -24,6 +24,8 @@ macro_rules! words_screens_files {
     inbox_panel_more_loaded: "+ {} more, loaded with these",
     /// Text in `inbox_panel`.
     inbox_panel_nothing: "Nothing chosen",
+    /// The summary card's heading, what Faraday found in the files copied in.
+    inbox_panel_found: "Found in these files",
     /// Text in `inbox_panel`.
     inbox_panel_load_the_wallet: "Load the wallet with its seeds",
     /// Text in `inbox_panel`.

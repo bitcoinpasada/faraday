@@ -32,35 +32,20 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
     {
         return 0.0;
     }
-    // Three rows a group at most, so the Inbox and Outbox keep their room.
-    const ROWS: usize = 3;
-    let wrows = wallets.len().min(ROWS);
-    let prows = potential.len().min(ROWS);
-    let qrows = found.waiting.len().min(ROWS);
-    let xrows = found.xpubs.len().min(ROWS);
-    let mut h = 52.0;
-    if !wallets.is_empty() {
-        h += 26.0
-            + wrows as f32 * summary_pitch(wallets.len())
-            + if wallets.len() > ROWS { 22.0 } else { 0.0 }
-            + 54.0;
-    }
-    if !potential.is_empty() {
-        h += 26.0 + prows as f32 * 42.0 + if potential.len() > ROWS { 22.0 } else { 0.0 } + 10.0;
-    }
-    if !found.xpubs.is_empty() {
-        h += 26.0 + xrows as f32 * 42.0 + 10.0;
-    }
-    if !found.waiting.is_empty() {
-        h += 26.0 + qrows as f32 * 40.0 + 6.0;
-    }
+    const ROWS: usize = SUMMARY_ROWS;
+    let h = summary_wide_h(
+        wallets.len(),
+        potential.len(),
+        found.xpubs.len(),
+        found.waiting.len(),
+    );
     // Long, it is one line that opens it whole (an expandable row).
     let long = h > t::VISIT_SUMMARY_FOLD_H;
     if long && !app.inbox.summary_open() {
         return inbox_panel_folded(app, ui, (x, y, w), (wallets.len(), potential.len()));
     }
     ui.card(x, y, w, h, Role::OutlineVariant);
-    summary_head(app, ui, (x, y, w), long.then_some(EN.visit_summary_hide));
+    summary_head(ui, (x, y, w), long.then_some(EN.visit_summary_hide));
     let mut ty = y + 52.0;
     let may = app.may_load_keys();
     if !wallets.is_empty() {
@@ -328,6 +313,47 @@ pub(super) fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
     h
 }
 
+/// Rows a group of the summary at most, so the Inbox and Outbox keep their
+/// room.
+const SUMMARY_ROWS: usize = 3;
+
+/// The open summary's height on the wide layout, for how many wallets, keys,
+/// xpubs and incomplete backups it lists.
+fn summary_wide_h(wallets: usize, potential: usize, xpubs: usize, waiting: usize) -> f32 {
+    let rows = |n: usize| n.min(SUMMARY_ROWS) as f32;
+    let more = |n: usize| if n > SUMMARY_ROWS { 22.0 } else { 0.0 };
+    let mut h = 52.0;
+    if wallets > 0 {
+        h += 26.0 + rows(wallets) * summary_pitch(wallets) + more(wallets) + 54.0;
+    }
+    if potential > 0 {
+        h += 26.0 + rows(potential) * 42.0 + more(potential) + 10.0;
+    }
+    if xpubs > 0 {
+        h += 26.0 + rows(xpubs) * 42.0 + 10.0;
+    }
+    if waiting > 0 {
+        h += 26.0 + rows(waiting) * 40.0 + 6.0;
+    }
+    h
+}
+
+/// The Inbox places of the wallet files the summary on screen lists with its
+/// Load button: their rows have none of their own. None while it is folded.
+pub(super) fn summary_loads(app: &View, compact: bool) -> Vec<usize> {
+    let found = app.inbox_found();
+    let h = summary_wide_h(
+        found.to_load().len(),
+        found.potential().len(),
+        found.xpubs.len(),
+        found.waiting.len(),
+    );
+    if !compact && h > t::VISIT_SUMMARY_FOLD_H && !app.inbox.summary_open() {
+        return Vec::new();
+    }
+    found.files_to_load(SUMMARY_ROWS)
+}
+
 /// A wallet row's height in the open summary: with several wallets each is a
 /// press box of its own, and a row is as tall as the touch floor.
 fn summary_pitch(wallets: usize) -> f32 {
@@ -337,7 +363,7 @@ fn summary_pitch(wallets: usize) -> f32 {
 /// The Inbox summary card's heading at `(x, y, w)`: its icon, its title and,
 /// at the right end, `toggle` when the summary is long, which folds or opens
 /// it. Returns where the title ends.
-fn summary_head(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), toggle: Option<&str>) -> f32 {
+fn summary_head(ui: &mut Ui, (x, y, w): (f32, f32, f32), toggle: Option<&str>) -> f32 {
     let pad = t::SUMMARY_PAD;
     ui.icon(x + pad, y + 18.0, 20.0, Icon::Download, 13.0, Role::Primary);
     let at = (y + t::SUMMARY_HEAD_Y, t::SUMMARY_HEAD_H);
@@ -345,7 +371,7 @@ fn summary_head(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), toggle: Opt
         (x + t::SUMMARY_HEAD_X, at.0, at.1),
         TITLE_M,
         Role::OnSurface,
-        app.medium.from_box(),
+        EN.inbox_panel_found,
     );
     if let Some(label) = toggle {
         let lw = ui.measure_as(LABEL_L, label);
@@ -375,7 +401,7 @@ fn inbox_panel_folded(
     let found = app.inbox_found();
     let h = t::ROW;
     ui.card(x, y, w, h, Role::OutlineVariant);
-    let tw = summary_head(app, ui, (x, y, w), Some(EN.visit_summary_show));
+    let tw = summary_head(ui, (x, y, w), Some(EN.visit_summary_show));
     let mut parts: Vec<Text> = Vec::new();
     for (label, n) in [
         (EN.inbox_panel_wallets, wallets),
@@ -856,7 +882,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             (ix + 28.0, ty - 4.0, 28.0),
             TITLE_M,
             Role::OnSurface,
-            app.medium.from_box(),
+            EN.inbox_panel_found,
         );
         ty += 36.0;
         if !wallets.is_empty() {
