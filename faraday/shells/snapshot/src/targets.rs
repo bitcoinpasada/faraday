@@ -318,6 +318,7 @@ macro_rules! walks {
 walks! {
     walk_default = None,
     walk_spend = Some("spend"),
+    walk_spend_pane = Some("spend-pane"),
     walk_check = Some("check"),
     walk_check_address = Some("check-address"),
     walk_open_tools = Some("open-tools"),
