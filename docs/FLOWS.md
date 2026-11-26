@@ -817,7 +817,7 @@ it stays on Unlock and lists what is waiting. While the backup flow is
 on screen waiting for a stick, there is no idle power-off. From Make a
 new wallet begun until its keys are sealed into their vaults (or its
 backup is done when no stick is written) there is no idle lock, and the
-sidebar says "Auto-lock off until backup complete" (F58); the person's
+sidebar says "Auto-lock off until backed up" (F58); the person's
 own Lock asks first and ends Make a new wallet as its Cancel does. The
 idle power-off is not withheld when Secure Boot is off; it shows no
 sheet, so its reminder to turn Secure Boot back on is the guides' last

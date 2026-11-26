@@ -194,7 +194,7 @@ macro_rules! words_stick_files {
     vaults_lock_read_only: "Read only, closed as it is, nothing to seal",
     /// The pill under Lock while Make a new wallet's keys are kept
     /// nowhere yet.
-    lock_held_pill: "Auto-lock off until backup complete",
+    lock_held_pill: "Auto-lock off until backed up",
     /// The lock and power sheets' wiped line then: the flow ends.
     lock_held_ends: "Make a new wallet · ends",
     /// Text in `line`.

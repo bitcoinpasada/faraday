@@ -1274,7 +1274,7 @@ Where it changes what is drawn today:
   the phone too.
 - **The wallet chart:** a box that opens has a chevron; the others have none.
 - **Facts in a button's outline:** a wallet's "From Vault" and the sidebar's
-  "Auto-lock off until backup complete" are plain tags.
+  "Auto-lock off until backed up" are plain tags.
 - **The phone's Settings and Home:** a row that opens has the chevron, drawn by
   the shared row part.
 - **The network pill** has the small menu arrow on the layout with the sidebar

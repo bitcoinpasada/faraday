@@ -28,7 +28,7 @@ This section shows how many keys are loaded. **Lock** and **Remove every key** a
 
 **Key:** settings.session-keys-kept
 
-A loaded key is in memory only, and nothing is written to the stick or the disk on its own. The lock sheet lists under **Kept** what a lock keeps and under **Wiped from memory** what it wipes, a key kept nowhere else is shown in the error tone. **Lock after** offers 2, 5, 10 or 30 minutes and **Power off after** 10, 20, 30 or 60, 30 and 60 at first; power-off waits while files wait for the stick. From the start of Make a new wallet until its keys are sealed in a vault or its backup is done, the idle lock waits and the sidebar reads **Auto-lock off until backup complete**.
+A loaded key is in memory only, and nothing is written to the stick or the disk on its own. The lock sheet lists under **Kept** what a lock keeps and under **Wiped from memory** what it wipes, a key kept nowhere else is shown in the error tone. **Lock after** offers 2, 5, 10 or 30 minutes and **Power off after** 10, 20, 30 or 60, 30 and 60 at first; power-off waits while files wait for the stick. From the start of Make a new wallet until its keys are sealed in a vault or its backup is done, the idle lock waits and the sidebar reads **Auto-lock off until backed up**.
 
 ## Time
 

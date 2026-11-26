@@ -3133,7 +3133,7 @@ plan today, and neither changes.
   back and matched.
 - **The idle lock.** From Make a new wallet begun until the backup is
   done there is no idle lock (`docs/FLOWS.md`, Lock; F58), and the
-  sidebar says "Auto-lock off until backup complete". On the short path
+  sidebar says "Auto-lock off until backed up". On the short path
   the backup is done at step 2's match; the idle lock comes back then,
   with no change to the rule.
   A plan changed by More ways keeps today's rule (the lock step, where a

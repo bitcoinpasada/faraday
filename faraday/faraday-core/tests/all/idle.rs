@@ -256,7 +256,7 @@ fn make_a_new_wallet_holds_the_idle_lock_and_says_so() {
     assert!(!app.restart_requested());
     let t = app.drawn_texts();
     assert!(
-        t.iter().any(|t| t == "Auto-lock off until backup complete"),
+        t.iter().any(|t| t == "Auto-lock off until backed up"),
         "{t:?}"
     );
 }
@@ -323,7 +323,7 @@ fn once_make_a_new_wallet_ends_the_idle_lock_comes_back() {
     tick(&mut app, 0);
     assert!(tick(&mut app, 30 * MIN).contains(&Command::Exit));
     let t = app.drawn_texts();
-    assert!(!t.iter().any(|t| t == "Auto-lock off until backup complete"));
+    assert!(!t.iter().any(|t| t == "Auto-lock off until backed up"));
 }
 
 #[test]

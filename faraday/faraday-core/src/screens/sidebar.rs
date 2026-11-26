@@ -131,7 +131,7 @@ pub(crate) fn leave_label(app: &View) -> &'static str {
 /// The tag's height.
 pub(crate) const LOCK_TAG_H: f32 = faraday_draw::tokens::TAG_H;
 
-/// "Auto-lock off until backup complete" as a plain neutral tag at (x, y),
+/// "Auto-lock off until backed up" as a plain neutral tag at (x, y),
 /// `w` wide at most: a fact, so no outline and no accent (F332). Returns its
 /// height.
 pub(crate) fn lock_held_tag(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
