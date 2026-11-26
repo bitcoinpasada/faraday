@@ -113,9 +113,10 @@ own.
 
 - **Wallets' right tile** lists only the wallets, then, pinned at the tile's
   foot and neutral, none tonal (owner, 2026-11-24), the rows that the pills do
-  not repeat: with the pills on screen, or the **Start** button that stands for
-  them, one row, Add a key. Where there is neither, all four stand, in two columns, two rows, in Home's order: Make a new
-  wallet, Restore an existing wallet, Spend from a backup, Add a key.
+  not repeat: where the three pills stand, as they do wherever the pair does,
+  one row, Add a key. Where they do not stand, all four, in two columns, two
+  rows, in Home's order: Make a new wallet, Restore an existing wallet, Spend
+  from a backup, Add a key.
   "Keys without a wallet" leaves the tile, since the keys are in the
   pane. Make a new key is reached through New wallet's key pick.
 - **Vaults' right tile** ends with a neutral row (owner, 2026-11-24), "Make a new

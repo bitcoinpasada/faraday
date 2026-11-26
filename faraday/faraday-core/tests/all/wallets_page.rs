@@ -170,26 +170,29 @@ fn way_names() -> [&'static str; 4] {
     ]
 }
 
+/// The pair stands only where the pills do, so the tile leaves out the three
+/// rows they repeat and Add a key is alone.
 #[test]
-fn the_four_ways_stand_in_two_columns_in_homes_order_under_a_short_list() {
+fn under_a_short_list_the_tile_ends_in_add_a_key_alone_where_the_pills_stand() {
     let mut app = with_wallets(1366, 768, &[WORDS], 1);
     let last = top_of(&mut app, "Wallet 0");
-    let tops: Vec<i32> = way_names().iter().map(|n| top_of(&mut app, n)).collect();
-    assert!(
-        tops[0] > last && tops[0] - last < 200,
-        "under the one wallet"
-    );
-    // Two columns, two rows, read across: Make, Restore / Spend, Add.
-    assert!(
-        tops[0] == tops[1] && tops[2] == tops[3] && tops[1] < tops[2],
-        "two rows: {tops:?}"
-    );
-    let left = |a: Action| app.hit_box(a).unwrap().0;
-    assert!(
-        left(Action::CreateWallet) < left(Action::RestoreWallet)
-            && left(Action::Nav(Screen::SpendBackup)) < left(Action::Entry(None)),
-        "two columns"
-    );
+    let add = top_of(&mut app, EN.start_add_a_key);
+    assert!(add > last && add - last < 200, "under the one wallet");
+    let texts = app.drawn_texts();
+    for n in &way_names()[..3] {
+        assert!(
+            !texts.iter().any(|t| t == n),
+            "{n} is a pill's, not a row's"
+        );
+    }
+    for a in [
+        Action::CreateWallet,
+        Action::RestoreWallet,
+        Action::Nav(Screen::SpendBackup),
+        Action::Entry(None),
+    ] {
+        assert!(app.offers(a), "{a:?} stays offered");
+    }
     // Home's pills put the same three first, in the same order.
     let mut home = with_wallets(1920, 1080, &[WORDS], 1);
     home.press(Action::Nav(Screen::Home));
@@ -218,37 +221,29 @@ fn each_way_goes_where_the_same_words_go_elsewhere() {
 }
 
 #[test]
-fn the_ways_are_neutral_rows_with_no_fill() {
+fn add_a_keys_row_is_neutral_with_no_fill() {
     for count in [0, 1, 3] {
         let mut app = with_wallets(1366, 768, &[WORDS, OTHER_WORDS[0], OTHER_WORDS[1]], count);
-        for a in [
-            Action::CreateWallet,
-            Action::RestoreWallet,
-            Action::Nav(Screen::SpendBackup),
-            Action::Entry(None),
-        ] {
-            let _ = app.frame();
-            let (x, y, _, h) = app.hit_box(a).unwrap();
-            let f = app.frame();
-            let px = |x: u16, y: u16| {
-                let i = (usize::from(y) * usize::from(f.width) + usize::from(x)) * 4;
-                [f.rgba[i], f.rgba[i + 1], f.rgba[i + 2]]
-            };
-            // Inside the row, left of its icon, and in the tile just above
-            // it (the rows touch: the row above is neutral too).
-            let inside = px(x + 6, y + h / 2);
-            let tile = px(x + 6, y.saturating_sub(4));
-            assert_eq!(inside, tile, "{a:?} with {count} wallets is not filled");
-        }
+        let a = Action::Entry(None);
+        let _ = app.frame();
+        let (x, y, _, h) = app.hit_box(a).unwrap();
+        let f = app.frame();
+        let px = |x: u16, y: u16| {
+            let i = (usize::from(y) * usize::from(f.width) + usize::from(x)) * 4;
+            [f.rgba[i], f.rgba[i + 1], f.rgba[i + 2]]
+        };
+        // Inside the row, left of its icon, and in the tile just above
+        // it (the rows touch: the row above is neutral too).
+        let inside = px(x + 6, y + h / 2);
+        let tile = px(x + 6, y.saturating_sub(4));
+        assert_eq!(inside, tile, "{a:?} with {count} wallets is not filled");
     }
 }
 
 #[test]
-fn the_page_with_no_wallet_still_offers_the_four_ways_and_says_none_is_loaded() {
+fn the_page_with_no_wallet_says_none_is_loaded_and_offers_add_a_key() {
     let mut app = with_wallets(1366, 768, &[WORDS], 0);
-    for n in way_names() {
-        top_of(&mut app, n);
-    }
+    top_of(&mut app, EN.start_add_a_key);
     top_of(&mut app, EN.wallets_no_wallet_loaded);
 }
 
@@ -304,21 +299,20 @@ fn pane_span(app: &mut Faraday) -> (usize, usize) {
 }
 
 #[test]
-fn the_four_ways_are_pinned_at_the_foot_where_the_list_scrolls() {
+fn add_a_key_is_pinned_at_the_foot_where_the_list_scrolls() {
     // 600 is the lowest window that has the pair; twelve wallets run past it.
     let mut app = with_wallets(1366, 600, &[WORDS, OTHER_WORDS[0]], 12);
-    let row = top_of(&mut app, EN.start_make_a_new_wallet);
-    let last = top_of(&mut app, EN.start_add_a_key);
-    assert!(last > 600 - 100, "at the tile's foot: {last}");
+    let row = top_of(&mut app, EN.start_add_a_key);
+    assert!(row > 600 - 100, "at the tile's foot: {row}");
     let first = top_of(&mut app, "Wallet 0");
-    // The wheel over the tile moves the list under the rows, not the rows.
+    // The wheel over the tile moves the list under the row, not the row.
     app.event(Event::Wheel {
         x: 1000,
         y: 200,
         dy: 120,
     });
     app.settle();
-    assert_eq!(top_of(&mut app, EN.start_make_a_new_wallet), row);
+    assert_eq!(top_of(&mut app, EN.start_add_a_key), row);
     assert!(
         app.drawn_text_boxes().iter().all(|(t, _)| t != "Wallet 0")
             || top_of(&mut app, "Wallet 0") < first,
