@@ -132,6 +132,12 @@ pub(crate) fn runs_in_press(a: Action) -> bool {
                     | V::CopyTo
                     | V::MoveTo
                     | V::Load
+                    // As Load, whose one function loads both: a wallet
+                    // alone is added in the press, and a key's words are
+                    // stretched in the load's job (`docs/WORKERS.md`
+                    // §2.1), which runs within the press where the worker
+                    // is inline (a script). Not timed on a Pi 3B+.
+                    | V::LoadRow(..)
                     | V::LoadAll(_)
                     | V::LoadChosen(_)
                     | V::LoadKeyOf(..)

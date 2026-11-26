@@ -1658,8 +1658,13 @@ pub(crate) fn record_is_key(
     r: RecordView<'_>,
     key: &faraday_keys::KeyInfo,
 ) -> bool {
-    key_identity(c, app, r)
-        .is_some_and(|(fp, id)| *fp == *fp_text(key.fingerprint) && id == key.id.0)
+    key_identity(c, app, r).is_some_and(|i| identity_is(&i, key))
+}
+
+/// Cheap. Whether a key record's identity ([`key_identity`]) is session
+/// key `key`'s.
+fn identity_is((fp, id): &(Text, [u8; 32]), key: &faraday_keys::KeyInfo) -> bool {
+    **fp == *fp_text(key.fingerprint) && *id == key.id.0
 }
 
 /// Costs a PBKDF2 and two elliptic-curve multiplications the first
@@ -3018,12 +3023,7 @@ fn key_rows(app: &View, ui: &mut Ui, r: RecordView<'_>, rows: &mut Rows) {
             false,
         ),
     }
-    let loaded = app
-        .session
-        .keys
-        .all()
-        .find(|k| app.vault_record_is_key(r, k))
-        .map(|k| k.fingerprint);
+    let loaded = session_key_of(app, r);
     let here = loaded.is_some();
     rows.field(
         ui,
@@ -3456,6 +3456,30 @@ pub(crate) fn vault_has_wallet(c: &Compute, app: &Faraday, v: usize, w: &Wallet)
             .described_of(c, o.id, kind::WALLET)
             .any(|(_, _, d)| d.same == want)
     })
+}
+
+/// Costs what `described_rec` costs. Whether the session holds the wallet
+/// record `r` describes, told by its descriptor as
+/// [`crate::wallet::same_wallet`] compares them: a wallet of the same name
+/// with another policy is not it.
+pub(crate) fn record_wallet_loaded(c: &Compute, app: &Faraday, r: RecordView<'_>) -> bool {
+    app.vaults
+        .described_rec(c, r)
+        .is_some_and(|d| app.session.held_wallet(&d.same).is_some())
+}
+
+/// Costs what `vault_key_identity` costs. The session key vault key record
+/// `r` is ([`record_is_key`]), if the session holds it.
+pub(crate) fn session_key_of(
+    app: &View,
+    r: RecordView<'_>,
+) -> Option<faraday_bip::keys::Fingerprint> {
+    let mut keys = app.session.keys.all().peekable();
+    // No key held: the record is not asked for its identity.
+    keys.peek()?;
+    let identity = app.vault_key_identity(r)?;
+    keys.find(|k| identity_is(&identity, k))
+        .map(|k| k.fingerprint)
 }
 
 /// Costs what `vault_key` costs. Whether open vault `v` holds session

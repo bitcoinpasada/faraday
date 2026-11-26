@@ -222,6 +222,12 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
+            "vault_wallet_loaded",
+            Box::new(move |v| {
+                let _ = v.vault_wallet_loaded(record(v, wallet_record));
+            }),
+        ),
+        (
             "record_word_count",
             Box::new(move |v| {
                 let _ = v.record_word_count(record(v, key_record));
@@ -377,10 +383,9 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
-            "vault_record_is_key",
+            "vault_key_identity",
             Box::new(move |v| {
-                let r = record(v, key_record);
-                let _ = v.session.keys.all().any(|k| v.vault_record_is_key(r, k));
+                let _ = v.vault_key_identity(record(v, key_record));
             }),
         ),
         (

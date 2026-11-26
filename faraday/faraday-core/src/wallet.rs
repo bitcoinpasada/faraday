@@ -851,6 +851,12 @@ pub(crate) fn musig_one_seed(policy: &WalletPolicy) -> bool {
 }
 
 impl Session {
+    /// The place of the loaded wallet whose descriptor is `same`
+    /// ([`Wallet::same`]): whether the session holds a wallet.
+    pub(crate) fn held_wallet(&self, same: &str) -> Option<usize> {
+        self.wallets.iter().position(|w| w.same() == same)
+    }
+
     /// A session on `network`.
     pub fn on(network: Network) -> Session {
         Session {
@@ -1212,7 +1218,7 @@ impl Session {
             return Err(refusal);
         }
         let descriptor = same_wallet(&policy);
-        if let Some(i) = self.session_place(&descriptor) {
+        if let Some(i) = self.held_wallet(&descriptor) {
             return Ok(i);
         }
         // No key here is forged: refused above.

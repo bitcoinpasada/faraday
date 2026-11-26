@@ -22,7 +22,7 @@ Each item shows its **Fingerprint**, its **Words** behind an eye, the **SeedQR**
 
 Each wallet shows its chart, with where each seed is kept, and its **Descriptor**. **Backup checklist** opens the wallet's backup checklist. The **Wallet** add row under the kinds adds a wallet loaded in this session. **Search wallets** filters the list by title.
 
-**Open in Wallets** loads it. **Load at unlock** and **Don't load at unlock** set whether it loads when the vault opens, as for a key; a wallet whose seed is in the same vault loads with it. **Show as QR** shows the descriptor as a code, and **Save to a stick** offers its files to write.
+**Open in Wallets** loads it. On a wide screen each key and wallet in the list also ends in **Load**, which loads just that one (a wallet without its seeds), and reads **Loaded** once the session holds it. **Load at unlock** and **Don't load at unlock** set whether it loads when the vault opens, as for a key; a wallet whose seed is in the same vault loads with it. **Show as QR** shows the descriptor as a code, and **Save to a stick** offers its files to write.
 
 ## Entries
 

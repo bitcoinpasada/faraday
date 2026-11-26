@@ -2651,6 +2651,12 @@ pub fn vault_let_go(app: &mut crate::Faraday, o: usize) {
     app.vaults.close_at(o);
 }
 
+/// How many times the open vaults' records were changed, which a row's
+/// Load names.
+pub fn vault_edits(app: &crate::Faraday) -> u64 {
+    app.vaults.edits()
+}
+
 /// Shows open vault `o` in the contents.
 pub fn vault_current(app: &mut crate::Faraday, o: usize) {
     app.vaults.set_current(o);

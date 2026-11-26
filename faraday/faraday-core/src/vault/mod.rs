@@ -760,10 +760,10 @@ impl Faraday {
                     self.vaults.changed(id);
                 }
             }
-            V::Load if !stick::refuses(self, false) => self.vault_load_selected(),
+            V::Load | V::LoadRow(..) if !stick::refuses(self, false) => self.vault_load_press(a),
             V::Edit if !stick::refuses(self, true) => self.vault_form(true),
             V::PromptGo if !stick::refuses(self, false) => self.vault_prompt_go(),
-            V::Load | V::Edit | V::PromptGo => {}
+            V::Load | V::LoadRow(..) | V::Edit | V::PromptGo => {}
             // A vault open to read only has no Add: its page says why.
             V::AddKind(_) | V::Add
                 if self
@@ -1641,7 +1641,7 @@ impl Faraday {
             return None;
         }
         self.vault_loaded_toast(None);
-        self.session.wallets.iter().position(|w| w.same() == &*want)
+        self.session.held_wallet(&want)
     }
 
     /// Shows `counts` (what a load brought in) and, after it, the wallet
@@ -1799,12 +1799,34 @@ impl Faraday {
         }
     }
 
-    fn vault_load_selected(&mut self) {
+    /// Load, from the selected item or from a row of the list. A row's
+    /// press loads its record only if the vault it was drawn from is the
+    /// one shown, no record changed since the draw (`edits`) and the list
+    /// still shows the record (its category and search); the row is not
+    /// selected, the screen stays and a wallet's page is not opened.
+    fn vault_load_press(&mut self, a: VaultAction) {
+        match a {
+            VaultAction::LoadRow(id, at, edits) => {
+                if self.vaults.current_id() == Some(id)
+                    && self.vaults.edits() == edits
+                    && self.vaults.shown(id, self.vaults.category).contains(&at)
+                {
+                    self.vault_load_record(self.vaults.current, at, false);
+                }
+            }
+            _ => {
+                if let Some(at) = self.vault_selected_index() {
+                    self.vault_load_record(self.vaults.current, at, true);
+                }
+            }
+        }
+    }
+
+    /// Loads record `at` of open vault `v`: a key's seed (in a job), or a
+    /// wallet without its keys, opening its page in Wallets when `go`.
+    fn vault_load_record(&mut self, v: usize, at: usize, go: bool) {
         let c = self.compute();
-        let Some(at) = self.vault_selected_index() else {
-            return;
-        };
-        let Some(open) = self.vaults.open.get(self.vaults.current) else {
+        let Some(open) = self.vaults.open.get(v) else {
             return;
         };
         let id = open.id;
@@ -1815,7 +1837,6 @@ impl Faraday {
             kind::KEY => {
                 // The key's words are stretched in a job; the press waits
                 // for the answer.
-                let v = self.vaults.current;
                 let then: load_job::Then = Box::new(move |app, keys, _| {
                     if keys > 0 {
                         let fp = app.session.keys.all().last().map(|k| k.fingerprint);
@@ -1858,8 +1879,10 @@ impl Faraday {
                         {
                             w.merge_key_ticks(&own, &record_ticks(&own, &checked));
                         }
-                        self.wallets.set_wallet(i);
-                        self.screen = Screen::Wallets;
+                        if go {
+                            self.wallets.set_wallet(i);
+                            self.screen = Screen::Wallets;
+                        }
                     }
                     Err(e) => self.toast(&e.text()),
                 }
@@ -4379,7 +4402,7 @@ impl Faraday {
         let name = Text::of(&wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet));
         let policy = crate::wallet::read_wallet(&c, &text).ok()?;
         let same = crate::wallet::same_wallet(&policy);
-        if let Some(i) = self.session.wallets.iter().position(|w| w.same() == &*same) {
+        if let Some(i) = self.session.held_wallet(&same) {
             return Some(f(self, i));
         }
         self.session.wallets.push(crate::wallet::Wallet::new(

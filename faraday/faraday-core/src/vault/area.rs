@@ -3997,6 +3997,12 @@ pub enum VaultAction {
     ToggleLoad,
     /// Load the item into the session.
     Load,
+    /// Load the record at that place of the vault with that id into the
+    /// session from its row of the list, as [`VaultAction::Load`] does for
+    /// the selected one, without selecting it. The third is
+    /// `Vaults::edits` when the row was drawn: a press on a row of an
+    /// older list loads nothing.
+    LoadRow(VaultId, usize, u64),
     /// Edit the item.
     Edit,
     /// Add an item of the current kind.
@@ -4295,8 +4301,7 @@ impl Vaults {
             if described.is_some_and(|d| crate::wallet::musig_one_seed(&d.policy)) {
                 continue;
             }
-            let loaded =
-                described.is_some_and(|d| session.wallets.iter().any(|w| w.same() == &*d.same));
+            let loaded = described.is_some_and(|d| session.held_wallet(&d.same).is_some());
             rows.push(VaultRow {
                 record: i,
                 name: Text::of(&wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet)),

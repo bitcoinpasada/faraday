@@ -465,15 +465,19 @@ fn a_vault_key_reads_in_this_session_only_when_its_own_key_is_loaded() {
         page.contains(faraday_core::strings::EN.vault_not_loaded),
         "{page}"
     );
-    assert!(
-        !page.contains(faraday_core::strings::EN.vault_loaded),
+    // The only Loaded is the mark on the other key's row in the list.
+    assert_eq!(
+        page.matches(faraday_core::strings::EN.vault_loaded).count(),
+        1,
         "{page}"
     );
     // Its own words typed: now it is.
     type_words(&mut app, Language::English, &made);
     let page = key_page(&mut app, 1);
-    assert!(
-        page.contains(faraday_core::strings::EN.vault_loaded),
+    // Its page and the marks on the two rows in the list.
+    assert_eq!(
+        page.matches(faraday_core::strings::EN.vault_loaded).count(),
+        3,
         "{page}"
     );
 }

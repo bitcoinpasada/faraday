@@ -827,6 +827,13 @@ impl View<'_> {
         self.kept(|c| crate::vault::screen::vault_has_wallet(c, self.app, v, w))
     }
 
+    /// Whether the session holds the wallet wallet record `r` describes
+    /// ([`crate::vault::screen::record_wallet_loaded`]). Costs a parse of
+    /// the description the first time after a change.
+    pub(crate) fn vault_wallet_loaded(&self, r: RecordView<'_>) -> bool {
+        self.kept(|c| crate::vault::screen::record_wallet_loaded(c, self.app, r))
+    }
+
     /// How many words key record `r`'s seed has
     /// ([`crate::Faraday::record_word_count`]), as its open vault keeps it
     /// read. Costs a parse of the words the first time.
@@ -1166,11 +1173,11 @@ impl View<'_> {
         self.kept(|c| crate::vault::screen::key_fingerprint(c, self.app, r))
     }
 
-    /// Whether vault key record `r` is session key `key`, told by the
-    /// identity kept with its fingerprint (`vault::screen::record_is_key`).
-    /// Costs what [`Self::vault_key_fingerprint`] costs the first time.
-    pub fn vault_record_is_key(&self, r: RecordView<'_>, key: &faraday_keys::KeyInfo) -> bool {
-        self.kept(|c| crate::vault::screen::record_is_key(c, self.app, r, key))
+    /// A vault key record's fingerprint and master id
+    /// (`vault::screen::key_identity`), kept by the key record's id. Costs
+    /// what [`Self::vault_key_fingerprint`] costs.
+    pub fn vault_key_identity(&self, r: RecordView<'_>) -> Option<(Text, [u8; 32])> {
+        self.kept(|c| crate::vault::screen::key_identity(c, self.app, r))
     }
 }
 

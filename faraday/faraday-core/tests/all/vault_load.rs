@@ -20,10 +20,12 @@ use std::rc::Rc;
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::boot_import::ImportAction as I;
+use faraday_core::strings::EN;
 use faraday_core::testkit;
-use faraday_core::vault::VaultAction as V;
 use faraday_core::vault::load::{LoadCard, LoadView};
+use faraday_core::vault::{CATEGORIES, SearchAct, SearchIn, VaultAction as V};
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
+use faraday_keys::vault::VaultId;
 use faraday_shell_api::{App, Event};
 use faraday_vault::Record;
 use faraday_vault::records::{self, field, kind};
@@ -1120,4 +1122,510 @@ fn the_unlock_after_change_passphrase_offers_the_load_sheet() {
         app.vaults().unlock_error
     );
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad), "no Load sheet");
+}
+
+// ---------------------------------------------------------------------
+// Load on a row of the open vault's list: one press, that record only.
+// ---------------------------------------------------------------------
+
+/// The Cellar open on its contents page with nothing loaded.
+fn cellar_open() -> Faraday {
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    app.press(Action::Vault(V::LoadNotNow));
+    assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
+    app
+}
+
+/// The vault the contents page shows.
+fn shown_vault(app: &Faraday) -> VaultId {
+    app.vaults().current_id().expect("a vault is open")
+}
+
+/// The press of record `at`'s row, as the vault shown draws it now.
+fn row_load(app: &Faraday, at: usize) -> Action {
+    Action::Vault(V::LoadRow(shown_vault(app), at, testkit::vault_edits(app)))
+}
+
+/// The press of the row of the key labelled `label`.
+fn key_row(app: &Faraday, label: &str) -> Action {
+    let at = app
+        .vaults()
+        .store()
+        .contents_for_tests(shown_vault(app))
+        .iter()
+        .position(|r| r.kind == kind::KEY && r.text(field::KEY_LABEL) == Some(label))
+        .expect("the vault keeps the key");
+    row_load(app, at)
+}
+
+/// The press of the row of the wallet named `name`.
+fn wallet_row(app: &Faraday, name: &str) -> Action {
+    let at = app
+        .vaults()
+        .store()
+        .contents_for_tests(shown_vault(app))
+        .iter()
+        .position(|r| r.kind == kind::WALLET && r.text(field::WALLET_NAME) == Some(name))
+        .expect("the vault keeps the wallet");
+    row_load(app, at)
+}
+
+fn says(app: &mut Faraday, text: &str) -> bool {
+    let _ = app.frame();
+    app.drawn_texts().iter().any(|t| t == text)
+}
+
+fn press_load(app: &mut Faraday, a: Action) {
+    testkit::press_on_worker(app, a);
+    testkit::settle(app);
+}
+
+#[test]
+fn load_on_a_key_row_loads_that_key_and_the_row_reads_loaded() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    assert!(app.offers(key_row(&app, "Test key 1")));
+    assert!(app.offers(key_row(&app, "Test key 2")));
+    assert!(!says(&mut app, EN.vault_loaded));
+    let press = key_row(&app, "Test key 1");
+    press_load(&mut app, press);
+    assert_eq!(key_labels(&app), ["Test key 1"], "that key and no other");
+    assert!(app.session.wallets.is_empty());
+    assert_eq!(app.screen, Screen::VaultContents);
+    assert!(says(&mut app, EN.vault_loaded));
+    assert!(
+        !app.offers(key_row(&app, "Test key 1")),
+        "no Load once held"
+    );
+    assert!(
+        app.offers(key_row(&app, "Test key 2")),
+        "the other row keeps its Load"
+    );
+}
+
+#[test]
+fn load_on_a_wallet_row_loads_the_wallet_without_its_keys() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(1)));
+    let _ = app.frame();
+    assert!(app.offers(wallet_row(&app, "Savings")), "Savings");
+    let press = wallet_row(&app, "Savings");
+    press_load(&mut app, press);
+    assert_eq!(wallet_names(&app), ["Savings"]);
+    assert!(app.session.keys.is_empty(), "its keys stay in the vault");
+    assert_eq!(app.screen, Screen::VaultContents, "the place does not move");
+    assert!(says(&mut app, EN.vault_loaded));
+    assert!(!app.offers(wallet_row(&app, "Savings")));
+    assert!(
+        app.offers(wallet_row(&app, "Summer")),
+        "Summer is not loaded"
+    );
+}
+
+#[test]
+fn a_wallet_of_the_same_name_with_another_policy_is_not_loaded() {
+    let c = testkit::compute();
+    let mut app = cellar_open();
+    app.session
+        .add_wallet_confirmed(
+            &c,
+            "Summer",
+            &format!("wpkh({}/<0;1>/*)", testkit::key(1, "m/84'/1'/0'")),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::Vault(V::Category(1)));
+    let _ = app.frame();
+    assert!(app.offers(wallet_row(&app, "Summer")));
+    assert!(!says(&mut app, EN.vault_loaded));
+}
+
+#[test]
+fn a_second_press_on_the_same_row_loads_nothing_twice() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    let press = key_row(&app, "Test key 1");
+    press_load(&mut app, press);
+    press_load(&mut app, press);
+    assert_eq!(key_labels(&app), ["Test key 1"]);
+    app.press(Action::Vault(V::Category(1)));
+    let _ = app.frame();
+    let press = wallet_row(&app, "Summer");
+    press_load(&mut app, press);
+    press_load(&mut app, press);
+    assert_eq!(wallet_names(&app), ["Summer"]);
+}
+
+#[test]
+fn a_press_on_a_row_of_a_list_that_changed_loads_nothing() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    let stale = key_row(&app, "Test key 2");
+    // The vault changes after the draw: a record goes, the ones after it
+    // move up.
+    let id = app.vaults().open[0].id;
+    let gone = app
+        .vaults()
+        .store()
+        .contents_for_tests(id)
+        .iter()
+        .position(|r| r.text(field::KEY_LABEL) == Some("Test key 1"))
+        .unwrap();
+    testkit::vault_edit(&mut app, id, |s| s.remove(id, gone));
+    testkit::vault_changed(&mut app, id);
+    press_load(&mut app, stale);
+    assert!(
+        app.session.keys.is_empty(),
+        "no key, not the one that moved"
+    );
+    let fresh = key_row(&app, "Test key 2");
+    assert_ne!(fresh, stale);
+    press_load(&mut app, fresh);
+    assert_eq!(key_labels(&app), ["Test key 2"], "the row drawn now");
+}
+
+#[test]
+fn a_press_on_a_row_that_is_no_key_or_wallet_loads_nothing() {
+    let entry = Record::new(kind::ENTRY)
+        .with(field::TITLE, b"Mail")
+        .with(field::PASSWORD, b"hunter2");
+    let vault = crate::common::vault_of("Cellar", PHRASE, 0x5d, vec![test_key(0), entry]);
+    let mut app = device(vec![("cellar.kdbx".into(), vault)]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    app.press(Action::Vault(V::LoadNotNow));
+    let category = CATEGORIES
+        .iter()
+        .position(|(_, kinds)| kinds.contains(&kind::ENTRY))
+        .expect("entries have a category");
+    app.press(Action::Vault(V::Category(category)));
+    let _ = app.frame();
+    let at = app
+        .vaults()
+        .store()
+        .contents_for_tests(shown_vault(&app))
+        .iter()
+        .position(|r| r.kind == kind::ENTRY)
+        .expect("the vault keeps the entry");
+    let said = app.toast_text().map(String::from);
+    // The entry's place, then one past the vault's records.
+    for place in [at, 99] {
+        let press = row_load(&app, place);
+        press_load(&mut app, press);
+        assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
+        assert_eq!(app.toast_text().map(String::from), said, "nothing is said");
+    }
+}
+
+/// The Cellar and then the Attic open, nothing loaded, the Cellar's keys
+/// shown, and the press of the row of its Test key 1.
+fn two_open_on_a_cellar_row() -> (Faraday, Action) {
+    // Keys alone, so each place the Cellar's row could name holds one.
+    let attic = (0..8)
+        .map(|n| {
+            loose_key(
+                &testkit::test_words(testkit::TEST_SEEDS[1].0),
+                &format!("Attic {n}"),
+            )
+        })
+        .collect();
+    let mut app = device(vec![
+        ("cellar.kdbx".into(), load_vault()),
+        (
+            "attic.kdbx".into(),
+            crate::common::vault_of("Attic", PHRASE, 0x5e, attic),
+        ),
+    ]);
+    for name in ["cellar.kdbx", "attic.kdbx"] {
+        unlock_on_vaults(&mut app, name, PHRASE);
+        app.press(Action::Vault(V::LoadNotNow));
+    }
+    testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    let press = key_row(&app, "Test key 1");
+    assert!(app.offers(press));
+    // The Attic holds a key at that place.
+    let Action::Vault(V::LoadRow(_, at, _)) = press else {
+        unreachable!()
+    };
+    let attic = app.vaults().open[1].id;
+    assert_eq!(
+        app.vaults().store().contents_for_tests(attic)[at].kind,
+        kind::KEY
+    );
+    (app, press)
+}
+
+#[test]
+fn a_press_on_a_row_of_a_closed_vault_loads_nothing_from_the_one_in_its_place() {
+    let (mut app, press) = two_open_on_a_cellar_row();
+    testkit::vault_let_go(&mut app, 0);
+    testkit::vault_current(&mut app, 0);
+    assert_eq!(app.vaults().open.len(), 1);
+    press_load(&mut app, press);
+    assert!(app.session.keys.is_empty(), "{:?}", key_labels(&app));
+}
+
+#[test]
+fn a_press_on_a_row_after_another_vault_is_shown_loads_nothing() {
+    let (mut app, press) = two_open_on_a_cellar_row();
+    testkit::vault_current(&mut app, 1);
+    press_load(&mut app, press);
+    assert!(app.session.keys.is_empty(), "{:?}", key_labels(&app));
+    // Shown again, the row loads its key.
+    testkit::vault_current(&mut app, 0);
+    press_load(&mut app, press);
+    assert_eq!(key_labels(&app), ["Test key 1"]);
+}
+
+#[test]
+fn a_press_on_a_row_after_the_category_is_switched_loads_nothing() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    let press = key_row(&app, "Test key 1");
+    app.press(Action::Vault(V::Category(1)));
+    press_load(&mut app, press);
+    assert!(app.session.keys.is_empty(), "{:?}", key_labels(&app));
+}
+
+#[test]
+fn a_press_on_a_row_after_the_search_changed_loads_nothing() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(1)));
+    let _ = app.frame();
+    let press = wallet_row(&app, "Savings");
+    app.press(Action::Vault(V::Search(SearchAct::Focus(SearchIn::Items))));
+    type_text(&mut app, "Summer");
+    press_load(&mut app, press);
+    assert!(app.session.wallets.is_empty(), "{:?}", wallet_names(&app));
+}
+
+#[test]
+fn a_press_on_a_row_after_every_vault_is_closed_loads_nothing() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    let press = key_row(&app, "Test key 1");
+    assert!(testkit::vault_lock_one(&mut app, 0));
+    assert!(app.vaults().open.is_empty());
+    press_load(&mut app, press);
+    assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
+}
+
+/// A key file made (one change), the row drawn, a record before its own
+/// removed, and the key file taken back: the vault counts one change
+/// again, and its places have moved.
+#[test]
+fn a_key_file_taken_back_does_not_revive_a_row_drawn_before_a_removal() {
+    let mut app = cellar_open();
+    app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+        [0x21; 32],
+    )));
+    crate::common::top_up(&mut app);
+    app.press(Action::Nav(Screen::VaultContents));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MoreAsk));
+    app.press(Action::Vault(V::VKeyMake));
+    let drawn = app.vaults().open[0].changes;
+    assert_eq!(drawn, 1, "the made key file is the one change");
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    let stale = key_row(&app, "Test key 2");
+    let id = shown_vault(&app);
+    let gone = app
+        .vaults()
+        .store()
+        .contents_for_tests(id)
+        .iter()
+        .position(|r| r.text(field::KEY_LABEL) == Some("Test key 1"))
+        .unwrap();
+    testkit::vault_edit(&mut app, id, |s| s.remove(id, gone));
+    testkit::vault_changed(&mut app, id);
+    let _ = app.frame();
+    app.press(Action::Vault(V::MoreAsk));
+    app.press(Action::Vault(V::VKeyRemove));
+    assert_eq!(app.vaults().open[0].changes, drawn);
+    app.press(Action::Vault(V::Category(0)));
+    press_load(&mut app, stale);
+    assert!(app.session.keys.is_empty(), "{:?}", key_labels(&app));
+}
+
+#[test]
+fn a_wallet_rows_load_in_practice_loads_that_wallet_without_its_keys() {
+    let mut app = cellar_open();
+    testkit::into_demo(&mut app);
+    app.press(Action::Vault(V::Category(1)));
+    let _ = app.frame();
+    let press = wallet_row(&app, "Savings");
+    press_load(&mut app, press);
+    assert_eq!(wallet_names(&app), ["Savings"]);
+    assert!(app.session.keys.is_empty(), "its keys stay in the vault");
+}
+
+#[test]
+fn a_row_load_is_refused_with_a_stick_attached() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(0)));
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: faraday_text::Text::of("a"),
+        label: faraday_text::Text::of("STICK"),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    if app.sheet == Some(Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    let press = key_row(&app, "Test key 1");
+    press_load(&mut app, press);
+    assert!(app.session.keys.is_empty(), "no key with a stick in");
+    app.press(Action::Vault(V::Category(1)));
+    let press = wallet_row(&app, "Summer");
+    press_load(&mut app, press);
+    assert!(app.session.wallets.is_empty(), "no wallet with a stick in");
+}
+
+#[test]
+fn a_row_load_is_refused_while_the_vault_seals() {
+    let mut app = cellar_open();
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    let id = app.vaults().open[0].id;
+    let loose = app
+        .vaults()
+        .store()
+        .contents_for_tests(id)
+        .iter()
+        .position(|r| r.text(field::KEY_LABEL) == Some("Loose B"))
+        .unwrap();
+    testkit::vault_edit(&mut app, id, |s| s.remove(id, loose));
+    testkit::vault_changed(&mut app, id);
+    app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+        [0x21; 32],
+    )));
+    crate::common::top_up(&mut app);
+    let press = key_row(&app, "Test key 1");
+    // A seal of the vault runs; a press meanwhile loads nothing.
+    testkit::hold_worker();
+    assert!(
+        !testkit::vault_lock_one(&mut app, 0),
+        "the seal is under way"
+    );
+    testkit::press_on_worker(&mut app, press);
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(app.session.keys.is_empty(), "no key while the vault seals");
+}
+
+#[test]
+fn a_row_load_in_practice_says_why_a_key_is_left_out() {
+    let mut app = cellar_open();
+    testkit::into_demo(&mut app);
+    app.press(Action::Vault(V::Category(0)));
+    let _ = app.frame();
+    // Loose A is not one of the samples Practice takes.
+    let press = key_row(&app, "Loose A");
+    press_load(&mut app, press);
+    assert!(app.session.keys.is_empty());
+    let said = app.toast_text().unwrap_or_default().to_string();
+    assert!(said.contains("not a sample"), "{said}");
+}
+
+#[test]
+fn a_row_of_a_key_held_with_another_passphrase_state_is_not_loaded() {
+    // The same words twice: alone, and with a passphrase.
+    let vault = crate::common::vault_of(
+        "Cellar",
+        PHRASE,
+        0x5d,
+        vec![test_key(0), test_key(0).with(field::KEY_PASSPHRASE, b"pw")],
+    );
+    for passphrase_first in [true, false] {
+        let mut app = device(vec![("cellar.kdbx".into(), vault.clone())]);
+        unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+        app.press(Action::Vault(V::LoadNotNow));
+        app.press(Action::Vault(V::Category(0)));
+        let _ = app.frame();
+        // The places of the two key records: the words alone, then with
+        // the passphrase.
+        let places: Vec<usize> = app
+            .vaults()
+            .store()
+            .contents_for_tests(app.vaults().open[0].id)
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r.kind == kind::KEY)
+            .map(|(i, _)| i)
+            .collect();
+        let (first, other) = if passphrase_first {
+            (places[1], places[0])
+        } else {
+            (places[0], places[1])
+        };
+        let press = row_load(&app, first);
+        press_load(&mut app, press);
+        let _ = app.frame();
+        let held: Vec<bool> = app.session.keys.all().map(|k| k.has_passphrase).collect();
+        assert_eq!(held, [passphrase_first], "that record's key alone");
+        assert!(!app.offers(row_load(&app, first)), "its row is held");
+        assert!(
+            app.offers(row_load(&app, other)),
+            "the other row is another key"
+        );
+    }
+}
+
+#[test]
+fn a_row_load_moves_neither_the_selection_nor_the_scroll() {
+    // Test keys 1 and 2, then keys enough that the list runs past the
+    // window.
+    let mut records = vec![test_key(0), test_key(1)];
+    for n in 0..24u8 {
+        records.push(loose_key(
+            &testkit::test_words(testkit::TEST_SEEDS[1].0),
+            &format!("Filler {n}"),
+        ));
+    }
+    let records_len = records.len();
+    let mut app = device(vec![(
+        "cellar.kdbx".into(),
+        crate::common::vault_of("Cellar", PHRASE, 0x5d, records),
+    )]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::Vault(V::Category(0)));
+    // The wide list takes no scroll of its own: it starts where the
+    // selected row stays on screen. The last row selected moves it down.
+    // Where each row on screen stands.
+    let rows = |app: &mut Faraday| {
+        app.settle();
+        let _ = app.frame();
+        (0..records_len)
+            .map(|k| app.where_offered(Action::Vault(V::Item(k))))
+            .collect::<Vec<_>>()
+    };
+    app.press(Action::Vault(V::Item(1)));
+    let top = rows(&mut app);
+    app.press(Action::Vault(V::Item(records_len - 1)));
+    let before = rows(&mut app);
+    assert_ne!(before, top, "the list moved");
+    assert!(top[0].is_some() && before[0].is_none(), "past the top");
+    let selected = app.vaults().selected_index();
+    // A row on screen that is not the selected one.
+    let press = key_row(&app, "Filler 22");
+    assert!(app.offers(press));
+    press_load(&mut app, press);
+    assert_eq!(key_labels(&app), ["Filler 22"]);
+    assert_eq!(app.vaults().selected_index(), selected, "the selection");
+    assert_eq!(app.screen, Screen::VaultContents);
+    assert_eq!(rows(&mut app), before, "nothing scrolls");
 }

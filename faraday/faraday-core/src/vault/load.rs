@@ -354,7 +354,7 @@ impl super::Vaults {
                 });
                 let loaded = self
                     .described(c, open.id, i)
-                    .is_some_and(|d| session.wallets.iter().any(|w| w.same() == &*d.same));
+                    .is_some_and(|d| session.held_wallet(&d.same).is_some());
                 W {
                     record: i,
                     name,

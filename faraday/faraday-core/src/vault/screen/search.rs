@@ -7,15 +7,16 @@ use crate::compact::screen::row;
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::pal::*;
-use crate::ui::{Ui, W};
+use crate::ui::{Style, Ui, W};
 use crate::vault::{Focus, OpenVault, SearchAct, SearchIn, VaultAction as V};
-use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, LABEL_L, TITLE_M};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 use faraday_draw::tokens::{
     GAP, GAP_SMALL, PAD, RADIUS_SMALL, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET,
     TOUCH, VAULT_ITEM_GAP, VAULT_ITEM_H, VAULT_ITEM_LINE, VAULT_ITEM_PAD, VAULT_ITEM_TOP,
 };
 use faraday_draw::widgets::Icon;
 use faraday_keys::vault::RecordView;
+use faraday_vault::records::kind;
 
 /// What the bar says while it is empty.
 fn hint(s: SearchIn, category: usize) -> &'static str {
@@ -109,7 +110,8 @@ pub(crate) fn none_line(app: &View) -> &'static str {
 
 /// The items column on a wide window, from (x, y), `w` wide, down to
 /// `bottom`: an item per record, its title whole, wrapped where it does
-/// not fit, and its line under it; the selected one, `sel`, kept in view.
+/// not fit, and its line under it, which on a key or a wallet ends in
+/// Load or Loaded; the selected one, `sel`, kept in view.
 pub(crate) fn item_rows(
     app: &View,
     ui: &mut Ui,
@@ -123,21 +125,37 @@ pub(crate) fn item_rows(
         ui.text_as(x, y, BODY_M, muted, none_line(app));
         return;
     }
+    // A key's or a wallet's row has Load or Loaded at the end of its second
+    // line, under the title: that line keeps the room before it.
+    let ends_in_load = |r: RecordView<'_>| matches!(r.kind(), kind::KEY | kind::WALLET);
+    let tail = if items.iter().any(|r| ends_in_load(*r)) {
+        let wider = ui
+            .measure_as(LABEL_L, EN.vault_load)
+            .max(ui.measure_as(LABEL_L, EN.vault_loaded));
+        wider + 24.0 + VAULT_ITEM_PAD
+    } else {
+        0.0
+    };
     let room = w - 2.0 * VAULT_ITEM_PAD;
-    let row_h = |ui: &Ui, title: &str, mono: bool| {
+    // Such a row is as tall loaded as not: a load moves nothing.
+    let row_h = |ui: &Ui, r: RecordView<'_>, title: &str, mono: bool| {
         let role = if mono { BODY_M.mono() } else { LABEL_L };
         let lines = ui.wrap_lines_as(role, title, room);
-        VAULT_ITEM_H + (lines - 1) as f32 * ui.line_as(role)
+        if ends_in_load(r) {
+            2.0 * VAULT_ITEM_TOP + lines as f32 * ui.line_as(role) + BUTTON_H
+        } else {
+            VAULT_ITEM_H + (lines - 1) as f32 * ui.line_as(role)
+        }
     };
     // The first item drawn: the selected one stays on screen.
     let mut first = sel.min(items.len() - 1);
     let mut used = {
         let (t, _, mono) = item_heading(app, items[first]);
-        row_h(ui, &t, mono) + VAULT_ITEM_GAP
+        row_h(ui, items[first], &t, mono) + VAULT_ITEM_GAP
     };
     while first > 0 {
         let (t, _, mono) = item_heading(app, items[first - 1]);
-        let h = row_h(ui, &t, mono) + VAULT_ITEM_GAP;
+        let h = row_h(ui, items[first - 1], &t, mono) + VAULT_ITEM_GAP;
         if y + used + h > bottom {
             break;
         }
@@ -150,7 +168,7 @@ pub(crate) fn item_rows(
             break;
         }
         let (t, line, mono) = item_heading(app, *r);
-        let h = row_h(ui, &t, mono);
+        let h = row_h(ui, *r, &t, mono);
         let on = k == sel && app.vaults.form.is_none() && !app.vaults.saving;
         ui.fill(
             x,
@@ -172,12 +190,49 @@ pub(crate) fn item_rows(
         let role = if mono { BODY_M.mono() } else { LABEL_L };
         let tx = x + VAULT_ITEM_PAD;
         let title_h = ui.wrap_as((tx, iy + VAULT_ITEM_TOP, room), role, ink, &t);
-        let line_y = iy + VAULT_ITEM_LINE + title_h - ui.line_as(role);
-        let line = ui.fit_as(BODY_S, &line, room);
-        ui.text_as(tx, line_y, BODY_S, muted, &line);
-        ui.press_box(x, iy, w, h, va(V::Item(k)));
+        if ends_in_load(*r) {
+            let band = iy + VAULT_ITEM_TOP + title_h;
+            let line = ui.fit_as(BODY_S, &line, room - tail);
+            ui.text_mid_as((tx, band, BUTTON_H), BODY_S, muted, &line);
+            ui.press_box(x, iy, w, h, va(V::Item(k)));
+            let end = tx + room;
+            let slot = tail - VAULT_ITEM_PAD;
+            load_end(app, ui, *r, (end - slot, band, slot));
+        } else {
+            let line_y = iy + VAULT_ITEM_LINE + title_h - ui.line_as(role);
+            let line = ui.fit_as(BODY_S, &line, room);
+            ui.text_as(tx, line_y, BODY_S, muted, &line);
+            ui.press_box(x, iy, w, h, va(V::Item(k)));
+        }
         iy += h + VAULT_ITEM_GAP;
     }
+}
+
+/// The end of a key's or wallet's second line, `w` wide from x, in a band
+/// [`BUTTON_H`] tall from y: the mark Loaded
+/// where the session holds it, else Load, which loads this record and
+/// nothing else, whether or not the row is selected
+/// ([`V::LoadRow`], stale after any change to the records or once the list
+/// no longer shows it).
+fn load_end(app: &View, ui: &mut Ui, r: RecordView<'_>, (x, y, w): (f32, f32, f32)) {
+    let held = match r.kind() {
+        kind::KEY => super::session_key_of(app, r).is_some(),
+        _ => app.vault_wallet_loaded(r),
+    };
+    if held {
+        ui.text_right_as(
+            (x + w, y, BUTTON_H),
+            LABEL_L,
+            Role::OnSurfaceVariant,
+            EN.vault_loaded,
+        );
+        return;
+    }
+    let Some((id, at)) = r.home() else {
+        return;
+    };
+    let press = va(V::LoadRow(id, at, app.vaults.edits()));
+    ui.button(x, y, Some(w), BUTTON_H, EN.vault_load, Style::Tonal, press);
 }
 
 /// The items on a compact window, from (x, y), `w` wide: a list row each,

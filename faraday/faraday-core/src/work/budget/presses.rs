@@ -198,6 +198,66 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "Save on a key row in Vaults' pane (the vault's own SaveKey): one account-key derivation, as counted when the press runs (the press that adds the record; which call makes it is not named here); drawing works out nothing",
     ),
     (
+        "Vault(LoadRow(",
+        Work::Kdf,
+        1,
+        "a key's row in an open vault loads it as Load does: its words are read and stretched once in the press's job, and a PSBT waiting in Files is inspected again with the key now held",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::MasterKey,
+        1,
+        "a key's row in an open vault loads it as Load does: its words are read and stretched once in the press's job, and a PSBT waiting in Files is inspected again with the key now held",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::KeyDerive,
+        14,
+        "a key's row in an open vault loads it as Load does: its words are read and stretched once in the press's job, and a PSBT waiting in Files is inspected again with the key now held",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::WordsParse,
+        3,
+        "a key's row in an open vault loads it as Load does: its words are parsed three times, by the press as it reads the record into the load's job (vault_load_front), by the job from that phrase before the stretch (parse_words), and after the press as the key added is matched against the made-online marks (note_added_keys, Keys::words_payload)",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::Blind,
+        1,
+        "a key's row in an open vault loads it as Load does: its words are read and stretched once in the press's job, and a PSBT waiting in Files is inspected again with the key now held",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::FileHash,
+        1,
+        "a key's row in an open vault loads it as Load does: its words are read and stretched once in the press's job, and a PSBT waiting in Files is inspected again with the key now held",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::PsbtInspect,
+        1,
+        "a row's Load changes what the session holds, so a PSBT waiting in Files is inspected again, once",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::Address,
+        1,
+        "a wallet's row in an open vault loads that wallet alone as Load does: its description is read once, it is matched against the waiting PSBT, which is inspected again, and its first receive address is derived",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::DescriptorParse,
+        1,
+        "a wallet's row in an open vault loads that wallet alone as Load does: its description is read once, it is matched against the waiting PSBT, which is inspected again, and its first receive address is derived",
+    ),
+    (
+        "Vault(LoadRow(",
+        Work::WalletMatch,
+        1,
+        "a wallet's row in an open vault loads that wallet alone as Load does: its description is read once, it is matched against the waiting PSBT, which is inspected again, and its first receive address is derived",
+    ),
+    (
         "LoadWallet",
         Work::KeyDerive,
         2,
@@ -626,4 +686,42 @@ fn samples_sheet_holds_on(panel: Panel) {
 fn samples_its_sheet_and_load_ticked_do_no_costly_work_beyond_their_budgets() {
     samples_sheet_holds_on(DESKTOP);
     samples_sheet_holds_on(PI);
+}
+
+/// A key's row and a wallet's row of an open vault, pressed in the heavy
+/// session emptied of what it holds, where the walk offers neither, each
+/// against its budget.
+#[test]
+fn a_vault_rows_load_does_no_costly_work_beyond_its_budget() {
+    use crate::vault::VaultAction as V;
+    let c = crate::testkit::compute();
+    let (mut app, _) = walk_on(&c, DESKTOP, &mut |app, _| {
+        app.settle();
+        let _ = app.frame();
+    });
+    for category in 0..2 {
+        app.session.wipe();
+        app.wallets.set_list_changed();
+        on(&mut app, Screen::VaultContents);
+        app.press(Action::Vault(V::Category(category)));
+        app.settle();
+        let _ = app.frame();
+        let row = app
+            .pointer
+            .hits()
+            .iter()
+            .map(|h| h.1)
+            .find(|a| matches!(a, Action::Vault(V::LoadRow(..))))
+            .expect("a row offers Load");
+        let before = snapshot();
+        press_within(&mut app, row, 3);
+        // The budgets go by the action's name, so the key's row's allow a
+        // stretch: a wallet's row makes none.
+        if category == 1 {
+            let did = since(&before);
+            for k in [Work::Kdf, Work::MasterKey] {
+                assert_eq!(did.of(k), 0, "a wallet's row did {k:?}");
+            }
+        }
+    }
 }
