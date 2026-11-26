@@ -1322,7 +1322,24 @@ impl Faraday {
     /// which reads the address `Session::sign_message` checks its signature
     /// against), and keeps it until either changes. A wallet that cannot
     /// sign a message, or an address picked, has none.
+    ///
+    /// First, where what a message was signed with now waits for its key's
+    /// backup, what was made of it is dropped: the signature, the file's
+    /// name and the message kept for **Check it**, each holding the address.
     pub(crate) fn message_address(&mut self, c: &Compute) {
+        let Some(m) = self.message.state.as_ref() else {
+            return;
+        };
+        if m.signed.is_some() && self.message_waits(m.at.as_ref(), m.wallet) {
+            self.message.made = None;
+            if let Some(m) = self.message.state.as_mut() {
+                m.signed = None;
+                m.out_name = None;
+                m.out_sha = None;
+                m.out_refused = false;
+                m.done[mstep::SIGN as usize] = false;
+            }
+        }
         let Some(m) = self.message.state.as_ref() else {
             return;
         };
@@ -1426,6 +1443,21 @@ impl Faraday {
         (self.message_basis(s.wallet).as_ref() == Some(&s.basis)).then_some(s)
     }
 
+    /// Costs what `message_waits_now` costs. Refuses a press of Sign a
+    /// message whose choice waits for its key's backup, saying so where
+    /// the message's errors stand: nothing is signed or made of it.
+    fn message_refused(&mut self, c: &Compute) -> bool {
+        let waits = self
+            .message
+            .state
+            .as_ref()
+            .is_some_and(|m| self.message_waits_now(c, m.at.as_ref(), m.wallet));
+        if waits && let Some(m) = self.message.state.as_mut() {
+            m.error = Some(faraday_text::Text::of(EN.message_waits_backup));
+        }
+        waits
+    }
+
     fn message_do(&mut self, action: Action, c: &Compute) {
         if self.message.edit(&action) {
             if matches!(action, Action::MWallet(_)) {
@@ -1435,7 +1467,7 @@ impl Faraday {
         }
         match action {
             Action::SignMessage => {
-                let first = self.session.message_wallets().first().copied();
+                let first = self.message_offered().first().copied();
                 self.message.state = Some(MessageState {
                     open: Some(mstep::ADDRESS),
                     wallet: first,
@@ -1448,7 +1480,9 @@ impl Faraday {
             // From a wallet's card: that wallet is chosen, the address
             // card done, and the message is next.
             Action::SignMessageWith(wallet) => {
-                if self.session.message_wallets().contains(&wallet) {
+                if self.session.message_wallets().contains(&wallet)
+                    && !self.message_waits_now(c, None, Some(wallet))
+                {
                     self.message_open_at(c, wallet, 0);
                 } else {
                     self.act(Action::SignMessage);
@@ -1472,6 +1506,9 @@ impl Faraday {
                 }
             }
             Action::MSign => {
+                if self.message_refused(c) {
+                    return;
+                }
                 if let Some(m) = self.message.state.as_mut()
                     && (m.at.is_some() || m.wallet.is_some())
                 {
@@ -1510,6 +1547,9 @@ impl Faraday {
                 }
             }
             Action::MOut | Action::MQr => {
+                if self.message_refused(c) {
+                    return;
+                }
                 if let Some(m) = self.message.state.as_ref()
                     && let Some(sig) = m.signed.as_ref()
                 {
@@ -1564,6 +1604,9 @@ impl Faraday {
                 self.list_offset = 0.0;
             }
             Action::CheckMessageMade => {
+                if self.message_refused(c) {
+                    return;
+                }
                 if let Some(m) = self.message.state.as_ref()
                     && let Some(sig) = m.signed.as_ref()
                 {
@@ -1677,6 +1720,10 @@ impl Faraday {
         if !self.session.message_wallets().contains(&wallet) {
             return;
         }
+        if self.message_waits_now(c, None, Some(wallet)) {
+            self.toast(EN.message_waits_backup);
+            return;
+        }
         self.act(Action::SignMessage);
         if let Some(m) = self.message.state.as_mut() {
             m.wallet = Some(wallet);
@@ -1693,9 +1740,15 @@ impl Faraday {
     /// Opens Sign a message on the address `at` of a loaded key, the
     /// address card done: the address check's **Sign a message with this
     /// address** for a find outside a wallet's receive chain. Nothing opens
-    /// for a key that is not loaded.
+    /// for a key that is not loaded, nor for one that waits for its backup,
+    /// which is said.
     pub(crate) fn message_open_path(&mut self, at: crate::wallet::MessageAt) {
         if self.session.keys.position(at.fingerprint).is_none() {
+            return;
+        }
+        let c = self.compute();
+        if self.message_waits_now(&c, Some(&at), None) {
+            self.toast(EN.message_waits_backup);
             return;
         }
         self.act(Action::SignMessage);
@@ -1712,12 +1765,12 @@ impl Faraday {
 
     /// Opens Sign a message with `text` as the message: the read card's
     /// **Sign this message**. Nothing opens for a code that is no UTF-8 or
-    /// when no single-key wallet is loaded.
+    /// when Sign a message offers no wallet ([`Faraday::message_offered`]).
     pub(crate) fn message_open_with(&mut self, text: &[u8]) {
         let Ok(text) = std::str::from_utf8(text) else {
             return;
         };
-        if self.session.message_wallets().is_empty() {
+        if self.message_offered().is_empty() {
             return;
         }
         self.act(Action::SignMessage);
