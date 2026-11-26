@@ -696,12 +696,13 @@ pub(crate) fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
 /// word's number one off.
 pub(crate) fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
     let b = t.app.backup().ok_or("no backup")?;
-    let key = t.app.session.keys.info(b.key).ok_or("no key")?;
+    let at = b.key_at(&t.app.session.keys).ok_or("no key")?;
+    let key = t.app.session.keys.info(at).ok_or("no key")?;
     let words = t
         .app
         .session
         .keys
-        .reveal(b.key, faraday_keys::Reveal::SeedQr);
+        .reveal(at, faraday_keys::Reveal::SeedQr);
     if words.is_empty() {
         return Err("no words".to_string());
     }
@@ -722,7 +723,8 @@ pub(crate) fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result
 /// each, `count` words of it (all when `None`).
 pub(crate) fn type_words(t: &mut Tour, count: Option<usize>) -> Result<(), String> {
     let b = t.app.backup().ok_or("no backup")?;
-    let key = t.app.session.keys.info(b.key).ok_or("no key")?;
+    let at = b.key_at(&t.app.session.keys).ok_or("no key")?;
+    let key = t.app.session.keys.info(at).ok_or("no key")?;
     if !key.has_words() {
         return Err("no words".to_string());
     }
@@ -730,7 +732,7 @@ pub(crate) fn type_words(t: &mut Tour, count: Option<usize>) -> Result<(), Strin
         .app
         .session
         .keys
-        .reveal(b.key, faraday_keys::Reveal::CopyByHand)
+        .reveal(at, faraday_keys::Reveal::CopyByHand)
         .to_string();
     for w in words.split_whitespace().take(count.unwrap_or(usize::MAX)) {
         for c in w.chars().chain([' ']) {
