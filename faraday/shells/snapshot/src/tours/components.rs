@@ -136,6 +136,7 @@ fn rail(ui: &mut Ui<u8>) {
         action,
         current,
         badge: Badge::None,
+        flows: 0,
     };
     let top = [dest("Home", true, 5), dest("Wallets", false, 6)];
     (ui.ox, ui.oy) = (640.0, 380.0);

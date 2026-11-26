@@ -75,7 +75,6 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // The tabs are a touch target tall each, from just under the name.
     let mut y = 64.0;
     let (x, w) = (12.0, SIDEBAR_W - 24.0);
-    let flows = app.flows_in_progress();
     let lit = crate::nav::lit_with_flow(app);
     // Each tab is one of Material's destinations: icon and label in a
     // row, the current one on a pill (`docs/LAYOUT.md` §3).
@@ -91,12 +90,9 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                 Action::Nav(s) => crate::nav::screen::badge_of(app, s),
                 _ => faraday_ui::nav::Badge::None,
             },
+            flows: crate::nav::screen::flows_of(app, action),
         };
-        let n = match action {
-            Action::Nav(s) => flows.iter().filter(|r| r.tab == s).count(),
-            _ => 0,
-        };
-        faraday_ui::nav::destination_row(ui, (x, y, w), &d, None, n);
+        faraday_ui::nav::destination_row(ui, (x, y, w), &d, None);
     };
     for (icon, label, screen) in items.into_iter().chain(tail) {
         // A flow lights the tab it belongs to, Spend from a backup the one

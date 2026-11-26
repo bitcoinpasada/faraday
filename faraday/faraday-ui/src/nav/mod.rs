@@ -47,6 +47,8 @@ pub struct Dest<'s, A> {
     pub current: bool,
     /// What waits there, on its icon.
     pub badge: Badge,
+    /// How many flows in progress stand there, on its icon too.
+    pub flows: usize,
 }
 
 /// Material's badge on a destination's icon: a small dot where something
@@ -78,28 +80,70 @@ pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge:
             ui.c.note(faraday_draw::canvas::InkKind::Dot, r);
         }
         Badge::Count(n) => {
-            let label = if n > 999 {
-                EN.nav_badge_many.to_string()
-            } else {
-                n.to_string()
-            };
-            let label = label.as_str();
-            let h = BADGE_LARGE;
-            let w = (ui.measure(BADGE_LABEL, W::S, label) + 2.0 * BADGE_PAD).max(h);
-            let (x, y) = (gx + gs / 2.0, gy - h / 2.0);
-            ui.fill(x, y, w, h, h / 2.0, crate::pal::BADGE);
-            let tw = ui.measure(BADGE_LABEL, W::S, label);
-            ui.text_mid(
-                x + (w - tw) / 2.0,
-                y,
-                h,
-                BADGE_LABEL,
-                W::S,
-                crate::pal::ON_BADGE,
-                label,
-            );
+            let label = count_label(n);
+            let at = (gx + gs / 2.0, gy - BADGE_LARGE / 2.0);
+            count_pill(ui, at, &label, crate::pal::BADGE, crate::pal::ON_BADGE);
         }
     }
+}
+
+/// A large badge's count as it is written.
+fn count_label(n: usize) -> String {
+    if n > 999 {
+        EN.nav_badge_many.to_string()
+    } else {
+        n.to_string()
+    }
+}
+
+/// A large badge's width for `label`.
+fn count_width<A: Copy + PartialEq>(ui: &mut Ui<A>, label: &str) -> f32 {
+    (ui.measure(BADGE_LABEL, W::S, label) + 2.0 * BADGE_PAD).max(BADGE_LARGE)
+}
+
+/// A large badge's pill at `(x, y)`, `label` centred in it.
+fn count_pill<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x, y): (f32, f32),
+    label: &str,
+    fill: impl Into<Paint>,
+    ink: impl Into<Paint>,
+) {
+    let h = BADGE_LARGE;
+    let w = count_width(ui, label);
+    ui.fill(x, y, w, h, h / 2.0, fill.into());
+    let tw = ui.measure(BADGE_LABEL, W::S, label);
+    ui.text_mid(
+        x + (w - tw) / 2.0,
+        y,
+        h,
+        BADGE_LABEL,
+        W::S,
+        ink.into(),
+        label,
+    );
+}
+
+/// The mark of `flows` in progress on a rail's or the bar's icon: a pill
+/// in the primary colour at the corner, beside the destination's own
+/// badge `own` where it has one (`docs/WORKSPACE.md` §16).
+fn flow_pill<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (gx, gy, gs): (f32, f32, f32),
+    own: Badge,
+    flows: usize,
+) {
+    if flows == 0 {
+        return;
+    }
+    let corner = gx + gs / 2.0;
+    let x = match own {
+        Badge::None | Badge::Count(0) => corner,
+        Badge::Dot => gx + gs + BADGE_SMALL / 2.0 + GAP_SMALL,
+        Badge::Count(n) => corner + count_width(ui, &count_label(n)) + GAP_SMALL,
+    };
+    let at = (x, gy - BADGE_LARGE / 2.0);
+    count_pill(ui, at, &count_label(flows), Role::Primary, Role::OnPrimary);
 }
 
 /// The height a destination's pill and label take together, its label's
@@ -136,7 +180,9 @@ fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: 
     let ix = x + (w - NAV_PILL_H) / 2.0;
     ui.icon(ix, top, NAV_PILL_H, d.icon, NAV_ICON, icon_fg);
     let inset = (NAV_PILL_H - NAV_ICON) / 2.0;
-    badge(ui, (ix + inset, top + inset, NAV_ICON), d.badge);
+    let glyph = (ix + inset, top + inset, NAV_ICON);
+    badge(ui, glyph, d.badge);
+    flow_pill(ui, glyph, d.badge, d.flows);
     // Material's label medium, the current destination's heavier.
     let role = if d.current {
         LABEL_M

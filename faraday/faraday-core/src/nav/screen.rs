@@ -41,6 +41,20 @@ fn dest<'s>(
             Action::Nav(s) => badge_of(app, s),
             _ => Badge::None,
         },
+        flows: flows_of(app, action),
+    }
+}
+
+/// How many flows in progress stand under the destination `action` opens:
+/// its flow mark's number (`docs/WORKSPACE.md` §16). Reads the state.
+pub(crate) fn flows_of(app: &View, action: Action) -> usize {
+    match action {
+        Action::Nav(s) => app
+            .flows_in_progress()
+            .iter()
+            .filter(|r| r.tab == s)
+            .count(),
+        _ => 0,
     }
 }
 

@@ -20,6 +20,7 @@ fn destinations(starter: &Starter) -> [fnav::Dest<'static, Action>; 4] {
             action: action.host(),
             current: at == Some(here),
             badge: fnav::Badge::None,
+            flows: 0,
         };
     [
         one(

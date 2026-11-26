@@ -24,6 +24,7 @@ use crate::glance::{Now, Reads};
 use crate::plan::At;
 use crate::spend_backup::{CardId, Open};
 use crate::strings::EN;
+use crate::trail::Spot;
 use crate::{BStage, Faraday, Screen};
 use faraday_draw::tokens::BODY_M;
 
@@ -67,6 +68,9 @@ pub struct Row {
 #[derive(Debug, Default)]
 pub(crate) struct InProgress {
     begun: Vec<(Going, Screen)>,
+    /// The screens behind each flow, as Back's trail held them when it was
+    /// last on show: what resuming it puts back.
+    ways: Vec<(Going, Vec<Spot>)>,
     /// The Home search's result pressed to open what is on show.
     search: Option<SearchPlace>,
 }
@@ -86,7 +90,8 @@ struct SearchPlace {
     fresh: bool,
 }
 
-/// Holds nothing a lock wipes: which flows were begun, by screen.
+/// Holds nothing a lock wipes: which flows were begun, by screen, and the
+/// screens gone through to them.
 impl crate::at_lock::Public for InProgress {}
 
 impl InProgress {
@@ -104,6 +109,7 @@ impl InProgress {
     /// over is begun again, last.
     pub(crate) fn note(&mut self, now: Vec<Going>, screen: Screen, on_screen: Option<Going>) {
         self.begun.retain(|(g, _)| now.contains(g));
+        self.ways.retain(|(g, _)| now.contains(g));
         for g in now {
             if !self.begun.iter().any(|(n, _)| *n == g) {
                 self.begun.push((g, screen));
@@ -113,6 +119,32 @@ impl InProgress {
             && let Some(e) = self.begun.iter_mut().find(|(n, _)| *n == g)
         {
             e.1 = screen;
+        }
+    }
+
+    /// Keeps `way`, the screens behind flow `g`, which is on show.
+    pub(crate) fn keep_way(&mut self, g: Going, way: &[Spot]) {
+        if self.left_on(g).is_none() {
+            return;
+        }
+        match self.ways.iter_mut().find(|(n, _)| *n == g) {
+            Some((_, w)) if w.as_slice() != way => *w = way.to_vec(),
+            Some(_) => {}
+            None => self.ways.push((g, way.to_vec())),
+        }
+    }
+
+    /// The screens behind flow `g` when it was last on show.
+    fn way(&self, g: Going) -> Option<&[Spot]> {
+        let kept = self.ways.iter().find(|(n, _)| *n == g);
+        kept.map(|(_, w)| w.as_slice())
+    }
+
+    /// Wallet `gone` left the session list: the places in the ways kept
+    /// follow it.
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
+        for s in self.ways.iter_mut().flat_map(|(_, w)| w) {
+            s.wallet_left(gone);
         }
     }
 
@@ -174,7 +206,9 @@ impl InProgress {
     /// numbered one lower.
     pub(crate) fn flow_removed(&mut self, i: usize) {
         self.begun.retain(|(g, _)| *g != Going::Flow(i));
-        for (g, _) in &mut self.begun {
+        self.ways.retain(|(g, _)| *g != Going::Flow(i));
+        let begun = self.begun.iter_mut().map(|(g, _)| g);
+        for g in begun.chain(self.ways.iter_mut().map(|(g, _)| g)) {
             if let Going::Flow(k) = g
                 && *k > i
             {
@@ -449,10 +483,23 @@ impl Faraday {
             Going::Flow(i) if i < self.flows.len() => self.flow_show(i),
             _ => {}
         }
-        // Opened again from where the person is now: Back goes there, not
-        // to where the flow was first opened from (F77).
+        self.flow_way_back(g);
+    }
+
+    /// Flow `g` is opened again: Back, Cancel and Done lead to the page it
+    /// was first begun from (F77; `docs/WORKSPACE.md` §16), by the screens
+    /// that were behind it when it was left. The screen it is resumed from
+    /// is not one of them. Where none were kept, the trail stays as it is
+    /// but for the flow's own screen.
+    pub(crate) fn flow_way_back(&mut self, g: Going) {
+        if self.flow_on_screen() != Some(g) {
+            return;
+        }
         let here = self.screen;
-        self.trail.drop_screen(here);
+        match self.in_progress.way(g) {
+            Some(way) => self.trail.resume_way(way, here),
+            None => self.trail.drop_screen(here),
+        }
     }
 
     /// To a screen as the sidebar goes there.

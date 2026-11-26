@@ -209,6 +209,20 @@ impl Trail {
         self.returning = true;
     }
 
+    /// The screens on the trail, the last left last.
+    pub(crate) fn way(&self) -> &[Spot] {
+        &self.trail
+    }
+
+    /// A flow opened again on `here`: the trail is `way`, the screens that
+    /// were behind it, up to `here` where it is one of them. The screen
+    /// the input left does not go on it.
+    pub(crate) fn resume_way(&mut self, way: &[Spot], here: Screen) {
+        let end = way.iter().position(|s| s.screen == here);
+        self.trail = way[..end.unwrap_or(way.len())].to_vec();
+        self.backing = true;
+    }
+
     /// How many screens are on the trail.
     pub(crate) fn depth(&self) -> usize {
         self.trail.len()
@@ -432,7 +446,7 @@ const GONE: usize = usize::MAX;
 impl Spot {
     /// Wallet `gone` left the session list: the card shown moves up with
     /// the wallets after it, and is none when it is the one gone.
-    fn wallet_left(&mut self, gone: usize) {
+    pub(crate) fn wallet_left(&mut self, gone: usize) {
         if self.wallet == GONE {
             return;
         }
@@ -539,6 +553,9 @@ impl Faraday {
     /// Home empties it.
     pub(crate) fn trail_note(&mut self) {
         self.trail.note_done(self.screen);
+        if let Some(g) = self.flow_on_screen() {
+            self.in_progress.keep_way(g, self.trail.way());
+        }
         self.search_after();
     }
 

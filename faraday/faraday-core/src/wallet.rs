@@ -4965,6 +4965,7 @@ impl Faraday {
         }
         crate::seeds::kef::kef_wallet_left(self, gone);
         self.trail.wallet_left(gone);
+        self.in_progress.wallet_left(gone);
         self.explore.wallet_left(gone);
         self.tools.address_check.wallet_left(gone);
         self.import.wallet_left(gone);

@@ -249,9 +249,9 @@ fn on_a_small_panel_back_goes_to_tools_not_home() {
 }
 
 #[test]
-fn a_flow_reached_again_from_the_sidebar_goes_back_to_where_it_was_resumed() {
+fn a_resumed_flow_goes_back_to_the_page_it_was_first_begun_from() {
     let mut app = with(1, 1280, 800);
-    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::Nav(Screen::Home));
     app.press(Action::SignMessage);
     app.press(Action::MNext(faraday_core::mstep::ADDRESS));
     app.press(Action::Nav(Screen::Files));
@@ -261,7 +261,7 @@ fn a_flow_reached_again_from_the_sidebar_goes_back_to_where_it_was_resumed() {
     tap_back(&mut app);
     assert_eq!(app.screen, Screen::Message);
     tap_back(&mut app);
-    assert_eq!(app.screen, Screen::Files);
+    assert_eq!(app.screen, Screen::Home);
 }
 
 #[test]

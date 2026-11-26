@@ -341,6 +341,25 @@ fn a_flow_in_progress_is_a_number_on_its_tab_and_no_row() {
 #[test]
 fn the_flow_number_stands_beside_a_tabs_own_badge() {
     use faraday_core::vault::{VaultAction as V, vstep};
+    let mut app = with_a_vault_open();
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(marks(&mut app, "Vaults"), ["1"], "its own badge alone");
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    app.press(Action::Vault(V::CCustomise));
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    app.press(Action::Vault(V::CNext(vstep::COST)));
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(
+        marks(&mut app, "Vaults"),
+        ["1", "1"],
+        "its own badge and the flow's, one under the other"
+    );
+}
+
+/// The test vault unlocked with its ticked items loaded: Vaults' own badge.
+fn with_a_vault_open() -> Faraday {
+    use faraday_core::vault::VaultAction as V;
     let vault = testkit::test_vault().unwrap();
     let mut app = with(0, 0);
     app.storage(faraday_core::StorageEvent::Restored {
@@ -366,19 +385,69 @@ fn the_flow_number_stands_beside_a_tabs_own_badge() {
     }
     assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Vault(V::LoadTicked));
+    app
+}
+
+/// On the phone's bar too a tab shows its own badge's number and the
+/// number of flows in progress there.
+#[test]
+fn the_phone_bar_shows_the_flow_number_beside_a_tabs_own_badge() {
+    use faraday_core::vault::{VaultAction as V, vstep};
+    let mut app = with_a_vault_open();
+    phone(&mut app);
     app.press(Action::Nav(Screen::Settings));
-    assert_eq!(marks(&mut app, "Vaults"), ["1"], "its own badge alone");
+    assert_eq!(bar_marks(&mut app, "Vaults"), ["1"], "its own badge alone");
+    assert!(bar_marks(&mut app, "Tools").is_empty());
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     app.press(Action::Vault(V::CCustomise));
     app.press(Action::Vault(V::CNext(vstep::WHERE)));
     app.press(Action::Vault(V::CNext(vstep::COST)));
     app.press(Action::Nav(Screen::Settings));
-    assert_eq!(
-        marks(&mut app, "Vaults"),
-        ["1", "1"],
-        "its own badge and the flow's, one under the other"
-    );
+    assert_eq!(bar_marks(&mut app, "Vaults"), ["1", "1"]);
+}
+
+fn phone(app: &mut Faraday) {
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+/// The numbers drawn on the icon of the phone bar's destination `label`,
+/// left to right.
+fn bar_marks(app: &mut Faraday, label: &str) -> Vec<String> {
+    app.settle();
+    let _ = app.frame();
+    let boxes = app.drawn_text_boxes().plain();
+    // The bar is at the window's foot: the lowest such text.
+    let (lx, ly, lw, _) = boxes
+        .iter()
+        .filter(|(t, _)| t == label)
+        .max_by_key(|(_, b)| b.1)
+        .unwrap_or_else(|| panic!("no {label} on the bar"))
+        .1;
+    // A fifth of the window is the destination's own width.
+    let middle = lx + lw / 2;
+    let mut v: Vec<(i32, String)> = boxes
+        .iter()
+        .filter(|(t, (x, y, w, _))| {
+            t.chars().all(|c| c.is_ascii_digit())
+                && (*x + *w / 2 - middle).abs() < 480 / 10
+                && (ly - 48..ly).contains(y)
+        })
+        .map(|(t, (x, ..))| (*x, t.clone()))
+        .collect();
+    v.sort();
+    v.into_iter().map(|(_, t)| t).collect()
 }
 
 /// A GPG keys flow is the number on Tools, which stands lit on its page.
@@ -601,8 +670,8 @@ fn a_flow_on_its_first_card_ends_without_the_sheet() {
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, None, "nothing past the first card: no sheet");
-    // Resumed from Settings: the Cancel lands there (F77).
-    assert_eq!(app.screen, Screen::Settings);
+    // Resumed from Settings: the Cancel lands where it was begun (F77).
+    assert_eq!(app.screen, Screen::WalletsStart);
     assert!(!row_on_settings(&mut app, Going::Create));
     // Make a new wallet opens afresh, past Kind closed on its default.
     app.press(Action::CreateWallet);
@@ -623,6 +692,7 @@ fn start_over_still_begins_make_a_new_wallet_again() {
 #[test]
 fn the_gpg_flows_cancel_removes_its_tools_row() {
     let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
+    app.press(Action::Nav(Screen::Catalog));
     crate::common::start(&mut app, Kind::Gpg);
     app.press(Action::Flow(F::Continue));
     assert!(row_on_settings(&mut app, Going::Flow(0)));
@@ -638,8 +708,8 @@ fn the_gpg_flows_cancel_removes_its_tools_row() {
     app.press(Action::CancelFlowNow);
     assert_eq!(
         app.screen,
-        Screen::Settings,
-        "Settings, where it was resumed from (F77)"
+        Screen::Catalog,
+        "Tools, where it was first begun from (F77)"
     );
     assert!(!row_on_settings(&mut app, Going::Flow(0)), "no row");
     let names = sidebar_texts(&mut app);
@@ -659,8 +729,8 @@ fn restores_cancel_ends_it_and_removes_its_row() {
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, Some(Sheet::CancelFlow(Going::Restore)));
     app.press(Action::CancelFlowNow);
-    // Resumed from Settings: the Cancel lands there (F77).
-    assert_eq!(app.screen, Screen::Settings);
+    // Resumed from Settings: the Cancel lands where it was begun (F77).
+    assert_eq!(app.screen, Screen::WalletsStart);
     assert!(!row_on_settings(&mut app, Going::Restore));
 }
 
@@ -706,13 +776,13 @@ fn sign_a_messages_cancel_ends_it_and_removes_its_row() {
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, Some(Sheet::CancelFlow(Going::Message)));
     app.press(Action::CancelFlowNow);
-    // Resumed from Settings: the Cancel lands there (F77).
-    assert_eq!(app.screen, Screen::Settings);
+    // Resumed from Settings: the Cancel lands where it was begun (F77).
+    assert_eq!(app.screen, Screen::WalletsStart);
     assert!(!row_on_settings(&mut app, Going::Message));
 }
 
 #[test]
-fn create_a_vaults_cancel_ends_it_where_it_was_resumed_and_removes_its_row() {
+fn create_a_vaults_cancel_ends_it_where_it_was_begun_and_removes_its_row() {
     use faraday_core::vault::{VaultAction as V, vstep};
     let mut app = with(0, 0);
     app.storage(faraday_core::StorageEvent::Memory {
@@ -728,8 +798,9 @@ fn create_a_vaults_cancel_ends_it_where_it_was_resumed_and_removes_its_row() {
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, Some(Sheet::CancelFlow(Going::Vault)));
     app.press(Action::CancelFlowNow);
-    // Resumed from Settings: the Cancel lands there (F77).
-    assert_eq!(app.screen, Screen::Settings);
+    // Resumed from Settings: the Cancel lands where it was begun (F77),
+    // Files, where Vaults was pressed with no vault to list.
+    assert_eq!(app.screen, Screen::Files);
     assert!(!row_on_settings(&mut app, Going::Vault));
 }
 

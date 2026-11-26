@@ -1716,11 +1716,11 @@ impl Faraday {
         self.create_past_kind(action);
         match action {
             Action::CreateWallet if self.create_unfinished() || self.create_setup_pending() => {
-                // Resumed, its own way back stays where it was first
-                // opened from: the trail lands where the person was when
-                // they resumed it (F77), and a Home reached on the way, as
+                // Resumed, its way back stays the page it was first
+                // begun from (F77), and a Home reached on the way, as
                 // a setup's Leave lands it, does not make Back go Home.
                 self.screen = Screen::Create;
+                self.flow_way_back(crate::in_progress::Going::Create);
             }
             Action::CreateWallet | Action::CreateOver => {
                 // Create opens on Kind, open, with no row ticked: the
