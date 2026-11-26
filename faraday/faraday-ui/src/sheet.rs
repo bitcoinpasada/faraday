@@ -6,7 +6,9 @@ use faraday_draw::widgets::Icon;
 
 use crate::pal::*;
 use crate::{Plain, Region, Style, Ui};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP, GAP_SMALL, LABEL_L, PAD};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, BUTTON_PAD_V, GAP, GAP_SMALL, LABEL_L, PAD,
+};
 
 /// What a sheet holds: drawn at (x, y) in a width, it returns the height
 /// it took.
@@ -384,8 +386,30 @@ pub fn buttons_height<A: Copy + PartialEq>(ui: &Ui<A>, w: f32, labels: &[&str]) 
     if buttons_fit(ui, w, labels.len(), labels.iter().copied()) {
         bh
     } else {
-        labels.len() as f32 * (bh + GAP) - GAP
+        let tall = |l: &&str| stacked(ui, w, l).0 + GAP;
+        labels.iter().map(tall).sum::<f32>() - GAP
     }
+}
+
+/// How tall a button of a stacked row draws `label` at the width `w`,
+/// and the lines it is broken onto at word breaks: none where it fits one
+/// line, at a larger text size once fitted down to Standard
+/// (`docs/TEXT-SIZE.md` §3).
+fn stacked<A: Copy + PartialEq>(ui: &Ui<A>, w: f32, label: &str) -> (f32, Vec<(usize, usize)>) {
+    let bh = ui.button_height(BUTTON_H);
+    let room = w - 2.0 * BUTTON_PAD;
+    let wide = ui.measure_as(LABEL_L, label);
+    let one_line = if ui.text > 1.0 {
+        wide / ui.text <= room
+    } else {
+        wide + BUTTON_PAD <= w
+    };
+    if one_line {
+        return (bh, Vec::new());
+    }
+    let lines = ui.wrap_ranges(LABEL_L, label, room).to_vec();
+    let tall = lines.len() as f32 * ui.line_as(LABEL_L) + 2.0 * BUTTON_PAD_V;
+    (bh.max(tall), lines)
 }
 
 /// Whether every label fits its share of a row of buttons.
@@ -401,7 +425,8 @@ fn buttons_fit<'a, A: Copy + PartialEq>(
 }
 
 /// A row of buttons: side by side when every label fits its share, one
-/// under another, full width, when not. Returns their height.
+/// under another, full width, when not, a label wider than that broken
+/// onto more lines in a taller button. Returns their height.
 pub fn buttons<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
@@ -459,11 +484,21 @@ fn buttons_with<'a, A: Copy + PartialEq>(
         }
         bh
     } else {
-        let step = bh + GAP;
-        for (i, &(label, style, action)) in items.iter().enumerate() {
-            ui.button(x, y + i as f32 * step, Some(w), bh, label, style, action);
+        let mut by = y;
+        for &(label, style, action) in items {
+            let (tall, lines) = stacked(ui, w, label);
+            if lines.is_empty() {
+                ui.button(x, by, Some(w), bh, label, style, action);
+            } else {
+                let lines: Vec<&str> = lines
+                    .iter()
+                    .map(|&(a, b)| label[a..b].trim_end())
+                    .collect();
+                ui.button_wrapped((x, by, w, tall), &lines, style, action);
+            }
+            by += tall + GAP;
         }
-        n * step - GAP
+        by - y - GAP
     }
 }
 

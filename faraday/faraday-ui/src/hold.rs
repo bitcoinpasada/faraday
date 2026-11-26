@@ -107,7 +107,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.c
                 .stroke_rounded_rect(rect, r * self.f, self.f.max(1.0), edge);
             let ink = Role::OnSurface.at(DISABLED_CONTENT);
-            self.hold_label((x, w, top, line), &shown, &widths, ink);
+            self.centred_lines((x, w, top, line), &shown, &widths, ink);
             return w;
         }
         let (ink, container, on_container) = tone.roles();
@@ -138,16 +138,16 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         for (clip, ink) in [(filled, on_container), (rest, ink)] {
             if clip.w > 0 {
                 self.c.push_clip(clip);
-                self.hold_label((x, w, top, line), &shown, &widths, ink);
+                self.centred_lines((x, w, top, line), &shown, &widths, ink);
                 self.c.pop_clip();
             }
         }
         w
     }
 
-    /// The lines of a hold's label, each centred in the hold at `x`,
+    /// The lines of a hold's or a tall button's label, each centred in it at `x`,
     /// `w` wide, from `top`, `line` apart.
-    fn hold_label(
+    pub(crate) fn centred_lines(
         &mut self,
         (x, w, top, line): (f32, f32, f32, f32),
         shown: &[&str],

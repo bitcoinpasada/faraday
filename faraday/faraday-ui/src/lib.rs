@@ -2056,7 +2056,23 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             None,
             None,
             false,
+            &[],
         )
+    }
+
+    /// [`Ui::button`] `h` tall as given, its label broken onto the
+    /// centred `lines` ([`sheet::buttons`] where it does not fit one).
+    fn button_wrapped(
+        &mut self,
+        (x, y, w, h): (f32, f32, f32, f32),
+        lines: &[&str],
+        style: Style,
+        action: A,
+    ) {
+        let size = faraday_draw::tokens::LABEL_L.size;
+        let r = faraday_draw::tokens::shape_full(h);
+        let at = (x, y, Some(w), h, r);
+        self.button_drawn(at, size, "", style, action, None, None, false, lines);
     }
 
     /// [`Ui::button`] with `icon` before its label, as Material's
@@ -2087,6 +2103,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             None,
             Some(icon),
             false,
+            &[],
         )
     }
 
@@ -2113,6 +2130,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             None,
             Some(icon),
             true,
+            &[],
         )
     }
 
@@ -2151,7 +2169,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         // A key keeps its size whatever the text size: the keyboards
         // and pads are set by what must fit on the panel.
         let size = faraday_draw::tokens::key_label(at.3);
-        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action, None, None, false))
+        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action, None, None, false, &[]))
     }
 
     /// [`Ui::button_in`] for a key of the on-screen keyboard: it shows
@@ -2175,6 +2193,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 Some(Unpressed::Keyboard),
                 None,
                 false,
+                &[],
             )
         })
     }
@@ -2209,6 +2228,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         unpressed: Option<Unpressed>,
         icon: Option<Icon>,
         after: bool,
+        lines: &[&str],
     ) -> f32 {
         use faraday_draw::tokens::{BUTTON_PAD, ICON_GAP, ICON_GLYPH_BUTTON};
         let weight = W::S;
@@ -2266,6 +2286,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             }
         } else {
             self.answer_hit((x, y, width, h), action);
+        }
+        if !lines.is_empty() {
+            let line = self.line_as(faraday_draw::tokens::LABEL_L);
+            let top = y + (h - lines.len() as f32 * line) / 2.0;
+            let widths: Vec<f32> = lines
+                .iter()
+                .map(|l| self.measure(size, weight, l))
+                .collect();
+            self.centred_lines((x, width, top, line), lines, &widths, fg);
+            return width;
         }
         // At a larger text size a label wider than its button fits down
         // to Standard, and is shortened there only where it still does
