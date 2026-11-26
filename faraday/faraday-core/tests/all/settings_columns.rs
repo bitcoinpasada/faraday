@@ -72,14 +72,10 @@ fn settings_columns_come_out_about_equal_and_keep_the_order() {
             }
             // Order: down the first column, then the second.
             let col = |c: &(&str, i32, i32)| usize::from(c.1 > first_x + 100);
-            // Mode's card, found by its segments, is second: under
-            // Appearance, and over Lock and power where they share a column.
+            // Mode's card, found by its segments, is first: over Appearance.
             let (_, mode_y, ..) = app.hit_box(Action::Mode(Mode::Testnet)).expect("segment");
             let mode_y = i32::from(mode_y);
-            assert!(cards[0].2 < mode_y, "{w}x{h}: Mode under Appearance");
-            if col(&cards[1]) == 0 {
-                assert!(mode_y < cards[1].2, "{w}x{h}: Mode over Lock and power");
-            }
+            assert!(mode_y < cards[0].2, "{w}x{h}: Mode over Appearance");
             assert!(
                 cards.windows(2).all(|p| col(&p[0]) <= col(&p[1])),
                 "{w}x{h}"

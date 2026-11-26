@@ -123,7 +123,7 @@ enum Part {
 const TILE: [Part; 8] = {
     use Part::*;
     [
-        Appearance, Mode, Session, Time, Randomness, Display, Remembered, About,
+        Mode, Appearance, Session, Time, Randomness, Display, Remembered, About,
     ]
 };
 

@@ -773,8 +773,9 @@ drawn at computer sizes only, not in the phone's or the Pi's frame.
 ## 9. Settings
 
 **One tile of tonal group cards** (owner, 2026-11-22), set out as Tools is:
-Appearance, Mode, Session, Time, Randomness, Display, What is remembered
-and About, each a tonal group card with its title, in balanced columns.
+Mode, Appearance, Session, Time, Randomness, Display, What is remembered
+and About (this order: owner, 2026-11-25), each a tonal group card with its
+title, in balanced columns.
 Every setting's choices show on screen with no press to see them: inline
 segmented buttons, switches and buttons, never a row that opens a sheet.
 Appearance keeps the theme colour chips (the ten themes, DESIGN §4's filter
