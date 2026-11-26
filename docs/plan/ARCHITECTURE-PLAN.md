@@ -86,6 +86,15 @@ Measured on `main` at `d89dde5de` (about 560k lines of Rust in 50 crates).
   - each feature's specification as it is ported.
   
   Old tests are not a source.
+- **A run goes to the end.** Every check runs the whole of what it was asked
+  for and reports every failure at once, not one per run:
+  - `cargo build --keep-going`;
+  - `cargo nextest run --no-fail-fast`;
+  - clippy over every crate it names;
+  - every lint, run to the end.
+- **The suite is kept small enough to run whole.** The test rules above are
+  what make that affordable: the full suite has a time budget, and a test
+  that duplicates another is removed, not run twice.
 
 ## 4. How the work is done
 
