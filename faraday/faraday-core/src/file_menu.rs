@@ -129,6 +129,9 @@ pub enum Named {
 pub struct Renaming {
     /// What is renamed.
     pub what: Named,
+    /// The id of the stick the file is on, for a file on a stick: the
+    /// rename goes to that stick alone.
+    pub stick: Option<String>,
     /// Its name now.
     pub from: String,
     /// What the field holds: the name before its extension.
@@ -393,6 +396,17 @@ impl Faraday {
             return;
         }
         let c = self.compute();
+        // A stick's rows go by their place in its listing, which may have
+        // changed under the open menu: the file at the place must still be
+        // the one the menu names.
+        if let FilePress::Rename(Row::Stick(k)) | FilePress::StickDelete(k) = p {
+            let named = self.visit.files_menu().menu.as_ref();
+            let drawn = named.map(|m| m.title.as_str());
+            if drawn.is_none() || drawn != self.stick_file(k).as_ref().map(|(n, _)| n.as_str()) {
+                self.file_menu_close();
+                return;
+            }
+        }
         // A choice in the menu leaves it.
         if matches!(
             p,
@@ -417,8 +431,16 @@ impl Faraday {
                     return;
                 };
                 let (stem, ext) = split(&from);
+                let stick = match row {
+                    Row::Stick(_) => self
+                        .stick
+                        .get(self.visit.stick)
+                        .map(|s| String::from(&*s.id)),
+                    _ => None,
+                };
                 self.visit.set_renaming(Renaming {
                     what: Named::File(row),
+                    stick,
                     from,
                     stem,
                     ext,
@@ -445,6 +467,7 @@ impl Faraday {
                 };
                 self.visit.set_renaming(Renaming {
                     what: Named::Stick(String::from(&*s.id)),
+                    stick: None,
                     stem: from.clone(),
                     from,
                     ext: String::new(),
@@ -482,6 +505,12 @@ impl Faraday {
                 let Some((name, _)) = self.stick_file(k) else {
                     return;
                 };
+                let id = self.stick.get(self.visit.stick).map(|s| s.id.clone());
+                if id.is_some_and(|id| self.import_reads(&id, Some(&name))) {
+                    self.file_menu_close();
+                    self.toast(EN.boot_import_being_imported);
+                    return;
+                }
                 self.delete_open();
                 self.stick.choose_delete(vec![name]);
             }
@@ -601,13 +630,21 @@ impl Faraday {
         // Refused as Details is, with no line: onto a vault of the stick,
         // the disk process reads and hashes the two files to word its
         // answer, and nothing of the import's stick is read before Import
-        // (F328 point 2).
+        // (F328 point 2). It reads two files of one vault length, so the
+        // listed sizes say which names those can be: the vaults the
+        // listing marks are not all of them.
         if matches!(r.what, Named::File(Row::Stick(_)))
             && self.import_tile_up()
-            && self.stick.get(self.visit.stick).is_some_and(|s| {
+            && self.renaming_stick(r).is_some_and(|s| {
                 s.files
                     .iter()
-                    .any(|(n, _)| **n != *r.from && n.eq_ignore_ascii_case(&to) && s.is_vault(n))
+                    .find(|(n, _)| **n == *r.from)
+                    .is_some_and(|(_, size)| {
+                        faraday_codec::vault_file::is_vault_len(*size)
+                            && s.files.iter().any(|(n, other)| {
+                                **n != *r.from && n.eq_ignore_ascii_case(&to) && other == size
+                            })
+                    })
             })
         {
             return Err(None);
@@ -627,6 +664,15 @@ impl Faraday {
         Ok(to)
     }
 
+    /// The stick a file's Rename popup is for, while it is in and still
+    /// lists the file.
+    fn renaming_stick(&self, r: &Renaming) -> Option<&crate::StickInfo> {
+        let id = r.stick.as_deref()?;
+        self.stick
+            .iter()
+            .find(|s| *s.id == *id && s.files.iter().any(|(n, _)| **n == *r.from))
+    }
+
     /// The Rename popup's **Rename**: a file For the stick takes the new
     /// name, which the next visit writes it under; a file on the stick is
     /// asked of the disk process.
@@ -634,6 +680,15 @@ impl Faraday {
         let Ok(to) = self.rename_checked() else {
             return;
         };
+        // A file the import still reads keeps its name; the popup stays.
+        if self.visit.files_menu().renaming.as_ref().is_some_and(|r| {
+            r.stick
+                .as_deref()
+                .is_some_and(|id| self.import_reads(id, Some(&r.from)))
+        }) {
+            self.toast(EN.boot_import_being_imported);
+            return;
+        }
         let Some(r) = self.visit.take_renaming() else {
             return;
         };
@@ -665,10 +720,10 @@ impl Faraday {
                 self.save_boxes();
             }
             Named::File(Row::Stick(_)) => {
-                if let Some(s) = self.stick.get(self.visit.stick) {
+                if let Some(id) = self.renaming_stick(&r).map(|s| s.id.clone()) {
                     let vaults = self.vault_copy_lists();
                     self.out.storage_out.push_back(StorageCommand::Rename {
-                        stick: s.id.clone(),
+                        stick: id,
                         from: faraday_text::Text::of(&r.from),
                         to: faraday_text::Text::of(&to),
                         vaults,

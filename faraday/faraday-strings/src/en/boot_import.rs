@@ -44,6 +44,9 @@ macro_rules! words_boot_import {
     boot_import_the_was: "the {} was removed before it was read",
     /// Text in `import_view`. `{}`: `size`.
     boot_import_being_read: "Being read · {}",
+    /// The toast when a delete or a rename is refused for a file Import
+    /// asked for and has not read yet.
+    boot_import_being_imported: "Being imported",
     /// Text in `import_view`. `{}`: `size`.
     boot_import_not_a_kind: "Not a kind of file Faraday reads · {}",
     /// Text in `import_view`. `{}`: `why`.

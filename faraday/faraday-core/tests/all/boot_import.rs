@@ -1369,6 +1369,171 @@ fn a_rename_onto_a_vault_of_the_stick_is_refused_while_the_list_stands() {
     assert_eq!(renames(&mut app), ["spare.kdbx"]);
 }
 
+/// A vault the listing does not mark as one: the disk process would still
+/// read two files of its length, so the rename onto its name is refused.
+#[test]
+fn a_rename_onto_an_unmarked_vault_is_refused_while_the_list_stands() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let mut files = stick_files();
+    let vault = files.iter().position(|(n, _)| n == "vault.kdbx").unwrap();
+    // Not a KDBX head, so the listing's vaults leave it out.
+    files.push(("spare.kdbx".into(), vec![0; files[vault].1.len()]));
+    assert!(
+        !boot_stick(&files)
+            .vaults
+            .iter()
+            .any(|n| &**n == "spare.kdbx")
+    );
+    let mut app = boot_only(&files);
+    while app.poll_storage().is_some() {}
+    tap(&mut app, Action::File(P::Menu(Row::Stick(vault))));
+    tap(&mut app, Action::File(P::Rename(Row::Stick(vault))));
+    type_name(&mut app, "SPARE");
+    let go = Action::File(P::RenameGo);
+    assert!(!app.offers(go));
+    app.press(go);
+    assert_eq!(renames(&mut app), Vec::<String>::new());
+}
+
+/// A listing that changes under an open ⋮ moves another file to the
+/// menu's place: its choices do nothing and the menu closes.
+#[test]
+fn a_menu_whose_file_moved_does_nothing() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let files = stick_files();
+    let notes = files.iter().position(|(n, _)| n == "notes.txt").unwrap();
+    let mut now = files.clone();
+    now.insert(0, ("aaa.txt".into(), b"new".to_vec()));
+    for choice in [P::StickDelete(notes), P::Rename(Row::Stick(notes))] {
+        let mut app = boot_only(&files);
+        tap(&mut app, Action::File(P::Menu(Row::Stick(notes))));
+        app.storage(StorageEvent::Sticks(vec![boot_stick(&now)]));
+        let _ = app.frame();
+        assert_eq!(app.sheet, Some(Sheet::FileMenu));
+        app.press(Action::File(choice));
+        assert_eq!(app.sheet, None, "{choice:?}");
+        assert!(app.files_menu().renaming.is_none());
+    }
+}
+
+/// The Rename popup is for the stick it was opened on. With another stick
+/// listed ahead of it the rename goes to its own stick alone; with its
+/// stick gone and another in, nothing is sent.
+#[test]
+fn a_rename_goes_to_its_own_stick_or_nowhere() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let files = stick_files();
+    let notes = files.iter().position(|(n, _)| n == "notes.txt").unwrap();
+    let other = || StickInfo {
+        id: faraday_text::Text::of("other"),
+        boot: false,
+        ..boot_stick(&files)
+    };
+    for (listed, sent) in [
+        (vec![other(), boot_stick(&files)], vec![BOOT.to_string()]),
+        (vec![other()], Vec::new()),
+    ] {
+        let mut app = boot_only(&files);
+        tap(&mut app, Action::File(P::Menu(Row::Stick(notes))));
+        tap(&mut app, Action::File(P::Rename(Row::Stick(notes))));
+        type_name(&mut app, "list");
+        while app.poll_storage().is_some() {}
+        app.storage(StorageEvent::Sticks(listed));
+        let _ = app.frame();
+        assert_eq!(app.sheet, Some(Sheet::Rename));
+        app.press(Action::File(P::RenameGo));
+        let mut to = Vec::new();
+        while let Some(c) = app.poll_storage() {
+            if let StorageCommand::Rename { stick, .. } = c {
+                to.push(String::from(&*stick));
+            }
+        }
+        assert_eq!(to, sent);
+        assert!(app.files_menu().renaming.is_none());
+        assert_ne!(app.sheet, Some(Sheet::Rename));
+    }
+}
+
+/// A picture Import asked for and has not read yet is not deleted, renamed
+/// or zeroed away: each is refused with a line.
+#[test]
+fn a_file_being_imported_is_not_deleted_or_renamed() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let files = stick_files();
+    let png = files
+        .iter()
+        .position(|(n, _)| n == "zebra-seedqr.png")
+        .unwrap();
+    let mut app = boot_only(&files);
+    while app.poll_storage().is_some() {}
+    // Its Rename popup, opened while the list still picks.
+    tap(&mut app, Action::File(P::Menu(Row::Stick(png))));
+    tap(&mut app, Action::File(P::Rename(Row::Stick(png))));
+    type_name(&mut app, "later");
+    app.press(Action::Cancel);
+    app.press(Action::Import(I::Go));
+    // Asked for, and nothing answered.
+    while app.poll_storage().is_some() {}
+    let sent = |app: &mut Faraday| {
+        let mut n = 0;
+        while let Some(c) = app.poll_storage() {
+            n += usize::from(matches!(
+                c,
+                StorageCommand::Wipe { .. }
+                    | StorageCommand::MakeEmpty { .. }
+                    | StorageCommand::Rename { .. }
+            ));
+        }
+        n
+    };
+    let refused = Some("Being imported");
+
+    app.press(Action::File(P::Menu(Row::Stick(png))));
+    app.press(Action::File(P::StickDelete(png)));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.toast_text(), refused);
+
+    app.press(Action::File(P::Menu(Row::Stick(png))));
+    app.press(Action::File(P::Rename(Row::Stick(png))));
+    type_name(&mut app, "later");
+    app.press(Action::File(P::RenameGo));
+    assert_eq!(app.sheet, Some(Sheet::Rename));
+    assert_eq!(sent(&mut app), 0);
+    app.press(Action::Cancel);
+
+    app.press(Action::DeleteFiles);
+    app.press(Action::DeletePick(png));
+    app.press(Action::DeleteGo);
+    assert_eq!(app.sheet, Some(Sheet::Delete));
+    assert_eq!(app.toast_text(), refused);
+    // The whole stick.
+    app.press(Action::DeleteWhat(2));
+    app.press(Action::Vault(V::HoldWipe));
+    assert_eq!(app.sheet, Some(Sheet::Delete));
+    assert_eq!(sent(&mut app), 0);
+}
+
+/// The stick's controls go from the list with its stick pulled.
+#[test]
+fn the_lists_stick_controls_go_with_the_stick() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let mut app = boot_only(&stick_files());
+    let controls = [
+        Action::DeleteFiles,
+        Action::File(P::NameStick),
+        Action::File(P::Menu(Row::Stick(0))),
+    ];
+    let _ = app.frame();
+    for a in controls {
+        assert!(app.offered_actions().contains(&a), "{a:?}");
+    }
+    pull(&mut app);
+    assert!(app.import_tile_up(), "the list stands");
+    for a in controls {
+        assert!(!app.offered_actions().contains(&a), "{a:?}");
+    }
+}
+
 /// A stick that comes back under the import's id with another listing,
 /// beside a second stick: the import ends, Import is not offered and
 /// nothing of the old list is read.

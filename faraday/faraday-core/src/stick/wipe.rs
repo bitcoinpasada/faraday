@@ -268,6 +268,24 @@ impl Faraday {
 
     /// The sheet's button: the files deleted, or zeroing begun.
     pub(crate) fn delete_go(&mut self) {
+        // Nothing the import still reads is deleted or zeroed; the sheet
+        // stays.
+        if self
+            .stick
+            .delete_ask
+            .as_ref()
+            .is_some_and(|d| match d.what {
+                What::Files => d
+                    .chosen
+                    .iter()
+                    .any(|n| self.import_reads(&d.stick, Some(n))),
+                What::Whole => self.import_reads(&d.stick, None),
+                What::Free => false,
+            })
+        {
+            self.toast(EN.boot_import_being_imported);
+            return;
+        }
         let Some(d) = self.stick.delete_ask.take() else {
             return;
         };

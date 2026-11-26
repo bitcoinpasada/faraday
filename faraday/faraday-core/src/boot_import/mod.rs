@@ -688,6 +688,21 @@ impl Faraday {
         }
     }
 
+    /// Whether the import still waits for the read of a file of `stick`:
+    /// the one named `name`, or any for `None`. FAT names match whatever
+    /// their case.
+    pub(crate) fn import_reads(&self, stick: &str, name: Option<&str>) -> bool {
+        self.import
+            .state()
+            .filter(|i| i.stick == stick)
+            .is_some_and(|i| {
+                i.files.iter().any(|f| {
+                    f.state == Staged::Reading
+                        && name.is_none_or(|n| f.name.eq_ignore_ascii_case(n))
+                })
+            })
+    }
+
     /// Ends an import that still picks when its stick is in by id with a
     /// listing it does not hold: no later one would be followed.
     pub(crate) fn import_end_unheld(&mut self) {
