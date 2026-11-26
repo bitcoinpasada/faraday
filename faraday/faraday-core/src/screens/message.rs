@@ -59,12 +59,16 @@ impl crate::trail::StepFlow for MessageSteps {
 
 /// What the address row says: the address of one picked, or the address
 /// of the wallet's receive number kept at the press, and whether it is an
-/// address (one held back for its key's backup says its line instead).
+/// address (one held back for its key's backup says its line instead, as
+/// does a picked address whose key waits).
 /// Nothing for a wallet that cannot sign a message. A lookup: no address is
 /// derived for a row.
 fn chosen_address(app: &crate::Faraday) -> Option<(String, bool)> {
     let m = app.message.state()?;
     if let Some(at) = m.at.as_ref() {
+        if app.message_waits(Some(at), None) {
+            return Some((EN.message_waits_backup.to_string(), false));
+        }
         return Some((at.address.to_string(), true));
     }
     let s = app.message_shown()?;
@@ -135,7 +139,9 @@ impl crate::flow::Contained for MessageSteps {
                         crate::wallet::Kind::Single(_)
                     );
                     let take = crate::pick::Take::of(on && m.wallet == Some(i), Action::MWallet(i));
-                    Some(if on {
+                    Some(if on && app.wallet_waits_kept(i) {
+                        (take.refused(EN.message_waits_backup), String::new())
+                    } else if on {
                         (take, String::from(&*crate::wallet::Session::shape(wl)))
                     } else if single {
                         (take.refused(EN.message_key_not_held), String::new())
@@ -247,20 +253,42 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
                 let mut bx = x;
                 let wallets = app.session.message_wallets();
                 let any = !wallets.is_empty();
+                let mut waiting = false;
                 for wi in wallets {
                     let wl = &app.session.wallets[wi];
-                    let style = Style::chosen(m.wallet == Some(wi));
+                    let waits = app.wallet_waits_kept(wi);
+                    waiting |= waits;
+                    let style = if waits {
+                        Style::Disabled
+                    } else {
+                        Style::chosen(m.wallet == Some(wi))
+                    };
                     bx += ui.button(bx, cy, None, BUTTON_H, &wl.name, style, Action::MWallet(wi))
                         + 8.0;
                 }
                 if any {
                     cy += 48.0;
                 }
+                if waiting {
+                    cy += ui.wrap_as(
+                        (x, cy, w),
+                        BODY_M,
+                        Role::Warning,
+                        EN.message_waits_backup,
+                    ) + 12.0;
+                }
             }
             let wallet = m.wallet.and_then(|wi| app.session.wallets.get(wi));
             // What the card shows: the label's text, the address, and the
             // path line when the address is of a key's own path.
             let shown = match (m.at.as_ref(), wallet) {
+                // A picked address whose key waits is shown nowhere.
+                (Some(at), _) if app.message_waits(Some(at), None) => Some((
+                    String::new(),
+                    EN.message_waits_backup.into(),
+                    true,
+                    None,
+                )),
                 (Some(at), _) => {
                     let label = if at.change {
                         EN.message_change_address
@@ -445,7 +473,18 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
             let laid = kept_lines(app, ui, &m.text, &shown, w);
             ui.draw_wrapped((x, cy), Role::OnSurface, &laid);
             cy += laid.h + MESSAGE_SHOWN_GAP;
+            // No Sign where the choice waits for its key's backup, or
+            // nothing is chosen because every wallet does.
+            let waits = app.message_waits(m.at.as_ref(), m.wallet)
+                || (m.at.is_none()
+                    && m.wallet.is_none()
+                    && !app.session.message_wallets().is_empty()
+                    && app.message_offered().is_empty());
             match m.signed.as_ref() {
+                None if waits => {
+                    cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.message_waits_backup)
+                        + 6.0;
+                }
                 None => {
                     if pin_button(
                         ui,
@@ -531,7 +570,10 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, (x, y, w): (f32, f32, f32), area
                     ) + 4.0;
                 }
             }
-            if let Some(e) = &m.error {
+            // A refused press's line is not said under itself.
+            if let Some(e) = &m.error
+                && !(waits && **e == *EN.message_waits_backup)
+            {
                 cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, e) + 6.0;
             }
         }

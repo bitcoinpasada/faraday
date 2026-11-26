@@ -178,12 +178,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.card(x, y, width, used + 2.0 * PAD, edge.paint());
         crate::address_find::screen::result(ui, inner, a);
         y += used + 2.0 * PAD + GAP;
+        // No Sign a message while the address's key waits for its backup.
+        let waits = super::sign_waits(app);
         let ways: Vec<(String, Style, Action)> = s
             .ways()
             .iter()
             .enumerate()
             .map(|(i, way)| {
                 let style = match way {
+                    Way::SignAddress if waits => Style::Disabled,
                     Way::MakeWallet | Way::OpenWallet(_) => Style::Primary,
                     _ => Style::Secondary,
                 };
@@ -196,6 +199,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .collect();
         if !ways.is_empty() {
             y += crate::screens::button_rows(ui, x, y, width, &ways);
+        }
+        if waits && s.ways().contains(&Way::SignAddress) {
+            y += ui.wrap_as(
+                (x, y, width),
+                BODY_M,
+                Role::Warning,
+                EN.message_waits_backup,
+            ) + GAP;
         }
         y += ending(ui, (x, y, width), back_of_page(s));
     }

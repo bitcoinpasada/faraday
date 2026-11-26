@@ -471,6 +471,20 @@ fn way(app: &mut Faraday, i: usize) {
     }
 }
 
+/// A lookup. Whether the key that would sign the address the result found
+/// waits for its backup, from the keys kept as waiting.
+pub(crate) fn sign_waits(app: &Faraday) -> bool {
+    let look = app.address_check_state().and_then(|s| s.look.as_ref());
+    let found = look.and_then(|l| l.found_in.as_ref().map(|f| (l, f)));
+    match found.and_then(|(l, f)| Some((l, f.sign()?))) {
+        Some((l, crate::address_find::SignAt::Wallet(w, _))) => {
+            l.same_wallet(&app.session, *w) && app.wallet_waits_kept(*w)
+        }
+        Some((_, crate::address_find::SignAt::Key(at))) => app.message_waits(Some(at), None),
+        None => false,
+    }
+}
+
 /// Opens Sign a message on the address the result found, where a loaded
 /// key signs it.
 fn sign(app: &mut Faraday) {

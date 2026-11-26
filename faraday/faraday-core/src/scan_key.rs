@@ -1585,7 +1585,7 @@ impl Faraday {
                 }
                 // A single-key wallet signs it as a message; text that is
                 // not valid UTF-8 is not one.
-                if !self.session.message_wallets().is_empty()
+                if !self.message_offered().is_empty()
                     && std::str::from_utf8(&self.scanned_own(&code)).is_ok()
                 {
                     ways.push(Way::SignMessage);

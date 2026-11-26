@@ -293,7 +293,7 @@ fn restore_shares(app: &Faraday) -> Pick {
 /// Add to vault.
 fn text(app: &Faraday, k: usize, item: &Item) -> Offer {
     let mut list = Vec::new();
-    if !app.session.message_wallets().is_empty() && std::str::from_utf8(&item.bytes).is_ok() {
+    if !app.message_offered().is_empty() && std::str::from_utf8(&item.bytes).is_ok() {
         list.push((
             EN.files_sign_this_message.to_string(),
             Action::File(crate::file_menu::FilePress::SignMessage(k)),
