@@ -703,8 +703,8 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         Screen::Invoice => crate::invoice::screen::back_of(app),
         Screen::CheckAddress => crate::address_check::screen::back_of(app),
         // The nonce check goes back where it was opened from.
-        Screen::NonceCheck => match app.outside_check() {
-            Some(o) => (crate::screens::decode_back(o.back), Action::Nav(o.back)),
+        Screen::NonceCheck => match app.decode.nonce_back() {
+            Some(to) => (crate::screens::decode_back(to), Action::Nav(to)),
             None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
         },
         // Check a signer goes back where it was opened from.

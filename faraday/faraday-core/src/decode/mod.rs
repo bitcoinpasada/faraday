@@ -409,6 +409,10 @@ pub(crate) struct DecodeArea {
     /// Boxed: it holds a PSBT and its check, and `Faraday` is built on
     /// the stack.
     outside: Option<Box<OutsideCheck>>,
+    /// The nonce check is open on a wide window with no transaction to
+    /// check: the screen its back link returns to, and how far its card
+    /// is scrolled.
+    nonce_landing: Option<(Screen, crate::flow::Scroll)>,
     /// Check a signer's flow: two PSBTs or transactions, their comparison
     /// and the report on them, public, kept until a lock or power-off. Boxed as `outside` is.
     check: Option<Box<check::CheckState>>,
@@ -645,28 +649,53 @@ impl DecodeArea {
         }
     }
 
+    /// Where the nonce check's back link returns: the check's, else the
+    /// landing's.
+    pub(crate) fn nonce_back(&self) -> Option<Screen> {
+        self.outside
+            .as_ref()
+            .map(|o| o.back)
+            .or(self.nonce_landing.map(|l| l.0))
+    }
+
+    /// Whether the nonce check is open with no transaction to check.
+    pub(crate) fn nonce_waits(&self) -> bool {
+        self.outside.is_none() && self.nonce_landing.is_some()
+    }
+
+    /// Opens the nonce check with nothing to check, its back link to
+    /// `back`; a check kept from before is dropped.
+    fn open_nonce_landing(&mut self, back: Screen) {
+        self.outside = None;
+        self.nonce_landing = Some((back, crate::flow::Scroll::default()));
+    }
+
     /// The nonce check card's scroll.
     pub(crate) fn nonce_scroll(&self) -> crate::flow::Scroll {
         self.outside
             .as_ref()
-            .map_or_else(Default::default, |o| o.scroll)
+            .map(|o| o.scroll)
+            .or(self.nonce_landing.map(|l| l.1))
+            .unwrap_or_default()
     }
 
     pub(crate) fn set_nonce_scroll(&mut self, to: crate::flow::Scroll) {
         if let Some(o) = self.outside.as_mut() {
             o.scroll = to;
+        } else if let Some(l) = self.nonce_landing.as_mut() {
+            l.1 = to;
         }
     }
 
     /// The card's scroll, units.
     pub(crate) fn nonce_scroll_y(&self) -> Option<f32> {
-        self.outside.as_ref().map(|o| o.scroll.y)
+        self.nonce_back().map(|_| self.nonce_scroll().y)
     }
 
     pub(crate) fn set_nonce_scroll_y(&mut self, y: f32) {
-        if let Some(o) = self.outside.as_mut() {
-            o.scroll.y = y;
-        }
+        let mut to = self.nonce_scroll();
+        to.y = y;
+        self.set_nonce_scroll(to);
     }
 
     /// Forgets Check a signer's flow: its two sides and the result.
@@ -853,7 +882,7 @@ impl Faraday {
     pub(crate) fn nonce_check_open(&mut self, c: &Compute, k: usize) {
         let back = match self.screen {
             Screen::NonceCheck | Screen::Decode => {
-                self.decode.outside().map_or(Screen::Catalog, |o| o.back)
+                self.decode.nonce_back().unwrap_or(Screen::Catalog)
             }
             s => s,
         };
@@ -923,6 +952,7 @@ impl Faraday {
             (finished, hex)
         };
         let rows = nonce_flow::input_rows(&check.rows, psbt.unsigned_tx().input.len());
+        self.decode.nonce_landing = None;
         self.decode.outside = Some(Box::new(OutsideCheck {
             source: Text::of(&name),
             check,
@@ -1319,12 +1349,23 @@ impl Faraday {
 /// Check a signer: the presses of `Screen::SignerCheck`
 /// (`docs/SIGNER-CHECK.md` §3).
 impl Faraday {
-    /// Costs what `act` costs. The Nonce check tile: the first PSBT in Files not signed here, or
-    /// the scanner.
+    /// Costs what `act` costs. The Nonce check tile: the first file in Files to check
+    /// rather than sign. With none, a wide window opens the card with its ways in
+    /// and a small panel the scanner.
     pub(crate) fn nonce_check_tile(&mut self) {
         match (0..self.inbox.len()).find(|k| self.checked_not_signed(*k)) {
             Some(k) => self.act(Action::NonceCheck(CheckPress::Inbox(k))),
-            None => self.act(Action::Scan),
+            None if self.compact => self.act(Action::Scan),
+            None => {
+                let back = match self.screen {
+                    Screen::NonceCheck => self.decode.nonce_back().unwrap_or(Screen::Catalog),
+                    s => s,
+                };
+                self.decode.open_nonce_landing(back);
+                self.screen = Screen::NonceCheck;
+                self.list_offset = 0.0;
+                self.scroll.set_choices_offset(0.0);
+            }
         }
     }
 
@@ -1958,5 +1999,6 @@ impl crate::at_lock::AtLock for DecodeArea {
         self.clear_check();
         self.drop_typed();
         self.drop_nonce_input();
+        self.nonce_landing = None;
     }
 }

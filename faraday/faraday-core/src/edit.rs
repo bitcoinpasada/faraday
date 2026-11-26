@@ -1253,7 +1253,7 @@ impl Faraday {
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
             Screen::Decode => self.decode().is_some() || self.decode.landing().is_some(),
-            Screen::NonceCheck => self.outside_check().is_some(),
+            Screen::NonceCheck => self.decode.nonce_back().is_some(),
             Screen::SignerCheck => self.signer_check().is_some(),
             Screen::CheckMessage => self.message.has_check() || self.message.landing(),
             #[cfg(feature = "demo")]

@@ -21,12 +21,14 @@ use faraday_ui::parts::wrap_buttons;
 /// can be done with it: Save to a stick, Decode it, the raw hex and the
 /// code.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(o) = app.outside_check() else {
-        return;
-    };
     if crate::decode::nonce_flow::contained_check(app) {
         return card(app, ui, x0, cw, h);
     }
+    // With nothing to check a small panel opens the scanner instead: its
+    // page is only ever one with a check.
+    let Some(o) = app.outside_check() else {
+        return;
+    };
     // A small panel has the way back in its bar, and one column.
     let (x, w) = if ui.compact {
         (x0 + compact::M, cw - 2.0 * compact::M)
@@ -53,10 +55,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// is chosen (`docs/FLOW-CONTAINER.md` §2).
 fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::decode::nonce_flow::{CHECK, NONCE_STEPS};
-    let Some(o) = app.outside_check() else {
+    let Some(to) = app.decode.nonce_back() else {
         return;
     };
-    let back = app.named_back((decode_back(o.back), Action::Nav(o.back)));
+    let back = app.named_back((decode_back(to), Action::Nav(to)));
     let page = crate::flow::Page {
         area: (x0, cw),
         h,
@@ -80,10 +82,13 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             if step != CHECK {
                 return 0.0;
             }
-            let Some(o) = app_ref.outside_check() else {
-                return 0.0;
+            let end = match app_ref.outside_check() {
+                Some(o) => body(app_ref, ui, o, (x, y, w), o.input),
+                None => {
+                    let line = EN.nonce_screen_none;
+                    y + ui.wrap_as((x, y, w), BODY_M, Role::OnSurfaceVariant, line) + GAP
+                }
             };
-            let end = body(app_ref, ui, o, (x, y, w), o.input);
             // Where the pair does not stand the pane's rows follow the
             // check: every warning stays at the card's top.
             let mut cy = end;

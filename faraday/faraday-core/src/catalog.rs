@@ -736,8 +736,9 @@ impl Faraday {
                 None => self.act(Action::ScanFor(crate::Ask::Sign)),
             },
             // The spend finished here: its Send it card. Otherwise the
-            // first file in Files to check rather than sign, or the camera
-            // when there is none (`docs/FLOWS.md`, Nonce check).
+            // first file in Files to check rather than sign; with none, the
+            // card with its ways in, on a small panel the camera (`docs/FLOWS.md`,
+            // Nonce check).
             Go::NonceCheck
                 if self
                     .wallets

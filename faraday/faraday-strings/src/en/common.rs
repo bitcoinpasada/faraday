@@ -898,6 +898,8 @@ macro_rules! words_common {
     // ----- nonce check of a transaction brought in (faraday-core/src/screens/nonce_check.rs) -----
     /// Title of `Screen::NonceCheck`.
     nonce_screen_title: "Nonce check",
+    /// The card of `Screen::NonceCheck` with nothing to check yet.
+    nonce_screen_none: "No signed transaction waits",
     /// Question heading the pane of `Screen::NonceCheck` as the flow's one card (`decode/nonce_flow.rs`).
     nonce_pane_question: "Choose an input",
     /// Heading of the pane's group holding the file or scan the check opened from.

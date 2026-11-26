@@ -9,9 +9,13 @@ use faraday_core::decode::CheckPress;
 use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
 
 fn wide(app: &mut Faraday) {
+    sized(app, 1366, 768);
+}
+
+fn sized(app: &mut Faraday, width: u16, height: u16) {
     app.event(Event::Display(DisplayInfo {
-        width: 1366,
-        height: 768,
+        width,
+        height,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,
@@ -485,4 +489,47 @@ fn the_pane_is_at_its_top_in_decode_and_back() {
     app.settle();
     app.press(Action::NonceCheck(CheckPress::Back));
     assert_eq!(app.choices_offset(), 0.0, "back");
+}
+
+fn nonce_tile_from_check(app: &mut Faraday) {
+    app.press(Action::Nav(Screen::Check));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Nonce check")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+}
+
+#[test]
+fn opened_from_check_with_nothing_waiting_the_card_holds_the_ways_in() {
+    let mut app = with_inbox(Vec::new());
+    wide(&mut app);
+    nonce_tile_from_check(&mut app);
+    assert_eq!(app.screen, Screen::NonceCheck);
+    assert_eq!(app.sheet, None, "no camera");
+    let ways = drawn_at(&mut app, EN.parts_open_files).expect("a way in");
+    let card = drawn_at(&mut app, EN.nonce_screen_none).expect("the card waits");
+    assert!(
+        ways.0 + ways.2 <= card.0,
+        "ways in at the left: {ways:?} {card:?}"
+    );
+    assert!(has(&mut app, EN.compact_scan));
+    // A scan from there opens the check, whose way back is to Check.
+    app.press(Action::Scan);
+    app.event(Event::Scanned {
+        bytes: signed_elsewhere(How::LowR).to_base64().into_bytes(),
+    });
+    assert_eq!(app.screen, Screen::NonceCheck);
+    assert_eq!(app.outside_check().expect("checked").back, Screen::Check);
+    let _ = app.frame();
+    assert!(!has(&mut app, EN.nonce_screen_none));
+}
+
+#[test]
+fn opened_from_check_on_a_small_panel_with_nothing_waiting_is_the_camera() {
+    let mut app = with_inbox(Vec::new());
+    sized(&mut app, 480, 640);
+    nonce_tile_from_check(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(app.outside_check().is_none());
 }

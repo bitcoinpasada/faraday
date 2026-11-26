@@ -1,14 +1,14 @@
 //! The pane of the nonce check as the flow's one card: the file or scan
 //! it opened from, then All inputs and a row per input, the chosen one
 //! marked (`nonce_flow`). Public facts only, read from what the check
-//! worked out when it opened.
+//! worked out when it opened. With nothing to check, the ways in.
 
 use super::nonce_flow::InputRow;
 use crate::flow::PickGroup;
 use crate::pick::PickRow;
 use crate::strings::EN;
 use crate::wallet::Rest;
-use crate::{Action, Faraday};
+use crate::{Action, Faraday, Screen};
 use faraday_draw::widgets::Icon;
 
 /// "N signatures", or "1 signature".
@@ -88,10 +88,30 @@ fn last_row(n: usize, state: Rest, action: Action) -> PickRow {
     row
 }
 
+/// With nothing to check: the files in Files to check rather than sign,
+/// the camera and Files. A lookup per master a file's origins name.
+fn ways_in(app: &Faraday) -> Vec<PickGroup> {
+    crate::pick::Decl::new(EN.decode_choose_transaction)
+        .files(app, |k, _| {
+            app.checked_not_signed(k).then(|| {
+                crate::pick::Take::of(false, Action::NonceCheck(super::CheckPress::Inbox(k)))
+            })
+        })
+        .ways(vec![
+            PickRow::way_in(Icon::Scan, EN.compact_scan, Action::Scan),
+            PickRow::way_in(Icon::File, EN.parts_open_files, Action::Nav(Screen::Files)),
+        ])
+        .groups()
+}
+
 /// The pane's groups. Costs a line per input shown, at most [`SHOWN`].
 pub(crate) fn groups(app: &Faraday) -> Vec<PickGroup> {
     let Some(o) = app.decode.outside() else {
-        return Vec::new();
+        return if app.decode.nonce_waits() {
+            ways_in(app)
+        } else {
+            Vec::new()
+        };
     };
     let press = |input| Action::NonceCheck(super::CheckPress::Input(input));
     // It names where the check came from; a press on it chooses All inputs.

@@ -1835,7 +1835,7 @@ keeps its changes, and a lock asks about them as it does today.
 
 ## Nonce check
 
-**On a window wide enough for the container's pair the check is one card** (owner, 2026-11-24): at the left the file or scan it opened from (a press chooses All inputs), All inputs and a row per input (its number, how many signatures, its verdict, or the warning that names it: a nonce reused, its nonce used before, an input that does not match, in the error role); a row chosen shows only that input's signatures, every warning stays above them, and the buttons act on the whole transaction. A small panel draws the page below.
+**On a window wide enough for the container's pair the check is one card** (owner, 2026-11-24): at the left the file or scan it opened from (a press chooses All inputs), All inputs and a row per input (its number, how many signatures, its verdict, or the warning that names it: a nonce reused, its nonce used before, an input that does not match, in the error role); a row chosen shows only that input's signatures, every warning stays above them, and the buttons act on the whole transaction. It is that card however it was opened: with nothing to check yet, the left holds the ways in (the files in Files to check, **Scan** and **Open Files**) and the card waits for one (owner, 2026-11-26). A small panel draws the page below.
 
 **A signed transaction brought in is checked, not signed** (owner,
 2026-10-29). A PSBT that carries a signature and that no key loaded here
@@ -1848,7 +1848,7 @@ between:
 |---|---|
 | The camera | the file read: it lands in Files and its check opens; the way back is to where the scan started. The open spend's own PSBT come back stays with the spend |
 | Files | the row's one button, **Nonce check**, in place of **Sign** or **Decode** |
-| Tools | **Nonce check**: the finished spend's Send it card, as before; else the first such file in Files; else the camera |
+| Tools and Check | **Nonce check**: the finished spend's Send it card, as before; else the first such file in Files; else, on a window wide enough for the pair, the card with its ways in at the left, and on a small panel the camera |
 
 A PSBT that a key here is still to sign goes to signing as before. The
 spend's own nonce check on its Send it card is compared with the history

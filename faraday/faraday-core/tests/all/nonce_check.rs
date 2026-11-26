@@ -310,7 +310,8 @@ fn a_psbt_a_key_here_is_still_to_sign_goes_to_signing() {
         .position(|t| t.name == "Nonce check")
         .unwrap();
     app.press(Action::Catalog(tile as u8));
-    assert_eq!(app.sheet, Some(Sheet::Scan), "nothing to check: the camera");
+    assert_eq!(app.screen, Screen::NonceCheck);
+    assert!(app.outside_check().is_none(), "nothing to check");
 }
 
 #[test]

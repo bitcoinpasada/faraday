@@ -1,7 +1,7 @@
 //! The nonce check of a transaction brought in, as the flow's one card
 //! (`docs/FLOW-CONTAINER.md` §2): the file it opened from and one row per
-//! input at the left, the check as the card. On a small panel the page
-//! draws as before.
+//! input at the left, the check as the card. With nothing to check yet the
+//! left holds the ways in. On a small panel the page draws as before.
 
 use crate::flow::{Contained, Pick, Row};
 use crate::strings::EN;
@@ -68,9 +68,9 @@ pub(crate) fn input_rows(rows: &[NonceRow], inputs: usize) -> Vec<InputRow> {
 }
 
 /// Whether the nonce check is drawn as the flow: the one place every site
-/// asks. A small panel draws the page.
+/// asks, with a check or waiting for one. A small panel draws the page.
 pub(crate) fn contained_check(app: &Faraday) -> bool {
-    app.screen == Screen::NonceCheck && !app.compact && app.decode.outside().is_some()
+    app.screen == Screen::NonceCheck && !app.compact && app.decode.nonce_back().is_some()
 }
 
 /// The check's step, plugged into Back and Your choices.
@@ -128,7 +128,11 @@ impl Contained for NonceSteps {
 
     fn pick(&self, app: &Faraday, _: u8) -> Option<Pick> {
         Some(Pick {
-            question: EN.nonce_pane_question,
+            question: if app.decode.nonce_waits() {
+                EN.decode_choose_transaction
+            } else {
+                EN.nonce_pane_question
+            },
             groups: super::nonce_pane::groups(app),
         })
     }
