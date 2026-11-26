@@ -890,9 +890,9 @@ impl Faraday {
         if !(self.home_search_here() || in_flow) {
             return false;
         }
-        // In a flow Escape is the search's only while something is typed;
-        // with nothing typed it goes on to leave the step as before.
-        if in_flow && key == faraday_shell_api::Key::Escape && self.tools.home_find().is_empty() {
+        // Escape is the search's only while something is typed; with
+        // nothing typed it goes on to leave the page or the step.
+        if key == faraday_shell_api::Key::Escape && self.tools.home_find().is_empty() {
             return false;
         }
         if !self.tools.home_find_key(key) {
@@ -1017,13 +1017,13 @@ impl crate::at_lock::AtLock for ToolsArea {
         public(ots);
         public(invoice);
         public(address_check);
+        // A copy of the heading the step on screen draws: what a name in
+        // it belongs to is counted where it is kept. Lock takes the copy,
+        // and so does the first frame outside a flow.
+        let _ = flow_head;
         // The calculator's typed line: an extended private key typed is
         // refused, but it was typed.
-        // A flow's heading can carry a wallet's or a key's name.
-        Holds::session(flow_head.borrow().is_some())
-            .or(Holds::typed(
-                tools.as_ref().is_some_and(|t| !t.typed.is_empty()),
-            ))
+        Holds::typed(tools.as_ref().is_some_and(|t| !t.typed.is_empty()))
             .or(A::holds(convert))
             .or(A::holds(kef_tool))
             .or(A::holds(seed_check))
@@ -1066,14 +1066,16 @@ mod tests {
     use super::*;
     use crate::at_lock::AtLock;
 
-    /// A flow's heading can carry a wallet's name: it counts as the
-    /// session's, and a lock drops it.
+    /// A flow's heading can carry a wallet's name: a lock drops it. It
+    /// counts as nothing held, so a step with nothing taken holds nothing.
     #[test]
     fn a_noted_flow_heading_goes_at_a_lock() {
         let mut area = ToolsArea::default();
         let head: FlowHead = (Text::of("Make a new wallet: Savings"), None);
         area.note_flow_head(Some(&head));
-        assert!(area.holds().session);
+        // A copy of what the step on screen draws: nothing of its own to
+        // lock, and a lock takes it all the same.
+        assert!(!area.holds().any());
         area.lock();
         assert!(!area.holds().any());
         assert!(area.flow_head().is_none());

@@ -68,9 +68,13 @@ fn the_button_is_offered_where_typing_goes_somewhere_and_nowhere_else() {
         kept: Vec::new(),
     });
     app.press(Action::Nav(Screen::Catalog));
+    // Tools' menu page types in the one search of every menu page, as
+    // Home does (`docs/WORKSPACE.md` §4, F331): no keyboard offered there.
+    assert!(offered(&mut app, SHOW).is_none(), "Tools' menu page");
+    app.press(Action::Nav(Screen::Lightning));
     assert!(
         offered(&mut app, SHOW).is_some(),
-        "Tools, which types with no field"
+        "Lightning, which types with no field"
     );
     for s in [Screen::Home, Screen::Settings, Screen::Vaults] {
         app.press(Action::Nav(s));
@@ -136,10 +140,10 @@ fn done_puts_it_away_and_leaving_the_page_does_too() {
     click(&mut app, SHOW);
     click(&mut app, Action::Osk(OskPress::Done));
     assert!(offered(&mut app, Action::Osk(OskPress::Char('q'))).is_none());
-    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Nav(Screen::Lightning));
     click(&mut app, SHOW);
     assert!(offered(&mut app, Action::Osk(OskPress::Char('q'))).is_some());
     app.press(Action::Nav(Screen::Home));
-    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Nav(Screen::Lightning));
     assert!(offered(&mut app, Action::Osk(OskPress::Char('q'))).is_none());
 }

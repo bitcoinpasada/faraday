@@ -653,6 +653,10 @@ fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32
     let (page_h, lift) = page;
     let (ox, cw) = page_area(app, app.screen, full_w);
     ui.ox = ox;
+    // A flow's noted heading goes with the flow.
+    if !bar_search::in_flow(app) {
+        app.tools.note_flow_head(None);
+    }
     if app.screen != Screen::Home {
         ui.oy = -lift;
         dispatch(app, ui, 0.0, cw, page_h);

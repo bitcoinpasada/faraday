@@ -80,12 +80,17 @@ fn the_sidebar_offers_guide_and_opens_the_guide_sheet() {
     assert_eq!(app.sheet, Some(Sheet::Guide));
 }
 
-/// Spend left the sidebar: the Wallets empty
-/// state and the guide sheet are its ways in now.
+/// Spend left the sidebar. The top bar's Spend from backup pill stands
+/// beside it on every menu page (`docs/WORKSPACE.md` §4), so what is
+/// offered here is that pill alone, right of the sidebar.
 #[test]
 fn the_sidebar_has_no_spend_row() {
     let app = with(0, 0);
-    assert!(!app.offers(Action::Nav(Screen::SpendBackup)));
+    let spend = Action::Nav(Screen::SpendBackup);
+    let offered = app.offered_actions();
+    assert!(offered.iter().filter(|&&a| a == spend).count() <= 1);
+    // 240 pixels at 160 dpi: the sidebar's width.
+    assert!(app.hit_box(spend).is_none_or(|(x, ..)| x >= 240));
 }
 
 /// The Files tab carries one number, its badge (what the Inbox holds):
