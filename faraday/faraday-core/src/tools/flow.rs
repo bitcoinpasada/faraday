@@ -5,7 +5,7 @@
 //! page.
 
 use super::Tool;
-use crate::flow::{Contained, Row};
+use crate::flow::{Contained, Pick, Row};
 use crate::strings::EN;
 use crate::trail::{StepFlow, Steps};
 use crate::{Action, Faraday, Screen};
@@ -37,6 +37,11 @@ pub(crate) fn typing_here(app: &Faraday) -> bool {
     app.tools
         .state()
         .is_some_and(|t| !contained_tool(app) || t.open == INPUT)
+}
+
+/// Whether the tool's ways in are the rows of a pick.
+pub(crate) fn has_pick(t: Tool) -> bool {
+    matches!(t, Tool::Descriptor)
 }
 
 /// The tool's steps, plugged into Back, Forward and Your choices.
@@ -99,6 +104,13 @@ impl Contained for ToolSteps {
                 address: false,
             })
             .collect()
+    }
+
+    /// The Input step of a tool with more ways in than typing: the pane
+    /// holds them (`docs/WORKSPACE.md` §2).
+    fn pick(&self, app: &Faraday, k: u8) -> Option<Pick> {
+        let t = app.tools.state().filter(|_| k == INPUT)?;
+        has_pick(t.tool).then(|| super::screen::pick(app, t))
     }
 
     fn hide_shown(&self, app: &mut Faraday) {

@@ -60,7 +60,29 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     body(app, ui, x, y, width);
 }
 
-/// A tool with one way in, drawn as the flow's one card: Input, then
+/// The pick of a tool that takes codes: the held files its field takes,
+/// the one in the field marked, then Type it and Scan.
+pub(crate) fn pick(app: &crate::Faraday, t: &crate::tools::ToolsState) -> crate::flow::Pick {
+    use faraday_draw::widgets::Icon;
+    crate::pick::Decl::new(tool_name(t.tool))
+        .files(app, |k, i| {
+            crate::tools::file_fits(i.kind).then(|| {
+                let held = i.bytes.trim_ascii() == t.typed.trim().as_bytes();
+                crate::pick::Take::of(held, Action::TFile(k))
+            })
+        })
+        .ways(vec![
+            crate::pick::PickRow::way_in(
+                Icon::Keyboard,
+                EN.tools_way_type,
+                Action::TypeHere(crate::edit::Here::Tools),
+            ),
+            crate::pick::PickRow::way_in(Icon::Scan, EN.tools_scan, Action::TScan),
+        ])
+        .pick()
+}
+
+/// A tool drawn as the flow's one card: Input, then
 /// Result (`docs/FLOW-CONTAINER.md` §2).
 fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(t) = app.tools.state() else { return };
@@ -91,13 +113,20 @@ fn card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 let top = y;
                 let mut y = y + amount_tabs(app_ref, ui, x, y, w) + GRID;
                 y += mode_row(app_ref, ui, x, y, w);
-                y = field(app_ref, ui, x, y, w);
+                y = field(app_ref, ui, x, y, w, true);
                 return reading_rows(app_ref, ui, x, y, w) - top;
             }
             if step == crate::tools::flow::INPUT {
                 let top = y;
                 let mut y = y + mode_row(app_ref, ui, x, y, w);
-                y = field(app_ref, ui, x, y, w);
+                // Where the pair stands a pick at the left holds Scan and
+                // the files.
+                let picked = app_ref
+                    .tools
+                    .state()
+                    .is_some_and(|t| crate::tools::flow::has_pick(t.tool))
+                    && crate::flow::pair_left(app_ref, contained, ui.compact, cw);
+                y = field(app_ref, ui, x, y, w, !picked);
                 let empty = app_ref.tools.state().is_none_or(|t| t.typed.is_empty());
                 let style = if empty {
                     Style::PrimaryOff
@@ -271,7 +300,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         .collect();
     y += button_rows(ui, x, y, width, &tools) + 4.0;
     y += mode_row(app, ui, x, y, width);
-    let y = field(app, ui, x, y, width);
+    let y = field(app, ui, x, y, width, true);
     reading_rows(app, ui, x, y, width)
 }
 
@@ -320,9 +349,10 @@ fn mode_row(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
     0.0
 }
 
-/// The field with Use a sample, Clear and, where the tool takes codes, its
-/// scan and file buttons. Returns where it ends.
-fn field(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
+/// The field with Use a sample, Clear and, where the tool takes codes and
+/// no pick holds them (`buttons`), its scan and file buttons. Returns where
+/// it ends.
+fn field(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, buttons: bool) -> f32 {
     let Some(t) = app.tools.state() else {
         return y;
     };
@@ -375,7 +405,7 @@ fn field(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         Action::TClear,
     );
     y += 58.0;
-    if crate::tools::takes_codes(t.tool) {
+    if buttons && crate::tools::takes_codes(t.tool) {
         let mut row: Vec<(String, Style, Action)> =
             vec![(EN.tools_scan.into(), Style::Secondary, Action::TScan)];
         let files: Vec<(usize, &str)> = app

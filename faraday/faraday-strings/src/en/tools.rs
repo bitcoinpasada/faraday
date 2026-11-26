@@ -46,6 +46,8 @@ macro_rules! words_tools {
     tools_clear: "Clear",
     /// Button under the field of Convert an xpub, Descriptor checksum and Miniscript: reads a code into it.
     tools_scan: "Scan",
+    /// The pick's way in that types into the field.
+    tools_way_type: "Type it",
     /// The same tools' button with no file in Files to read.
     tools_from_files: "From Files",
     /// The same tools' button, one file of Files.
