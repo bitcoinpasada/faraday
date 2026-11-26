@@ -4559,9 +4559,15 @@ impl Faraday {
     }
 
     /// What follows the keys `gone` leaving the session by Remove this
-    /// key or Remove every key. Wallets stay loaded.
-    fn after_keys_removed(&mut self, gone: Vec<faraday_bip::keys::Fingerprint>) {
-        self.wallets.clear_spend();
+    /// key or Remove every key (`every`). With `every`, every flow ends;
+    /// else only a spend or a backup that involves a key of `gone` does,
+    /// and a spend that stays is refreshed. Wallets stay loaded.
+    fn after_keys_removed(&mut self, gone: Vec<faraday_bip::keys::Fingerprint>, every: bool) {
+        let spend_ends = every || gone.iter().any(|&fp| self.spend_uses_key(fp));
+        let backup_ends = every || gone.iter().any(|&fp| self.backup_uses_key(fp));
+        if spend_ends {
+            self.wallets.clear_spend();
+        }
         // After the removal: the tab puts back a plain seed that is still
         // held.
         for fp in gone {
@@ -4569,11 +4575,49 @@ impl Faraday {
             self.spend_backup_forget_key(fp);
             self.create.key_removed_with_all(fp.0);
         }
-        crate::wallet_backup::kef::dropped(self);
-        self.backup_key_removed();
+        if backup_ends {
+            crate::wallet_backup::kef::dropped(self);
+            self.backup_key_removed();
+        }
+        if !spend_ends {
+            self.refresh_spend();
+        }
         if self.spend_backup.state().open.is_some() {
             self.spend_backup_settle_cards();
         }
+    }
+
+    /// Whether the spend under way involves the key `fp`: its wallet has
+    /// a slot of it, or it is named as signed or still to sign, or the
+    /// MuSig2 session holds a nonce for a participant the PSBT says is
+    /// its. A lookup over the spend as it was last refreshed.
+    fn spend_uses_key(&self, fp: faraday_bip::keys::Fingerprint) -> bool {
+        let Some(s) = self.wallets.spend() else {
+            return false;
+        };
+        let in_wallet = s
+            .wallet
+            .and_then(|w| self.session.wallets.get(w))
+            .is_some_and(|w| {
+                self.session
+                    .slots(w)
+                    .iter()
+                    .any(|slot| slot.fingerprint == Some(fp))
+            });
+        let in_musig = s.musig.as_ref().is_some_and(|m| {
+            let inputs = &s.spend.psbt.inner().inputs;
+            m.view().held.iter().any(|(i, participant)| {
+                inputs
+                    .get(*i)
+                    .and_then(|input| {
+                        input
+                            .tap_key_origins
+                            .get(&participant.x_only_public_key().0)
+                    })
+                    .is_some_and(|(_, (of, _))| of.to_bytes() == fp.0)
+            })
+        });
+        in_wallet || s.to_sign.contains(&fp.0) || s.signers.contains(&fp.0) || in_musig
     }
 
     /// Opens **Published words** when a key held on Mainnet has published
@@ -5320,7 +5364,7 @@ impl Faraday {
                     self.sheet = None;
                 }
                 let gone = self.session.keys.remove_all();
-                self.after_keys_removed(gone);
+                self.after_keys_removed(gone, true);
             }
             Action::RemoveKey(fp) | Action::RemoveKeyHold(fp) => {
                 if action == Action::RemoveKey(fp) {
@@ -5335,7 +5379,7 @@ impl Faraday {
                 }
                 let fp = faraday_bip::keys::Fingerprint(fp);
                 if self.session.keys.remove_one(fp) {
-                    self.after_keys_removed(vec![fp]);
+                    self.after_keys_removed(vec![fp], false);
                 }
             }
             Action::StartSpend(i) => {

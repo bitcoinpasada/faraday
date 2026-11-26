@@ -1893,3 +1893,71 @@ fn a_key_waiting_for_its_backup_offers_no_message() {
         assert!(!app.offers(Action::SignMessageKey(fp)));
     }
 }
+
+/// The single-key wallet `spending` (test seed 0) with its spend open,
+/// and test seeds 0 and 1 held: their fingerprints.
+fn spend_with_a_second_key() -> (Faraday, [u8; 4], [u8; 4]) {
+    use faraday_core::testkit;
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: faraday_core::files_from(vec![
+            (
+                faraday_text::Text::of("spend.psbt"),
+                testkit::unsigned(&kit).unwrap().to_bytes(),
+            ),
+            (
+                faraday_text::Text::of("spending-wallet.txt"),
+                kit.descriptor.clone().into_bytes(),
+            ),
+        ]),
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::load_wallet(&mut app, 1);
+    let own = add_key(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    let other = add_key(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::StartSpend(0));
+    (app, own, other)
+}
+
+#[test]
+fn removing_a_key_the_spend_does_not_use_leaves_the_spend_and_its_signatures() {
+    let (mut app, own, other) = spend_with_a_second_key();
+    faraday_core::testkit::steps_before_sign_done(&mut app);
+    app.press(Action::Step(faraday_core::wallet::step::SIGN));
+    app.press(Action::SignHere);
+    let signed = app.spend().unwrap().spend.psbt.to_bytes();
+    assert_eq!(app.spend().unwrap().signers, [own]);
+    app.press(Action::RemoveKeyHold(other));
+    assert_eq!(app.session.keys.len(), 1);
+    let s = app.spend().expect("the spend stays");
+    assert_eq!(s.signers, [own]);
+    assert_eq!(s.spend.psbt.to_bytes(), signed);
+}
+
+#[test]
+fn removing_a_key_of_the_spends_wallet_ends_the_spend() {
+    let (mut app, own, _) = spend_with_a_second_key();
+    assert!(app.spend().is_some());
+    app.press(Action::RemoveKeyHold(own));
+    assert_eq!(app.session.keys.len(), 1);
+    assert!(app.spend().is_none());
+}
+
+#[test]
+fn removing_a_key_the_backup_does_not_use_leaves_its_item_open() {
+    let (mut app, _, other) = spend_with_a_second_key();
+    app.press(Action::Backup(0));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
+    app.press(Action::BQ(faraday_core::qstep::PLAN));
+    app.press(Action::BChecklist);
+    let item = app.backup().unwrap().open;
+    assert!(item.is_some(), "the checklist has an item open");
+    app.press(Action::RemoveKeyHold(other));
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.backup().expect("the backup stays").open, item);
+}

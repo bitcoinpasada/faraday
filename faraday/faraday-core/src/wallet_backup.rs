@@ -4140,6 +4140,14 @@ impl Faraday {
             .collect()
     }
 
+    /// Whether the backup under way is of a wallet with a seed `fp`.
+    pub(crate) fn backup_uses_key(&self, fp: faraday_bip::keys::Fingerprint) -> bool {
+        self.backup
+            .state()
+            .and_then(|b| self.session.wallets.get(b.wallet))
+            .is_some_and(|w| self.backup_seed_fps_of(w).iter().any(|(f, _)| *f == fp))
+    }
+
     /// A key was taken off the session: Back up ends what it held of it
     /// ([`WalletBackupArea::key_removed`]).
     pub(crate) fn backup_key_removed(&mut self) {
