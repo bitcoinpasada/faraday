@@ -767,8 +767,9 @@ impl Faraday {
         (self.trail_name().unwrap_or(label), own)
     }
 
-    /// Leaving, as one act for the arrow, Escape and the mouse's back
-    /// button: a sheet's Cancel (the Lock sheet stays), the guide's
+    /// Leaving, as one act for Escape and the mouse's back button (the
+    /// top bar's arrow is [`Self::back`], which leaves the guide's pane
+    /// open): a sheet's Cancel (the Lock sheet stays), the guide's
     /// supporting pane, else the screen's way back as its link takes it,
     /// or [`Self::back`] where it has none.
     pub(crate) fn leave_back(&mut self) {

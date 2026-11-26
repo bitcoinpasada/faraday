@@ -295,7 +295,9 @@ where the screen offers it). Its tabs are the sheet's; the guide's
 page title is in Title L, pinned under the tabs while the text scrolls
 under it, its section headings in Title S and its text in Body M; the
 scrollbar is always shown while the page is longer than the pane (F308). The close button, the
-? pressed again, Escape and the mouse's back button put it away. It
+? pressed again, Escape and the mouse's back button put it away; the
+top bar's back arrow goes back a page with the guide left open
+(owner, 2026-11-25). It
 stays open across pages and flows until it is closed, and has no pin
 (owner, 2026-11-22). When the step or the screen changes, the pane shows
 that screen's page of the guide, at the section of the step.

@@ -450,6 +450,61 @@ fn the_pane_stays_open_across_screens_until_it_is_closed() {
     assert_eq!(app.sheet, None);
 }
 
+/// The top bar's arrow is a way back through the pages, not a way to put
+/// the pane away: the earlier page shows and the guide stays beside it.
+/// Escape and the mouse's back button put the guide away first.
+#[test]
+fn the_arrow_goes_back_a_page_with_the_guide_open_and_escape_closes_it_first() {
+    use faraday_core::Screen;
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Nav(Screen::Randomness));
+    app.press(Action::Guide);
+    frame(&mut app);
+    assert!(app.offers(Action::GuideClose), "the pane on the tool");
+    tap_arrow(&mut app);
+    assert_eq!(app.screen, Screen::Catalog, "the earlier page");
+    assert!(app.offers(Action::GuideClose), "the pane stays open");
+    assert_eq!(shown(&app), "catalog", "on that page's page");
+
+    // A page whose way back names its screen.
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.go == faraday_core::catalog::Go::CheckTimestamp)
+        .expect("the tile");
+    app.press(Action::Catalog(tile as u8));
+    frame(&mut app);
+    assert!(app.offers(Action::GuideClose));
+    tap_arrow(&mut app);
+    assert_eq!(app.screen, Screen::Catalog);
+    assert!(app.offers(Action::GuideClose), "still open");
+
+    app.press(Action::Nav(Screen::Randomness));
+    frame(&mut app);
+    app.event(Event::Key(Key::Escape));
+    frame(&mut app);
+    assert!(!app.offers(Action::GuideClose), "Escape closes the guide");
+    assert_eq!(app.screen, Screen::Randomness, "and the page stays");
+
+    app.press(Action::Guide);
+    frame(&mut app);
+    app.event(Event::Back);
+    frame(&mut app);
+    assert!(!app.offers(Action::GuideClose), "so does the mouse's back");
+    assert_eq!(app.screen, Screen::Randomness);
+}
+
+/// A tap on the top bar's arrow.
+fn tap_arrow(app: &mut Faraday) {
+    frame(app);
+    let (x, y) = app.back_offered().expect("the bar draws a way back");
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    frame(app);
+}
+
 /// The guide pressed on the next screen, before a frame has drawn it, is
 /// the open pane pressed again: it puts the pane away.
 #[test]
