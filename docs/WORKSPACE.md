@@ -1072,7 +1072,11 @@ them, the settings file and the Inbox's files left out), as Files' Write
 still sends everything chosen. Where it locks first, the sheet that asks
 names those files and the stick; the idle lock answering that sheet, or
 spend's, gives the write up. A row is its file by name and SHA-256: another
-file under that name shows Make the file and is not sent.
+file under that name shows Make the file and is not sent. The write that
+waits through the lock, spend's too, keeps each file's name and SHA-256: in
+the next process a file whose name or contents differ, or that may be a
+secret, is not written, and a kept write without a SHA-256 for every file
+writes nothing.
 
 **Built** too: the Krux code tool's code card, where the pair stands
 (`kef_tool/mod.rs`): the take-away holds the code's PNG, where there is one,

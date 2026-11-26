@@ -1202,7 +1202,8 @@ impl Faraday {
                 // names and the stick they go to, which is written and
                 // checked when it comes; with no stick named, nothing is
                 // written by itself.
-                self.visit.set_lock_to_write(self.spend_write_plan());
+                let plan = self.spend_write_plan();
+                self.visit.set_lock_to_write(plan);
                 self.lock_ask(false);
             } else {
                 self.screen = Screen::Files;

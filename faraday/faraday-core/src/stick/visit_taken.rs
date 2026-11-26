@@ -221,12 +221,15 @@ pub(crate) struct WriteWait {
     pub spend: bool,
     /// The files, by name.
     pub names: Vec<Text>,
+    /// Each file's SHA-256, in the order of `names`: with the name, which
+    /// file it is.
+    pub hashes: Vec<[u8; 32]>,
 }
 
 impl WriteWait {
     /// What the next process keeps: the stick's identity on the first
     /// line (empty for none), "spend" or nothing on the second, then one
-    /// name a line.
+    /// file a line: its SHA-256 as 64 hex digits, a space, its name.
     pub(crate) fn encode(&self) -> Vec<u8> {
         let mut out: Vec<u8> = Vec::new();
         out.extend_from_slice(self.stick.as_deref().unwrap_or("").as_bytes());
@@ -234,14 +237,19 @@ impl WriteWait {
         if self.spend {
             out.extend_from_slice(b"spend");
         }
-        for n in &self.names {
+        for (n, hash) in self.names.iter().zip(&self.hashes) {
             out.push(b'\n');
+            for byte in hash {
+                out.extend_from_slice(text!("{byte:02x}").as_bytes());
+            }
+            out.push(b' ');
             out.extend_from_slice(n.as_bytes());
         }
         out
     }
 
-    /// What [`Self::encode`] kept; none when no name is left.
+    /// What [`Self::encode`] kept; none when no file is left, or when any
+    /// file's line has no SHA-256: then nothing is written.
     pub(crate) fn decode(bytes: &[u8]) -> Option<WriteWait> {
         let mut lines = bytes.split(|b| *b == b'\n');
         let stick = lines
@@ -249,17 +257,33 @@ impl WriteWait {
             .filter(|l| !l.is_empty())
             .map(Text::from_utf8_lossy);
         let spend = lines.next() == Some(b"spend".as_slice());
-        let names: Vec<Text> = lines
+        let (hashes, names): (Vec<[u8; 32]>, Vec<Text>) = lines
             .filter(|l| !l.is_empty())
-            .map(Text::from_utf8_lossy)
-            .collect();
+            .map(waiting_file)
+            .collect::<Option<Vec<_>>>()?
+            .into_iter()
+            .unzip();
         (!names.is_empty()).then_some(WriteWait {
             stick,
             label: Text::default(),
             spend,
             names,
+            hashes,
         })
     }
+}
+
+/// One file's line of [`WriteWait::encode`].
+fn waiting_file(line: &[u8]) -> Option<([u8; 32], Text)> {
+    let (hex, rest) = line.split_at_checked(64)?;
+    let name = rest.strip_prefix(b" ").filter(|n| !n.is_empty())?;
+    let mut hash = [0u8; 32];
+    for (byte, pair) in hash.iter_mut().zip(hex.chunks_exact(2)) {
+        let high = char::from(pair[0]).to_digit(16)?;
+        let low = char::from(pair[1]).to_digit(16)?;
+        *byte = u8::try_from(high * 16 + low).ok()?;
+    }
+    Some((hash, Text::from_utf8_lossy(name)))
 }
 
 impl std::ops::Deref for VisitArea {
@@ -1190,10 +1214,22 @@ impl Faraday {
             .collect()
     }
 
+    /// Costs a SHA-256 pass over each named file that has none kept
+    /// ([`crate::Item::hash`]). The SHA-256 of each file For the stick
+    /// that `names` names, in their order, for a [`WriteWait`].
+    fn waiting_hashes(&mut self, names: &[Text]) -> Vec<[u8; 32]> {
+        let c = self.compute();
+        names
+            .iter()
+            .filter_map(|n| self.outbox.iter().find(|i| *i.name == **n))
+            .map(|i| i.hash(&c))
+            .collect()
+    }
+
     /// What "Lock and write" writes: the spend's results still in the
     /// Outbox, to the stick in now or else the one the PSBT was imported
     /// from. With neither, nothing is written by itself.
-    pub(crate) fn spend_write_plan(&self) -> Option<WriteWait> {
+    pub(crate) fn spend_write_plan(&mut self) -> Option<WriteWait> {
         let names = self.spend_outbox_names();
         let stick = self
             .visit_stick_identity()
@@ -1202,13 +1238,16 @@ impl Faraday {
             stick: Some(stick),
             label: Text::default(),
             spend: true,
+            hashes: self.waiting_hashes(&names),
             names,
         })
     }
 
-    /// The write left through a lock for the stick that came: only the
-    /// files it named, to the stick it named (any other stick has the
-    /// ordinary visit).
+    /// Costs a SHA-256 pass over each file of a waiting name that has none
+    /// kept. The write left through a lock for the stick that came: only
+    /// the files it named, each by name and SHA-256 and none that may be a
+    /// secret, to the stick it named (any other stick has the ordinary
+    /// visit).
     pub(crate) fn visit_write_waiting(&mut self) {
         let Some(wait) = self.visit.write_waiting().cloned() else {
             return;
@@ -1229,10 +1268,19 @@ impl Faraday {
         };
         self.visit.set_stick(i);
         self.visit.set_write_waiting(None);
+        let c = self.compute();
         let names: Vec<Text> = wait
             .names
             .into_iter()
-            .filter(|n| self.outbox.iter().any(|i| *i.name == **n))
+            .zip(wait.hashes)
+            .filter(|(n, hash)| {
+                self.outbox.iter().any(|i| {
+                    *i.name == **n
+                        && i.hash(&c) == *hash
+                        && i.exposure() != crate::secrets::Exposure::Secret
+                })
+            })
+            .map(|(n, _)| n)
             .collect();
         if names.is_empty() {
             return;
@@ -1293,10 +1341,12 @@ impl Faraday {
         if !self.clean() {
             // With no stick in nothing waits: the files stay For the
             // stick.
+            let hashes = self.waiting_hashes(&names);
             let wait = self.stick.get(self.visit.stick).map(|stick| WriteWait {
                 stick: Some(stick_identity(stick)),
                 label: Text::of(&stick.label),
                 spend: false,
+                hashes,
                 names,
             });
             self.visit.set_lock_to_write(wait);
