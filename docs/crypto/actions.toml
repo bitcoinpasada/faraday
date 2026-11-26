@@ -1512,6 +1512,8 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::blind_key",
   "faraday/faraday-keys/src/session.rs::Keys::reblind_owed",
   "faraday/faraday-keys/src/session.rs::Keys::reblind",
+  "faraday/faraday-keys/src/session.rs::Keys::remove_one",
+  "faraday/faraday-keys/src/session.rs::Keys::remove_published",
   "core/faraday-crypto/src/pinned.rs::Pinned::new",
   "core/faraday-crypto/src/pinned.rs::Pinned::new_with",
   "core/faraday-crypto/src/pinned.rs::Pinned::drop",
@@ -5165,6 +5167,7 @@ functions = [
   "faraday/faraday-core/src/wallet.rs::psbt_network",
   "faraday/faraday-core/src/wallet.rs::Faraday::register_act",
   "faraday/faraday-core/src/wallet.rs::Spend::collect",
+  "faraday/faraday-core/src/wallet.rs::Faraday::spend_uses_key",
 ]
 code = ["core/faraday-psbt/src/inspect.rs::inspect"]
 
