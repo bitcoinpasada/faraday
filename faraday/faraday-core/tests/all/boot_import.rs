@@ -221,6 +221,18 @@ fn spare_vault() -> Vec<u8> {
     crate::common::vault_of("Spare", "spare", 0x5c, records)
 }
 
+/// A finger down and up where `action` is drawn.
+fn tap(app: &mut Faraday, action: Action) {
+    let _ = app.frame();
+    let (x, y) = app
+        .where_offered(action)
+        .unwrap_or_else(|| panic!("{action:?} is not on screen"));
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+}
+
 fn drawn(app: &mut Faraday) -> String {
     app.drawn_texts().join("\n")
 }
@@ -922,8 +934,9 @@ fn refused_with_the_list(a: Action) -> bool {
     )
 }
 
-/// Nothing the list's page offers is refused, and In Faraday's own Write
-/// and the secret-file notice's Delete are offered while the list stands.
+/// Nothing the list's page offers is refused, and In Faraday's own Write,
+/// the secret-file notice's Delete and the stick's Delete files, Rename
+/// stick and a file's menu are offered while the list stands.
 #[test]
 fn the_list_page_offers_write_and_delete_and_nothing_it_refuses() {
     let files = stick_files();
@@ -934,6 +947,15 @@ fn the_list_page_offers_write_and_delete_and_nothing_it_refuses() {
     let offered = app.offered_actions();
     assert!(offered.contains(&Action::VisitWrite), "{offered:?}");
     assert!(offered.contains(&Action::DeleteUnprotected), "{offered:?}");
+    for a in [
+        Action::DeleteFiles,
+        Action::File(faraday_core::file_menu::FilePress::NameStick),
+        Action::File(faraday_core::file_menu::FilePress::Menu(
+            faraday_core::file_menu::Row::Stick(0),
+        )),
+    ] {
+        assert!(offered.contains(&a), "{a:?} in {offered:?}");
+    }
     let refused: Vec<_> = offered
         .into_iter()
         .filter(|a| refused_with_the_list(*a))
@@ -1143,8 +1165,7 @@ fn a_file_deleted_while_the_list_stands_leaves_it_and_is_not_imported() {
     let photo = row(&app, "photo.jpg");
     app.press(Action::Import(I::File(photo)));
     let _ = app.frame();
-    assert!(app.offers(Action::DeleteUnprotected));
-    app.press(Action::DeleteUnprotected);
+    tap(&mut app, Action::DeleteUnprotected);
     assert_eq!(app.sheet, Some(Sheet::Delete));
     app.press(Action::DeletePick(notes));
     while app.poll_storage().is_some() {}
@@ -1242,23 +1263,110 @@ fn write_works_while_the_list_stands() {
 #[test]
 fn the_sticks_menu_opens_while_the_list_stands() {
     use faraday_core::file_menu::{FilePress as P, Row};
-    let files = stick_files();
-    for (press, sheet) in [
-        (P::NameStick, Sheet::Rename),
-        (P::Menu(Row::Stick(0)), Sheet::FileMenu),
-    ] {
+    // The settings file has no row in the list, so a file listed after it
+    // stands at another place there than on the stick.
+    let mut files = stick_files();
+    files.insert(0, ("faraday-settings.txt".into(), b"x".to_vec()));
+    let notes = files.iter().position(|(n, _)| n == "notes.txt").unwrap();
+    for (w, h) in [(1280, 800), (1920, 1080), (480, 640)] {
         let mut app = boot_only(&files);
+        app.event(Event::Display(faraday_shell_api::DisplayInfo {
+            width: w,
+            height: h,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
+            memory_mib: None,
+        }));
+        if w == 480 {
+            tap(&mut app, Action::VisitTab(faraday_core::Column::Stick));
+        }
         assert!(app.import_on_show());
-        let _ = app.frame();
-        let offered = app.offers(Action::File(press));
-        app.press(Action::File(press));
-        let _ = app.frame();
-        // The handler's rule: the control is drawn once the owner picks
-        // where on the list's page.
-        assert!(!offered, "{press:?}");
-        assert_eq!(app.sheet, Some(sheet), "{press:?}");
+        tap(&mut app, Action::File(P::NameStick));
+        assert_eq!(app.sheet, Some(Sheet::Rename), "{w}x{h}");
         assert!(app.import_tile_up(), "the list stands under it");
+        app.press(Action::Cancel);
+        tap(&mut app, Action::File(P::Menu(Row::Stick(notes))));
+        assert_eq!(app.sheet, Some(Sheet::FileMenu), "{w}x{h}");
+        assert!(app.import_tile_up(), "the list stands under it");
+        tap(&mut app, Action::File(P::Rename(Row::Stick(notes))));
+        let from = app.files_menu().renaming.as_ref().map(|r| r.from.clone());
+        assert_eq!(from.as_deref(), Some("notes.txt"), "{w}x{h}");
+        app.press(Action::Cancel);
+        tap(&mut app, Action::DeleteFiles);
+        assert_eq!(app.sheet, Some(Sheet::Delete), "{w}x{h}");
     }
+}
+
+/// The Rename popup's field cleared and `stem` typed in it.
+fn type_name(app: &mut Faraday, stem: &str) {
+    let n = app
+        .files_menu()
+        .renaming
+        .as_ref()
+        .map_or(0, |r| r.stem.chars().count());
+    for _ in 0..n {
+        app.event(Event::Key(Key::Backspace));
+    }
+    for c in stem.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    let _ = app.frame();
+}
+
+/// The rename the disk process was asked for, if any.
+fn renames(app: &mut Faraday) -> Vec<String> {
+    let mut out = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Rename { to, .. } = c {
+            out.push(String::from(&*to));
+        }
+    }
+    out
+}
+
+/// A rename onto a vault of the stick has the disk process read and hash
+/// both files for its answer: it is refused while the list stands, as
+/// Details is, and goes after Later. A free name goes either way.
+#[test]
+fn a_rename_onto_a_vault_of_the_stick_is_refused_while_the_list_stands() {
+    use faraday_core::file_menu::{FilePress as P, Row};
+    let mut files = stick_files();
+    files.push(("spare.kdbx".into(), spare_vault()));
+    let vault = files.iter().position(|(n, _)| n == "vault.kdbx").unwrap();
+    let open = |app: &mut Faraday| {
+        tap(app, Action::File(P::Menu(Row::Stick(vault))));
+        tap(app, Action::File(P::Rename(Row::Stick(vault))));
+        assert_eq!(app.sheet, Some(Sheet::Rename));
+    };
+    let go = Action::File(P::RenameGo);
+
+    let mut app = boot_only(&files);
+    while app.poll_storage().is_some() {}
+    open(&mut app);
+    for stem in ["spare", "SPARE"] {
+        type_name(&mut app, stem);
+        assert!(!app.offers(go), "{stem}");
+        app.press(go);
+        assert_eq!(renames(&mut app), Vec::<String>::new(), "{stem}");
+    }
+    type_name(&mut app, "other");
+    tap(&mut app, go);
+    assert_eq!(renames(&mut app), ["other.kdbx"]);
+
+    let mut app = boot_only(&files);
+    app.press(Action::Import(I::Later));
+    app.press(Action::Nav(Screen::Files));
+    assert!(!app.import_tile_up());
+    while app.poll_storage().is_some() {}
+    open(&mut app);
+    type_name(&mut app, "spare");
+    tap(&mut app, go);
+    assert_eq!(renames(&mut app), ["spare.kdbx"]);
 }
 
 /// A stick that comes back under the import's id with another listing,
@@ -1377,8 +1485,7 @@ fn zeroing_the_whole_stick_ends_the_import() {
     let mut app = boot_only(&files);
     secret_written(&mut app);
     let _ = app.frame();
-    assert!(app.offers(Action::DeleteUnprotected));
-    app.press(Action::DeleteUnprotected);
+    tap(&mut app, Action::DeleteFiles);
     app.press(Action::DeleteWhat(2));
     app.press(Action::DeletePasses(1));
     while app.poll_storage().is_some() {}

@@ -1178,6 +1178,8 @@ pub const IMPORT_TILE_ICON_BOX: f32 = 22.0;
 pub const IMPORT_TILE_ICON: f32 = 14.0;
 /// Where the title starts, right of the card's inner left edge.
 pub const IMPORT_TILE_TITLE_X: f32 = 30.0;
+/// A listed file's ⋮, at its row's right end.
+pub const IMPORT_TILE_DOTS: f32 = 32.0;
 /// The files a small panel's import card shows at least.
 pub const IMPORT_TILE_MIN_ROWS: f32 = 3.0;
 /// The grid steps between the list and the buttons: the list's "more"

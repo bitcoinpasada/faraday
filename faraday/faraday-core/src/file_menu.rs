@@ -598,6 +598,20 @@ impl Faraday {
         if to == r.from {
             return Err(None);
         }
+        // Refused as Details is, with no line: onto a vault of the stick,
+        // the disk process reads and hashes the two files to word its
+        // answer, and nothing of the import's stick is read before Import
+        // (F328 point 2).
+        if matches!(r.what, Named::File(Row::Stick(_)))
+            && self.import_tile_up()
+            && self.stick.get(self.visit.stick).is_some_and(|s| {
+                s.files
+                    .iter()
+                    .any(|(n, _)| **n != *r.from && n.eq_ignore_ascii_case(&to) && s.is_vault(n))
+            })
+        {
+            return Err(None);
+        }
         if let Named::File(Row::Out(k)) = r.what
             && self
                 .outbox

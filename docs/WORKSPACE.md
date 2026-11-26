@@ -1284,6 +1284,8 @@ Owner, 2026-11-23 and 2026-11-24. F130 stands: names and sizes until Import.
   settings file goes straight to Home, as today, with no row for it. The rows
   show a guess from the name ("PSBT, by its name · 1.2 KB"), the contents only
   after Import.
+- The list's card has the stick card's own **Rename stick**, each file's ⋮ and
+  **Delete files** (F328 point 9).
 - **Import works with the stick in**: the ticked files come into Files. A key
   whose file was on the stick loads as the stick is pulled, and the sheet says
   to remove it. Pulled before Import, it says "Put the stick back in to import".

@@ -1071,11 +1071,20 @@ fn write_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), on: bool) {
 /// (`title_w`, none on a small panel, whose tab names the card), else
 /// from the left in rows under it. `(ix, y, colw)` is the card's left
 /// edge, top and width. Returns the height the rows add to the heading.
-fn stick_heading(app: &View, ui: &mut Ui, (ix, y, colw): (f32, f32, f32), title_w: f32) -> f32 {
+///
+/// Without `chips` it is Rename stick alone, as the boot import's list
+/// draws it.
+pub(crate) fn stick_heading(
+    app: &View,
+    ui: &mut Ui,
+    (ix, y, colw): (f32, f32, f32),
+    title_w: f32,
+    chips: bool,
+) -> f32 {
+    let sticks = if chips { app.stick.as_slice() } else { &[] };
     let rename = Text::fill(EN.stick_name_button, &[app.medium.noun()]);
     let rename_w = ui.measure_as(LABEL_L, &rename) + BUTTON_PAD + BUTTON_PAD;
-    let chips: Vec<f32> = app
-        .stick
+    let chips: Vec<f32> = sticks
         .iter()
         .map(|st| ui.measure_as(LABEL_L, &st.label) + VISIT_CHIP_EXTRA)
         .collect();
@@ -1121,7 +1130,7 @@ fn stick_heading(app: &View, ui: &mut Ui, (ix, y, colw): (f32, f32, f32), title_
         Style::Ghost,
         NAME_STICK,
     );
-    for (k, st) in app.stick.iter().enumerate() {
+    for (k, st) in sticks.iter().enumerate() {
         let wdt = chips[k];
         let (chx, chy) = place(wdt);
         let current = k == app.visit.stick;
@@ -1188,7 +1197,7 @@ fn on_the_stick(
     };
     if stick.is_some() {
         let title_w = ui.measure_as(TITLE_M, app.medium.on_box());
-        top += stick_heading(app, ui, (ix, y, colw), title_w);
+        top += stick_heading(app, ui, (ix, y, colw), title_w, true);
     }
     if let Some(line) = super::files::boot_medium_line(app) {
         top += ui.wrap_as((ix + 22.0, top, colw - 44.0), BODY_M, Role::Error, line) + GRID;
@@ -1389,15 +1398,7 @@ fn on_the_stick(
         - BUTTON_H
         - GRID
         - if ui.compact { GRID } else { 0.0 };
-    ui.button(
-        ix + 20.0,
-        zy,
-        None,
-        BUTTON_H,
-        EN.visit_delete_files,
-        Style::Ghost,
-        Action::DeleteFiles,
-    );
+    delete_files(ui, ix, zy);
     if !app.visit.inn.is_empty() {
         visit_unselect_all(ui, ix + colw, zy + BUTTON_H / 2.0 - 31.0);
     }
@@ -1431,6 +1432,20 @@ fn on_the_stick(
         Action::VisitCopy,
     );
     needed
+}
+
+/// Delete files in a card whose left edge is `ix`, its top at `zy`: on
+/// the stick's card and on the boot import's list.
+pub(crate) fn delete_files(ui: &mut Ui, ix: f32, zy: f32) {
+    ui.button(
+        ix + 20.0,
+        zy,
+        None,
+        BUTTON_H,
+        EN.visit_delete_files,
+        Style::Ghost,
+        Action::DeleteFiles,
+    );
 }
 
 /// On the stick with no stick usable, in the body `(x, top, w, h)` of its

@@ -20,8 +20,9 @@ use crate::ui::{Glyph, Style, Ui};
 use crate::vault::screen::{stick_banner, stick_field};
 use crate::vault::{Focus, VaultAction as V, Work};
 use faraday_draw::tokens::{
-    GRID, IMPORT_TILE_FOOT_GRIDS, IMPORT_TILE_ICON, IMPORT_TILE_ICON_BOX, IMPORT_TILE_MIN_ROWS,
-    IMPORT_TILE_TITLE_X, ROW, SHAPE_M, TITLE_M, VISIT_CARD_HEAD, VISIT_PAD,
+    BUTTON_H, GAP_SMALL, GRID, IMPORT_TILE_DOTS, IMPORT_TILE_FOOT_GRIDS, IMPORT_TILE_ICON,
+    IMPORT_TILE_ICON_BOX, IMPORT_TILE_MIN_ROWS, IMPORT_TILE_TITLE_X, ROW, SHAPE_M, TITLE_M,
+    VISIT_CARD_HEAD, VISIT_COMPACT_HEAD, VISIT_PAD, VISIT_TITLE_X,
 };
 
 fn ia(a: I) -> Action {
@@ -65,14 +66,18 @@ pub(crate) fn tile(
         return 0.0;
     };
     let label = imp.label.clone();
+    // The stick's buttons and each file's menu, as on the stick's own
+    // card, while the import's stick is the one chosen and usable.
+    let stick = app
+        .stick
+        .get(app.visit.stick)
+        .filter(|s| app.stick_pane() && imp.stick == s.id.as_str());
     ui.card(x, y, w, h, Role::OutlineVariant);
     let (ix, iw) = (x + VISIT_PAD, w - 2.0 * VISIT_PAD);
     let noun = app.medium.noun();
     let mut cy = y;
-    if ui.compact {
-        // A small panel's tab names the card.
-        cy += SHAPE_M + faraday_draw::tokens::GAP_SMALL;
-    } else {
+    let mut title_w = 0.0;
+    if !ui.compact {
         ui.icon(
             ix,
             y + VISIT_PAD,
@@ -96,7 +101,17 @@ pub(crate) fn tile(
             Role::OnSurface,
             &t,
         );
-        cy += VISIT_CARD_HEAD;
+        // From the card's edge, as the heading measures its title.
+        title_w = ui.measure_as(TITLE_M, &t) + VISIT_PAD + IMPORT_TILE_TITLE_X - VISIT_TITLE_X;
+    }
+    // A small panel's tab names the card.
+    cy += match (ui.compact, stick.is_some()) {
+        (false, _) => VISIT_CARD_HEAD,
+        (true, true) => VISIT_COMPACT_HEAD,
+        (true, false) => SHAPE_M + GAP_SMALL,
+    };
+    if stick.is_some() {
+        cy += crate::screens::visit::stick_heading(app, ui, (x, y, w), title_w, false);
     }
     if app.import_reading() {
         cy += ui.wrap_as((ix, cy, iw), LABEL_L, Role::OnSurface, &count.line()) + GAP;
@@ -140,20 +155,25 @@ pub(crate) fn tile(
     };
     let feet = faraday_ui::sheet::buttons_height(ui, iw, &[EN.boot_import_later, longer]);
     let foot = y + h - VISIT_PAD - feet;
+    // Delete files stands over them, as on the stick's own card, on a
+    // small panel a grid step more apart.
+    let delete_gap = if ui.compact { 2.0 * GRID } else { GRID };
+    let delete_h = stick.map_or(0.0, |_| BUTTON_H + delete_gap);
     // The "more" line the list bar draws stands under the track.
-    let track_h = (foot - GRID * IMPORT_TILE_FOOT_GRIDS - cy).max(ROW);
+    let track_h = (foot - delete_h - GRID * IMPORT_TILE_FOOT_GRIDS - cy).max(ROW);
     let list_top = cy;
     // What the card needs to show three files and both buttons.
     let needed = (list_top - y)
         + IMPORT_TILE_MIN_ROWS * ROW
         + GRID * IMPORT_TILE_FOOT_GRIDS
+        + delete_h
         + feet
         + VISIT_PAD;
     let clip = ui.rect(x, list_top, w, track_h);
     let total = {
         let zero = ui.rect(0.0, 0.0, 0.0, 0.0);
         ui.c.push_clip(zero);
-        let total = files(ui, ix, list_top, iw, view);
+        let total = files(app, ui, (ix, list_top, iw), view, stick);
         ui.c.pop_clip();
         total
     };
@@ -165,7 +185,7 @@ pub(crate) fn tile(
             .own_bar()
             .from_zero(shift),
     );
-    files(ui, ix, list_top, iw, view);
+    files(app, ui, (ix, list_top, iw), view, stick);
     ui.region_close(open, max_shift);
     crate::screens::visit::visit_list_bar(
         app,
@@ -177,6 +197,9 @@ pub(crate) fn tile(
         total,
         shift,
     );
+    if stick.is_some() {
+        crate::screens::visit::delete_files(ui, x, foot - delete_h);
+    }
     faraday_ui::sheet::buttons_by(
         ui,
         ix,
@@ -376,11 +399,21 @@ fn unlocking(app: &View, file: usize) -> String {
 
 /// Every file the stick held, each with its checkbox. Returns their
 /// height.
-fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
+fn files(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    v: &ImportView,
+    stick: Option<&crate::storage_api::StickInfo>,
+) -> f32 {
     let mut cy = y;
     for f in &v.files {
         let top = cy;
-        let tw = w - 28.0;
+        // The file's place in the stick's listing, for its ⋮ at the
+        // row's right end.
+        let menu = stick.and_then(|s| s.files.iter().position(|(n, _)| *n == f.name));
+        let dw = menu.map_or(0.0, |_| IMPORT_TILE_DOTS + GRID);
+        let tw = w - 28.0 - dw;
         let height = ui.line_as(BODY_M.mono())
             + faraday_draw::tokens::GAP_SMALL
             + ui.wrap_height_as(BODY_S, &f.line, tw)
@@ -412,7 +445,20 @@ fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
             &f.line,
         ) + 2.0;
         if f.enabled {
-            ui.press_box(x - 4.0, top, w + 8.0, cy - top, ia(I::File(f.id)));
+            // Ends clear of the ⋮'s touch target.
+            let left = x - 4.0;
+            let right = menu.map_or(left + w + 8.0, |_| x + w - dw - GRID);
+            ui.press_box(left, top, right - left, cy - top, ia(I::File(f.id)));
+        }
+        if let Some(k) = menu {
+            crate::file_menu::dots(
+                app,
+                ui,
+                x + w - IMPORT_TILE_DOTS,
+                top,
+                IMPORT_TILE_DOTS,
+                crate::file_menu::Row::Stick(k),
+            );
         }
         cy += 10.0;
     }
