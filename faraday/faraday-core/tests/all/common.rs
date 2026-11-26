@@ -1939,6 +1939,12 @@ pub fn drawn_whole(app: &mut Faraday) -> String {
 /// reads back as `want`, public, whole under it, offering no picture, and
 /// PNG of it puts nothing For the stick. The sheet is closed after.
 pub fn opens_its_code(app: &mut Faraday, code: faraday_core::Code, want: &str) {
+    opens_its_code_shown(app, code, want, want);
+}
+
+/// `opens_its_code` for a code whose text under it is `shown`, not the
+/// text the code holds (an address in groups of four).
+pub fn opens_its_code_shown(app: &mut Faraday, code: faraday_core::Code, want: &str, shown: &str) {
     assert!(
         offered(app, Action::ShowCode(code)),
         "{code:?} is not offered"
@@ -1948,7 +1954,7 @@ pub fn opens_its_code(app: &mut Faraday, code: faraday_core::Code, want: &str) {
     let q = app.qr().expect("no QR sheet");
     assert!(!q.secret, "{code:?} is marked secret");
     assert!(!q.offers_png(), "{code:?} offers a picture");
-    assert_eq!(q.whole.as_deref(), Some(want), "{code:?}'s text under it");
+    assert_eq!(q.whole.as_deref(), Some(shown), "{code:?}'s text under it");
     assert_eq!(qr_text(app), want, "{code:?} reads back");
     let before: Vec<String> = app.outbox.iter().map(|i| String::from(&*i.name)).collect();
     app.press(Action::QrPng);

@@ -167,7 +167,7 @@ details only while a vault is open.
 | SLIP-39, codex32 or Seed XOR shares, enough to restore | Restore | Restore; Check a backup; Add a key; Add to vault |
 | The same, not enough | none | Check a backup; Add a key; Add to vault |
 | Split sheet of a setup | Restore | Restore |
-| Vault file, locked | Open | Open |
+| Vault file, locked | Unlock | Unlock |
 | Message file | Check | Check a signed message |
 | Text | none | Sign a message (a message wallet loaded); Check an address; Add to vault |
 | Krux code | Open | Open |
