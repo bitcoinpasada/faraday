@@ -582,9 +582,10 @@ buffers (02 P13).
   one: the source of a step's fade through (`Turn::Step`) away from a card that shows a secret
   (F337). That copy is read only while the fade out runs (about 48 ms of `STEP_MS`, which the
   Motion speed setting does not scale), and is emptied when the fade out ends, when it is cut
-  short (another change, a lock, a hide, the page left), whichever comes first. Every other kept
-  copy of such a frame is refused: no page turn's source, no frost under a sheet, no moved-frame
-  reuse, and no fade towards a card that shows a secret, which is drawn at once. Held by the
+  short (another change, a lock, a hide, the page left), whichever comes first. A step's fade
+  through towards a card that shows a secret runs too (F337 point 3): its incoming card is drawn
+  live, and no copy of it is kept. Every other kept copy of such a frame is refused: no page
+  turn's source, no frost under a sheet, no moved-frame reuse. Held by the
   runtime, which reads the flag before keeping a copy, by §11, which sets it, and by the runtime
   test of 07 §8 (V19). On `main` the fade from such a card was drawn live from state (F318 point 7
   and F296 point 2); on `next` the step's state is dropped at the press (03 A29's `hide`), so the
