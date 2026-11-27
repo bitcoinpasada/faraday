@@ -853,10 +853,12 @@ enum At {
 
 pub enum Refusal {
     NoKind, BackupFormUnanswered, SlotEmpty(u8), SlotLater(u8), VaultStickPending,
-    Cosigner(CosignerRefusal),     // origin missing, other path, other script, not one key, the same key twice
+    Cosigner(CosignerRefusal),
     Session(session::AddRefusal),
     Practice,
 }
+
+pub enum CosignerRefusal { OriginMissing, OtherPath, OtherScript, NotOneKey, SameKeyTwice }
 ```
 
 - `steps()` lists Kind, then Quorum for a multisig kind or Backup form for a single key, then Keys

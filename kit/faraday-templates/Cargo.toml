@@ -18,4 +18,4 @@ workspace = true
 [package.metadata.faraday]
 layer = "kit"
 level = "templates"
-reexports = ["faraday_atoms::Ui", "faraday_atoms::Pressed", "faraday_atoms::Shown", "faraday_atoms::PlainRef", "faraday_atoms::Offered", "faraday_atoms::Drawn", "faraday_atoms::Style", "faraday_atoms::Laid", "faraday_atoms::Placement", "faraday_organisms::content::Block", "faraday_organisms::content::Content", "faraday_organisms::content::Organism", "faraday_organisms::snackbar::SnackbarModel"]
+reexports = ["faraday_atoms::Ui", "faraday_atoms::Pressed", "faraday_atoms::Shown", "faraday_atoms::PlainRef", "faraday_atoms::Offered", "faraday_atoms::Drawn", "faraday_atoms::Style", "faraday_atoms::TextSize", "faraday_atoms::Laid", "faraday_atoms::Placement", "faraday_organisms::content::Block", "faraday_organisms::content::Content", "faraday_organisms::content::Organism", "faraday_organisms::snackbar::SnackbarModel"]

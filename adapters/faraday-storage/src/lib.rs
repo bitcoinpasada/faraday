@@ -26,8 +26,6 @@ impl Storage {
     }
 }
 
-// Spec: 09 §6 says "main's `Sticks`, re-pointed at port::storage" and gives no shape; one method
-// for each storage ask, over the port's own ask types, and the stick listing.
 /// Where the sticks' files are.
 pub trait Sticks: Send {
     /// Every stick present now.

@@ -1,10 +1,14 @@
+use core::marker::PhantomData;
+
+/// What `present` works out for the composite's own page, the Tools page.
+pub struct Model<'s>(PhantomData<&'s ()>);
+
 /// The page under the sheets: one variant per page, the Demo's apart (06 §4.2).
-// Spec: 06 §4.2 names no model for `Tools`.
 pub enum Body<'s> {
     Home(faraday_starter_home::Model<'s>),
     Make(faraday_make_stick::Model<'s>),
     Start(faraday_starter_start::Model<'s>),
-    Tools,
+    Tools(Model<'s>),
     Templates(faraday_print_templates::Model<'s>),
     Guide(faraday_starter_guide::Model<'s>),
     Install(faraday_install::Model<'s>),

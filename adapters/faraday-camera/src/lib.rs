@@ -3,8 +3,6 @@
 pub mod nv12;
 pub mod scale;
 
-// Spec: 09 §6 gives this crate no edge, so a frame's planes are plain vectors here, not the
-// port's `Bytes`; the capture adapters that depend on it wipe them.
 /// One captured frame: luma, and the NV12 chroma plane when the device gives one.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Frame {

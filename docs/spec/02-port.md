@@ -898,7 +898,7 @@ pub struct OsError(pub i32);
 
 | On `main` | In `next` |
 |---|---|
-| `faraday-camera` (frames, NV12 helpers, scaling, the list), `faraday-v4l2`, `faraday-mediafoundation` | Capture adapters, as they are; their frames are `Bytes` |
+| `faraday-camera` (frames, NV12 helpers, scaling, the list), `faraday-v4l2`, `faraday-mediafoundation` | Capture adapters, as they are; `faraday-camera`'s `Frame` holds a `Vec<u8>` (it has no edge to the port), and the adapter that sends a frame wraps it in `Bytes` |
 | `faraday-scanner` (`Scanner`, `ReadMode`, `reduce`) | The scanning adapter: it reads codes from frames on its own thread and sends `CameraFact::Code` and `Seen` |
 | The stick shell's capture thread (the size ladder 1920 x 1080, 1280 x 720, 640 x 480, 15 fps, a queue of 2, the newest frame per pass) | The stick adapter, with `ReadMode::Reduced` |
 | The window shell's lens (V4L2 on Linux, Media Foundation on Windows, `--no-camera`) | The window adapter, with `ReadMode::Full` |

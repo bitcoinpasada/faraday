@@ -12,8 +12,6 @@ pub enum Product {
     Starter,
 }
 
-// Spec: 09 §7 names `runner` ("the driver and its command line") without a shape; the
-// command is the product, the size, the tour and where the pictures go.
 /// What the command line asks of one run.
 pub struct Command {
     pub product: Product,

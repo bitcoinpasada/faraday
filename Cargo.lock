@@ -402,7 +402,6 @@ dependencies = [
  "faraday-settings",
  "faraday-strings",
  "faraday-templates",
- "faraday-tokens",
  "faraday-vaults",
 ]
 
@@ -453,7 +452,6 @@ dependencies = [
  "faraday-kernel",
  "faraday-organisms",
  "faraday-port",
- "faraday-power",
  "faraday-present",
  "faraday-runtime",
  "faraday-session",

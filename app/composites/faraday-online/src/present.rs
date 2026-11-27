@@ -1,7 +1,6 @@
 use faraday_kernel::{Line, Refused, Show, View, Worded};
-use faraday_organisms::{Pressed, Ui};
+use faraday_organisms::Pressed;
 use faraday_port::values::Anchor;
-use faraday_present::Drawn;
 use faraday_templates::screen::FrameModel;
 
 use crate::{Body, OnlineApp, Over, Page, Press, Refusal};
@@ -41,16 +40,4 @@ pub fn over<'s>(
     _show: &Show<'s>,
 ) -> Vec<(Anchor, Over<'s>)> {
     todo!()
-}
-
-impl Drawn<Press> for Body<'_> {
-    fn draw(&self, _ui: &mut Ui<'_, Press>) {
-        todo!()
-    }
-}
-
-impl Drawn<Press> for Over<'_> {
-    fn draw(&self, _ui: &mut Ui<'_, Press>) {
-        todo!()
-    }
 }

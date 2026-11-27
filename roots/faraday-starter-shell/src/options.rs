@@ -3,8 +3,6 @@
 use faraday_starter_product::StarterOptions;
 use faraday_window::WindowOptions;
 
-// Spec: 09 §7 names `options.rs` and 06 §5.3 the flags: `--uninstall` and `--image` reach the
-// product, `--downloads` the desktop adapter, `--size` and `--timings` the window.
 pub struct Options {
     pub product: StarterOptions,
     pub window: WindowOptions,

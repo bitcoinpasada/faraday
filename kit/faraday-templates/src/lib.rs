@@ -6,7 +6,9 @@ pub mod menu_page;
 pub mod panes;
 pub mod screen;
 
-pub use faraday_atoms::{Drawn, Laid, Offered, Placement, PlainRef, Pressed, Shown, Style, Ui};
+pub use faraday_atoms::{
+    Drawn, Laid, Offered, Placement, PlainRef, Pressed, Shown, Style, TextSize, Ui,
+};
 
 pub use faraday_organisms::content::{Block, Content, Organism};
 pub use faraday_organisms::snackbar::SnackbarModel;

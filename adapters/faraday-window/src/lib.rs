@@ -6,8 +6,6 @@ use std::sync::Arc;
 use faraday_port::{Adapters, Effect, Event, Failure, Frame, Waker};
 use faraday_text::Text;
 
-// Spec: 09 §6 names `WindowOptions` without a shape; these are the options 06 §5.2 gives the
-// window: `--size`, `--panel`, `--aspect`, `--ppi`, `--timings` and `--no-camera`.
 /// The window's command line, as the adapter takes it.
 pub struct WindowOptions {
     pub size: Option<(u16, u16)>,

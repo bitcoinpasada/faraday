@@ -22,7 +22,6 @@ pub use state::{MakeStick, State};
 pub use update::{Answer, Refusal, Step};
 
 /// Its screens (06 §4.2).
-// Spec: 06 §4.2 names `make_stick::Page` without its variants.
 #[derive(Public, Copy, PartialEq, Eq)]
 pub enum Page {
     Make,

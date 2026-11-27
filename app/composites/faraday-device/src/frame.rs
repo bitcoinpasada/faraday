@@ -24,8 +24,6 @@ pub fn frame_model<'s>(
 }
 
 /// Every child that may hold a secret, for the leak crate's exhaustive match (07 TS18).
-// Spec: 09 §4.6 gives the variants as one per feature crate of its table; the names are the
-// crates' without `faraday-`, in Pascal case.
 #[derive(Public, Copy, PartialEq, Eq)]
 pub enum Child {
     Home,

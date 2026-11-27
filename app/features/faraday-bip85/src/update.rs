@@ -5,7 +5,6 @@ use faraday_kernel::{
 use crate::{Bip85, Out, Own};
 
 /// The flow's steps, in order.
-// Spec: 03 §9 names no steps of this flow.
 #[derive(Public, Copy, PartialEq, Eq)]
 pub enum Step {}
 
@@ -14,7 +13,6 @@ pub enum Step {}
 pub enum Refusal {}
 
 /// The value an answered step shows in Your choices.
-// Spec: 03 §9.1 names `Answer` without a shape.
 #[derive(Public)]
 pub struct Answer;
 
