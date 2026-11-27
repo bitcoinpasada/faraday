@@ -24,6 +24,12 @@ impl<R: Root> Runtime<R> {
                     secret: k.secret,
                     pixels: k.pixels.expose().as_slice(),
                 })
+                .chain(self.frame.rows.iter().map(|k| KeptImage {
+                    id: ComponentId(k.page, k.region),
+                    taken_at: k.taken_at,
+                    secret: k.secret,
+                    pixels: k.pixels.expose().as_slice(),
+                }))
                 .collect(),
             page: out.map_or(NO_PAGE, |out| out.page),
             sheets: out.map_or(&[], |out| out.sheets.as_slice()),
@@ -47,7 +53,7 @@ impl<R: Root> Runtime<R> {
 pub struct Seen<'a> {
     /// The last frame's `FrameOut::ink`; `None` unless the record is on.
     pub ink: Option<&'a Ink>,
-    /// Every image the runtime keeps: a sheet's frost, a fade's frame.
+    /// Every image the runtime keeps: a sheet's frost, a moved region's rows, a fade's frame.
     pub kept: Vec<KeptImage<'a>>,
     /// `FrameOut::page`, set by the screen template.
     pub page: Anchor,

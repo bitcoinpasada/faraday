@@ -1592,3 +1592,106 @@ fn no_frost_of_a_secret_is_kept_and_none_outlives_a_lock() {
         "the scope built after the lock draws no sheet"
     );
 }
+
+// Moved frames (04 K16): a scroll that only moves a region puts back the rows it kept and paints
+// the strip the move uncovered.
+
+/// A list of rows whose shadows reach into each other, in a region that moves.
+fn draw_rows(_view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    ui.set_page(PAGE);
+    let view = faraday_draw::geom::Rect::new(0, 0, 200, 300);
+    ui.region(
+        faraday_atoms::region::Region::new(REGION, view).moves(),
+        |ui| {
+            for i in 0..40_u8 {
+                let y = 8.0 + f32::from(i) * 41.0;
+                ui.shadow(12.0, y, 150.0, 28.0, 8.0, 2 + i % 3);
+                ui.hit(12.0, y, 150.0, 28.0, Press(i % 2 == 0));
+            }
+            1700.0_f32
+        },
+    );
+}
+
+/// The same list over a page that shows a secret.
+fn draw_rows_over_secret(view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    ui.showing(&faraday_atoms::Shown::secret("abandon"), |_| {});
+    draw_rows(view, ui);
+}
+
+/// The same list, in the scope as it was built at power on only.
+fn draw_rows_at_power(view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    if view.started == faraday_kernel::Started::Power {
+        draw_rows(view, ui);
+    } else {
+        ui.set_page(PAGE);
+    }
+}
+
+fn wheel(runtime: &mut Runtime<Device>, dy: i16) {
+    runtime.event(Event::Input(port::event::Input::Wheel {
+        at: port::values::Point { x: 50, y: 50 },
+        dy,
+    }));
+}
+
+/// The press targets of the last frame, as text.
+fn targets(runtime: &Runtime<Device>) -> Vec<String> {
+    runtime
+        .hits()
+        .iter()
+        .map(|hit| format!("{:?} {}", hit.rect, hit.press.0))
+        .collect()
+}
+
+/// Invariant: A list scrolled by steps that are not whole rows draws the pixels and takes the presses a frame drawn whole draws, and the moved path was taken.
+/// Regression: A moved frame leaves a seam at the strip's edge, a shadow cut short, or a row that takes no press; or no frame is ever moved and the saving is lost.
+/// Owner: runtime
+#[test]
+fn a_scrolled_list_draws_what_a_full_redraw_draws() {
+    let mut moved = drawing(draw_rows);
+    let mut whole = drawing(draw_rows);
+    whole.frame.whole_only = true;
+    at(&mut moved, 1_000);
+    at(&mut whole, 1_000);
+    assert_eq!(pixels(&mut moved), pixels(&mut whole));
+    for dy in [7, 7, 13, -5, -9, 31, -40, 3, 90, -90, -2] {
+        wheel(&mut moved, dy);
+        wheel(&mut whole, dy);
+        assert_eq!(pixels(&mut moved), pixels(&mut whole), "after {dy}");
+        assert_eq!(targets(&moved), targets(&whole), "after {dy}");
+    }
+    assert!(
+        moved.frame.moved >= 8,
+        "frames moved: {}",
+        moved.frame.moved
+    );
+    assert_eq!(whole.frame.moved, 0);
+}
+
+/// Invariant: No row of a frame that showed a secret is kept for a moved frame, and none outlives a lock.
+/// Regression: A moved frame pastes the rows of a frame that showed a secret, or they stay in memory after a lock.
+/// Owner: runtime
+#[test]
+fn no_rows_of_a_secret_frame_are_reused_and_none_outlive_a_lock() {
+    let mut runtime = drawing(draw_rows_over_secret);
+    at(&mut runtime, 1_000);
+    assert!(runtime.seen().kept.is_empty(), "a secret page");
+    wheel(&mut runtime, 20);
+    assert_eq!(runtime.frame.moved, 0);
+
+    let mut runtime = drawing(draw_rows_at_power);
+    at(&mut runtime, 1_000);
+    assert_eq!(runtime.seen().kept.len(), 1);
+    assert!(!runtime.seen().kept[0].secret);
+    wheel(&mut runtime, 20);
+    assert_eq!(runtime.frame.moved, 1);
+    send(
+        &mut runtime,
+        Addr::App(Msg::Lock(Lock {
+            seal: false,
+            idle: true,
+        })),
+    );
+    assert!(runtime.seen().kept.is_empty());
+}

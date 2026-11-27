@@ -134,7 +134,7 @@ impl<R: Root> Runtime<R> {
                 Fx::Out(top) => self.top(from, top),
                 Fx::Note(note) => {
                     if self.notes.queue(note, self.clock.now_ms) {
-                        self.frame.wanted = true;
+                        self.frame.want();
                     }
                 }
                 Fx::View(order) => self.frame.orders.push(order),

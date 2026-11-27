@@ -171,6 +171,9 @@ pub struct Ui<'f, A: Pressed> {
     pub(crate) press: PhantomData<fn(A)>,
     /// The kept frosts lent and the frosts and holds this frame gives back.
     pub(crate) keeps: crate::keeps::Keeps<'f, A>,
+    /// The part of the clip the screen sees while a region is drawn as a moved frame: the whole
+    /// view, though only the strip the move uncovered is painted.
+    pub(crate) seen: Option<Rect>,
 }
 
 impl<'f, A: Pressed> Ui<'f, A> {
@@ -247,7 +250,8 @@ impl<'f, A: Pressed> Ui<'f, A> {
             cut: Vec::new(),
             back: None,
             press: PhantomData,
-            keeps: crate::keeps::Keeps::new(&[]),
+            keeps: crate::keeps::Keeps::new(&[], &[]),
+            seen: None,
         }
     }
 
@@ -255,6 +259,13 @@ impl<'f, A: Pressed> Ui<'f, A> {
     /// runtime's only.
     pub fn set_kept(&mut self, kept: &'f [crate::keeps::KeptFrost<'f>]) {
         self.keeps.kept = kept;
+    }
+
+    /// The rows the runtime kept of the regions the frame before drew, for a region that moves
+    /// to put back (K16). The runtime lends some only when nothing but a region's motion asked
+    /// for this frame (04 §7.1). The runtime's only.
+    pub fn set_rows(&mut self, rows: &'f [crate::keeps::KeptRows<'f>]) {
+        self.keeps.rows = rows;
     }
 
     /// The runtime's only.
@@ -273,6 +284,8 @@ impl<'f, A: Pressed> Ui<'f, A> {
             holds: self.keeps.holds,
             held: self.keeps.held,
             frosts: self.keeps.made,
+            rows: self.keeps.made_rows,
+            moved: self.keeps.moved,
             secret: self.secret,
             pace: if self.moving {
                 Pace::Moving
@@ -360,7 +373,8 @@ impl<'f, A: Pressed> Ui<'f, A> {
             cut: Vec::new(),
             back: None,
             press: PhantomData,
-            keeps: crate::keeps::Keeps::new(self.keeps.kept),
+            keeps: crate::keeps::Keeps::new(self.keeps.kept, self.keeps.rows),
+            seen: self.seen,
         };
         f(&mut child);
         let Ui {
@@ -422,6 +436,8 @@ impl<'f, A: Pressed> Ui<'f, A> {
         self.faded.extend(faded);
         self.cut.extend(cut);
         self.keeps.made.extend(keeps.made);
+        self.keeps.made_rows.extend(keeps.made_rows);
+        self.keeps.moved += keeps.moved;
         self.keeps.holds.extend(keeps.holds.into_iter().map(lift));
         self.keeps.held.extend(keeps.held.into_iter().map(lift));
         if self.back.is_none() {
@@ -432,7 +448,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
     /// A place a later Reveal or glide names. Stable across frames.
     pub fn anchor(&mut self, id: Anchor) {
         // The spec's `anchor` takes no rect: the place is the clip drawn in.
-        let at = self.c.clip();
+        let at = self.seen_clip();
         self.anchors.push((id, at));
     }
 
@@ -546,7 +562,7 @@ impl<A: Pressed> Ui<'_, A> {
 
     /// The clip as the screen sees it.
     pub fn seen_clip(&self) -> Rect {
-        self.c.clip()
+        self.seen.unwrap_or_else(|| self.c.clip())
     }
 
     /// Design units to pixels.

@@ -186,9 +186,9 @@ impl<R: Root> Runtime<R> {
         }
         self.motion = MotionStore::new();
         // V19: no kept image of a frame outlives a hide.
-        self.frame.drop_frosts();
+        self.frame.drop_kept();
         self.frame.hold_ready = None;
-        self.frame.wanted = true;
+        self.frame.want();
     }
 
     /// Whether every job of the scope has returned; what came is handed to `job_answered`, which
@@ -396,7 +396,7 @@ impl<R: Root> Runtime<R> {
         self.build_scope_as(carry, started);
         if lost {
             self.notes.queue(Note::new(KeepLost), self.clock.now_ms);
-            self.frame.wanted = true;
+            self.frame.want();
         }
     }
 

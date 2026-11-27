@@ -892,13 +892,18 @@ impl Canvas {
     /// `margin` rows next to the rows `dy` brought in are left as they
     /// are: the caller drew them again, for ink that reaches past its shape.
     pub fn paste_layer(&mut self, rect: Rect, dy: i32, margin: i32) {
+        let layer = core::mem::take(&mut self.layer);
+        self.paste_rows(&layer, rect, dy, margin);
+        self.layer = layer;
+    }
+
+    /// [`Canvas::paste_layer`] of `rows` the caller holds, the pixels of `rect` as
+    /// [`Canvas::copy_region`] gave them in an earlier frame: nothing is copied but the rows
+    /// that stay in `rect`.
+    pub fn paste_rows(&mut self, rows: &[u8], rect: Rect, dy: i32, margin: i32) {
         self.sync();
         let r = rect.intersect(&self.bounds());
-        if r != rect
-            || r.is_empty()
-            || dy.abs() >= r.h
-            || self.layer.len() != (r.w * r.h * 4) as usize
-        {
+        if r != rect || r.is_empty() || dy.abs() >= r.h || rows.len() != (r.w * r.h * 4) as usize {
             return;
         }
         self.damaged(r);
@@ -917,7 +922,7 @@ impl Canvas {
         for k in from..to {
             let at = (r.y + k + dy) as usize * stride + r.x as usize * 4;
             let src = k as usize * n;
-            data[at..at + n].copy_from_slice(&self.layer[src..src + n]);
+            data[at..at + n].copy_from_slice(&rows[src..src + n]);
         }
     }
 

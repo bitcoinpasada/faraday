@@ -82,6 +82,7 @@ pub struct Region {
     own_bar: bool,
     shown_bar: bool,
     pan: f32,
+    moves: bool,
 }
 
 impl Region {
@@ -98,6 +99,7 @@ impl Region {
             own_bar: false,
             shown_bar: false,
             pan: 0.0,
+            moves: false,
         }
     }
 
@@ -132,6 +134,17 @@ impl Region {
         }
     }
 
+    /// The region may be drawn as a moved frame (04 §7.1): when the runtime lends the rows it
+    /// kept of it and only its offset changed, they are put back moved and only the strip the
+    /// move uncovered is painted. Its content must depend on nothing but its state and offset:
+    /// no caret, no animation, no hover of its own.
+    pub fn moves(self) -> Self {
+        Region {
+            moves: true,
+            ..self
+        }
+    }
+
     /// The region's content also pans sideways, `x` units now.
     pub fn panned(self, x: f32) -> Self {
         Region { pan: x, ..self }
@@ -160,6 +173,11 @@ pub struct Open {
     region: Region,
     oy_px: i32,
     offset: f32,
+    /// The rows the offset moved the content by, and where the rows put back are lent, on a
+    /// moved frame.
+    moved: Option<(i32, usize)>,
+    /// What [`Ui::seen_clip`] read before the region.
+    seen: Option<Rect>,
 }
 
 impl<A: Pressed> Ui<'_, A> {
@@ -205,15 +223,67 @@ impl<A: Pressed> Ui<'_, A> {
     /// pushes the view's clip and the pixels the offset moves the content by.
     pub fn region_open(&mut self, region: Region) -> Open {
         let oy_px = self.oy_px;
+        let seen = self.seen;
         let (offset, _, _) = self.region_motion(region.id);
         let px = self.px(offset);
         self.oy_px = oy_px - px;
-        self.c.push_clip(region.view);
+        let mut clip = region.view;
+        let mut moved = None;
+        if let Some((d, at)) = self.moves_by(&region, px) {
+            // The whole view is seen for hits and for what a row skips; only the strip the move
+            // uncovered is painted, with the rows beside it a shadow reaches into.
+            self.seen = Some(self.c.clip().intersect(&region.view));
+            let view = region.view;
+            let m = self.strip_margin(&view, d);
+            clip = match d {
+                0 => Rect::new(view.x, view.y, view.w, 0),
+                d if d > 0 => Rect::new(view.x, view.bottom() - d - m, view.w, d + m),
+                d => Rect::new(view.x, view.y, view.w, -d + m),
+            };
+            moved = Some((d, at));
+        }
+        self.c.push_clip(clip);
         Open {
             region,
             oy_px,
             offset,
+            moved,
+            seen,
         }
+    }
+
+    /// The rows beside a moved frame's strip that are painted again, `d` rows moved in `view`:
+    /// the most a shadow reaches past its shape, as far as the view has rows left.
+    fn strip_margin(&self, view: &Rect, d: i32) -> i32 {
+        if d == 0 {
+            return 0;
+        }
+        self.px(faraday_tokens::dims::SHADOW_REACH)
+            .min(view.h - d.abs())
+            .max(0)
+    }
+
+    /// How many rows this frame's region moves the rows the runtime lent by, and which of them
+    /// they are: the region opted in ([`Region::moves`]), is on the page, and was drawn in the
+    /// same view; the view is whole in the canvas and in the clip; and the move leaves rows of
+    /// the lent ones in view.
+    fn moves_by(&self, region: &Region, px: i32) -> Option<(i32, usize)> {
+        let view = region.view;
+        if !region.moves
+            || self.layer != 0
+            || self.c.bounds().intersect(&view) != view
+            || self.c.clip().intersect(&view) != view
+        {
+            return None;
+        }
+        let at = self.keeps.rows.iter().position(|k| {
+            k.page == self.page
+                && k.region == region.id
+                && k.view == view
+                && k.rows.len() == (view.w * view.h * 4) as usize
+        })?;
+        let d = px - self.keeps.rows[at].px;
+        (d.abs() < view.h - 1).then_some((d, at))
     }
 
     /// The second half of [`Ui::region`]: pops the clip, stretches the region past an end, fades
@@ -223,11 +293,15 @@ impl<A: Pressed> Ui<'_, A> {
             region,
             oy_px,
             offset,
+            moved,
+            seen,
         } = open;
         let reach = reach.into();
         self.oy_px = oy_px;
+        self.seen = seen;
         self.c.pop_clip();
         let (view, ground) = (region.view, region.ground);
+        self.region_rows(&region, offset, moved);
         let max = reach.down.max(0.0);
         let across = reach.across.max(0.0);
         self.regions.push(Scrolled {
@@ -266,6 +340,34 @@ impl<A: Pressed> Ui<'_, A> {
 }
 
 impl<A: Pressed> Ui<'_, A> {
+    /// A region that moves: the rows lent are put back moved but for the strip painted, and the
+    /// rows are taken again, before the stretch, the fades and the bar are drawn over them. None
+    /// are taken once the frame has shown a secret (V19).
+    fn region_rows(&mut self, region: &Region, offset: f32, moved: Option<(i32, usize)>) {
+        let view = region.view;
+        if let Some((d, at)) = moved {
+            let rows = self.keeps.rows[at].rows;
+            let m = self.strip_margin(&view, d);
+            self.c.paste_rows(rows, view, -d, m);
+            self.keeps.moved += 1;
+        }
+        if region.moves
+            && self.layer == 0
+            && !self.secret
+            && self.c.bounds().intersect(&view) == view
+        {
+            let mut rows = Vec::new();
+            self.c.copy_region(view, &mut rows);
+            self.keeps.made_rows.push(crate::keeps::MadeRows {
+                page: self.page,
+                region: region.id,
+                view,
+                px: self.px(offset),
+                rows,
+            });
+        }
+    }
+
     /// The overlay scrollbar along a region's foot: a thumb as long as the
     /// share of the content's width in view, clear of the bar at its right
     /// edge, drawn as [`Ui::scroll_bar`] draws its own.
