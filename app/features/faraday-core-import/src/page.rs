@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, CoreImport};
+use crate::{CoreImport, Model, Press};
 
 impl faraday_present::Page for CoreImport {
     type Press = Press;

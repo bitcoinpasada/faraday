@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, Home};
+use crate::{Home, Model, Press};
 
 impl faraday_present::Page for Home {
     type Press = Press;

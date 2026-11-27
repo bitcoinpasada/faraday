@@ -1,6 +1,6 @@
 use faraday_kernel::{Carried, Ctx, Effects, Feature, Notice, Public, View};
 
-use crate::{Msg, Out, State, PrintTemplates};
+use crate::{Msg, Out, PrintTemplates, State};
 
 /// Why a message is refused before `update` sees it.
 #[derive(Public)]

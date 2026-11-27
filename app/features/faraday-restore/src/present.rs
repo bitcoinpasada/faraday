@@ -2,7 +2,7 @@ use faraday_kernel::{Line, Refused, Show, View, Worded};
 use faraday_organisms::content::Content;
 use faraday_present::{ChoiceLine, FlowPress, ShowFlow};
 
-use crate::{Answer, Press, Refusal, Step, Restore};
+use crate::{Answer, Press, Refusal, Restore, Step};
 
 impl Worded for Refusal {
     fn words(&self, _show: &Show<'_>) -> Line {

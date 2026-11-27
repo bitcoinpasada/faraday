@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, CodexShares};
+use crate::{CodexShares, Model, Press};
 
 impl faraday_present::Page for CodexShares {
     type Press = Press;

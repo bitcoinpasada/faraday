@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, Install};
+use crate::{Install, Model, Press};
 
 impl faraday_present::Page for Install {
     type Press = Press;

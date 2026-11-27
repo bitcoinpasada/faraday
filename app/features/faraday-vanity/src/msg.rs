@@ -1,4 +1,4 @@
-use faraday_kernel::{Message, Gate};
+use faraday_kernel::{Gate, Message};
 use faraday_organisms::Pressed;
 
 #[derive(Message)]

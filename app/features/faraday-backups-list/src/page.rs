@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, BackupsList};
+use crate::{BackupsList, Model, Press};
 
 impl faraday_present::Page for BackupsList {
     type Press = Press;

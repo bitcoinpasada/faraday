@@ -1,7 +1,7 @@
 use faraday_kernel::{Line, Refused, Show, View, Worded};
 use faraday_present::Present;
 
-use crate::{Model, Refusal, State, Randomness};
+use crate::{Model, Randomness, Refusal, State};
 
 impl Worded for Refusal {
     fn words(&self, _show: &Show<'_>) -> Line {

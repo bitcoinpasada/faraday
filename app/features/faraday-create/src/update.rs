@@ -2,7 +2,7 @@ use faraday_kernel::{
     Back, CancelOffer, Carried, Ctx, Ending, FlowFx, Notice, Public, StepFlow, Steps, View, Width,
 };
 
-use crate::{Out, Own, MakeWallet};
+use crate::{MakeWallet, Out, Own};
 
 /// The flow's steps, in order.
 #[derive(Public, Copy, PartialEq, Eq)]

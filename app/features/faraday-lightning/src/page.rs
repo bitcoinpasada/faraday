@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, Lightning};
+use crate::{Lightning, Model, Press};
 
 impl faraday_present::Page for Lightning {
     type Press = Press;

@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, OtsCheck};
+use crate::{Model, OtsCheck, Press};
 
 impl faraday_present::Page for OtsCheck {
     type Press = Press;

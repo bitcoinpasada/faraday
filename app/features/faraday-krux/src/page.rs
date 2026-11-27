@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, Krux};
+use crate::{Krux, Model, Press};
 
 impl faraday_present::Page for Krux {
     type Press = Press;

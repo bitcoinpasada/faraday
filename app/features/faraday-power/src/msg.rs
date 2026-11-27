@@ -1,4 +1,4 @@
-use faraday_kernel::{Message, FrameSheet, Top};
+use faraday_kernel::{FrameSheet, Message, Top};
 use faraday_organisms::Pressed;
 
 #[derive(Message)]

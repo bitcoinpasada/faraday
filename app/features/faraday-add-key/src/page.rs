@@ -1,6 +1,6 @@
 use faraday_organisms::Ui;
 
-use crate::{Model, Press, AddKey};
+use crate::{AddKey, Model, Press};
 
 impl faraday_present::Page for AddKey {
     type Press = Press;
