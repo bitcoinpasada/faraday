@@ -26,14 +26,7 @@ impl<A: Pressed> Ui<'_, A> {
     /// copy; otherwise it costs a blur of the whole canvas, and the result is handed to the
     /// runtime to keep ([`FrameOut::frosts`](crate::FrameOut)).
     pub fn backdrop(&mut self, sheet: Anchor) {
-        let kept = self
-            .keeps
-            .kept
-            .iter()
-            .find(|k| k.sheet == sheet && k.page == self.page)
-            .map(|k| k.pixels);
-        if let Some(pixels) = kept {
-            self.backdrop_from(pixels);
+        if self.put_back(sheet) {
             return;
         }
         // Reduced eight units to a pixel and blurred a little: as soft as more blur at a
@@ -41,7 +34,37 @@ impl<A: Pressed> Ui<'_, A> {
         let scale = (8.0 * self.f).round().max(4.0) as u32;
         let dim = self.col(Role::Scrim.with_alpha(SCRIM_ALPHA));
         self.c.frost(scale, 2, dim);
-        // A page that shows a secret is never kept (V19): the copy is not even taken.
+        self.hand_over(sheet);
+    }
+
+    /// The page under a popup, as it is drawn and not dimmed (`main`'s `still`): copied once
+    /// for the runtime to keep, and each frame after is that copy.
+    pub fn still(&mut self, popup: Anchor) {
+        if !self.put_back(popup) {
+            self.hand_over(popup);
+        }
+    }
+
+    /// Puts back the copy the runtime kept for `sheet` over this page, if it gave one.
+    fn put_back(&mut self, sheet: Anchor) -> bool {
+        let kept = self
+            .keeps
+            .kept
+            .iter()
+            .find(|k| k.sheet == sheet && k.page == self.page)
+            .map(|k| k.pixels);
+        match kept {
+            Some(pixels) => {
+                self.backdrop_from(pixels);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Hands the canvas as it is to the runtime to keep under `sheet`. A page that shows a secret
+    /// is never kept (V19): the copy is not even taken.
+    fn hand_over(&mut self, sheet: Anchor) {
         if !self.secret && !self.keeps.made.iter().any(|m| m.sheet == sheet) {
             let pixels = self.c.snapshot();
             self.keeps.made.push(MadeFrost {
