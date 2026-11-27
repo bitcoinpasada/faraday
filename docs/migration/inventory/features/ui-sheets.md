@@ -43,6 +43,96 @@ None outside the app's state. The QR card draws cells and keeps nothing.
 - Uses `ui-regions` (scrolled bodies, backdrop and shadow), `ui-press`, `ui-text`, `ui-controls` buttons.
 - The stick pill is drawn by screens that show sticks; its tones are `ui-theme`'s stick tones.
 
+Callers at main `d89dde5de` in `faraday-core`, the shells and the Starter, by module with the screen it draws and the number of call sites (`x2`); `git grep -n -w <item>` at that commit gives the lines.
+
+Home, menu pages, panes, sidebar and navigation:
+- `faraday/faraday-core/src/compact/` (the small panel (no sidebar): Home as the menu and its pages): `measured`, `sheet`, `tip_plain` x2
+- `faraday/faraday-core/src/file_menu.rs` (the file row's menu): `sheet_head` x2
+- `faraday/faraday-core/src/flow.rs` (what every flow shares): `rule`
+- `faraday/faraday-core/src/flow/` (the flow container, Your choices sheet and step cards): `rule`
+- `faraday/faraday-core/src/in_progress.rs` (flows in progress): `dialog`, `sheet`, `sheet_head` x2
+- `faraday/faraday-core/src/menu.rs` (the ⋮ menu): `Menu` x2, `MenuLine` x8, `menu` x5
+- `faraday/faraday-core/src/nav/` (navigation by window class (rail, bar, app bar)): `Menu` x2, `MenuLine` x3, `menu` x3
+- `faraday/faraday-core/src/pointer.rs` (the pointer, focus and what a press reaches): `TipAnchor` x2, `TipBy` x2, `Tips` x3
+- `faraday/faraday-core/src/screens/catalog.rs` (Tools, every flow on one page): `hit_tip`, `section_label` x2
+- `faraday/faraday-core/src/screens/menu_page.rs` (the menu page container): `section_label` x3
+- `faraday/faraday-core/src/screens/mod.rs` (the screen dispatch and sheet/frame composition): `qr_code`, `sheet_head`, `snackbar` x2, `snackbar_closable` x2, `snackbar_closable_room` x2
+- `faraday/faraday-core/src/screens/parts.rs` (rows, buttons, fields and word cells two or more screens draw): `TipKind` x6, `chip_grid`, `rule` x5, `section_label` x2, `tip_anchor` x2, `wrap_buttons` x5, `wrap_buttons_height`
+- `faraday/faraday-core/src/screens/row_details.rs` (a row's details in the second pane): `section_label` x2
+- `faraday/faraday-core/src/screens/session_pane/` (the session pane): `rule`, `section_label` x7
+- `faraday/faraday-core/src/screens/sheets.rs` (the sheets drawn over a screen): `button_rows` x7, `kv` x6, `measured`, `qr_code` x3, `rule` x2, `sheet` x3, `sheet_box` x3, `wrap_buttons`
+
+Settings, Files, Modes, sticks and boot import:
+- `faraday/faraday-core/src/boot_import/` (the boot import list): `buttons_by`, `buttons_height`, `sheet` x2
+- `faraday/faraday-core/src/modes/` (Modes and the mode pill): `rule`, `sheet_head` x2
+- `faraday/faraday-core/src/screens/files.rs` (Files: Inbox and Outbox): `rule` x2, `wrap_buttons` x6
+- `faraday/faraday-core/src/screens/set_time.rs` (Set the time by hand): `section_label` x2, `wrap_buttons`
+- `faraday/faraday-core/src/screens/settings.rs` (Settings and About): `wrap_buttons` x3
+- `faraday/faraday-core/src/screens/visit.rs` (Files: In Faraday and On the stick): `rule` x3
+- `faraday/faraday-core/src/stick/` (the stick area): `PillAt` x3, `StickState` x5, `sheet_head` x2, `stick` x3, `stick_pill` x2
+- `faraday/faraday-core/src/transfer/` (Transfer: the QR link to the online app): `rule` x2, `wrap_buttons` x3
+
+Wallets, vaults and keys: create, add, restore, seeds:
+- `faraday/faraday-core/src/codex32/` (Make codex32 shares (flow, dice screen, worksheet, input panel)): `dialog_in` x2, `qr_code`, `rule` x6, `sheet` x2, `wrap_buttons` x3
+- `faraday/faraday-core/src/codex32_correct/` (codex32 error correction): `buttons` x7, `sheet`
+- `faraday/faraday-core/src/core_wallet/` (Read a Bitcoin Core wallet): `kv`, `sheet`
+- `faraday/faraday-core/src/kef_form/` (the Krux encrypted code form): `button_rows` x2, `qr_code`
+- `faraday/faraday-core/src/keygen/` (Making a new key (randomness, word count, words)): `button_rows` x2, `dialog_in`, `rule`, `section_label`, `sheet`, `tip_plain`
+- `faraday/faraday-core/src/screens/create.rs` (Create a wallet): `button_rows` x5, `rule` x2
+- `faraday/faraday-core/src/screens/create_making.rs` (Make a new wallet's Keys card): `button_rows` x2
+- `faraday/faraday-core/src/screens/entry.rs` (typing a seed): `button_rows`, `button_rows_ending`, `buttons`, `chip_grid`, `section_label`, `sheet`, `wrap_buttons` x2
+- `faraday/faraday-core/src/screens/restore.rs` (Restore a wallet): `rule` x6, `wrap_buttons` x8
+- `faraday/faraday-core/src/screens/wallets.rs` (the Wallets tab and wallet card): `button_rows`, `rule` x2, `section_label`, `wrap_buttons`
+- `faraday/faraday-core/src/screens/wallets/` (Wallets actions): `section_label`
+- `faraday/faraday-core/src/screens/wallets_start.rs` (Wallets' first page): `wrap_buttons` x2
+- `faraday/faraday-core/src/seed_check/` (My seed makes my wallet): `button_rows` x7, `kv`, `sheet`
+- `faraday/faraday-core/src/seeds/` (a wallet made from the seeds in hand): `button_rows`, `qr_code`, `rule`
+- `faraday/faraday-core/src/vault/` (Vaults: list, create, load, copy, dice, secrets): `hit_tip`, `rule` x15
+- `faraday/faraday-core/src/wallet/` (Coldcard export of a single-sig account): `kv` x4, `sheet` x2
+- `faraday/faraday-core/src/ways_in/` (the ways a key reaches a screen): `button_rows` x3
+- `faraday/faraday-core/src/wordlist/` (Word lists): `rule`
+
+Back up and spend from a backup:
+- `faraday/faraday-core/src/backup_flow/` (the shared guided backup flow): `rule` x2
+- `faraday/faraday-core/src/board/` (the backup board (Back up's plan)): `rule`, `tip_plain` x6, `wrap_buttons` x6, `wrap_buttons_height`
+- `faraday/faraday-core/src/codex32_backup/` (codex32 strings in a backup): `wrap_buttons`
+- `faraday/faraday-core/src/glance/` (the wallet at a glance chart): `rule` x2, `sheet`, `side_sheet`
+- `faraday/faraday-core/src/screens/backup.rs` (Back up a wallet): `button_rows` x5, `menu`, `rule` x3, `section_label` x2, `wrap_buttons` x3
+- `faraday/faraday-core/src/spend_backup/` (the Spend tab (spend from a backup)): `rule` x3
+
+Spend, sign and check:
+- `faraday/faraday-core/src/address_check/` (Check an address): `measured` x2
+- `faraday/faraday-core/src/address_find/` (Find an address (Explore and the address check's Look further)): `rule` x2
+- `faraday/faraday-core/src/convert/` (Convert a seed): `button_rows` x11
+- `faraday/faraday-core/src/decode/` (Decode a transaction (incl. the nonce pane)): `button_rows`, `kv` x2, `rule` x8, `section_label` x7, `sheet`, `wrap_buttons` x4
+- `faraday/faraday-core/src/invoice/` (Decode a Lightning invoice): `rule` x2, `wrap_buttons` x3
+- `faraday/faraday-core/src/multisig_check/` (Check a multisig setup): `kv` x3, `sheet`
+- `faraday/faraday-core/src/ots_check/` (Check a timestamp): `kv`, `sheet`
+- `faraday/faraday-core/src/screens/message.rs` (Sign a message): `wrap_buttons` x3
+- `faraday/faraday-core/src/screens/nonce_check.rs` (the nonce check of a signed PSBT or finished transaction): `wrap_buttons` x2
+- `faraday/faraday-core/src/screens/spend.rs` (Spend: sign a transaction): `rule` x9, `wrap_buttons` x8
+
+Tools and explorers:
+- `faraday/faraday-core/src/tools/` (Tools: the six calculators): `rule`
+
+Drawing support: frame bands, picture, budget:
+- `faraday/faraday-core/src/drawing.rs` (what a frame works out once): `draw_tip`
+
+Faraday Starter (`faraday/faraday-starter/src/`):
+- `faraday/faraday-starter/src/draw` (the Starter's pages (name, row, nav, guide, home, boot block)): `Menu` x3, `MenuLine` x3, `buttons` x3, `menu` x4, `rule` x8, `scroll_sheet` x5, `sheet` x11, `sheet_head` x3, `step_circle`
+- `faraday/faraday-starter/src/draw.rs` (the Starter's pages): `dialog` x2, `qr_code` x2, `rule` x13, `sheet` x2
+
+
+Named in this file but called by no app module (`ui.` method calls and imported items matched): TipFrame dismiss elevation fill_cells focus hover kv_sheet max menu_width offset on_stick right sheet_box_in show shown snackbar_room stick_paints tick title wrap_buttons_spaced
+
+**Tooltips between frames**
+
+How `Tips` and `TipFrame` hand over, at main `d89dde5de` (`faraday/faraday-ui/src/tooltip.rs`, `faraday/faraday-core/src/pointer.rs`, `faraday/faraday-core/src/drawing.rs`):
+- The app keeps one `Tips<Action>` in `Pointer` (`pointer.rs:53,77`). Each frame `drawing.rs:888` copies what shows into the frame's `TipFrame` (`ui.tips.shown = pointer.tip_shown()`, `pointer.rs:292-293`); screens add anchors through `tip_anchor`, `tip_plain` and `hit_tip` (`compact/mod.rs:531` is one `tip_plain` caller); `draw_tip` draws the one shown; then `drawing.rs:909` takes the frame's anchors out (`std::mem::take(&mut ui.tips.anchors)`) and `drawing.rs:964` hands them to `Pointer::set_tip_anchors` (`pointer.rs:298-299`), which calls `Tips::set_anchors`. So `Tips` always holds the anchors of the last frame, and the frame's own `shown` is a copy, not a second source.
+- `set_anchors` replaces the anchors; a tooltip coming or showing whose owner the frame no longer drew is dropped (a showing one reports the change).
+- Moves come from events, each through a `Pointer` method: `tip_hover` (`lib.rs:1293,1301`), `tip_down`, `tip_moved`, `tip_up` (`pointer.rs:310-323`), `tip_focus` (`lib.rs:1228`), `tip_tick` (`lib.rs:1342`), `tip_show` (`create.rs:1777,1779`: a press of the About buttons of the backup and path steps opens their tooltip at once), `tip_dismiss` (`inputs.rs:807`, Escape); `fade.rs:1134` reads `tip_shown` to keep the frame live.
+- `Tips` bodies: `hover` and `focus` set `coming = (owner, by, now)` for the anchor under the pointer or the focused owner that was drawn, and clear a coming or showing tooltip of their own kind when the pointer or focus leaves; `press_down` hides what shows and starts a long press only on a rich anchor (a plain tooltip never shows to a finger); `press_moved` cancels a touch tooltip coming when the finger leaves the anchor or scrolls; `press_up` cancels one still coming; `show` shows at once as `TipBy::Press` if the owner is drawn; `dismiss` clears both; `tick` shows a coming tooltip once `TIP_DELAY_MS` (`TIP_LONG_PRESS_MS` for touch) has passed since it began and returns whether what shows changed.
+
 ## Rules and refusals
 
 Menu:
@@ -112,5 +202,3 @@ None.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- `Tips` method bodies and how `TipFrame` and `Tips` hand over between frames were not traced beyond the field.
