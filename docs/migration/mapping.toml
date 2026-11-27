@@ -350,6 +350,7 @@ fate = "copy"
 next = ["core/faraday-strings"]
 changed = [
     "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`src/lib.rs`: `network_name` added, moved from `faraday-intake`'s `wallet` module (01 §2.3)",
 ]
 
 [[module]]
