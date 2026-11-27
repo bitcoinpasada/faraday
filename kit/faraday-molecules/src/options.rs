@@ -5,9 +5,7 @@
 use faraday_atoms::button::{ButtonModel, Style};
 use faraday_atoms::hits::Shape;
 use faraday_atoms::{Icon, Offered, Pressed, Shown, Ui};
-use faraday_tokens::dims::{
-    BODY_S, BUTTON_H, ICON_BUTTON, ICON_SMALL, TITLE_S, TOUCH, shape_full,
-};
+use faraday_tokens::dims::{BODY_S, BUTTON_H, ICON_BUTTON, ICON_SMALL, TITLE_S, TOUCH, shape_full};
 use faraday_tokens::palette::{Role, on_selected, selected_or};
 
 /// An information button after a word of an option's name, whose rich tooltip says more. A press
@@ -53,7 +51,11 @@ const ROW_STEP: f32 = 54.0;
 const MORE_H: f32 = 44.0;
 
 /// Draws the list from (x, y), `w` wide. Returns its height.
-pub fn draw<A: Pressed>(m: &ChoiceModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(
+    m: &ChoiceModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
     let mut cy = y;
     for r in &m.rows {
         let h = row(r, ui, m.enabled, (x, cy, w));
@@ -74,7 +76,12 @@ pub fn draw<A: Pressed>(m: &ChoiceModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (
 }
 
 /// One option of the list at (x, cy), `w` wide. Returns its height.
-fn row<A: Pressed>(r: &OptionRow<'_, A>, ui: &mut Ui<'_, A>, enabled: bool, (x, cy, w): (f32, f32, f32)) -> f32 {
+fn row<A: Pressed>(
+    r: &OptionRow<'_, A>,
+    ui: &mut Ui<'_, A>,
+    enabled: bool,
+    (x, cy, w): (f32, f32, f32),
+) -> f32 {
     let (on, name, line) = (r.on, r.name.as_str(), r.line.as_str());
     let size = TITLE_S;
     let left = x + INSET;
@@ -95,7 +102,14 @@ fn row<A: Pressed>(r: &OptionRow<'_, A>, ui: &mut Ui<'_, A>, enabled: bool, (x, 
     } else {
         TOUCH
     };
-    ui.fill(x, cy, w, h, ROW_R, selected_or(on, Role::SurfaceContainerHighest));
+    ui.fill(
+        x,
+        cy,
+        w,
+        h,
+        ROW_R,
+        selected_or(on, Role::SurfaceContainerHighest),
+    );
     ui.stroke(x, cy, w, h, ROW_R, selected_or(on, Role::OutlineVariant));
     if enabled {
         ui.press_box(x, cy, w, h, r.press.clone());
@@ -112,7 +126,12 @@ fn row<A: Pressed>(r: &OptionRow<'_, A>, ui: &mut Ui<'_, A>, enabled: bool, (x, 
                     let ty = cy + TOP + n as f32 * name_h;
                     let end = left + ui.text_as(left, ty, size, ink, text);
                     if let Some(t) = &r.tip {
-                        tip = tip.or(word_at(ui, (left, end, ty + name_h / 2.0), size, (t.word.as_str(), text)));
+                        tip = tip.or(word_at(
+                            ui,
+                            (left, end, ty + name_h / 2.0),
+                            size,
+                            (t.word.as_str(), text),
+                        ));
                     }
                 }
                 for (n, text) in lines.iter().enumerate() {
@@ -166,7 +185,11 @@ fn shares_tip<A: Pressed>(
 /// Material's info icon button (an [`ICON_BUTTON`] round, an [`ICON_SMALL`] glyph in the
 /// secondary ink, a touch target taking the press only on the button) with its left edge at
 /// `end`, centred on `mid`. Returns the target's (x, y, side).
-fn info_button<A: Pressed>(ui: &mut Ui<'_, A>, (end, mid): (f32, f32), press: &A) -> (f32, f32, f32) {
+fn info_button<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    (end, mid): (f32, f32),
+    press: &A,
+) -> (f32, f32, f32) {
     // The button is a full touch target around the icon button.
     let side = ui.touch.max(ICON_BUTTON);
     let (bx, by) = (end - (side - ICON_BUTTON) / 2.0, mid - side / 2.0);
@@ -176,7 +199,14 @@ fn info_button<A: Pressed>(ui: &mut Ui<'_, A>, (end, mid): (f32, f32), press: &A
         press.clone(),
     );
     let inset = (side - ICON_BUTTON) / 2.0;
-    ui.icon(bx + inset, by + inset, ICON_BUTTON, Icon::Info, ICON_SMALL, Role::OnSurfaceVariant);
+    ui.icon(
+        bx + inset,
+        by + inset,
+        ICON_BUTTON,
+        Icon::Info,
+        ICON_SMALL,
+        Role::OnSurfaceVariant,
+    );
     (bx, by, side)
 }
 

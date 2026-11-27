@@ -98,7 +98,12 @@ pub fn draw<A: Pressed>(
             }
         });
         ui.dot(x + at.pad + at.dot_r, y + h / 2.0, at.dot_r, dot);
-        ui.text_mid_as((x + at.pad + at.dot_room, y, h), LABEL_M, ink, m.label.as_str());
+        ui.text_mid_as(
+            (x + at.pad + at.dot_room, y, h),
+            LABEL_M,
+            ink,
+            m.label.as_str(),
+        );
     });
 }
 
@@ -119,7 +124,10 @@ mod tests {
         }
     }
 
-    fn pill(state: StickState, offered: Offered<P>) -> (faraday_atoms::FrameOut<P>, [(u8, u8, u8); 2]) {
+    fn pill(
+        state: StickState,
+        offered: Offered<P>,
+    ) -> (faraday_atoms::FrameOut<P>, [(u8, u8, u8); 2]) {
         let mut canvas = canvas(160);
         let out = frame(&mut canvas, &at_rest(None), |ui| {
             ui.clear(page());
@@ -144,7 +152,10 @@ mod tests {
         let (asked, asked_px) = pill(StickState::Asked, Offered::No);
         assert_ne!(in_px[0], quiet_px[0]);
         assert_eq!(quiet_px[0], asked_px[0]);
-        assert_ne!(quiet_px[1], asked_px[1], "an asked pill is edged in its tone");
+        assert_ne!(
+            quiet_px[1], asked_px[1],
+            "an asked pill is edged in its tone"
+        );
         assert_eq!(inserted.hits.len(), 1);
         assert!(quiet.hits.is_empty() && asked.hits.is_empty());
     }

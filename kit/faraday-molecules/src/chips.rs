@@ -2,13 +2,11 @@
 //! (09 §3.2; `docs/THEMES.md` §12).
 
 use faraday_atoms::hits::Shape;
-use faraday_atoms::{Glyph, Pressed, Shown, Ui};
+use faraday_atoms::{Glyph, Pressed, Shown, Theme, Ui};
 
-use faraday_tokens::Theme;
 use faraday_tokens::dims::{
     FILTER_CHIP_GAP, FILTER_CHIP_H, FILTER_CHIP_ICON, FILTER_CHIP_LEAD, FILTER_CHIP_TRAIL, GAP,
-    LABEL_L, SHAPE_S, THEME_CHIP_DOT, THEME_CHIP_RING, THEME_CHIP_RING_GAP, THEME_CHIP_TICK,
-    TOUCH,
+    LABEL_L, SHAPE_S, THEME_CHIP_DOT, THEME_CHIP_RING, THEME_CHIP_RING_GAP, THEME_CHIP_TICK, TOUCH,
 };
 use faraday_tokens::palette::{Color, Role, ThemeName};
 
@@ -46,7 +44,11 @@ fn chip_width<A: Pressed>(m: &ChipsModel<'_, A>, ui: &Ui<'_, A>, item: &ThemeChi
 
 /// Draws the chips from (x, y), wrapping in `w`. Rows are [`TOUCH`] apart, so each chip's
 /// target, grown to [`TOUCH`], meets the next row's and is not cut. Returns the height used.
-pub fn draw<A: Pressed>(m: &ChipsModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(
+    m: &ChipsModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
     let (mut cx, mut cy) = (x, y);
     for item in &m.items {
         let cw = chip_width(m, ui, item);
@@ -83,7 +85,11 @@ fn chip<A: Pressed>(
         ring(ui, (x, y, w, h), own.role(Role::Primary));
     }
     ui.fill(x, y, w, h, SHAPE_S, fill);
-    ui.press(Shape::new(x, y, w, h, SHAPE_S), ink.into(), item.press.clone());
+    ui.press(
+        Shape::new(x, y, w, h, SHAPE_S),
+        ink.into(),
+        item.press.clone(),
+    );
     let a = &item.press;
     let layered = ui.is_pressed(a) || ui.is_hovered(a) || ui.is_focused(a);
     let content = if layered { held_ink(fill, ink) } else { ink };
@@ -181,7 +187,9 @@ mod tests {
         let mut short = Vec::new();
         for theme in Theme::all() {
             let other = Theme::all()
-                .find(|t| t.mode == theme.mode && t.contrast == theme.contrast && t.name != theme.name)
+                .find(|t| {
+                    t.mode == theme.mode && t.contrast == theme.contrast && t.name != theme.name
+                })
                 .expect("ten themes");
             let (a, _) = drawn(theme, &at_rest(None));
             let (b, _) = drawn(other, &at_rest(None));

@@ -256,7 +256,10 @@ mod tests {
     fn a_row_that_does_not_fit_scrolls_by_a_chevron_to_the_next_tab() {
         let few = tabs(&["One", "Two", "Three"], 0);
         assert_eq!(presses(&few, 600.0).0, [0, 1, 2]);
-        let many = tabs(&["Overview", "Details", "Backups", "Advanced", "History"], 0);
+        let many = tabs(
+            &["Overview", "Details", "Backups", "Advanced", "History"],
+            0,
+        );
         let (hits, _) = presses(&many, 300.0);
         // The tabs shown from the first, then the chevron sending the one after them.
         let shown = hits.len() - 1;

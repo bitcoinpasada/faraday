@@ -33,7 +33,11 @@ fn button<'s, A: Clone>(label: Shown<'s>, offered: &Offered<A>) -> ButtonModel<'
 }
 
 /// Draws the model from (x, y), `w` wide. Returns its height.
-pub fn draw<A: Pressed>(m: &TimeZoneModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, _w): (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(
+    m: &TimeZoneModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, _w): (f32, f32, f32),
+) -> f32 {
     match &m.kind {
         TimeZoneKind::Row { label, open } => row(m, ui, (x, y), (label, open)),
         TimeZoneKind::Steps { minus, plus } => steppers(m, ui, (x, y), (minus, plus)),

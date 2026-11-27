@@ -814,6 +814,7 @@ pub enum Style { Filled, Tonal, Outlined, Text, Elevated, Error }
 - `Block::Pass` is filled from the passphrase part's read view (01 A2, A3): the dot count, the
   eye, the chips, and the text only while the eye is open. Only the part's crate names its state;
   the presentation kernel maps the view to `PassModel`, the text through `Shown::secret`.
+- Built: the molecules `pass` (the passphrase field: dots, or the revealed text through `Shown::secret`; its view is private so a plain text cannot be made revealed), `appearance` with `chips` (theme chips, Mode and Contrast, Text size), `stick_pill`, `tabs`, `options` (`ChoiceModel`) and `time_zone` each draw from their box, `draw(m, ui, (x, y, w))` returning the height.
 - **Rule K15.** A page shows a control only as a model the content organism or another organism
   draws; it calls no atom or molecule. Each organism re-exports its model's field types (K7).
   Held by K6 and K7.

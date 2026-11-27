@@ -5,9 +5,9 @@
 //! `Shown::secret` and is drawn from the borrow, never copied (V19, K12). The model keeps no
 //! copy of the text, and a hidden field's model holds a count and no text at all.
 
+use faraday_atoms::PlainRef;
 use faraday_atoms::hits::{Shape, Unpressed};
 use faraday_atoms::{Icon, Pressed, Shown, Ui, W};
-use faraday_atoms::PlainRef;
 use faraday_text::Text;
 use faraday_tokens::dims::{
     BODY_M, FIELD_RADIUS, GAP, GAP_SMALL, PASS_CODE_INSET, PASS_CODE_TEXT, RADIUS_SMALL, SHAPE_S,
@@ -80,7 +80,11 @@ const EYE_GLYPH: f32 = 15.0;
 
 /// Draws the field from (x, y), `w` wide, as tall as a field is at the text size. Returns its
 /// height.
-pub fn draw<A: Pressed>(m: &PassModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(
+    m: &PassModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
     let h = ui.field_h();
     if let Held::Public(text) = &m.view.0 {
         code_field(ui, (x, y, w, h), text);
@@ -101,7 +105,12 @@ pub fn draw<A: Pressed>(m: &PassModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f3
         (Some(hint), _) if empty && !m.focused => {
             ui.showing(hint, |ui| {
                 let line = ui.fit_as(BODY_M.mono(), hint.as_str(), room);
-                ui.text_mid_as((x + TYPED_INSET, y, h), BODY_M.mono(), Role::OnSurface, &line);
+                ui.text_mid_as(
+                    (x + TYPED_INSET, y, h),
+                    BODY_M.mono(),
+                    Role::OnSurface,
+                    &line,
+                );
             });
             eye(m, ui, (x, y, w), h);
         }
@@ -117,18 +126,45 @@ pub fn draw<A: Pressed>(m: &PassModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f3
 }
 
 /// What is typed: the dots, or the revealed text drawn from its borrow.
-fn typed<A: Pressed>(m: &PassModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, h): (f32, f32, f32), room: f32) {
+fn typed<A: Pressed>(
+    m: &PassModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, h): (f32, f32, f32),
+    room: f32,
+) {
     let ink = Role::OnSurface;
     let at = (x, y, h);
     match &m.view.0 {
         Held::Revealed(text) => ui.showing(text, |ui| {
             let size = BODY_M.size;
-            ui.typed(at.0, at.1, at.2, size, W::M, ink, text.as_str(), room, m.focused, m.press.clone());
+            ui.typed(
+                at.0,
+                at.1,
+                at.2,
+                size,
+                W::M,
+                ink,
+                text.as_str(),
+                room,
+                m.focused,
+                m.press.clone(),
+            );
         }),
         Held::Dots(n) => {
             let dots = Text::repeated("\u{2022}", *n);
             let size = BODY_M.size;
-            ui.typed(at.0, at.1, at.2, size, W::M, ink, dots.as_str(), room, m.focused, m.press.clone());
+            ui.typed(
+                at.0,
+                at.1,
+                at.2,
+                size,
+                W::M,
+                ink,
+                dots.as_str(),
+                room,
+                m.focused,
+                m.press.clone(),
+            );
         }
         Held::Public(_) => {}
     }
@@ -144,7 +180,13 @@ fn no_passphrase<A: Pressed>(
 ) {
     let ph = 24.0;
     let pw = ui.showing(label, |ui| {
-        ui.pill_in(x + 8.0, y + (h - ph) / 2.0, ph, label.as_str(), Role::OnSurfaceVariant)
+        ui.pill_in(
+            x + 8.0,
+            y + (h - ph) / 2.0,
+            ph,
+            label.as_str(),
+            Role::OnSurfaceVariant,
+        )
     });
     if focused {
         ui.caret(x + 14.0 + pw, y + (h - 18.0) / 2.0, 18.0);
@@ -180,16 +222,35 @@ fn eye<A: Pressed>(m: &PassModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f3
 
 /// A public passphrase in its code box at the field's text inset, unmasked
 /// (`docs/MODES.md` §6.2). No eye.
-fn code_field<A: Pressed>(ui: &mut Ui<'_, A>, (x, y, w, h): (f32, f32, f32, f32), text: &Shown<'_>) {
+fn code_field<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    (x, y, w, h): (f32, f32, f32, f32),
+    text: &Shown<'_>,
+) {
     ui.fill(x, y, w, h, FIELD_RADIUS, Role::SurfaceContainerHighest);
     ui.stroke(x, y, w, h, FIELD_RADIUS, Role::Outline);
     let size = PASS_CODE_TEXT;
     let line = ui.line(size, W::M) + 2.0 * GAP_SMALL;
     let top = y + (h - line) / 2.0;
     let bw = ui.measure(size, W::M, text.as_str()) + 2.0 * GAP;
-    ui.fill(x + PASS_CODE_INSET, top, bw, line, RADIUS_SMALL, Role::SurfaceContainerHighest);
+    ui.fill(
+        x + PASS_CODE_INSET,
+        top,
+        bw,
+        line,
+        RADIUS_SMALL,
+        Role::SurfaceContainerHighest,
+    );
     ui.showing(text, |ui| {
-        ui.text_mid(x + PASS_CODE_INSET + GAP, top, line, size, W::M, Role::OnSurface, text.as_str());
+        ui.text_mid(
+            x + PASS_CODE_INSET + GAP,
+            top,
+            line,
+            size,
+            W::M,
+            Role::OnSurface,
+            text.as_str(),
+        );
     });
 }
 
@@ -239,7 +300,10 @@ mod tests {
     fn a_revealed_passphrase_marks_the_frame_and_a_hidden_one_draws_no_character_of_it() {
         let shown = model(PassView::revealed(PASSPHRASE));
         let (out, texts) = drawn(&shown);
-        assert!(out.secret, "a revealed passphrase leaves the frame unmarked");
+        assert!(
+            out.secret,
+            "a revealed passphrase leaves the frame unmarked"
+        );
         assert!(texts.iter().any(|t| t.contains(PASSPHRASE)), "{texts:?}");
 
         let count = PASSPHRASE.chars().count();
@@ -259,6 +323,9 @@ mod tests {
         let (out, _) = drawn(&model(PassView::dots(3)));
         let eye = out.hits.iter().find(|h| h.press == P(2)).expect("no eye");
         let field = out.hits.iter().find(|h| h.press == P(1)).expect("no box");
-        assert!(field.rect.right() <= eye.rect.x + 1, "the box runs under the eye");
+        assert!(
+            field.rect.right() <= eye.rect.x + 1,
+            "the box runs under the eye"
+        );
     }
 }

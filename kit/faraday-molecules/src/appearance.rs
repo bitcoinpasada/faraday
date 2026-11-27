@@ -60,7 +60,11 @@ fn row_label<A: Pressed>(
 
 /// Draws a row of segmented choices at (x, y, w). Returns its height.
 fn segments<A: Pressed>(s: &Segments<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
-    let options: Vec<(&str, A)> = s.items.iter().map(|(l, a)| (l.as_str(), a.clone())).collect();
+    let options: Vec<(&str, A)> = s
+        .items
+        .iter()
+        .map(|(l, a)| (l.as_str(), a.clone()))
+        .collect();
     let (x, y, w) = at;
     ui.choices((x, y, w, SEGMENTED_H), LABEL_L.size, &options, s.chosen)
 }
@@ -143,7 +147,11 @@ mod tests {
             })
             .collect();
         let m = AppearanceModel {
-            labels: [Shown::plain("Theme"), Shown::plain("Mode"), Shown::plain("Contrast")],
+            labels: [
+                Shown::plain("Theme"),
+                Shown::plain("Mode"),
+                Shown::plain("Contrast"),
+            ],
             themes: ChipsModel {
                 current,
                 items,
