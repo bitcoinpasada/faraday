@@ -449,6 +449,22 @@ const BAR_FADE_MS: u64 = 300;
 /// How long the indeterminate progress bar takes to cross its track once, milliseconds.
 const BUSY_PASS_MS: u64 = 1800;
 
+/// The eased progress of a change of page `t` (0 to 1) of the way in: Material's emphasized
+/// easing. Atoms hold the easing (04 §12.1); the templates ask for it here.
+pub fn turn_ease(t: f32) -> f32 {
+    faraday_draw::ease::ease_path(&faraday_tokens::motion::EASE_EMPHASIZED, t)
+}
+
+fn lerp_rect(a: Rect, b: Rect, e: f32) -> Rect {
+    let l = |a: i32, b: i32| (a as f32 + (b - a) as f32 * e).round() as i32;
+    Rect {
+        x: l(a.x, b.x),
+        y: l(a.y, b.y),
+        w: l(a.w, b.w),
+        h: l(a.h, b.h),
+    }
+}
+
 /// How far through an animation of `span_ms` begun at `began_ms` the time `now_ms` is, 0 to 1.
 pub fn progress(began_ms: u64, now_ms: u64, span_ms: u64) -> f32 {
     if span_ms == 0 {
@@ -480,6 +496,54 @@ pub fn busy_phase(began_ms: u64, now_ms: u64) -> f32 {
 }
 
 impl<A: crate::Pressed> crate::Ui<'_, A> {
+    /// Where a pane that moves between two places stands: the box `to`, or, after `to` changed,
+    /// the way from where it stood to the new place (`Motion::Glide` under `id`, `span_ms` long
+    /// from the frame's time, eased as a page turn is). A pane first drawn, or drawn under Reduce
+    /// motion, stands at `to`. Asks another frame while it moves.
+    pub fn glide_rect(&mut self, id: Anchor, to: Rect, span_ms: u64) -> Rect {
+        let key = ComponentId(self.page, id);
+        let held = match self.motion.get(&key) {
+            Some(Motion::Glide { from, to, began_ms }) => Some((*from, *to, *began_ms)),
+            _ => None,
+        };
+        let here = |from: Rect, goal: Rect, began_ms: u64| {
+            let t = progress(began_ms, self.now_ms, span_ms);
+            (lerp_rect(from, goal, turn_ease(t)), t)
+        };
+        let (from, goal, began_ms) = match held {
+            Some((from, goal, began_ms)) if goal == to => (from, goal, began_ms),
+            Some((from, goal, began_ms)) => {
+                let (now_at, _) = here(from, goal, began_ms);
+                (now_at, to, self.now_ms)
+            }
+            None => (to, to, self.now_ms),
+        };
+        if self.reduce {
+            self.motion.set(
+                key,
+                Motion::Glide {
+                    from: to,
+                    to,
+                    began_ms: self.now_ms,
+                },
+            );
+            return to;
+        }
+        self.motion.set(
+            key,
+            Motion::Glide {
+                from,
+                to: goal,
+                began_ms,
+            },
+        );
+        let (at, t) = here(from, goal, began_ms);
+        if t < 1.0 && from != goal {
+            self.moving = true;
+        }
+        at
+    }
+
     /// How much of a hold is filled, 0 to 1 (04 §8.1, `Motion::Hold`): the entry the component
     /// `id` of the page drawn keeps (K10) begins when `pressed` is first seen and goes when it
     /// is not, so letting go empties it. Asks another frame while it fills.
@@ -658,5 +722,56 @@ mod tests {
         assert_eq!(seen[0], 0.0);
         assert!(seen[1] > 0.0 && seen[1] < seen[2] && seen[2] < 1.0);
         assert_eq!(seen[3], 1.0);
+    }
+
+    /// Invariant: The eased turn starts at 0, ends at 1 and never goes back; a pane that is moved glides from where it stood to its new place in the span and stands still under Reduce motion.
+    /// Regression: A pane that jumps to its new place, or one that starts from its target and so never moves.
+    /// Owner: kit
+    #[test]
+    fn a_moved_pane_glides_and_the_eased_turn_is_monotone() {
+        assert!(turn_ease(0.0).abs() < 1e-3 && (turn_ease(1.0) - 1.0).abs() < 1e-3);
+        let mut last = 0.0;
+        for i in 0..=20 {
+            let e = turn_ease(i as f32 / 20.0);
+            assert!(e >= last - 1e-4);
+            last = e;
+        }
+        let a = Rect {
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+        };
+        let b = Rect {
+            x: 200,
+            y: 0,
+            w: 100,
+            h: 100,
+        };
+        let id = Anchor {
+            scope: "pane",
+            n: 0,
+        };
+        let mut c = canvas(160);
+        let mut store = MotionStore::new();
+        let mut seen = Vec::new();
+        for (now, to) in [(0, a), (10, b), (135, b), (1000, b)] {
+            frame_in(&mut c, &at_rest(None), (&mut store, now), |ui| {
+                ui.set_reduce_motion(false);
+                seen.push(ui.glide_rect(id, to, 250));
+            });
+        }
+        assert_eq!(seen[0], a);
+        assert_eq!(seen[1], a);
+        assert!(seen[2].x > 0 && seen[2].x < 200);
+        assert_eq!(seen[3], b);
+        let mut still = MotionStore::new();
+        for (now, to) in [(0, a), (10, b)] {
+            frame_in(&mut c, &at_rest(None), (&mut still, now), |ui| {
+                ui.set_reduce_motion(true);
+                seen.push(ui.glide_rect(id, to, 250));
+            });
+        }
+        assert_eq!(seen[5], b);
     }
 }
