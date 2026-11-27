@@ -1193,8 +1193,7 @@ mod tests {
         at
     }
 
-    /// Invariant: the touch grid and calibration the command line gives place a recorded touch on
-    /// the panel (480 by 640): the grid scales it, a swap exchanges the axes, an invert reverses one.
+    /// Invariant: the touch grid and calibration given place a recorded touch on the panel.
     /// Regression: `--touch-grid`, `--touch-swap` or `--touch-invert-x` parsed and then not applied.
     /// Owner: adapter
     #[test]
