@@ -1,2 +1,25 @@
-//! The domain crate `faraday-samples`: Faraday's own code, copied from `main` in a later step.
-//! Everything a crate of the domain may do is in `docs/spec/01-layers.md` section 2.
+//! Faraday's samples (F81, `docs/MODES.md` §5): the public dummies Practice
+//! takes, as data. Keys in every form Faraday reads (a repeated word at
+//! every length, test vectors of BIP-39, SLIP-39, codex32 and Seed XOR, an
+//! LND cipher seed), the testkit's wallets with an
+//! unsigned spend each, a vault, a signed message, an address and a TOTP
+//! setup code.
+//!
+//! Public data only: strings, bytes and fingerprints, in the shapes
+//! [`types`] defines. This crate parses nothing and derives
+//! nothing, so no key material is in it or reaches it. Its tests check
+//! every value against the testkit, the published vectors and another
+//! implementation.
+//!
+//! Only Faraday Demo depends on this crate: the desktop app, and the
+//! Starter through it, since Faraday Demo runs in the Starter's window
+//! (F126). The stick, the Pi, the disk and grant helpers, the boot report
+//! and the Starter's own crate must not (`tools/lint-keys-tests.sh`).
+//!
+//! The `name` of a sample is the name of its string in
+//! `faraday-strings`; the strings are not here.
+
+mod data;
+pub mod types;
+
+pub use data::SAMPLES;

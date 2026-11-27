@@ -2033,7 +2033,7 @@ grid is on a page of its own, `codex32qr_page` in
 sheets: 29 × 29 squares of 16 points (about 5.6 mm), printed at 100% so
 a filled grid is a code a camera reads; the squares every version 3 code
 shares (the finders, the timing lines, the alignment square and the dark
-module, `codex32_backup::printed`) printed black, the same squares the
+module, `faraday_paper::blank::codex32_printed`) printed black, the same squares the
 device's copy grid draws grey, so the person draws only the rest; a thin
 rule round every square and a heavier one every five from the top left,
 the blocks named columns 1 to 6 above and rows A to F to the left, as

@@ -2,6 +2,7 @@
 //! the PDF sheets and their writer ([`pdf`]), the EDID rules ([`edid`])
 //! and the build ID ([`build`]). faraday-core and the Starter use them.
 
+pub mod blank;
 pub mod build;
 pub mod edid;
 pub mod pdf;

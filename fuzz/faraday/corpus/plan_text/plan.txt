@@ -1,0 +1,10 @@
+seeds 1000
+places 1
+split 0
+wallet 000
+software 000
+form 00
+omit 0
+vault 0 1
+sticks 0 1
+spot 0 0

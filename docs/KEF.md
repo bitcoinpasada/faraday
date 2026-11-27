@@ -637,9 +637,9 @@ gives what a form needs: place and stick renumbering, Move and Copy, the plan's 
 refusal. A table beside the map would redo each by hand. It costs far fewer of the sites SeedQR
 has, since it joins no list of copies:
 
-- They have arms in `faraday-plan/src/lib.rs` (`is_file`, `seed_index`, the shape check, their labels, and
+- They have arms in `core/faraday-plan/src/lib.rs` (`is_file`, `seed_index`, the shape check, their labels, and
   for the paper form the Templates item's condition and its count),
-  `faraday-plan/src/text.rs` (codes `kef{i}` and `kefp{i}`), `board/mod.rs` (`forms_in`, `things_of`, the name, the menu),
+  `core/faraday-plan/src/text.rs` (codes `kef{i}` and `kefp{i}`), `board/mod.rs` (`forms_in`, `things_of`, the name, the menu),
   `board/lines.rs`, `glance/mod.rs` (its line), `backups/mod.rs` (a file, not a copy),
   and `backup_flow/wallet.rs`.
 - They have none in `seed_form`, `seed_spots`, the place's reach, `is_secret_file` or `secrets.rs`,

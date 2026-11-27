@@ -729,7 +729,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-core-wallet"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
@@ -737,6 +737,7 @@ dependencies = [
  "faraday-sqlite",
  "faraday-strings",
  "faraday-text",
+ "zeroize",
 ]
 
 [[package]]
@@ -1025,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-forms"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "faraday-keys",
  "faraday-strings",
@@ -1114,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-intake"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
@@ -1122,6 +1123,9 @@ dependencies = [
  "faraday-qr",
  "faraday-strings",
  "faraday-text",
+ "serde",
+ "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -1479,7 +1483,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-plan"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
@@ -1488,6 +1492,7 @@ dependencies = [
  "faraday-strings",
  "faraday-text",
  "faraday-vault",
+ "proptest",
 ]
 
 [[package]]
@@ -1635,8 +1640,9 @@ dependencies = [
 
 [[package]]
 name = "faraday-samples"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
+ "bip39",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
@@ -1645,9 +1651,13 @@ dependencies = [
  "faraday-keys",
  "faraday-ots",
  "faraday-psbt",
+ "faraday-strings",
  "faraday-testkit",
  "faraday-text",
  "faraday-vault",
+ "serde_json",
+ "unicode-normalization",
+ "zeroize",
 ]
 
 [[package]]

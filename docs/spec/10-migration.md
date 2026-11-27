@@ -270,7 +270,8 @@ samples' types to `faraday_samples::types`, `faraday_core::forms` and `strings` 
 `faraday_forms` and `faraday_strings`, `testkit::compute` to `Compute::unchecked`, `testkit::kits`
 and the other test data to `faraday-testkit`), it builds with domain and test-support
 dev-dependencies alone. A file that needs `Faraday`, `faraday_shell_api::App`, `faraday_host` or
-`wallet::Session` is dropped whole; nothing in it is edited to make it build. Held by the
+`wallet::Session` is dropped whole; nothing in it is edited to make it build but the one helper
+named below. Held by the
 copying change's build and review.
 
 Measured at the tag (`tests/all/`):
@@ -281,10 +282,17 @@ Measured at the tag (`tests/all/`):
 
 What the dropped files held is the application's: what Practice loads and what the strip offers
 are update tests of `faraday-strip` and of the features that load samples (inventory
-`practice-demo.md`), written from that file and not from the dropped tests (TS4). The example
-`examples/regenerate.rs` is copied with the same moves; its two uses of `Session` (adding a wallet
-to sign a sample message) become the domain calls they make (`faraday_intake::wallet::read_wallet`
-and `faraday_keys`' message signing).
+`practice-demo.md`), written from that file and not from the dropped tests (TS4).
+
+`Samples::handouts` needs the session and stays the application's; the kept `keys.rs` takes the
+same list (the one-word words samples, in the order of `keys`) from a helper of its own over
+`SAMPLES.keys`, the one edit MG9 allows a kept file.
+
+The example `examples/regenerate.rs` comes with `faraday-testkit`, which holds the test data it
+reads (the sample words, the entries file, the wallets and vaults it writes), with the same moves;
+its two uses of `Session` (adding a wallet to sign a sample message) become the domain calls they
+make (`faraday_intake::wallet::read_wallet` and `faraday_keys`' message signing). Until then
+`faraday-samples`' crate documentation does not name it.
 
 ## 8. The crypto manifest while code is on main
 

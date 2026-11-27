@@ -1,18 +1,31 @@
 [package]
 name = "faraday-plan"
-version = "0.0.0"
+version = "0.2.0"
+description = "The backup plan's logic: the answers, the map of what each place keeps, the check and the checklist, with no drawing (docs/BACKUP-FLOW.md)"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
-faraday-bip = { path = "../faraday-bip" }
+# Hex, the date check and the Compute token the costly functions take.
 faraday-crypto = { path = "../faraday-crypto" }
+# codex32's character set and values.
+faraday-bip = { path = "../faraday-bip" }
+# The Seed XOR part limit (`MAX_XOR_PARTS`), one limit for every layer.
 faraday-entropy = { path = "../faraday-entropy" }
-faraday-forms = { path = "../faraday-forms" }
+# The wording the plan's text forms and labels use.
 faraday-strings = { path = "../faraday-strings" }
+# The forms registry: each copy's form and output.
+faraday-forms = { path = "../faraday-forms" }
+# Heap text that wipes itself, for the plan's lines and labels.
 faraday-text = { path = "../faraday-text" }
+# The codex32 set facts a plan's strings are read against.
 faraday-vault = { path = "../faraday-vault" }
+
+[dev-dependencies]
+proptest.workspace = true
 
 [lints]
 workspace = true

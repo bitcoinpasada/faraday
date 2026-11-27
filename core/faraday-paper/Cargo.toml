@@ -19,6 +19,10 @@ faraday-strings = { path = "../faraday-strings" }
 # A page's operators carry what a sheet prints, and are wiped when it drops.
 zeroize = { workspace = true, features = ["alloc"] }
 
+[dev-dependencies]
+# The token the blank sheet's tests mint, which counts nothing.
+faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }
+
 [lints]
 workspace = true
 

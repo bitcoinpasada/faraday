@@ -1,16 +1,30 @@
 [package]
 name = "faraday-intake"
-version = "0.0.0"
+version = "0.2.0"
+description = "What arrives at a Faraday app, and whether it is a secret that stays on the device: answers in enums, no strings"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
+# The payload classifier, SeedQR and UR. The QR decoder (`decode`) is not
+# needed to recognise bytes already read.
+faraday-codec = { path = "../faraday-codec", default-features = false }
 faraday-bip = { path = "../faraday-bip" }
-faraday-codec = { path = "../faraday-codec" }
+# The token key work takes (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../faraday-crypto" }
+# The Faraday file envelope, what a whole transfer arrived as, and CBOR.
 faraday-qr = { path = "../faraday-qr" }
+zeroize = { workspace = true, features = ["alloc"] }
+# An Electrum file is checked for a secret without its values being kept
+# (`electrum::text_holds_secret`).
+serde.workspace = true
+serde_json.workspace = true
+# The description reader's refusal lines (`wallet`).
 faraday-strings = { path = "../faraday-strings" }
+# Typed secrets (`SecretText`) are held in wiping heap text.
 faraday-text = { path = "../faraday-text" }
 
 [lints]

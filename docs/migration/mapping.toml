@@ -270,7 +270,11 @@ changed = [
 main = "faraday/faraday-plan"
 fate = "copy"
 next = ["core/faraday-plan"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`tests/note_text.rs`: the corpus files' path to `fuzz/faraday/corpus/plan_text/`",
+    "`tests/text.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`",
+]
 
 [[module]]
 main = "faraday/faraday-fat"
@@ -293,7 +297,10 @@ changed = [
 main = "faraday/faraday-core-wallet"
 fate = "copy"
 next = ["core/faraday-core-wallet"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout; `faraday-intake` removed",
+    "`src/lib.rs`: `SecretText` is `faraday_text::secret::SecretText` and `network_name` is `faraday_strings::network_name` (01 §2.3)",
+]
 
 [[module]]
 main = "faraday/faraday-qr"
@@ -320,7 +327,14 @@ main = "faraday/faraday-intake"
 fate = "copy"
 next = ["core/faraday-intake"]
 changed = [
-    "`src/lib.rs`: `ROOM` and `is_otpauth` leave for `faraday-text` and `faraday-codec`, which are already copied",
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`src/lib.rs`: `secret_buf`, `ROOM` and `is_otpauth` leave for `faraday-text` and `faraday-codec`, which are already copied (`room()` builds on `faraday_text::secret::ROOM`)",
+    "`src/secret_buf.rs`: dropped here, it is `faraday-text`'s `secret` module (its own row below)",
+    "`src/wallet.rs`: `network_name` leaves for `faraday-strings`; `Refusal` keeps the one variant the readers return, `NotAWallet`, and its sentence, and loses the variants of a key or wallet joining the session, which are `faraday_keys::Refusal`'s (01 §2.3: intake keeps its own answer for what it parses)",
+    "`src/caravan.rs`: `network_name` is `faraday_strings::network_name`",
+    "`tests/all/secret_buf.rs`: `SecretText` is `faraday_text::secret::SecretText`",
+    "`tests/all/wallet_files.rs`: the `Err(other)` arm of `refusal` dropped, no value reaches it with the one variant",
+    "`tests/all/common.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`; the interop fixtures' path to `tools/vectors/interop/`",
 ]
 
 [[module]]
@@ -333,7 +347,10 @@ changed = ["`std` as `core`; `ROOM` moved in; the `pub use crate::room` re-expor
 main = "faraday/faraday-forms"
 fate = "copy"
 next = ["core/faraday-forms"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout; `faraday-keys` added (`Makes`)",
+    "`src/lib.rs`: `Makes` removed, taken from `faraday_keys` (01 §2.3), where `Form::makes` returns it",
+]
 
 [[module]]
 main = "faraday/faraday-paper"
@@ -342,6 +359,8 @@ next = ["core/faraday-paper"]
 changed = [
     "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout; `faraday-draw` becomes `faraday-tokens`",
     "`src/pdf.rs`: the sheet dimensions are read from `faraday_tokens::dims` (their values copied from `faraday-draw`'s `tokens.rs` into `kit/faraday-tokens/src/dims.rs`)",
+    "`src/blank.rs` added and `src/lib.rs` declares it: `sheet_blank` and `BlankCopy` from `faraday-core`'s `wallet_backup` and `codex32_printed` (`printed`, with `QR_SIDE`) from its `codex32_backup` (09 §2.1); the wallet it adds to the sheet is a `BlankWallet` of text the caller worked out (name, shape, paths), the network its lower-case name and the sheet a `String`, since the session's `Wallet`, `faraday-bip`'s `Network` and `faraday-text` are no edge of this crate",
+    "`Cargo.toml`: `faraday-crypto` with `unchecked` as a dev-dependency, for the blank sheet's tests",
 ]
 
 [[module]]
@@ -350,6 +369,7 @@ fate = "copy"
 next = ["core/faraday-strings"]
 changed = [
     "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`src/lib.rs`: `network_name` added, moved from `faraday-intake`'s `wallet` module (01 §2.3)",
 ]
 
 [[module]]
@@ -364,7 +384,14 @@ changed = [
 main = "faraday/faraday-samples"
 fate = "copy"
 next = ["core/faraday-samples"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block (`online`); the workspace crates' dependency paths to `core/`'s layout; `faraday-core`, `faraday-host` and `faraday-shell-api` removed; `faraday-forms` and `faraday-bip` are the normal edges, `faraday-testkit` and `faraday-strings` dev-dependencies, `faraday-crypto` with `unchecked`",
+    "`src/types.rs` added, `src/lib.rs` declares it: the samples' types (`SampleKey`, `SampleForm`, `SampleSize`, `SampleKind`, `SampleScript`, `SampleWallet`, `SampleInputs`, `SampleHsm`, `Samples` with `public` and `nodes`, `repeated`, `PASSPHRASE`) from `faraday-core`'s `samples` module over `faraday_forms::Form` (09 §2.1); `Samples::handouts`, the sheet's labels (`label`, `kind_label`), `tickable`, `held` and `add`, which need `faraday-keys`, `faraday-strings` or the session, stay with the application",
+    "`src/data.rs`: the imports are `crate::types` and `faraday_forms::Form`",
+    "`tests/all/main.rs`: the `mod` lines of the dropped files removed; `tests/all/common.rs`: `show`, `demo_app`, `strip`, `strip_offers`, `untick_samples` and `reference_key_text` removed (only dropped files used them), the imports to `faraday_samples::types`, and `compute` minted with `Compute::unchecked` under `#[expect]` in place of `faraday_core::testkit::compute` (10 §7.2)",
+    "`tests/all/{keys,vectors}.rs`: the imports to the crates the moved items are in, `compute` from `common`, the refusal of `add_words_with` is `faraday_keys::Refusal`, and `keys.rs` holds `handouts`, which was `Samples::handouts`",
+    "`examples/regenerate.rs`: not copied yet, since it reads items of `faraday-testkit`'s library (`SAMPLE_WORDS`, `ENTRIES_FILE`, `three_of_five`, `kdbx_vault`, the kits) that are `todo!()` or absent until the test kit is built (10 §6)",
+]
 
 [[module]]
 main = "faraday/faraday-samples/tests/all/check_samples.rs"
@@ -2052,7 +2079,7 @@ feature = ["backup-board"]
 [[module]]
 main = "faraday/faraday-core/src/codex32_backup/mod.rs"
 fate = "port"
-next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+next = ["core/faraday-paper/src/blank.rs", "app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
 feature = ["codex-backup"]
 
 [[module]]
@@ -4561,7 +4588,7 @@ feature = ["wallet-backup", "codex-backup", "backup-board"]
 [[module]]
 main = "faraday/faraday-core/src/wallet_backup.rs"
 fate = "port"
-next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs", "app/features/faraday-backup/src/present.rs", "app/features/faraday-backup/src/model.rs"]
+next = ["core/faraday-paper/src/blank.rs", "app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs", "app/features/faraday-backup/src/present.rs", "app/features/faraday-backup/src/model.rs"]
 feature = ["wallet-backup", "codex-backup", "backup-board"]
 
 

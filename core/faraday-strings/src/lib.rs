@@ -11,6 +11,18 @@ mod en;
 
 pub use en::{EN, Strings, zones};
 
+use faraday_bip::keys::Network;
+
+/// What a network is called on screen.
+pub fn network_name(n: Network) -> &'static str {
+    match n {
+        Network::Mainnet => EN.wallet_mainnet,
+        Network::Testnet => EN.wallet_testnet,
+        Network::Signet => EN.wallet_signet,
+        Network::Regtest => EN.wallet_regtest,
+    }
+}
+
 /// Fills a template's `{}` placeholders from `args`, in order. A
 /// placeholder with no argument is dropped; a spare argument is ignored.
 pub fn fill(template: &str, args: &[&str]) -> String {
