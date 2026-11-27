@@ -35,6 +35,10 @@ pub struct FrameOut<R: Pressed> {
     /// The frost made under each sheet this frame for the runtime to keep (K16): none where the
     /// runtime gave one back.
     pub frosts: Vec<crate::keeps::MadeFrost>,
+    /// The rows taken of each region that moves, for the runtime to keep (K16).
+    pub rows: Vec<crate::keeps::MadeRows>,
+    /// How many regions were drawn as moved frames: their rows put back, only the strip painted.
+    pub moved: usize,
     /// A secret was drawn (04 §11).
     pub secret: bool,
     /// Rest or Moving: motion wants another frame.

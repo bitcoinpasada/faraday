@@ -570,6 +570,12 @@ clock (`MotionStore::scroll_region`), and a hold held to its end sends its press
   `Ui::fade_later` notes the box of a refused row, link, chip or card and `Ui::fade_disabled` draws
   those boxes at the disabled content opacity once the page or sheet is drawn (`main`'s `keep_live`
   dimming, now decided by `Offered`).
+  A moved frame is handed to `Ui` as the frame's time is: `Ui::set_rows`, called by the runtime
+  where it builds the `Ui`, lends the rows (`KeptRows`) the runtime kept of the regions the frame
+  before drew, and only when nothing but a region's motion asked for this frame; a region that
+  opts in (`Region::moves`) and was drawn in the same view puts them back moved, paints the strip
+  the move uncovered, sees its whole view for hits, and gives the rows it took (`MadeRows`, in
+  `FrameOut::rows`) to be kept again (K16).
 - Scrolling is motion, not state: a wheel notch, a pan, a flick and the stretch are handled by the
   runtime against the last frame's `regions`, change the store and send no message (inventory
   `features/motion.md`: slop, coast, notch, Reduce motion). Reason: a pan is up to 60 events a
@@ -730,7 +736,8 @@ no text of a planted secret is drawn and no kept image of a frame that showed on
   no hook in the kit (01 R4, 07 TS15). By V19 only a step fade's source may have the flag set,
   and none is left at the frame after its fade out, a lock, a hide or a page left; the check holds
   V19. Built: the frost under a sheet is made once when it opens and kept in the runtime
-  (`Seen::kept`).
+  (`Seen::kept`); a moved region's rows are replaced at each frame, kept only for a page with
+  no sheet and no secret, and none outlives a lock, a hide or the page.
 
 ## 12. The UI kit by atomic level
 

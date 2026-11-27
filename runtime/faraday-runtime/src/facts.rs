@@ -244,8 +244,11 @@ impl<R: Root> Runtime<R> {
             self.notify(Pending::Facts(FactsChanged::Time));
         }
         self.advance_motion(time.now_ms);
-        if self.notes.tick(time.now_ms) || self.frame.pace() == Pace::Moving {
-            self.frame.wanted = true;
+        if self.notes.tick(time.now_ms) {
+            self.frame.want();
+        } else if self.frame.pace() == Pace::Moving && !self.frame.wanted {
+            // Motion the store advanced asked for the frame already, and as its own.
+            self.frame.want();
         }
     }
 

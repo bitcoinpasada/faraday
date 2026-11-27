@@ -4,7 +4,7 @@ use core::borrow::Borrow;
 use std::collections::VecDeque;
 
 use faraday_atoms::{
-    Anchor, ComponentId, FrameOut, KeptFrost, Laid, Pan, Pointer, Theme, Ui,
+    Anchor, ComponentId, FrameOut, KeptFrost, KeptRows, Laid, Pan, Pointer, Theme, Ui,
     motion::{FIRST_STEP_MS, MAX_STEP_MS},
 };
 use faraday_crypto::Secret;
@@ -63,6 +63,35 @@ impl KeptCopy {
     }
 }
 
+/// The rows of a region that moves, kept for a frame that only moves it (04 K16), in a wiping
+/// buffer (02 P13).
+pub(crate) struct KeptRegion {
+    pub(crate) page: Anchor,
+    pub(crate) region: Anchor,
+    pub(crate) view: Target,
+    pub(crate) px: i32,
+    pub(crate) taken_at: u64,
+    /// The scale the rows were drawn at, as the frame was.
+    scale: f32,
+    /// The size of the display's buffer the rows were drawn on.
+    display: usize,
+    /// The `secret` flag of the frame the rows were copied from: V19 refuses a frame that is set,
+    /// so it is clear in every copy kept.
+    pub(crate) secret: bool,
+    pub(crate) pixels: Secret<Vec<u8>>,
+}
+
+impl KeptRegion {
+    fn wipe(&mut self) {
+        let pixels = self.pixels.expose_mut();
+        pixels.fill(0);
+        pixels.clear();
+    }
+}
+
+/// The most regions whose rows are kept.
+const MOVING_REGIONS: usize = 4;
+
 /// What the last frame keeps until the next (§2.5): the buffer, the output, the waiting orders.
 pub(crate) struct Painted<R: Root> {
     /// P13: wiping.
@@ -87,6 +116,17 @@ pub(crate) struct Painted<R: Root> {
     /// The frosted pages kept under the sheets drawn (K16); none outlives its sheet, a lock, a
     /// hide or the page.
     pub(crate) frosts: Vec<KeptCopy>,
+    /// The rows of the regions that move, as the last frame drew them (K16); replaced at each
+    /// frame, and none outlives a lock, a hide, the page or a sheet.
+    pub(crate) rows: Vec<KeptRegion>,
+    /// Nothing but a region's motion asked for the frame about to be drawn.
+    motion_only: bool,
+    /// Regions drawn as moved frames, so far.
+    #[cfg(test)]
+    pub(crate) moved: usize,
+    /// Frames are drawn whole.
+    #[cfg(test)]
+    pub(crate) whole_only: bool,
     /// A hold was held to its end this event and its press is not yet sent.
     pub(crate) hold_ready: Option<R::Press>,
     /// The press of the hold sent for the contact now down: a contact sends it once.
@@ -131,6 +171,12 @@ impl<R: Root> Painted<R> {
             down: None,
             wanted: false,
             frosts: Vec::new(),
+            rows: Vec::new(),
+            motion_only: false,
+            #[cfg(test)]
+            moved: 0,
+            #[cfg(test)]
+            whole_only: false,
             hold_ready: None,
             hold_sent: false,
             key_hold: None,
@@ -167,12 +213,92 @@ impl<R: Root> Painted<R> {
         self.out.as_ref().map_or(Pace::Rest, |out| out.pace)
     }
 
-    /// Wipes and drops every kept frost (V19: a lock, a hide, a page left, a sheet closed).
-    pub(crate) fn drop_frosts(&mut self) {
+    /// A frame is wanted by something that is not a region's motion.
+    pub(crate) fn want(&mut self) {
+        self.wanted = true;
+        self.motion_only = false;
+    }
+
+    /// A frame is wanted by a region's motion: it stays the only reason when nothing else asked.
+    pub(crate) fn want_motion(&mut self) {
+        if !self.wanted {
+            self.motion_only = true;
+        }
+        self.wanted = true;
+    }
+
+    /// Wipes and drops every kept image (V19: a lock, a hide, a page left, a sheet closed).
+    pub(crate) fn drop_kept(&mut self) {
         for kept in &mut self.frosts {
             kept.wipe();
         }
         self.frosts.clear();
+        for kept in &mut self.rows {
+            kept.wipe();
+        }
+        self.rows.clear();
+    }
+
+    /// Whether a frame may put back the rows it kept: nothing but a region's motion asked for
+    /// it, and the last frame was one a region's rows can stand for: no sheet, no secret, no
+    /// hold, and nothing under the pointer or pressed.
+    fn may_move(&self, only_motion: bool) -> bool {
+        #[cfg(test)]
+        if self.whole_only {
+            return false;
+        }
+        only_motion
+            && self.motion_only
+            && self.pointer.hovered.is_none()
+            && self.pointer.pressed.is_none()
+            && self
+                .out
+                .as_ref()
+                .is_some_and(|out| out.sheets.is_empty() && !out.secret && out.holds.is_empty())
+    }
+
+    /// After a frame: the rows kept before are wiped; the rows the frame took are kept unless
+    /// the frame showed a secret or a sheet (V19), the page or the size is not what they were
+    /// drawn for, or the scope is going (`keeping` clear).
+    fn keep_rows(
+        &mut self,
+        out: &mut FrameOut<R::Press>,
+        (now_ms, scale): (u64, f32),
+        keeping: bool,
+        len: usize,
+    ) {
+        for kept in &mut self.rows {
+            kept.wipe();
+        }
+        self.rows.clear();
+        #[cfg(test)]
+        {
+            self.moved += out.moved;
+        }
+        for made in out.rows.drain(..) {
+            let mut rows = made.rows;
+            let new = keeping
+                && !out.secret
+                && out.sheets.is_empty()
+                && rows.len() == len_of(made.view)
+                && made.page == out.page
+                && self.rows.len() < MOVING_REGIONS;
+            if new {
+                self.rows.push(KeptRegion {
+                    page: made.page,
+                    region: made.region,
+                    view: made.view,
+                    px: made.px,
+                    taken_at: now_ms,
+                    scale,
+                    display: len,
+                    secret: false,
+                    pixels: Secret::new(rows),
+                });
+            } else {
+                rows.fill(0);
+            }
+        }
     }
 
     /// After a frame: the copies whose sheet is no longer drawn, whose page was left or whose
@@ -389,6 +515,9 @@ impl<R: Root> Runtime<R> {
         };
         let started = self.started;
         let keeping = !matches!(self.phase, Phase::Locking | Phase::Ending);
+        // Nothing but motion asked for it: no message was dispatched, the frame is the first
+        // of its event and no job's progress is shown.
+        let only_motion = send && self.queue.dispatched == 0 && self.running.is_empty();
         let Runtime {
             root,
             tops,
@@ -447,6 +576,24 @@ impl<R: Root> Runtime<R> {
                 pixels: k.pixels.expose().as_slice(),
             })
             .collect();
+        let may_move = frame.may_move(only_motion);
+        let lent_rows: Vec<KeptRows<'_>> = frame
+            .rows
+            .iter()
+            .filter(|k| {
+                may_move
+                    && k.display == size
+                    && k.scale == scale
+                    && k.pixels.expose().len() == len_of(k.view)
+            })
+            .map(|k| KeptRows {
+                page: k.page,
+                region: k.region,
+                view: k.view,
+                px: k.px,
+                rows: k.pixels.expose().as_slice(),
+            })
+            .collect();
         let mut ui = Ui::new(
             &mut canvas,
             Theme::default(),
@@ -456,12 +603,15 @@ impl<R: Root> Runtime<R> {
             frame.ink,
         );
         ui.set_kept(&lent_frosts);
+        ui.set_rows(&lent_rows);
         ui.set_now_ms(clock.now_ms);
         ui.size_class();
         root.frame(&lent_tops, &view, &show, &mut ui);
         let mut out = ui.finish();
         drop(lent_frosts);
+        drop(lent_rows);
         frame.keep_frosts(&mut out, clock.now_ms, keeping, size);
+        frame.keep_rows(&mut out, (clock.now_ms, scale), keeping, size);
 
         let mut pending = Vec::new();
         for (anchor, laid, press) in &out.laid {
@@ -481,6 +631,7 @@ impl<R: Root> Runtime<R> {
         frame.out = Some(out);
         frame.finish_hold();
         frame.wanted = false;
+        frame.motion_only = false;
         frame.number += 1;
         frame.fresh = true;
         let display = &facts.facts.display;
@@ -517,7 +668,7 @@ impl<R: Root> Runtime<R> {
                     self.frame.down = None;
                 }
                 // A frame shows the press down: a hold begins to fill.
-                self.frame.wanted = true;
+                self.frame.want();
             }
             TouchPhase::Move => {
                 if !self.frame.pointer.down {
@@ -536,7 +687,7 @@ impl<R: Root> Runtime<R> {
                     self.frame.hold_ready = None;
                     self.frame.pan = None;
                     self.frame.drag_last = Some(from);
-                    self.frame.wanted = true;
+                    self.frame.want();
                 }
                 if let Some(last) = self.frame.drag_last {
                     self.frame.drag_last = Some(at);
@@ -548,7 +699,7 @@ impl<R: Root> Runtime<R> {
                 self.frame.hold_sent = false;
                 self.frame.hold_ready = None;
                 self.frame.touch_from = None;
-                self.frame.wanted = true;
+                self.frame.want();
                 if self.frame.drag_last.take().is_some() {
                     self.release_pan();
                     self.frame.down = None;
@@ -581,7 +732,7 @@ impl<R: Root> Runtime<R> {
                     if self.frame.key_hold.is_none() {
                         self.frame.key_hold = Some(press);
                         self.frame.hold_sent = false;
-                        self.frame.wanted = true;
+                        self.frame.want();
                     }
                 }
                 Some(press) if key == Key::Enter => self.pressed(press),
@@ -596,7 +747,7 @@ impl<R: Root> Runtime<R> {
         if matches!(key, Key::Enter | Key::Char(' ')) && self.frame.key_hold.take().is_some() {
             self.frame.hold_sent = false;
             self.frame.hold_ready = None;
-            self.frame.wanted = true;
+            self.frame.want();
             return;
         }
         self.root_input(&Input::KeyUp(key));
@@ -627,7 +778,7 @@ impl<R: Root> Runtime<R> {
             .and_then(|&i| out.hits.get(i))
             .map(|hit| hit.press.clone());
         self.frame.pointer.focused = focus;
-        self.frame.wanted = true;
+        self.frame.want();
     }
 
     /// Input the last frame did not take is `Root::input`'s.
@@ -706,7 +857,7 @@ impl<R: Root> Runtime<R> {
             .motion
             .scroll_region(id, dy / f, max, self.clock.now_ms)
         {
-            self.frame.wanted = true;
+            self.frame.want_motion();
         }
     }
 
@@ -741,7 +892,7 @@ impl<R: Root> Runtime<R> {
             ..state
         });
         if self.motion.pan_region(state.id, pan, state.max, now_ms) {
-            self.frame.wanted = true;
+            self.frame.want_motion();
         }
     }
 
@@ -751,7 +902,7 @@ impl<R: Root> Runtime<R> {
         if let Some(state) = self.frame.pan.take()
             && self.motion.release_region(state.id, f, self.clock.now_ms)
         {
-            self.frame.wanted = true;
+            self.frame.want_motion();
         }
     }
 
@@ -773,14 +924,14 @@ impl<R: Root> Runtime<R> {
         let f = self.scale().max(0.1);
         let panning = self.frame.pan.map(|p| p.id);
         if self.motion.advance(dt, f, panning) {
-            self.frame.wanted = true;
+            self.frame.want_motion();
         }
     }
 
     /// §7.2 step 7: the buffer zeroed, the call list and the frame's output dropped.
     pub(crate) fn wipe_frame(&mut self) {
         self.frame.buffer.expose_mut().fill(0);
-        self.frame.drop_frosts();
+        self.frame.drop_kept();
         self.frame.hold_ready = None;
         self.frame.hold_sent = false;
         self.frame.key_hold = None;
@@ -823,4 +974,9 @@ impl<R: Root> Painted<R> {
             h: i32::from(height),
         });
     }
+}
+
+/// The bytes of the rows of a view, as the canvas copies them.
+fn len_of(view: Target) -> usize {
+    (view.w.max(0) as usize) * (view.h.max(0) as usize) * 4
 }

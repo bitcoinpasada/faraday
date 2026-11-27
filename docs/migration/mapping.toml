@@ -1665,7 +1665,7 @@ feature = ["motion"]
 [[module]]
 main = "faraday/faraday-core/src/moved.rs"
 fate = "port"
-next = ["kit/faraday-atoms/src/region.rs", "runtime/faraday-runtime/src/frame.rs"]
+next = ["kit/faraday-atoms/src/region.rs", "kit/faraday-atoms/src/keeps.rs", "runtime/faraday-runtime/src/frame.rs"]
 feature = ["motion"]
 
 [[module]]
