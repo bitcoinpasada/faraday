@@ -24,15 +24,15 @@ impl From<Press> for Msg {
         match press {
             Press::Home(p) => Msg::Home(p.into()),
             Press::Power(p) => Msg::Power(p.into()),
-            Press::Devices(p) => Msg::Devices(p.into()),
-            Press::Scan(p) => Msg::Scan(p.into()),
-            Press::Guide(p) => Msg::Guide(p.into()),
+            Press::Devices(p) => match p {},
+            Press::Scan(p) => match p {},
+            Press::Guide(p) => match p {},
             Press::Keys(p) => Msg::Keys(p.into()),
             Press::Wallets(p) => Msg::Wallets(p.into()),
             Press::Signing(p) => Msg::Signing(p.into()),
-            Press::Checks(p) => Msg::Checks(p.into()),
+            Press::Checks(p) => match p {},
             Press::Tools(p) => Msg::Tools(p.into()),
-            Press::Files(p) => Msg::Files(p.into()),
+            Press::Files(p) => match p {},
         }
     }
 }

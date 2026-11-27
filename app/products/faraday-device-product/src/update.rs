@@ -51,10 +51,8 @@ impl Feature for App {
 
     fn refuses(state: &DeviceApp, msg: &Msg, view: &View<'_>) -> Option<Refusal> {
         match msg {
-            Msg::Device(m) => {
-                <faraday_device::Device as Feature>::refuses(state.device(), m, view)
-                    .map(|r| match r {})
-            }
+            Msg::Device(m) => <faraday_device::Device as Feature>::refuses(state.device(), m, view)
+                .map(|r| match r {}),
             _ => None,
         }
     }

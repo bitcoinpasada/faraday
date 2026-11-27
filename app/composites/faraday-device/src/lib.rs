@@ -1,7 +1,6 @@
 //! The device composite: every feature of the device app that is not a shared owner.
 //! Section 09 §4.6: the composite's shape (03 §6, 06 §3.1, §4.2).
 
-#![expect(dead_code, reason = "the fields are read once the bodies are written")]
 #![cfg_attr(
     not(test),
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)

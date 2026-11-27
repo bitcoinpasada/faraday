@@ -25,7 +25,12 @@ pub(crate) fn screen<'s>(
     let shown = app.frame().nav().shown();
     let (body, page) = match shown {
         Page::Device(page) => (
-            Body::Device(Box::new(faraday_device::body(app.device(), page, view, show))),
+            Body::Device(Box::new(faraday_device::body(
+                app.device(),
+                page,
+                view,
+                show,
+            ))),
             faraday_device::anchor(page),
         ),
         // The owners' pages and the failed self-test page are not built into the frame yet.

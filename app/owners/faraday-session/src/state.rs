@@ -1,7 +1,7 @@
+use faraday_bip::keys::Network;
 use faraday_kernel::session::{self, FileView, KeyView, WaitingItem, WalletView};
 use faraday_kernel::{AtLock, Edits, KeyId, WalletId};
 use faraday_keys::Keys;
-use faraday_bip::keys::Network;
 
 /// What the session holds: the keys, and nothing else yet.
 #[derive(AtLock)]

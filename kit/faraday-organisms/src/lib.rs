@@ -23,10 +23,10 @@ pub use faraday_atoms::{
     Drawn, Icon, Laid, Offered, Placement, PlainRef, Pressed, Shown, Style, Ui,
 };
 
-pub use faraday_atoms::kind_probe;
 pub use faraday_atoms::button::ButtonModel;
 pub use faraday_atoms::field::FieldModel;
 pub use faraday_atoms::hold::HoldModel;
+pub use faraday_atoms::kind_probe;
 pub use faraday_molecules::address::AddressModel;
 pub use faraday_molecules::buttons::ButtonsModel;
 pub use faraday_molecules::caution::CautionModel;

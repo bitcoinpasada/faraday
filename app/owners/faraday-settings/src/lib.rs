@@ -2,7 +2,6 @@
 //! Section 09 §4.4 and §4.5: the feature's shape, `impl shared::Owner` where it is a top state,
 //! its `Press`; the vaults and the settings re-export the kernel's `Page`.
 
-#![expect(dead_code, reason = "the fields are read once the bodies are written")]
 #![cfg_attr(
     not(test),
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)

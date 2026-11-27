@@ -57,9 +57,7 @@ impl Feature for Device {
 pub(crate) fn home_out(out: faraday_home::Out) -> Route<Msg, Out> {
     use faraday_home::Out as H;
     match out {
-        H::CreateWallet => Route::Up(Out::Open(Page::Wallets(
-            faraday_wallets_area::Page::Create,
-        ))),
+        H::CreateWallet => Route::Up(Out::Open(Page::Wallets(faraday_wallets_area::Page::Create))),
         H::RestoreWallet => Route::Up(Out::Open(Page::Wallets(
             faraday_wallets_area::Page::Restore,
         ))),

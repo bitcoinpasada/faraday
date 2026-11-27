@@ -1,7 +1,6 @@
 //! The Starter's composite: home, install, appearance, templates, its guide, make-stick and start.
 //! Section 09 §4.7: the composite's shape (06 §3.2, §4.2, §5.3).
 
-#![expect(dead_code, reason = "the fields are read once the bodies are written")]
 #![cfg_attr(
     not(test),
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)

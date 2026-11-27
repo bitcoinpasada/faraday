@@ -1,7 +1,6 @@
 //! The checks composite of the device app: the Check page and the seed checks.
 //! Section 09 §4.6: the composite's shape (03 §6, 06 §4.2).
 
-#![expect(dead_code, reason = "the fields are read once the bodies are written")]
 #![cfg_attr(
     not(test),
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)

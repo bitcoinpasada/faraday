@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use faraday_device_product::Device;
 use faraday_atoms::Pressed as _;
+use faraday_device_product::Device;
 use faraday_draw::canvas::InkKind;
 use faraday_fixture_adapters::{Fixtures, Scripted};
 use faraday_port::{Adapters, Waker};

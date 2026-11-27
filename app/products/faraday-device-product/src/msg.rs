@@ -19,9 +19,9 @@ impl From<AppPress> for Msg {
         match press {
             AppPress::Device(p) => Msg::Device(p.into()),
             AppPress::Open(page) => Msg::Open(page),
-            AppPress::Power => Msg::Device(faraday_device::Msg::Power(
-                faraday_power::Msg::Show(faraday_power::Which::Power),
-            )),
+            AppPress::Power => Msg::Device(faraday_device::Msg::Power(faraday_power::Msg::Show(
+                faraday_power::Which::Power,
+            ))),
             AppPress::Back | AppPress::Forward => Msg::Press(press),
         }
     }

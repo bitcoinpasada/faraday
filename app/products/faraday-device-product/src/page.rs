@@ -25,9 +25,12 @@ impl Drawn<Press> for Over<'_> {
         match self {
             Over::Device(sheet) => ui.within(device_press, |ui| sheet.draw(ui)),
             Over::Frame(FrameSheetModel::Power(model)) => {
-                ui.within(|p| device_press(faraday_device::Press::Power(p)), |ui| {
-                    Power::draw(model, ui);
-                });
+                ui.within(
+                    |p| device_press(faraday_device::Press::Power(p)),
+                    |ui| {
+                        Power::draw(model, ui);
+                    },
+                );
             }
             // The device check's and the guide's sheets and the vaults' are not built yet.
             Over::Frame(_) | Over::Vaults(_) => todo!(),

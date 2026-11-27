@@ -243,7 +243,13 @@ fn rebuild(path: &str, shape: &Shape, wrap: &dyn Fn(&str) -> String) -> String {
             let b: Vec<String> = fs
                 .iter()
                 .enumerate()
-                .map(|(n, f)| format!("{}: {}", f.name.clone().unwrap_or_default(), wrap(&format!("f{n}"))))
+                .map(|(n, f)| {
+                    format!(
+                        "{}: {}",
+                        f.name.clone().unwrap_or_default(),
+                        wrap(&format!("f{n}"))
+                    )
+                })
                 .collect();
             format!("{path} {{ {} }}", b.join(", "))
         }
@@ -262,7 +268,10 @@ fn match_self(item: &Item, bind: bool, arm: &dyn Fn(&str, &str, &Shape) -> Strin
     match &item.body {
         Body::Struct(shape) => {
             let p = pat("Self", shape);
-            format!("match self {{ {p} => {{ {} }} }}", arm("Self", &item.name, shape))
+            format!(
+                "match self {{ {p} => {{ {} }} }}",
+                arm("Self", &item.name, shape)
+            )
         }
         Body::Enum(vs) if vs.is_empty() => String::from("match *self {}"),
         Body::Enum(vs) => {
@@ -270,7 +279,11 @@ fn match_self(item: &Item, bind: bool, arm: &dyn Fn(&str, &str, &Shape) -> Strin
                 .iter()
                 .map(|v| {
                     let path = format!("Self::{}", v.name);
-                    format!("{} => {{ {} }}", pat(&path, &v.shape), arm(&path, &v.name, &v.shape))
+                    format!(
+                        "{} => {{ {} }}",
+                        pat(&path, &v.shape),
+                        arm(&path, &v.name, &v.shape)
+                    )
                 })
                 .collect();
             format!("match self {{ {} }}", arms.join(", "))
@@ -360,7 +373,9 @@ fn parse(input: TokenStream) -> Item {
                 };
                 break;
             }
-            TokenTree::Group(g) if g.delimiter() == Delimiter::Parenthesis && !is_enum && !in_where => {
+            TokenTree::Group(g)
+                if g.delimiter() == Delimiter::Parenthesis && !is_enum && !in_where =>
+            {
                 body = Body::Struct(Shape::Tuple(fields(g.stream(), false)));
                 continue;
             }
@@ -418,7 +433,9 @@ pub fn message(input: TokenStream) -> TokenStream {
         Body::Struct(_) => (
             format!("concat!(env!(\"CARGO_PKG_NAME\"), \".{}\")", item.name),
             String::from("::core::option::Option::Some(self)"),
-            match_self(&item, false, &|_, name, shape| debug_arm(name, shape, false)),
+            match_self(&item, false, &|_, name, shape| {
+                debug_arm(name, shape, false)
+            }),
         ),
         Body::Enum(vs) if vs.is_empty() => (
             String::from("match *self {}"),
@@ -444,13 +461,18 @@ pub fn message(input: TokenStream) -> TokenStream {
                     } else {
                         "::core::option::Option::Some(self)"
                     };
-                    format!("{} => {out}", pattern_any(&format!("Self::{}", v.name), &v.shape))
+                    format!(
+                        "{} => {out}",
+                        pattern_any(&format!("Self::{}", v.name), &v.shape)
+                    )
                 })
                 .collect();
             (
                 format!("match self {{ {} }}", kinds.join(", ")),
                 format!("match self {{ {} }}", publics.join(", ")),
-                match_self(&item, false, &|_, name, shape| debug_arm(name, shape, false)),
+                match_self(&item, false, &|_, name, shape| {
+                    debug_arm(name, shape, false)
+                }),
             )
         }
     };
@@ -484,7 +506,9 @@ pub fn public(input: TokenStream) -> TokenStream {
     let clone = item.header("::core::clone::Clone", "");
     let debug = item.header("::core::fmt::Debug", "");
     let cloned = match_self(&item, true, &|path, _, shape| {
-        rebuild(path, shape, &|b| format!("::core::clone::Clone::clone({b})"))
+        rebuild(path, shape, &|b| {
+            format!("::core::clone::Clone::clone({b})")
+        })
     });
     let shown = match_self(&item, true, &|_, name, shape| debug_arm(name, shape, true));
     let code = format!(
