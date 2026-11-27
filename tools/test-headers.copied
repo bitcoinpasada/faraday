@@ -202,3 +202,4 @@ core/faraday-vault/tests/sizes.rs
 core/faraday-vault/tests/split_facts.rs
 core/faraday-vault/tests/totp.rs
 core/faraday-vault/tests/vectors.rs
+core/faraday-forms/src/lib.rs

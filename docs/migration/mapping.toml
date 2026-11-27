@@ -333,7 +333,10 @@ changed = ["`std` as `core`; `ROOM` moved in; the `pub use crate::room` re-expor
 main = "faraday/faraday-forms"
 fate = "copy"
 next = ["core/faraday-forms"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout; `faraday-keys` added (`Makes`)",
+    "`src/lib.rs`: `Makes` removed, taken from `faraday_keys` (01 §2.3), where `Form::makes` returns it",
+]
 
 [[module]]
 main = "faraday/faraday-paper"

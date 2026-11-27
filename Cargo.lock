@@ -1025,7 +1025,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-forms"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "faraday-keys",
  "faraday-strings",
