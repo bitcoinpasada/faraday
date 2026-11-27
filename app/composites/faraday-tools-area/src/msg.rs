@@ -1,6 +1,5 @@
 use faraday_kernel::{Ending, Message, SampleAsk, ScanFor, Tool};
-use faraday_organisms::Pressed;
-use faraday_present::FlowPress;
+use faraday_present::{FlowPress, Pressed};
 
 use crate::Page;
 

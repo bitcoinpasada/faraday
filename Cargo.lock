@@ -1022,7 +1022,6 @@ name = "faraday-present"
 version = "0.0.0"
 dependencies = [
  "faraday-app-test",
- "faraday-atoms",
  "faraday-kernel",
  "faraday-organisms",
  "faraday-pass-field",

@@ -408,11 +408,14 @@ pub struct Frame<P: Copy + Eq> { nav: Nav<P>, sheets: Vec<FrameSheet>, camera: O
 ### 4.2 The presentation kernel
 
 `faraday-present`, `app/kernel/faraday-present/`, `role = "present"`. Normal edges: kernel, port,
-strings, atoms, organisms, templates, pass-field (asked of section 01 below: the read view of the
-passphrase part is mapped to `PassModel` here, 04 §12.3). Dev edges: app-test.
+strings, organisms, templates, pass-field (asked of section 01 below: the read view of the
+passphrase part is mapped to `PassModel` here, 04 §12.3). Dev edges: app-test. No edge to the
+atoms (01 K6): the atoms' items it names (`Pressed`, `Ui`, `Shown`, `Offered`, `Laid`, 04 §2) are
+the organisms' re-exports (K7).
 
 | Module | Exports |
 |---|---|
+| crate root | `Pressed`, the organisms' re-export of the kit's press bound and its derive, which a feature's `msg` names in place of a kit path (01 §5) |
 | `stages` | `Present`, `Page` (04 §2) |
 | `screen` | `ScreenModel`, `Drawn`, `draw` (04 §4) |
 | `flow` | `ShowFlow`, `FlowPress`, the blanket `Present` and `Page` for every `ShowFlow`, `fill` (04 §5) |

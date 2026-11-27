@@ -1,5 +1,5 @@
 use faraday_kernel::{FrameSheet, Message, Top};
-use faraday_organisms::Pressed;
+use faraday_present::Pressed;
 
 #[derive(Message)]
 pub enum Msg {

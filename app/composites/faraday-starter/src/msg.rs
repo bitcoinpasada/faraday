@@ -1,6 +1,5 @@
 use faraday_kernel::{Ending, FrameSheet, Message, Top};
-use faraday_organisms::Pressed;
-use faraday_present::FlowPress;
+use faraday_present::{FlowPress, Pressed};
 
 use crate::Page;
 

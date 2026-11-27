@@ -9,7 +9,6 @@ publish = false
 faraday-kernel = { path = "../faraday-kernel" }
 faraday-port = { path = "../../../core/faraday-port" }
 faraday-strings = { path = "../../../core/faraday-strings" }
-faraday-atoms = { path = "../../../kit/faraday-atoms" }
 faraday-organisms = { path = "../../../kit/faraday-organisms" }
 faraday-templates = { path = "../../../kit/faraday-templates" }
 faraday-pass-field = { path = "../../parts/faraday-pass-field" }

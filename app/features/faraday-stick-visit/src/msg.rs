@@ -1,5 +1,5 @@
 use faraday_kernel::{Message, ScanFor};
-use faraday_organisms::Pressed;
+use faraday_present::Pressed;
 
 #[derive(Message)]
 pub enum Msg {

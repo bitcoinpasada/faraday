@@ -304,13 +304,24 @@ Each feature crate has these modules. The module split is the presentation layer
 
 | Module | Holds | May name | Never names |
 |---|---|---|---|
-| `state`, `msg`, `update` | the feature's state, messages, update | kernel, parts, port, domain | `present`, `model`, `page`, any kit crate, `Show`, `Memo`, `faraday_strings` (any path, `EN` included), `Worded::words` (section 03, A30) |
+| `state`, `msg`, `update` | the feature's state, messages, update; `msg` also its `Press` | kernel, parts, port, domain; `msg` also the presentation kernel's `Pressed` and `FlowPress` | `present`, `model`, `page`, any kit crate, `Show`, `Memo`, `faraday_strings` (any path, `EN` included), `Worded::words` (section 03, A30) |
 | `model` | the feature's `ScreenModel` and the kit models it fills | kit model types (§6.5), domain value types, wording | `state`, `update`, the kit's drawing |
 | `present` | `present(&State, &View, &Show) -> Model` | `state`, `model`, kernel, presentation kernel, domain, wording | `update`, `page`, `Ui`, the kit's drawing, `Compute` |
 | `page` | `draw(&Model, &mut Ui<'_, Press>)` | `model`, `msg`, the presentation kernel, the kit's templates and organisms | `state`, `update`, `present`, `View`, `Show`, `faraday_strings`, the kit below organisms |
 
 Section 04 §2.2 gives these additions with the rule that keeps the wording crate from being
 re-exported under another path.
+
+**Decision: a feature's `Press` is declared in `msg`, and `msg` derives `Pressed` through the
+presentation kernel's re-export (`faraday_present::Pressed`), never a kit path.** `msg` is the one
+module that `msg` (`Msg` carries presses, 04 §2.1), `present` (`ShowFlow::Press`, 04 §5) and
+`page` (`Page::Press`) may all name. Reason: the derive is the one kit item a message type needs,
+and naming it through the presentation kernel keeps every kit path out of the update modules. A
+composite's `Press` holds its flow children's `FlowPress` (04 §2.1), the other item of the
+presentation kernel `msg` names. Turned down: `Press` in `model` or `page`, which `msg` may not
+name, so `Msg` could not carry a press. Held by `lint-layers`' module rule, which refuses a kit
+crate's path in `msg`; that `Pressed` and `FlowPress` are the only items of the presentation
+kernel `msg` names is held by review.
 
 Sketch (section 04 §2 gives the full shapes), both traits in the presentation kernel:
 
