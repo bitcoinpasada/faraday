@@ -97,7 +97,8 @@ pub enum Workers { Threads, Inline }   // Inline: the tour root and runtime test
 ```
 
 `Nothing` is the runtime's feature with no state, no message and no page, the `Outside` of every
-root but the Starter. The assertion that no top state is `Clone` is written in each product crate
+root but the Starter. Its state is the unit type `Empty`, which holds nothing and wipes nothing,
+and its refusal is `NoRefusal`, an enum with no variant, since it has no message to refuse. The assertion that no top state is `Clone` is written in each product crate
 over its own types (01 L1), since Rust checks a negative bound only on a concrete type.
 
 **The lock scope** is the part of the model a lock drops and builds again. In the device app and
@@ -264,7 +265,8 @@ next frame. No model or state holds any of them (V3).
 
 ## 3. Effect dispatch
 
-The runtime walks each `Fx` of a returned list in order:
+The runtime takes a returned list with `Effects::into_list` (its only caller), which gives the
+`Fx` in the order they were made, and walks each in order:
 
 | `Fx` | What the runtime does |
 |---|---|
@@ -272,7 +274,7 @@ The runtime walks each `Fx` of a returned list in order:
 | `Ask(a)` | `into_parts` (A16); a new `AskId`; the reply kept under it; `Effect::Ask` appended |
 | `Change(c)` | a new `ChangeId`; the reply kept; `Owner::given(id, change)` pushed to that owner |
 | `Done(id, done)` | the kept reply under `id` called; the asker's message pushed |
-| `Job(j)` | to the pool (§5) |
+| `Job(j)` | `into_parts` (its only caller), to the pool (§5) |
 | `Stop(kind)` | to the pool: that part's jobs of that kind stopped (§5.4) |
 | `Then(m)` | pushed, to the same top state |
 | `Out(top)` | handled as §1.1 says |
@@ -382,6 +384,13 @@ impl<M: Message> Job<M> {
     pub fn heavy(self) -> Self;
     /// A seal: it runs to its end at a lock (§7.2). Only the vault owner's crate calls it.
     pub fn seal(self) -> Self;
+    /// The runtime's only: the job's parts, for the pool.
+    pub fn into_parts(self) -> JobParts<M>;
+}
+/// A job opened by the runtime: its kind, its lane and flags, and the work to run.
+pub struct JobParts<M> {
+    pub kind: JobKind, pub quiet: bool, pub heavy: bool, pub seal: bool,
+    pub run: Box<dyn FnOnce(&Compute) -> M + Send>,
 }
 ```
 
@@ -473,6 +482,9 @@ section gives the store.
   value again from `input` and asserts it equals the kept one, so `get` asks `V: PartialEq` there.
 - Nothing the memo reaches holds `Compute` (V2, V14): `fill` is given `input` alone.
 - The store is emptied at every lock and every end.
+- Three calls are the runtime's only: `Memo::new()` (the one store, empty; there is no `Default`),
+  `Memo::end_frame(&self)` (at a frame's end: the entries that frame did not use are dropped) and
+  `Memo::clear(&self)` (at every lock and every end: every entry dropped).
 - Rule R18 is not used: the memo's entries are `Public` and owned by R5.
 
 ## 7. Lock, end and restart
@@ -652,6 +664,12 @@ only where it would lose a key or a sealed vault; a rebuilt scope gives no stick
 that restarts (R14). Turned down: a rebuild at every failed keep, which keeps a process that cannot
 write a stick when nothing needs it; and ending the process always, which loses the only copy of a
 new key.
+
+An answer to `Keep` that is not `Answer::Kept` (02 §4.2, P9) is a failed keep whose carry is empty:
+what was carried is lost. `only_copy`, held aside for the whole Keep, still decides: if it is set,
+the scope is rebuilt as `Rebuilt`, not clean, and the runtime puts up the note `KeepLost`, a typed
+value worded from the strings crate (04 §10); otherwise the runtime sends `Exit::Lock`. Nothing is
+retried. A runtime test over a test root holds it.
 
 `Start` is the first event of every process, exactly once. A scope built in process (Faraday
 Demo's lock, the Starter's Faraday Demo opened or locked, a failed keep) gets its start from the

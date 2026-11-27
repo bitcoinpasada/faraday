@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 
 /// What `present` works out for the composite's own page.
-// Spec: 09 §4.6 gives the composite its own page and no shape for its model.
 pub struct Model<'s>(PhantomData<&'s ()>);
 
 /// The page under the sheets: one variant per page.

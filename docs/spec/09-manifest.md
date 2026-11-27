@@ -203,7 +203,7 @@ Practice and stays in `faraday-organisms`. Both need same-level edges (asked of 
 ### 3.2 Modules and what each crate exports
 
 - **`faraday-tokens`**: `dims` (every named dimension), `palette` (`Role`, the scheme table,
-  fixed colours, stick tones), `type_roles`, `motion` (durations, easing, `STEP_MS`), `elevation`;
+  fixed colours, stick tones), `type_roles`, `motion` (durations, easing, `STEP_MS` = 300 ms), `elevation`;
   `Theme`, `TextSize`, `Contrast`, `Mode` (light, dark). Constants and their helpers only (K2).
 - **`faraday-draw`**: `canvas` (`Canvas`, the call list `Calls`, `Ink`), `surface`, `blend`,
   `geom` (`Rect`, `Size`; `Point` from the port), `text` (`Font`, shaping and measure), `fonts`
@@ -398,7 +398,20 @@ pub const ANCHORS: &[Anchor] = &[/* each page and sheet */];
 ```
 
 A step-flow feature exports its `StepFlow` type in place of the unit struct (`create::MakeWallet`)
-and its `Step`. A feature's `Out` holds the variants its parent routes; those the routing of
+and its `Step`. A feature is a step flow when its one page is a step flow on `main` (inventory
+`flow-container.md`): keygen, create, restore, spend, backup, backup-flow, spend-backup, bip85,
+convert, krux, ots-check, core-import, silent, vanity and make-stick. The variants of its `Step`
+are the cards of that flow on `main`, in order (03 §9.3 gives create's), and its `Answer` is a
+`Public` value whose fields are the flow's answers, which come with the port.
+
+A feature crate with several pages holds a step flow where `main`'s page is one: decode, messages,
+seed-checks, lightning and calculators each hold, for those of their pages that are step flows on
+`main`, a `Step` and an `Answer` of the same form, run by the one flow runner of 03 §9.
+
+A feature's `Model<'s>` is the value `present` works out for one frame and borrows from the
+feature's state. The manifest fixes its name and its lifetime; its fields come with the port.
+A page that has one variant when the crate is written holds the variant of its first screen; the
+others come with the port (06 §4.2). A feature's `Out` holds the variants its parent routes; those the routing of
 sections 03 and 06 names are fixed here and the rest are the porting's:
 
 | `Out` variant | Meaning | Routed by |
@@ -414,6 +427,9 @@ sections 03 and 06 names are fixed here and the rest are the porting's:
 
 Composite crates export the same shape with `Msg`, `Out`, `Press`, `Page`, `Body<'s>` and
 `Over<'s>` enums of their children's, as 03 §6 and 06 §4.2 sketch.
+
+A composite's and a product's `impl Drawn<Press>` for `Body` and `Over` are in a module `page`,
+which holds nothing else, and `present` works out the models and names no `Ui` (01 §5).
 
 ### 4.5 The shared owners
 
@@ -515,8 +531,25 @@ share: `FrameSheetModel<'s>` (the power, devices and guide sheets' models) and
 pub fn frame_model<'s>(state: &'s State, frame: &'s Frame<Page>, view: &View<'s>, show: &Show<'s>)
     -> FrameModel<'s, Press>;
 /// Every child that may hold a secret, for the leak crate's exhaustive match (07 TS18).
+/// One variant per feature crate above, named as the crate without `faraday-`, in Pascal case.
 #[derive(Public, Copy, PartialEq, Eq)] pub enum Child { /* one per feature crate above */ }
 ```
+
+A composite's `present` module holds, besides its `Worded` and `Refused` impls for its `Refusal`,
+two functions, which the composite's parent and the product call:
+
+```rust
+/// The model of the page the frame's navigation shows.
+pub fn body<'s>(state: &'s State, page: Page, view: &View<'s>, show: &Show<'s>) -> Body<'s>;
+/// The sheets over the page, each with its anchor, the lowest first.
+pub fn over<'s>(state: &'s State, view: &View<'s>, show: &Show<'s>) -> Vec<(Anchor, Over<'s>)>;
+```
+
+A composite with a page of its own (`faraday-checks-area`, `faraday-tools-area`,
+`faraday-files-area`) exports its own `Model<'s>` for it, which `Body` holds in the variant of that
+page; its fields come with the port. A composite with no sheet of its own has an `Over` that
+cannot be made: `enum Over<'s> { #[doc(hidden)] None(Never, PhantomData<&'s ()>) }` (`faraday-checks-area`,
+`faraday-signing-area`, `faraday-tools-area`).
 
 Its normal edges: the feature base, its eleven direct children's crates. Dev: app-test.
 
@@ -563,13 +596,17 @@ pub fn over<'s>(app: &'s OnlineApp, view: &View<'s>, show: &Show<'s>) -> Vec<(An
 
 ### 4.8 The product crates
 
-In `app/products/`, `role = "product"`. Dev edges: app-test, fixture-adapters (routing tests).
+In `app/products/`, `role = "product"`. Dev edges: app-test, fixture-adapters (routing tests). A product
+reaches the kit through `templates` and `organisms` only (01 §5); `TextSize` is `templates`'s
+re-export. Its `present` module names no `Ui`: the `impl Drawn<Press>` of `Body` and `Over` (the
+Starter's also of `DemoBody` and `DemoOver`) are in `page` (§4.4). Each product has a `MODES`
+constant (S9) and an `l1` module with one `assert_not_clone!` per top state.
 
 | Crate | Metadata | Normal edges |
 |---|---|---|
-| `faraday-device-product` | | runtime, device, power, session, settings, vaults, the feature base |
-| `faraday-demo-product` | `online` | runtime, online, session, settings, vaults, the feature base |
-| `faraday-starter-product` | `online` | runtime, online, starter, session, settings, vaults, the feature base |
+| `faraday-device-product` | | runtime, device, session, settings, vaults, bip, the feature base |
+| `faraday-demo-product` | `online` | runtime, online, session, settings, vaults, bip, the feature base |
+| `faraday-starter-product` | `online` | runtime, online, starter, session, settings, vaults, bip, text, the feature base |
 
 ```rust
 // faraday-device-product
@@ -583,20 +620,24 @@ pub struct Device;                             // the product value: impl farada
 impl Root for Device {
     type Settings = faraday_settings::Settings; type Session = faraday_session::Session;
     type Vaults = faraday_vaults::Vaults;     type App = App; type Outside = Nothing;
-    type Press = Press;                        type Options = ();
+    type Press = Press;                        type Options = NoOptions;
     /* 05 §1's functions */
 }
 pub const MODES: &[Mode];                      // S9: Mainnet, Testnet, Signet, Regtest
-const _: () = assert_not_clone::<DeviceApp>(); // L1, for each top state
+assert_not_clone!(DeviceApp);                  // L1, for each top state: a macro (a function cannot refuse `Clone`
+                                               // on stable), by ambiguity of two blanket impls
+#[derive(Public)] pub struct NoOptions;        // the device app takes no options (06 §2); `()` is not `Public`
 
 // faraday-demo-product
 pub struct Demo { options: DemoOptions }       // impl Root; App = faraday_online::Online
+pub const MODES: &[Mode];                      // S9: Practice (Testnet, the default), Testnet, Signet, Regtest
 #[derive(Public, Clone, Debug)] pub struct DemoOptions { pub text: Option<TextSize>, pub transfer: bool }
 
 // faraday-starter-product
 pub struct StarterApp { starter: faraday_starter::State, frame: Frame<faraday_starter::Page> }
 pub struct Outside;                            // Feature<State = StarterApp, Out = Top>
 pub struct Starter { options: StarterOptions } // impl Root; App = Online, Outside = Outside
+pub const MODES: &[Mode];                      // as the Demo's
 #[derive(Public, Clone, Debug)] pub struct StarterOptions { pub uninstall: bool, pub image: Option<Text> }
 ```
 
@@ -676,14 +717,35 @@ impl Storage {
     pub fn disk_process(fifo: Text, ram_dir: Text) -> Result<Self, Failure>;   // the device
     pub fn folders(sticks: Box<dyn Sticks>) -> Self;                           // the desktops
 }
-pub trait Sticks: Send { /* main's `Sticks`, re-pointed at port::storage */ }
+/// Where the sticks' files are: main's `Sticks`, one method for each storage ask over the port's
+/// own ask types, and the stick listing.
+pub trait Sticks: Send {
+    fn list(&mut self) -> Vec<storage::StickInfo>;                       // every stick present now
+    fn read(&mut self, ask: storage::Read) -> Result<Bytes, Failure>;
+    fn read_codes(&mut self, ask: storage::ReadCodes) -> Result<Codes, Failure>;
+    fn write(&mut self, ask: storage::Write) -> Result<Written, Failure>;
+    fn wipe(&mut self, ask: storage::Wipe) -> Result<Wiped, Failure>;
+    fn space(&mut self, ask: storage::Space) -> Result<Room, Failure>;
+    fn zero_free(&mut self, ask: storage::ZeroFree) -> Result<Zeroing, Failure>;
+    fn make_empty(&mut self, ask: storage::MakeEmpty) -> Result<(), Failure>;
+    fn rename(&mut self, ask: storage::Rename) -> Result<(), Unrenamed>;
+    fn name(&mut self, ask: storage::Name) -> Result<(), NameRefused>;
+    fn hash(&mut self, ask: storage::Hash) -> Result<Sha256, Failure>;
+    fn has(&self, stick: &StickId) -> bool;                              // the stick a folder stands for
+}
 
 // faraday-desktop-adapter
 pub struct Desktop { /* folder sticks, host */ }
 impl Desktop { pub fn new(sticks: Text, downloads: Option<Text>, waker: Arc<dyn Waker>) -> Self; }
 pub struct FolderPlace { /* impl faraday_files::Place over std::fs */ }
 
+// faraday-camera: no edge, so a frame's planes are plain vectors; the capture adapters wipe them
+pub struct Frame { pub width: u16, pub height: u16, pub luma: Vec<u8>, pub chroma: Option<Vec<u8>> }
+
 // faraday-window
+/// The window's command line, as the adapter takes it (06 §5.2).
+pub struct WindowOptions { pub size: Option<(u16, u16)>, pub panel: Option<Text>, pub aspect: Option<Text>,
+    pub ppi: Option<u16>, pub timings: bool, pub no_camera: bool }
 pub struct Window { /* */ }
 impl Window { pub fn open(o: WindowOptions, waker: Arc<dyn Waker>) -> Result<Self, Failure>;
               pub fn paint(&mut self, f: &port::Frame<'_>); }
@@ -714,6 +776,14 @@ their binaries' names. The tour root's modules: `main`, `tours` (one module per 
 §5.3), `targets` (the touch-target walk, 07 §5.2), `png` (the picture written at each step, with
 no metadata). It depends on a tool crate as a normal edge (asked of section 01 below).
 
+Each root's `Options` holds its product's options and its adapters' options, and the paths that
+are not flags (06 §5) as strings: the stick's `Options` has `stick: StickOptions` and the disk
+process's `fifo` and `ram_dir`; the Demo's and the Starter's have `product`, `window:
+WindowOptions`, `sticks` and `downloads: Option<String>`. The snapshot runner's `Product` is
+`Device`, `Demo` or `Starter`, and its `Command` is the product, the width, the height, the dpi,
+the tour (the default one when none) and where the pictures go; `parse() -> Command` reads it and
+`run(&Command) -> ExitCode` drives it.
+
 ```rust
 // each root's main.rs
 fn main() -> ExitCode {
@@ -743,6 +813,13 @@ All in `tools/`, `layer = "tool"`; nothing a root ships depends on one (T1, `lin
 | `costs-lint` | `tools/costs-lint/` | | none | who mints and takes `Compute` (§5.2) |
 | `op-cost` | `tools/op-cost/` | | bip, codec, crypto, entropy, files, intake, psbt | named costly operations' counts (F238); ~~core~~ |
 | `faraday-crosscheck` | `tools/crosscheck/` | | the domain crates of `main`'s list but `faraday-core` (TS20); draw, for the picture requests alone | the cross-check server; `file_menu::sha256`'s use is its `hash` area's, now `faraday_crypto::sha256_whole` (section 10 §6) |
+
+The counting allocator `Counting` (`allocations() -> u64`, `reset()`) and the leak allocator `Leak`
+(`watch(form: &[u8])`, `found() -> bool`) are global allocators, each an `unsafe impl GlobalAlloc`
+as U2 allows. `faraday-testkit` has `TestSeed { name, words }` (all `&'static str`) and
+`test_seeds() -> [TestSeed; 3]`, the three pairs of a name and its words (a function, since a
+constant of the real words is a body's); its spends and MuSig2 rounds are serialized PSBTs, as
+`Vec<u8>`, until `faraday-psbt` has a `Psbt` type.
 
 ```rust
 // faraday-fixture-adapters

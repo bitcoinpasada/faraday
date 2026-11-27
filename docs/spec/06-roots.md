@@ -259,9 +259,10 @@ pub enum starter::Page {
 A page value names a feature and which of its screens; a step flow's steps are the flow's state,
 not pages. A feature with one screen has no `Page` of its own (09 §4.4); the variants of those
 named here (`make_stick::Page`, `templates::Page`, `install::Page`, `backup::Page`) are the
-porting's, from the feature's inventory file. The Starter's `Tools` is the Starter's own page (its
+porting's, from the feature's inventory file; each holds the variant of its first screen. The
+Starter's `Tools` is the Starter's own page (its
 tools list, inventory `features/starter-app.md`), held by its composite, with no feature of its
-own; `About` is the appearance feature's second page. Sheets are the features' own state (inventory `features/sheets-parts.md`), but for the
+own and its model the composite's own `Model` (`Body::Tools(Model<'s>)`); `About` is the appearance feature's second page. Sheets are the features' own state (inventory `features/sheets-parts.md`), but for the
 frame sheets in §4.4. The Starter names only `Page::Demo`: which Demo page shows is the online
 app's `Nav`, so no Starter crate names `online::Page`.
 
@@ -287,7 +288,7 @@ press (`Root::Press`):
 // The device app's product crate.
 pub enum Body<'s> {
     Device(device::Body<'s>), Vaults(vaults::Model<'s>), Settings(settings::Model<'s>),
-    SelfTestFailed(power::FailedModel<'s>),
+    SelfTestFailed(device::FailedModel<'s>),
 }
 pub enum Over<'s> { Device(device::Over<'s>), Vaults(vaults::SheetModel<'s>), Frame(FrameSheetModel<'s>) }
 #[derive(Pressed)]
@@ -319,7 +320,8 @@ pub enum Press {
 `Vec<(Anchor, O)>`, the lowest first. The vault composite exports `SheetModel` and
 `sheets(state, view, show) -> Vec<(Anchor, SheetModel)>` beside its `Model`, for the sheets of the
 vault area over any page. The device composite's `FailedModel` is the power feature's
-(`power::FailedModel`), re-exported by the device composite's `frame` module for the products,
+(`power::FailedModel`, whose fields come with the port), re-exported by the device composite's
+`frame` module for the products,
 which do not depend on power. The Demo's and the Starter's products each write the three-variant
 Demo body; neither depends on the other (§1).
 
@@ -409,7 +411,9 @@ sheet but a lock's own; the sheets under it come back when it is put away.
   carry handed back when it holds an only copy, and ends the process otherwise.
 - **Options:** none reach the model. The command line (`--fb`, `--size`, `--depth`, `--dpi`,
   `--native`, `--mount`, `--pointer-speed`, `--touch-grid`, `--files`, `--verbose`, `--timings`,
-  `--boot-report`) configures the adapters and the dev reports.
+  `--boot-report`) configures the adapters and the dev reports. The disk process's two FIFO paths
+  and its RAM directory are fixed paths that the startup script makes, not flags; the root's
+  `Options` holds them as strings.
 
 ### 5.2 Faraday Demo
 
@@ -424,8 +428,8 @@ sheet but a lock's own; the sheets under it come back when it is put away.
 - **Carries alone:** the strip, `PreviewSize`, sticks as folders made at start.
 - **Settings:** as the device app, over the folder boot stick and the carry.
 - **Options:** `--text` (the starting text size) and `--transfer` (Transfer shown first) are
-  `Options`; `--sticks`, `--downloads`, `--size`, `--panel`, `--aspect`, `--ppi`, `--timings`
-  configure the adapters.
+  `Options`; `--sticks`, `--downloads`, `--size`, `--panel`, `--aspect`, `--ppi`, `--timings`,
+  `--no-camera` configure the adapters.
 - **A lock** builds the scope again in process: the carry stays in the runtime's hand, the
   adapters reset on `Exit::Reset`, and the scope starts in the carried mode (section 05, §7.8).
 
@@ -440,8 +444,9 @@ sheet but a lock's own; the sheets under it come back when it is put away.
 - **Carries alone:** `Ask::System` and `SystemFact`, `Ask::Settings`, the templates' printing, the
   lock scope beside its composite.
 - **Options:** `--uninstall` (the Installed page with Uninstall asked) and `--image` (an image
-  for make-stick, as if dropped) are `Options`; `--downloads`, `--size`, `--timings` configure the
-  adapters.
+  for make-stick, as if dropped) are `Options`; `--downloads`, `--size`, `--timings`, `--no-camera` configure
+  the adapters. Its Demo's sticks folder is a fixed one in the home directory, not a flag; the root's
+  `Options` holds its path as a string.
 
 The Starter's Demo, in order (answering section 02's question):
 

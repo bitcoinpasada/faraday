@@ -26,7 +26,6 @@ pub use update::Refusal;
 pub struct PrintTemplates;
 
 /// Its screens (06 §4.2).
-// Spec: 06 §4.2 names `print_templates::Page` without its variants.
 #[derive(Public, Copy, PartialEq, Eq)]
 pub enum Page {
     Templates,

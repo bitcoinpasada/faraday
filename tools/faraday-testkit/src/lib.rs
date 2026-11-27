@@ -3,8 +3,6 @@
 
 use faraday_bip::policy::WalletPolicy;
 
-// Spec: 09 §8 names the test seeds without a shape; `main`'s `TEST_SEEDS` is three pairs of
-// a name and its words. A function here, since a constant of the real words is the body's.
 /// One test seed: its name and its words.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TestSeed {
@@ -54,8 +52,6 @@ pub fn savings() -> String {
     todo!()
 }
 
-// Spec: 09 §8 names the spends and the MuSig2 rounds; `faraday-psbt` has no `Psbt` type yet,
-// so they are serialized PSBTs here.
 /// A spend of the wallet, unsigned, as PSBT bytes.
 pub fn unsigned(_kit: &TestWallet) -> Result<Vec<u8>, KitError> {
     todo!()

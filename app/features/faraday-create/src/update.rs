@@ -28,7 +28,6 @@ pub enum Refusal {
 }
 
 /// Why a cosigner's key is refused (03 §9.3).
-// Spec: 03 §9.3 names `CosignerRefusal` without a shape; its causes are listed in a comment.
 #[derive(Public)]
 pub enum CosignerRefusal {
     OriginMissing,
@@ -39,7 +38,6 @@ pub enum CosignerRefusal {
 }
 
 /// The value an answered step shows in Your choices.
-// Spec: 03 §9.1 names `Answer` without a shape.
 #[derive(Public)]
 pub struct Answer;
 

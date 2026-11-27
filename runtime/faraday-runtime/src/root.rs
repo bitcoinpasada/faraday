@@ -100,11 +100,9 @@ pub type OwnerState<F> = <F as Feature>::State;
 pub struct Nothing;
 
 /// `Nothing`'s state.
-// Spec: 05 §1 says `Nothing` has "no state" without naming the type that stands for it.
 pub struct Empty;
 
 /// `Nothing`'s refusal: it refuses nothing, as it has no message.
-// Spec: 05 §1 names no refusal for `Nothing`; `Feature::Refusal` asks for one.
 #[derive(Public)]
 pub enum NoRefusal {}
 

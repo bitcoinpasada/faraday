@@ -10,7 +10,6 @@ use crate::{App, Press};
 pub struct Device;
 
 /// The device app takes no options (06 §2).
-// Spec: 09 §4.8 gives `type Options = ()`, which the kernel's `Public` does not cover.
 #[derive(Public)]
 pub struct NoOptions;
 
