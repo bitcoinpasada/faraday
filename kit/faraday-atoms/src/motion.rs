@@ -30,8 +30,7 @@ pub enum Motion {
     Laid { measure: f32 },
 }
 
-/// What fades.
-// Spec: 04 §8.1 names `Turn` without a shape.
+/// What fades: a page turn, or a step's fade through.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Turn {
     Page,

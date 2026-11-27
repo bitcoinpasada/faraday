@@ -22,7 +22,8 @@ What happens between the last event of a settled dispatch (03, A15) and the fram
 paints. Section 05 owns the runtime's loop; this is the part presentation depends on.
 
 1. The runtime builds `View` (03 §5) and `Show` (§3) for the top states it owns.
-2. It builds a `Ui` over the canvas with the last frame's pointer state, the motion store (§8)
+2. It builds a `Ui` over the canvas with the pointer and the focus as the last frame left them
+   (`Pointer`, §7.1), the motion store (§8)
    and the theme from `view.settings`, and calls `Root::frame` (section 05 §1) with the top
    states it lends (`Tops`), `View`, `Show` and the `Ui`.
 3. The product crate's `frame` presents the app's frame and the page its navigation shows, from
@@ -212,11 +213,22 @@ The screen template records the page's anchor and the sheets' anchors, lowest fi
   inventory `features/small-panel.md`). The compact layouts, the pin bar and the page per step are
   the templates' (§12). Held by V9 and by the templates' signatures.
 - **Rule V11.** A refused control is drawn from the one gate (03 A10): `present` sets each
-  control's `Offered` with `offer(F::refuses(state, &msg, view))`, which gives `Live` for `None`,
-  `Answers` for a refusal drawn `Dimmed` (drawn dimmed; its press is taken, and `route` answers
-  with the refusal's note, F292 on `main`), and `Live` for one drawn `AsUsual`. A control the model
-  offers no press for is `Dimmed` and takes none. Held by the kit (`Offered` is the only way a
-  control model is enabled or not) and the update tests of each refusal.
+  control's `Offered` with `offer::<F>(state, &msg, press, view)`, which asks `F::refuses` and
+  gives `Yes(press)` for `None` and `Refused(press, drawn)` for a refusal, `drawn` being the
+  refusal's `Refused::drawn` mapped to the kit's `Drawn`. A refused control is drawn dimmed, or as
+  usual for `AsUsual` (an eye, a Show button); its press is still taken, and `route` answers it
+  with the refusal's note (F292 on `main`). A control the model offers no press for is `No`: drawn
+  dimmed, it takes none. Held by the kit (`Offered` is the only way a control model is enabled or
+  not) and the update tests of each refusal.
+
+```rust
+/// In the kit's atoms: what a control offers.
+pub enum Offered<R> { Yes(R), Refused(R, Drawn), No }
+pub enum Drawn { Dimmed, AsUsual }       // the kernel's `Drawn` (03 §10), mapped by `offer`
+```
+
+A control whose work is running is not a fourth case: the gate refuses its press while the job
+runs (03 A29), and the busy line says what runs (§5's `busy`).
 
 ## 5. The step-flow template filled from `StepFlow`
 
@@ -269,15 +281,41 @@ Cancel while a step runs, 03 A29) is never drawn live:
 | `heading` | `steps()`: "Step N of M" when the count is known, else "Step N" (the wording's templates) |
 | `title` | `title(at())` |
 | `card` | `card()` |
-| `choices` | each step of `steps()` with `answer(step)` worded by `choice`, or "Not chosen yet"; each row's `Offered` is `offer(refuses(s, &FlowMsg::Open(step), view))` |
+| `choices` | a `ChoiceRow` for each step of `steps()`: its title, `answer(step)` worded by `choice` or "Not chosen yet", and its `Offered` from `FlowMsg::Open(step)` |
 | `under` | `under()` |
-| `back` | `offer(refuses(s, &FlowMsg::Back, view))` |
-| `cancel` | `cancel()`: `NotOffered` gives no button; `Now` and `Ask` give the button, its `Offered` is `offer(refuses(s, &FlowMsg::Cancel, view))` |
+| `back` | the `Offered` of `FlowMsg::Back` |
+| `cancel` | `cancel()`: `NotOffered` gives `None`, no button; `Now` and `Ask` give the button, with the `Offered` of `FlowMsg::Cancel` |
 | `asking` | `Flow::asking()`: the cancel sheet's model, with the loss worded |
 | `refused` | `Flow::refused()`: the refusal's line at the foot |
 | `busy` | the `Running` of the flow's job kinds in `view.running` and `running()` (03 §8.2) |
-| `width` | `width(at())` |
+| `width` | `width(at())`, the kernel's `Width` mapped to the template's |
 | `step` | `at()` and its place in `steps()`: the anchor of the fade through (§8) |
+
+The template's model, in `faraday-templates`' `flow` module:
+
+```rust
+pub struct FlowModel<'s, A> {
+    pub heading: Shown<'s>,
+    pub title: Shown<'s>,
+    pub card: Content<'s, A>,
+    pub choices: Vec<ChoiceRow<'s, A>>,
+    pub under: Option<Content<'s, A>>,
+    pub back: Offered<A>,
+    pub cancel: Option<Offered<A>>,      // None: no Cancel button
+    pub asking: Option<DialogModel<'s, A>>,
+    pub refused: Option<Shown<'s>>,
+    pub busy: Option<BusyModel<'s>>,
+    pub width: Width,
+    pub step: Anchor,                    // the anchor of the fade through
+}
+pub struct ChoiceRow<'s, A> { pub title: Shown<'s>, pub answer: Shown<'s>, pub offered: Offered<A> }
+pub enum Width { Column, Wide, Full }
+```
+
+**Decision: the template has its own `Width`, the same three classes as the kernel's (03 §9.1),
+and the presentation kernel maps one to the other.** Reason: the kit may not name the kernel and
+the kernel may not name the kit (01 §1), as with `Drawn`. Turned down: one `Width` in the tokens crate, which
+would make the kernel depend on the kit.
 
 - **Rule V12.** Every step flow's model is filled by the one blanket impl; a flow writes only
   `ShowFlow`. Held by `lint-layers`, which refuses an `impl Present for` a type that implements
@@ -350,6 +388,10 @@ Turned down: a memo emptied each frame, which repeats the work at every frame of
 pub struct Ui<'f, A: Pressed> { /* canvas, scale, theme, pointer state, motion store, lift */ }
 
 impl<'f, A: Pressed> Ui<'f, A> {
+    /// The runtime's only.
+    pub fn new(canvas: &'f mut Canvas, theme: Theme, scale: f32, motion: &'f mut MotionStore,
+               pointer: &'f Pointer<A>, ink: bool) -> Self;
+    pub fn finish(self) -> FrameOut<A>;       // the runtime's only
     /// A child page draws here; its presses are lifted to this one's.
     pub fn within<B: Pressed>(&mut self, lift: fn(B) -> A, f: impl FnOnce(&mut Ui<'_, B>));
     /// A place a later Reveal or glide names (§8). Stable across frames.
@@ -369,10 +411,39 @@ pub struct FrameOut<R: Pressed> {
     pub regions: Vec<Scrolled>,       // id, view, extent: what a wheel or a finger moves
     pub laid: Vec<(Anchor, Laid, R)>,
     pub secret: bool,                 // §11
-    pub pace: Pace,                   // Rest | Moving: motion wants another frame
+    pub pace: Pace,                   // the port's value (02 §1): Rest | Moving, motion wants another frame
     pub ink: Option<Ink>,             // only when the record is on (§9, V21)
 }
+
+/// A press recorded where it was drawn.
+pub struct Hit<R> {
+    pub rect: Rect,       // the control as drawn
+    pub target: Rect,     // where a press is taken: the control grown to the touch floor
+    pub press: R,         // lifted to the root's press
+    pub layer: u8,        // 0 the page, 1 the lowest sheet over it, and up
+}
+
+/// A region a wheel or a finger moves.
+pub struct Scrolled { pub id: Anchor, pub view: Rect, pub extent: Size }
+
+/// The pointer and the focus as the last frame left them, kept by the runtime.
+pub struct Pointer<R> {
+    pub at: Option<Point>,       // while the pointer is over the window
+    pub down: bool,
+    pub focused: Option<R>,      // the press the keyboard is on: ringed; Enter or Space presses it
+}
+
+/// In the atoms' `focus` module: where Tab (`back` false) or Shift+Tab moves the focus among
+/// the presses of `reach` in drawing order; the next or the one before, round at the ends, the
+/// first or the last from none.
+pub fn step<R: Clone + PartialEq>(order: &[R], at: Option<&R>, back: bool) -> Option<R>;
 ```
+
+A press is taken by the top layer drawn alone, the last drawn hit first, at its `target`. Every
+control that records a hit draws the focus ring round itself when its press is
+`Pointer::focused`, so the focus is a press, as on `main` (`Ui::focused`), and stays on its
+control when rows are added above it. The pointer and focus state is the runtime's, dropped at a
+lock (§1).
 
 `Ui` lifts each press to the root's type as it is recorded, so the frame's hit list is one type.
 How the lift is stored is the kit's. A press is matched against the last frame drawn; the runtime
@@ -460,6 +531,7 @@ pub enum Motion {
     Fade { kind: Turn, began_ms: u64 },               // a page turn, a step's fade through
     Laid { measure: f32 },                            // a last-frame measure of §7.2's table
 }
+pub enum Turn { Page, Step }
 ```
 
 - **Rule K9.** The motion store holds numbers, rectangles and times only: no text, no press, no
@@ -526,6 +598,21 @@ buffers (02 P13).
   the runtime's `Seen` text reads it too, empty unless the root turns the record on (section 05).
   Held by the runtime (the record is off unless the root turns it on) and by `Runtime::record_ink`
   being in `disallowed-methods` outside the tour root, the leak crate and test support.
+```rust
+/// In the drawing base (`canvas`): what one frame drew, in drawing order, kept only while the
+/// record is on. Its texts are `Text`, wiped when the record is dropped or replaced.
+pub struct Ink(pub Vec<Inked>);
+pub struct Inked {
+    pub kind: InkKind,    // main's: a line of text (its face, colour, cut past its clip), an icon,
+                          // a progress indicator, a badge's dot, the wordmark
+    pub rect: Rect,       // the box its visible ink covers inside its clip
+    pub secret: bool,     // drawn from a `Shown::secret` (K12)
+}
+```
+
+`Inked` is `main`'s `canvas::Ink` with the secret mark; the record as a whole takes the name
+`Ink`, since `FrameOut::ink` and the runtime's `Seen` hold one record a frame.
+
 - The glyph and shape caches hold rasterised outlines keyed by font, size and glyph id, not
   strings. A glyph cache holds no secret beyond which glyphs were drawn, which is a side channel
   out of scope.
@@ -660,12 +747,16 @@ pub enum Block<'s, A> {
     Pad(PadModel<A>),                   // dice, cards, coin
     Code(QrModel<'s>),
     Address(Shown<'s>),
-    Buttons(Vec<ButtonModel<'s, A>>),   // each with its Style and Offered
+    Buttons(Vec<ButtonModel<'s, A>>),
     Hold(HoldModel<'s, A>),
     Busy(BusyModel<'s>),
     Caution(Shown<'s>),
-    Part(Organism<'s, A>),              // a bespoke organism: worksheet, chart, board, ways-in
+    Part(Organism<'s, A>),              // a bespoke organism (09 §3.3)
 }
+
+/// In the kit's atoms (`button`).
+pub struct ButtonModel<'s, A> { pub label: Shown<'s>, pub style: Style, pub offered: Offered<A> }
+pub enum Style { Filled, Tonal, Outlined, Text, Elevated, Error }
 ```
 
 - `Block::Pass` is filled from the passphrase part's read view (01 A2, A3): the dot count, the
@@ -798,5 +889,11 @@ How `main`'s cases land (inventory file in brackets):
 - Section 07: the tests this section names: the runtime's laid-facts settling (V17), the memo's
   refill check inside `Memo::get` (V13) run by the update tests that present and by the tours,
   and the runtime test that Back lands where the person was (K11).
-- Section 09: the crate names of the kit's levels and of the presentation kernel, and which kit
-  crate holds each organism of §12.3.
+- Where text `present` makes lives for the frame. `Shown<'s>` borrows (§11, 01 §6.5), and
+  `Shown::plain` takes only a `&'s Text` or a `&'static str`. A text filled in `present` (the
+  step heading "Step N of M", a `ShowFlow::choice` line, a `Line::Filled` refusal or label) is
+  made in `present` and owned by nothing that lives for `'s`, so a model cannot borrow it. One
+  answer is a frame's text room in `Show` (a `Show::keep(Text) -> &'s Text`, wiped by the runtime
+  when the frame ends); another is an owned plain form of `Shown`, which 01 §6.5's table ("only
+  borrowed text for one frame") would have to allow. Section 01 and this section decide it
+  together.

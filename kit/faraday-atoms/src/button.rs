@@ -16,7 +16,6 @@ pub enum Style {
 }
 
 /// A button, with its style and what a press offers (04 §12.3).
-// Spec: 04 §12.3 gives "each with its Style and Offered"; the rest is the porting's.
 pub struct ButtonModel<'s, A> {
     pub label: Shown<'s>,
     pub style: Style,

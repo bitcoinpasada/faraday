@@ -6,9 +6,8 @@ use faraday_molecules::status::BusyModel;
 use faraday_organisms::content::Content;
 use faraday_organisms::sheet::DialogModel;
 
-/// How wide a step's card is (LAYOUT §14).
-// Spec: 04 §5 and 09 §3.3 name a `width` field without its type; the kernel's `Width` is mapped
-// to this by the presentation kernel.
+/// How wide a step's card is (LAYOUT §14): the kernel's `Width` (03 §9.1), mapped by the
+/// presentation kernel, since the kit may not name the kernel (04 §5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Width {
     Column,
@@ -16,11 +15,13 @@ pub enum Width {
     Full,
 }
 
-/// One row of Your choices.
-// Spec: 04 §5 names `choices` without a row type.
+/// One row of Your choices (04 §5).
 pub struct ChoiceRow<'s, A> {
+    /// The step's title.
     pub title: Shown<'s>,
+    /// The step's answer worded by `ShowFlow::choice`, or "Not chosen yet".
     pub answer: Shown<'s>,
+    /// A press opens the step.
     pub offered: Offered<A>,
 }
 

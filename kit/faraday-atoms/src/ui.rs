@@ -10,11 +10,14 @@ use crate::Pressed;
 use crate::frame_out::{FrameOut, Laid};
 use crate::motion::MotionStore;
 
-/// The last frame's pointer state.
-// Spec: 04 §1 and 09 §3.2 name `Pointer` without a shape.
-pub struct Pointer {
+/// The pointer and the focus as the last frame left them, kept by the runtime (04 §7.1).
+pub struct Pointer<R> {
+    /// Where the pointer is, while it is over the window.
     pub at: Option<Point>,
+    /// A button or a finger is down.
     pub down: bool,
+    /// The press the keyboard is on: ringed, and Enter or Space presses it.
+    pub focused: Option<R>,
 }
 
 /// One frame's drawing context: canvas, scale, theme, pointer state, motion store, lift.
@@ -23,7 +26,7 @@ pub struct Ui<'f, A: Pressed> {
     theme: Theme,
     scale: f32,
     motion: &'f mut MotionStore,
-    pointer: &'f Pointer,
+    pointer: &'f Pointer<A>,
     ink: bool,
     press: PhantomData<fn(A)>,
 }
@@ -35,7 +38,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
         _theme: Theme,
         _scale: f32,
         _motion: &'f mut MotionStore,
-        _pointer: &'f Pointer,
+        _pointer: &'f Pointer<A>,
         _ink: bool,
     ) -> Self {
         todo!()

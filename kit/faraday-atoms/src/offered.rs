@@ -1,10 +1,14 @@
-//! A control's press, or why not (04 §4, §11).
+//! A control's press, or why it takes none (04 §4, V11).
 
-/// A control's press or why not.
+/// What a control offers: drawn from the one gate (03 A10) by the presentation kernel's `offer`.
 pub enum Offered<R> {
+    /// Drawn enabled; a press sends `R`.
     Yes(R),
-    Refused(Drawn),
-    Busy,
+    /// Refused: drawn as `Drawn` says, and a press still sends `R`, which `route` answers with
+    /// the refusal's note.
+    Refused(R, Drawn),
+    /// Drawn dimmed; it takes no press.
+    No,
 }
 
 /// The kernel's `Refused::drawn` answer, mapped by the presentation kernel (03 §10).
