@@ -16,7 +16,6 @@ impl From<Press> for Msg {
 #[derive(Message)]
 pub enum Out {
     /// Begin Make a new wallet (06 §4.3).
-    // Spec: 06 §4.3 names `home::Out::CreateWallet` without a shape.
     CreateWallet,
 }
 

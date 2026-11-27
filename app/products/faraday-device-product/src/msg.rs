@@ -17,8 +17,6 @@ impl From<AppPress> for Msg {
 
 /// What a press on the app's frame or the device composite's page sends (06 §4.2's
 /// `device_app::Press`).
-// Spec: 06 §4.2 names `device_app::Press` and gives no variants; `Open` is a destination and
-// `Back` the top bar's.
 #[derive(Clone, PartialEq, Pressed)]
 pub enum AppPress {
     Device(faraday_device::Press),

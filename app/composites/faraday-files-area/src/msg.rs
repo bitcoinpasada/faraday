@@ -32,6 +32,5 @@ pub enum Press {
 }
 
 /// What a press on the Files page itself sends.
-// Spec: 09 §4.6 gives the composite the Files page and no press of its own.
 #[derive(Clone, PartialEq, Pressed)]
 pub enum FilesPress {}

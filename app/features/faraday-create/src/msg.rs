@@ -22,7 +22,6 @@ pub enum Out {
     /// The wallet was checked (03 §6.1).
     Checked { wallet: WalletId },
     /// Move the money: begin Spend from a backup (03 §6.1).
-    // Spec: 03 §6.1 names `from` without a type; the wallet moved from is the plainest.
     MoveMoney { from: WalletId },
 }
 

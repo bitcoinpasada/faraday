@@ -627,6 +627,8 @@ marked. Every row adds the feature base.
 | `faraday-stick-visit` | files | `stick-visit.md` | the visit in Files; Taken, NameTaken, WriteOut, Pull sheets | codec, crypto, fat, files, intake, text |
 | `faraday-zeroing` | files | `delete-and-zero.md` | the Delete, Zeroing sheets | fat, text |
 
+The Files page has no press of its own: `faraday-files-area`'s `FilesPress` is an enum without variants, and every press on its page is a child's (`Press::BootImport`, `StickVisit`, `Zeroing`).
+
 **Decision: `seeds.md` and `public-files.md` are features of the wallets composite, as 06 places
 them, reached by routed outs.** Bip85 asks for a seed by `Out` through the device composite to
 the wallets composite and on to seeds; Files shows a wallet's public files by asking wallets the

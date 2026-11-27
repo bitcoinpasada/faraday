@@ -342,7 +342,7 @@ writing its own, three copies of the same rules.
   page type; the frame's `Nav` shows it and sends `Notice::Left` to the feature whose page was
   left, through its composites (A13).
 - **Reaching another feature.** A feature never opens another's page: it sends what it wants
-  (`home::Out::CreateWallet`, `Out::Go(Tool)`) and the composite that holds both routes it (A6).
+  (`home::Out::CreateWallet`, a variant without fields; `Out::Go(Tool)`) and the composite that holds both routes it (A6).
 - **An owner's page.** A press that begins an owner's page (Unlock this file, a Settings section)
   is the app's: its `Nav` shows the owner's page and, where the page begins with something given
   (the file to unlock), the app sends the owner a change (03 §7.3). Presses on an owner's page are

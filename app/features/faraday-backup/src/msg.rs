@@ -14,7 +14,6 @@ pub enum Own {
 }
 
 /// Where a backup was begun from (03 §6.1).
-// Spec: 03 §6.1 names `backup::From::Create` without the other variants.
 #[derive(Message)]
 pub enum From {
     Create,

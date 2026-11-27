@@ -10,7 +10,6 @@ pub type Msg = FlowMsg<Step, Own>;
 #[derive(Message)]
 pub enum Own {
     /// Begin Spend from a backup (03 §6.1).
-    // Spec: 03 §6.1 names `from` without a type; the wallet moved from is the plainest.
     Begin { from: WalletId },
 }
 

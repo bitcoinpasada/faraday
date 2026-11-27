@@ -524,8 +524,9 @@ fn from_create(o: create::Out) -> Route<Msg, Out> {
     }
 }
 // create::Out::MoveMoney { from: WalletId } and spend_backup::Own::Begin { from: WalletId }:
-// the wallet the money is moved from. backup::From names where Back up was begun: Create here,
-// the rest the porting's (inventory features/wallet-backup.md).
+// the wallet the money is moved from. backup::From names where Back up was begun: as built it
+// has the one variant, Create; a variant is added with the entry that begins Back up from
+// elsewhere (inventory features/wallet-backup.md).
 ```
 
 `backup::Own::Begin` answers with `Out::Open(Page::Backup)` among its effects, which the
