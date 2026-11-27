@@ -1,0 +1,847 @@
+//! BIP 93: codex32, a checksummed base-32 encoding of a BIP-32 master
+//! seed and of Shamir shares of one.
+//!
+//! A codex32 string is `ms1`, a threshold digit, a four-character
+//! identifier, a share index, a payload and a checksum, all in the
+//! bech32 alphabet and all one case. The share index `s` marks the
+//! secret itself; any other index marks a share of a `k`-of-`n` split.
+//! Any `k` shares of a set rebuild the secret, and any `k` strings of a
+//! set (the secret counts as one) derive a further share, both by
+//! Lagrange interpolation over GF(32) of each character position at
+//! once — the checksum interpolates with the rest, so a derived string
+//! is checksummed without recomputing it.
+//!
+//! ```
+//! use faraday_bip::codex32::Codex32;
+//!
+//! let a = Codex32::parse("ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t").unwrap();
+//! let c = Codex32::parse("ms13cashcacdefghjklmnpqrstuvwxyz023949xq35my48dr").unwrap();
+//! let d = Codex32::parse("ms13cashd0wsedstcdcts64cd7wvy4m90lm28w4ffupqs7rm").unwrap();
+//! let secret = Codex32::recover(&[a, c, d]).unwrap();
+//! assert_eq!(
+//!     secret.encode().as_str(),
+//!     "ms13cashsllhdmn9m42vcsamx24zrxgs3qqjzqud4m0d6nln"
+//! );
+//! assert_eq!(secret.to_seed().unwrap().expose().bytes()[0], 0xff);
+//! ```
+//!
+//! Conventions follow [`crate::bip39`]: a character is a `u8` symbol in
+//! `0..32`, never text; the string, its payload and the seed live in
+//! fixed-size arrays that are wiped on drop; text appears only at the
+//! edges, as `&str` in and [`Codex32Ascii`] out.
+//!
+//! The checksum is a BCH code that detects any error touching at most 8
+//! characters. [`Codex32::parse`] refuses a string whose checksum fails
+//! with [`Error::BadChecksum`]. Correction is asked for separately
+//! (F94): `correct.rs` proposes the one correction the checksum
+//! justifies, up to 4 substitutions, 8 unreadable boxes, any mix within
+//! BIP 93's bound, or one run of unreadable boxes as long as the
+//! checksum ([`correct`]), and the proposal is parsed again before
+//! anything takes it.
+//!
+//! Two more files hold what the codex32 booklet works by hand:
+//! `worksheet.rs`, the checksum worksheet's rows and the translation
+//! worksheet with its translation, recovery and fused symbols, in the
+//! booklet's second alphabet ([`SYMBOL_GLYPHS`]); and `fresh.rs`, a set
+//! made from `k` initial shares of fresh entropy ([`Scheme`],
+//! [`fresh_set`]), the secret and the derived shares interpolated from
+//! them, for any threshold and up to 31 strings.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
+
+use alloc::vec::Vec;
+
+use faraday_crypto::work::Compute;
+use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop};
+
+mod correct;
+mod fresh;
+mod worksheet;
+
+pub use correct::{CORRECTION_BOUND, Edit, MAX_EDITS, Proposal, Refusal, UNREADABLE, correct};
+pub use fresh::{FreshSet, Length, Scheme, fresh_set};
+pub use worksheet::{
+    ChecksumWorksheet, SYMBOL_GLYPHS, SYMBOL_NAMES, TranslationWorksheet, checksum_table,
+    pair_symbol, translation_symbols,
+};
+
+/// The bech32 alphabet, symbol value by position (BIP-0173): the one
+/// copy every other crate reads. Look a secret symbol up with [`charval`]
+/// and [`symbol_char`], never by searching this.
+pub const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+/// What `bech32_hrp_expand("ms")` contributes to the codeword length.
+const HRP_EXPANDED_LEN: usize = 5;
+/// Characters of regular checksum.
+const CHECKSUM_LEN: usize = 13;
+/// Characters of long checksum.
+const LONG_CHECKSUM_LEN: usize = 15;
+/// Threshold, identifier and share index, before the payload.
+const HEADER_LEN: usize = 6;
+/// The symbol value of the share index `s`, the secret's own index.
+const SECRET_INDEX: u8 = 16;
+
+/// The only string lengths a master seed encodes to, shortest first.
+const VALID_LENGTHS: [usize; 6] = [48, 54, 61, 67, 74, 127];
+/// The master seed sizes BIP 93 allows, in bytes, in the same order.
+pub const SEED_LENGTHS: [usize; 6] = [16, 20, 24, 28, 32, 64];
+
+/// Longest codex32 string this module reads or writes, in characters.
+pub const MAX_STRING_LEN: usize = 127;
+/// Longest data part: the string without `ms1`.
+const MAX_DATA_LEN: usize = MAX_STRING_LEN - 3;
+/// Longest master seed, in bytes.
+pub const MAX_SEED_BYTES: usize = 64;
+/// Largest threshold BIP 93 allows.
+pub const MAX_THRESHOLD: u8 = 9;
+/// Most shares one set can hold: every bech32 character but `s`.
+pub const MAX_SHARES: u8 = 31;
+
+/// Share indices in the order BIP 93 hands them out: the letters of the
+/// alphabet that bech32 has, `s` excluded, then the digits.
+pub const INDEX_ORDER: &[u8; MAX_SHARES as usize] = b"acdefghjklmnpqrtuvwxyz023456789";
+
+/// Why a codex32 string, or a set of them, was refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    /// A character outside printable ASCII.
+    NotPrintable,
+    /// Upper and lower case in one string.
+    MixedCase,
+    /// The string does not start with `ms1`.
+    BadPrefix,
+    /// The string's length is not one of a master seed's.
+    BadLength,
+    /// The character at `position` (0-based, in the whole string) is not
+    /// in the bech32 alphabet.
+    BadCharacter {
+        /// 0-based position of the offending character.
+        position: u8,
+    },
+    /// The threshold is not `0` or 2 to 9.
+    BadThreshold,
+    /// The threshold is `0`, which only the secret's own index may carry.
+    SecretIndexRequired,
+    /// The checksum does not match the rest of the string.
+    BadChecksum,
+    /// The string is a share where a secret was wanted, or a secret where
+    /// a share was wanted.
+    WrongKind,
+    /// Two strings of the set carry the same share index.
+    DuplicateIndex,
+    /// The strings do not all carry the same identifier.
+    IdentifierMismatch,
+    /// The strings do not all carry the same threshold.
+    ThresholdMismatch,
+    /// The strings are not all the same length.
+    LengthMismatch,
+    /// The number of strings is not the threshold.
+    WrongShareCount,
+    /// The share index is not a bech32 character, or is already in the set.
+    BadShareIndex,
+    /// The identifier is not four bech32 characters.
+    BadIdentifier,
+    /// The seed is not 16, 20, 24, 28, 32 or 64 bytes.
+    BadSeedLength,
+    /// The threshold is not `0` or 2 to 9, or the share count is not
+    /// between the threshold and [`MAX_SHARES`].
+    BadSplit,
+    /// The caller supplied too few random bytes for the shares asked for.
+    NotEnoughRandomness,
+}
+
+/// Costs an add. Notes one piece of codex32 work against the token
+/// (`docs/COMPUTE.md`): the one place the count goes.
+fn note(c: &Compute) {
+    c.count(faraday_crypto::work::Work::Codex32);
+}
+
+// ---------------------------------------------------------------------
+// The bech32 alphabet
+// ---------------------------------------------------------------------
+
+/// All ones where `a == b`, else zero, without a branch.
+const fn eq_mask(a: u8, b: u8) -> u8 {
+    (((a ^ b) as u16).wrapping_sub(1) >> 8) as u8
+}
+
+/// The symbol value of a bech32 character (either case), or `None` for a
+/// byte outside the alphabet. The alphabet is scanned whole with a
+/// masked select, so the time does not depend on which entry matched;
+/// that the byte is outside the alphabet is not secret.
+pub fn charval(c: u8) -> Option<u8> {
+    // Fold A-Z to lowercase without a branch on the byte.
+    let upper = 0u8.wrapping_sub(u8::from(c.wrapping_sub(b'A') < 26));
+    let c = c | (upper & 32);
+    let mut v = 0u8;
+    let mut found = 0u8;
+    let mut i = 0;
+    while i < 32 {
+        let m = eq_mask(CHARSET[i], c);
+        v |= (i as u8) & m;
+        found |= m;
+        i += 1;
+    }
+    (found != 0).then_some(v)
+}
+
+/// The lowercase bech32 character of a symbol value below 32, by a masked
+/// scan of the whole alphabet.
+pub fn symbol_char(v: u8) -> u8 {
+    let mut out = 0u8;
+    let mut i = 0;
+    while i < 32 {
+        out |= CHARSET[i] & eq_mask(i as u8, v);
+        i += 1;
+    }
+    out
+}
+
+// ---------------------------------------------------------------------
+// Checksums
+// ---------------------------------------------------------------------
+
+const MS32_CONST: u128 = 0x1_0ce0_795c_2fd1_e62a;
+const MS32_LONG_CONST: u128 = 0x433_81e5_70bf_4798_ab26;
+/// The residue of the expanded human-readable part `ms`, where every
+/// checksum starts before the first character after `ms1`.
+const MS32_HRP_RESIDUE: u128 = 0x23181b3;
+
+/// One character fed into a checksum's residue: the residue times `x`
+/// plus the character, reduced by the regular checksum's generator, or
+/// by the long checksum's where `long` is set.
+const fn residue_step(residue: u128, v: u8, long: bool) -> u128 {
+    const GEN: [u128; 5] = [
+        0x1_9dc5_00ce_73fd_e210,
+        0x1_bfae_00de_f77f_e529,
+        0x1_fbd9_20ff_fe7b_ee52,
+        0x1_7396_40bd_eee3_fdad,
+        0x0_7729_a039_cfc7_5f5a,
+    ];
+    const LONG_GEN: [u128; 5] = [
+        0x3d5_9d27_3535_ea62_d897,
+        0x7a9_becb_6361_c6c5_1507,
+        0x543_f9b7_e6c3_8d8a_2a0e,
+        0x0c5_77ea_eccf_1990_d13c,
+        0x188_7f74_f8dc_71b1_0651,
+    ];
+    let (generator, shift) = if long {
+        (&LONG_GEN, 5 * (LONG_CHECKSUM_LEN - 1))
+    } else {
+        (&GEN, 5 * (CHECKSUM_LEN - 1))
+    };
+    let b = residue >> shift;
+    let mut residue = ((residue & ((1u128 << shift) - 1)) << 5) ^ v as u128;
+    let mut i = 0;
+    while i < 5 {
+        residue ^= generator[i] & 0u128.wrapping_sub((b >> i) & 1);
+        i += 1;
+    }
+    residue
+}
+
+fn polymod(values: &[u8], zeros: usize) -> u128 {
+    values
+        .iter()
+        .copied()
+        .chain(core::iter::repeat_n(0u8, zeros))
+        .fold(MS32_HRP_RESIDUE, |r, v| residue_step(r, v, false))
+}
+
+fn long_polymod(values: &[u8], zeros: usize) -> u128 {
+    values
+        .iter()
+        .copied()
+        .chain(core::iter::repeat_n(0u8, zeros))
+        .fold(MS32_HRP_RESIDUE, |r, v| residue_step(r, v, true))
+}
+
+/// Whether the data part (checksum included) carries a valid checksum of
+/// the variant its length calls for.
+fn verify_checksum(data: &[u8]) -> bool {
+    let expanded = HRP_EXPANDED_LEN + data.len();
+    if expanded >= 96 {
+        expanded <= 1023 && long_polymod(data, 0) == MS32_LONG_CONST
+    } else {
+        expanded <= 93 && polymod(data, 0) == MS32_CONST
+    }
+}
+
+/// Appends the checksum the data part's length calls for, and returns the
+/// new length.
+fn append_checksum(data: &mut [u8], len: usize) -> usize {
+    if HRP_EXPANDED_LEN + len + CHECKSUM_LEN > 93 {
+        let residue = long_polymod(&data[..len], LONG_CHECKSUM_LEN) ^ MS32_LONG_CONST;
+        for (i, slot) in data[len..len + LONG_CHECKSUM_LEN].iter_mut().enumerate() {
+            *slot = ((residue >> (5 * (LONG_CHECKSUM_LEN - 1 - i))) & 31) as u8;
+        }
+        len + LONG_CHECKSUM_LEN
+    } else {
+        let residue = polymod(&data[..len], CHECKSUM_LEN) ^ MS32_CONST;
+        for (i, slot) in data[len..len + CHECKSUM_LEN].iter_mut().enumerate() {
+            *slot = ((residue >> (5 * (CHECKSUM_LEN - 1 - i))) & 31) as u8;
+        }
+        len + CHECKSUM_LEN
+    }
+}
+
+/// The checksum BIP 93 gives for data characters (5-bit symbols: the
+/// threshold, identifier, share index and payload, as [`Codex32::payload`]
+/// has them): 13 symbols, or 15 for a long string. For a reader that holds
+/// the data part without its checksum.
+pub fn checksum(symbols: &[u8]) -> zeroize::Zeroizing<Vec<u8>> {
+    let mut data = zeroize::Zeroizing::new(alloc::vec![0u8; symbols.len() + LONG_CHECKSUM_LEN]);
+    data[..symbols.len()].copy_from_slice(symbols);
+    let len = append_checksum(&mut data, symbols.len());
+    crate::codex32::wiped_symbols(&data[symbols.len()..len])
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the copy goes straight into Zeroizing, which wipes it"
+)]
+fn wiped_symbols(symbols: &[u8]) -> zeroize::Zeroizing<Vec<u8>> {
+    zeroize::Zeroizing::new(symbols.to_vec())
+}
+
+// ---------------------------------------------------------------------
+// GF(32)
+// ---------------------------------------------------------------------
+
+/// Multiplication in GF(32) as BIP 93 defines it over the bech32 alphabet
+/// (the field of x^5 + x^3 + 1), without a branch or a table index on
+/// either factor: five rounds of masked adds and a masked reduction.
+pub const fn gf_mul(a: u8, b: u8) -> u8 {
+    let mut a = a;
+    let mut res = 0u8;
+    let mut i = 0;
+    while i < 5 {
+        res ^= a & ((b >> i) & 1).wrapping_neg();
+        let hi = (a >> 4) & 1;
+        a = ((a << 1) & 31) ^ (9 & hi.wrapping_neg());
+        i += 1;
+    }
+    res
+}
+
+/// Multiplicative inverse in GF(32); `INV[0]` is 0, which never divides.
+const INV: [u8; 32] = [
+    0, 1, 20, 24, 10, 8, 12, 29, 5, 11, 4, 9, 6, 28, 26, 31, 22, 18, 17, 23, 2, 25, 16, 19, 3, 21,
+    14, 30, 13, 7, 27, 15,
+];
+
+/// The Lagrange weights of the points `xs` evaluated at `x`.
+fn lagrange(xs: &[u8], x: u8, out: &mut [u8]) {
+    let mut n = 1u8;
+    for &i in xs {
+        n = gf_mul(n, i ^ x);
+    }
+    for (slot, &i) in out.iter_mut().zip(xs) {
+        let mut m = 1u8;
+        for &j in xs {
+            m = gf_mul(m, if i == j { x } else { i } ^ j);
+        }
+        *slot = gf_mul(n, INV[m as usize]);
+    }
+}
+
+// ---------------------------------------------------------------------
+// A master seed
+// ---------------------------------------------------------------------
+
+/// A BIP-32 master seed of 16, 20, 24, 28, 32 or 64 bytes, wiped on drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
+pub struct MasterSeed {
+    bytes: [u8; MAX_SEED_BYTES],
+    len: u8,
+}
+
+impl MasterSeed {
+    /// The seed itself.
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes[..usize::from(self.len)]
+    }
+}
+
+// ---------------------------------------------------------------------
+// A codex32 string
+// ---------------------------------------------------------------------
+
+/// A valid codex32 string: a secret or one share of a set, held as the
+/// data part's symbols with its checksum, and wiped on drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
+pub struct Codex32 {
+    data: [u8; MAX_DATA_LEN],
+    len: u8,
+}
+
+/// A codex32 string as lowercase ASCII, wiped on drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
+pub struct Codex32Ascii {
+    buf: [u8; MAX_STRING_LEN],
+    len: u8,
+}
+
+impl Codex32Ascii {
+    /// The string.
+    pub fn as_str(&self) -> &str {
+        core::str::from_utf8(&self.buf[..usize::from(self.len)]).unwrap_or("")
+    }
+}
+
+impl Default for Codex32 {
+    /// The empty slot a fixed-size set starts from, as
+    /// [`crate::slip39::Share`] has one: no string, length zero, and
+    /// never handed to any of the operations below.
+    fn default() -> Self {
+        Codex32 {
+            data: [0u8; MAX_DATA_LEN],
+            len: 0,
+        }
+    }
+}
+
+impl Codex32 {
+    /// Reads a codex32 string, checking every rule BIP 93 states.
+    pub fn parse(s: &str) -> Result<Self, Error> {
+        let b = s.as_bytes();
+        if b.iter().any(|&c| !(33..=126).contains(&c)) {
+            return Err(Error::NotPrintable);
+        }
+        if b.iter().any(u8::is_ascii_lowercase) && b.iter().any(u8::is_ascii_uppercase) {
+            return Err(Error::MixedCase);
+        }
+        if b.len() < 3
+            || !b[0].eq_ignore_ascii_case(&b'm')
+            || !b[1].eq_ignore_ascii_case(&b's')
+            || b[2] != b'1'
+        {
+            return Err(Error::BadPrefix);
+        }
+        if !VALID_LENGTHS.contains(&b.len()) {
+            return Err(Error::BadLength);
+        }
+        // BIP 93: the threshold is `0` or 2 to 9. `1`, a digit but no
+        // bech32 character, is refused as the threshold it stands for.
+        if b[3] == b'1' {
+            return Err(Error::BadThreshold);
+        }
+
+        let mut out = Codex32::default();
+        for (i, &c) in b[3..].iter().enumerate() {
+            out.data[i] = charval(c).ok_or(Error::BadCharacter {
+                position: (i + 3) as u8,
+            })?;
+        }
+        let len = b.len() - 3;
+
+        if !b[3].is_ascii_digit() {
+            return Err(Error::BadThreshold);
+        }
+        if b[3] == b'0' && out.data[5] != SECRET_INDEX {
+            return Err(Error::SecretIndexRequired);
+        }
+        if !verify_checksum(&out.data[..len]) {
+            return Err(Error::BadChecksum);
+        }
+        out.len = len as u8;
+        Ok(out)
+    }
+
+    /// The threshold: 0 for a secret that was never split, else 2 to 9.
+    pub fn threshold(&self) -> u8 {
+        symbol_char(self.data[0]) - b'0'
+    }
+
+    /// The four-character identifier, lowercase.
+    pub fn identifier(&self) -> [u8; 4] {
+        let mut out = [0u8; 4];
+        for (slot, &v) in out.iter_mut().zip(&self.data[1..5]) {
+            *slot = symbol_char(v);
+        }
+        out
+    }
+
+    /// The share index, lowercase; `s` for the secret.
+    pub fn share_index(&self) -> u8 {
+        symbol_char(self.data[5])
+    }
+
+    /// Whether this string is the secret rather than a share of it.
+    pub fn is_secret(&self) -> bool {
+        self.data[5] == SECRET_INDEX
+    }
+
+    fn checksum_len(&self) -> usize {
+        if HRP_EXPANDED_LEN + usize::from(self.len) >= 96 {
+            LONG_CHECKSUM_LEN
+        } else {
+            CHECKSUM_LEN
+        }
+    }
+
+    /// The payload as 5-bit symbols, without the header or the checksum.
+    pub fn payload(&self) -> &[u8] {
+        &self.data[HEADER_LEN..usize::from(self.len) - self.checksum_len()]
+    }
+
+    /// The master seed this string carries, which only the secret does.
+    pub fn to_seed(&self) -> Result<Secret<MasterSeed>, Error> {
+        if !self.is_secret() {
+            return Err(Error::WrongKind);
+        }
+        let payload = self.payload();
+        let len = payload.len() * 5 / 8;
+        if !SEED_LENGTHS.contains(&len) {
+            return Err(Error::BadSeedLength);
+        }
+        let mut seed = MasterSeed {
+            bytes: [0u8; MAX_SEED_BYTES],
+            len: len as u8,
+        };
+        let mut acc: u16 = 0;
+        let mut bits = 0u32;
+        let mut out = 0usize;
+        for &v in payload {
+            acc = (acc << 5) | u16::from(v);
+            bits += 5;
+            if bits >= 8 {
+                bits -= 8;
+                seed.bytes[out] = (acc >> bits) as u8;
+                out += 1;
+            }
+        }
+        Ok(Secret::new(seed))
+    }
+
+    /// Encodes a master seed as the codex32 secret of a set with this
+    /// threshold and identifier, padding the last group with zero bits.
+    ///
+    /// The threshold is 0 for a seed that will not be split, else 2 to 9;
+    /// the identifier is four bech32 characters in either case.
+    pub fn from_seed(threshold: u8, identifier: [u8; 4], seed: &[u8]) -> Result<Self, Error> {
+        if threshold == 1 || threshold > MAX_THRESHOLD {
+            return Err(Error::BadSplit);
+        }
+        if !SEED_LENGTHS.contains(&seed.len()) {
+            return Err(Error::BadSeedLength);
+        }
+        let mut out = Codex32::default();
+        out.data[0] = charval(b'0' + threshold).ok_or(Error::BadThreshold)?;
+        for (slot, &c) in out.data[1..5].iter_mut().zip(&identifier) {
+            *slot = charval(c).ok_or(Error::BadIdentifier)?;
+        }
+        out.data[5] = SECRET_INDEX;
+
+        let len = HEADER_LEN + seed_symbols(seed, &mut out.data[HEADER_LEN..]);
+        let len = append_checksum(&mut out.data, len);
+        out.len = len as u8;
+        Ok(out)
+    }
+
+    /// Writes the string in lowercase.
+    pub fn encode(&self) -> Codex32Ascii {
+        let mut out = Codex32Ascii {
+            buf: [0u8; MAX_STRING_LEN],
+            len: usize::from(self.len) as u8 + 3,
+        };
+        out.buf[..3].copy_from_slice(b"ms1");
+        for (slot, &v) in out.buf[3..]
+            .iter_mut()
+            .zip(&self.data[..usize::from(self.len)])
+        {
+            *slot = symbol_char(v);
+        }
+        out
+    }
+
+    /// Recovers the secret from exactly `k` shares of one `k`-of-`n` set.
+    pub fn recover(shares: &[Self]) -> Result<Self, Error> {
+        check_set(shares, false)?;
+        if shares.len() != usize::from(shares[0].threshold()) {
+            return Err(Error::WrongShareCount);
+        }
+        Ok(interpolate(shares, SECRET_INDEX))
+    }
+
+    /// Derives a further share of a set from exactly `k` of its strings,
+    /// the secret counting as one, at a share index not already in use.
+    pub fn derive_share(strings: &[Self], index: u8) -> Result<Self, Error> {
+        check_set(strings, true)?;
+        if strings.len() != usize::from(strings[0].threshold()) {
+            return Err(Error::WrongShareCount);
+        }
+        let x = charval(index).ok_or(Error::BadShareIndex)?;
+        if x == SECRET_INDEX || strings.iter().any(|s| s.data[5] == x) {
+            return Err(Error::BadShareIndex);
+        }
+        Ok(interpolate(strings, x))
+    }
+
+    /// Splits this secret into `shares` shares of which `threshold` are
+    /// needed, using `fresh` as the randomness of the first
+    /// `threshold - 1` of them.
+    ///
+    /// `fresh` needs `(threshold - 1) * payload length` bytes, of which
+    /// the low five bits of each are used; the rest are ignored. The
+    /// secret keeps its own identifier and takes the new threshold; its
+    /// padding bits are rewritten as zeroes, so the string the shares
+    /// recover carries the same master seed but need not be this one
+    /// character for character.
+    pub fn split(&self, threshold: u8, shares: u8, fresh: &[u8]) -> Result<Vec<Self>, Error> {
+        if !self.is_secret() {
+            return Err(Error::WrongKind);
+        }
+        if !(2..=MAX_THRESHOLD).contains(&threshold) || shares < threshold || shares > MAX_SHARES {
+            return Err(Error::BadSplit);
+        }
+        let payload_len = self.payload().len();
+        if fresh.len() < usize::from(threshold - 1) * payload_len {
+            return Err(Error::NotEnoughRandomness);
+        }
+
+        let secret = {
+            let seed = self.to_seed()?;
+            Self::from_seed(threshold, self.identifier(), seed.expose().bytes())?
+        };
+
+        let mut set = Vec::with_capacity(usize::from(threshold));
+        set.push(secret);
+        let mut random = fresh;
+        for &index in &INDEX_ORDER[..usize::from(threshold) - 1] {
+            let mut data = [0u8; MAX_DATA_LEN];
+            data[..HEADER_LEN].copy_from_slice(&set[0].data[..HEADER_LEN]);
+            data[5] = charval(index).ok_or(Error::BadShareIndex)?;
+            for (slot, &byte) in data[HEADER_LEN..HEADER_LEN + payload_len]
+                .iter_mut()
+                .zip(random)
+            {
+                *slot = byte & 31;
+            }
+            random = &random[payload_len..];
+            let len = append_checksum(&mut data, HEADER_LEN + payload_len);
+            set.push(Codex32 {
+                data,
+                len: len as u8,
+            });
+        }
+
+        let mut out = Vec::with_capacity(usize::from(shares));
+        for &index in &INDEX_ORDER[..usize::from(shares)] {
+            let x = charval(index).ok_or(Error::BadShareIndex)?;
+            match set.iter().position(|s| s.data[5] == x) {
+                Some(i) => out.push(Codex32 {
+                    data: set[i].data,
+                    len: set[i].len,
+                }),
+                None => out.push(interpolate(&set, x)),
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// Characters a payload of `seed_len` bytes takes: BIP 93's
+/// `ceil(bitlength / 5)`, the length the "Generating Shares" section
+/// asks a random share to be filled to.
+pub fn symbols_for(seed_len: usize) -> usize {
+    (seed_len * 8).div_ceil(5)
+}
+
+/// Writes `seed` into `out` as a payload: 5-bit groups, most
+/// significant bits first, the last group padded with zero bits.
+/// Returns the characters written, which is [`symbols_for`] of the
+/// seed's length.
+///
+/// This is the payload of the codex32 secret [`Codex32::from_seed`]
+/// makes, and it is also how a random share of the same length is
+/// written, so a set's strings are all filled by one rule.
+pub fn seed_symbols(seed: &[u8], out: &mut [u8]) -> usize {
+    let mut acc: u16 = 0;
+    let mut bits = 0u32;
+    let mut len = 0usize;
+    for &byte in seed {
+        acc = (acc << 8) | u16::from(byte);
+        bits += 8;
+        while bits >= 5 {
+            bits -= 5;
+            out[len] = ((acc >> bits) & 31) as u8;
+            len += 1;
+        }
+    }
+    if bits > 0 {
+        out[len] = ((acc << (5 - bits)) & 31) as u8;
+        len += 1;
+    }
+    len
+}
+
+/// The four-character identifier a set takes from the master
+/// fingerprint of the seed it carries: the first 20 bits of the
+/// fingerprint, as four 5-bit groups through the bech32 alphabet.
+///
+/// BIP 93 leaves the identifier undefined and asks only that it be
+/// distinct for every secret a person may need to tell apart. Taking it
+/// from the fingerprint makes it distinct per seed, and a computed
+/// identifier is never mistyped.
+pub fn identifier_for(fingerprint: [u8; 4]) -> [u8; 4] {
+    let bits = u32::from_be_bytes(fingerprint);
+    let mut out = [0u8; 4];
+    for (i, slot) in out.iter_mut().enumerate() {
+        *slot = symbol_char(((bits >> (27 - 5 * i)) & 31) as u8);
+    }
+    out
+}
+
+/// The checks every set of codex32 strings must pass before any of them
+/// is interpolated. `with_secret` says whether the secret may be among
+/// them, as it may when deriving a share and may not when recovering.
+fn check_set(set: &[Codex32], with_secret: bool) -> Result<(), Error> {
+    let first = set.first().ok_or(Error::WrongShareCount)?;
+    if first.threshold() == 0 {
+        return Err(Error::ThresholdMismatch);
+    }
+    for (i, s) in set.iter().enumerate() {
+        if s.data[0] != first.data[0] {
+            return Err(Error::ThresholdMismatch);
+        }
+        if s.data[1..5] != first.data[1..5] {
+            return Err(Error::IdentifierMismatch);
+        }
+        if s.len != first.len {
+            return Err(Error::LengthMismatch);
+        }
+        if s.is_secret() && !with_secret {
+            return Err(Error::WrongKind);
+        }
+        if set[..i].iter().any(|e| e.data[5] == s.data[5]) {
+            return Err(Error::DuplicateIndex);
+        }
+    }
+    Ok(())
+}
+
+/// The string of the set that would carry share index `x`, every
+/// character position interpolated at once.
+fn interpolate(set: &[Codex32], x: u8) -> Codex32 {
+    let mut xs = [0u8; MAX_THRESHOLD as usize];
+    for (slot, s) in xs.iter_mut().zip(set) {
+        *slot = s.data[5];
+    }
+    let mut weights = [0u8; MAX_THRESHOLD as usize];
+    lagrange(&xs[..set.len()], x, &mut weights[..set.len()]);
+
+    let mut out = Codex32::default();
+    let len = usize::from(set[0].len);
+    for (i, slot) in out.data[..len].iter_mut().enumerate() {
+        let mut v = 0u8;
+        for (w, s) in weights.iter().zip(set) {
+            v ^= gf_mul(*w, s.data[i]);
+        }
+        *slot = v;
+    }
+    out.len = len as u8;
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Faraday's previous multiplication, with its branches.
+    fn old_gf_mul(a: u8, b: u8) -> u8 {
+        let mut a = a;
+        let mut res = 0u8;
+        for i in 0..5 {
+            if (b >> i) & 1 == 1 {
+                res ^= a;
+            }
+            a <<= 1;
+            if a >= 32 {
+                a ^= 41;
+            }
+        }
+        res
+    }
+
+    /// Faraday's previous residue step, with its branches.
+    fn old_residue_step(residue: u128, v: u8, long: bool) -> u128 {
+        const GEN: [u128; 5] = [
+            0x1_9dc5_00ce_73fd_e210,
+            0x1_bfae_00de_f77f_e529,
+            0x1_fbd9_20ff_fe7b_ee52,
+            0x1_7396_40bd_eee3_fdad,
+            0x0_7729_a039_cfc7_5f5a,
+        ];
+        const LONG_GEN: [u128; 5] = [
+            0x3d5_9d27_3535_ea62_d897,
+            0x7a9_becb_6361_c6c5_1507,
+            0x543_f9b7_e6c3_8d8a_2a0e,
+            0x0c5_77ea_eccf_1990_d13c,
+            0x188_7f74_f8dc_71b1_0651,
+        ];
+        let (generator, shift) = if long {
+            (&LONG_GEN, 5 * (LONG_CHECKSUM_LEN - 1))
+        } else {
+            (&GEN, 5 * (CHECKSUM_LEN - 1))
+        };
+        let b = residue >> shift;
+        let mut residue = ((residue & ((1u128 << shift) - 1)) << 5) ^ v as u128;
+        for (i, g) in generator.iter().enumerate() {
+            if (b >> i) & 1 == 1 {
+                residue ^= g;
+            }
+        }
+        residue
+    }
+
+    #[test]
+    fn the_field_product_is_the_one_the_code_always_computed() {
+        for a in 0..32 {
+            for b in 0..32 {
+                assert_eq!(gf_mul(a, b), old_gf_mul(a, b), "{a} * {b}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_checksum_step_is_the_one_the_code_always_computed() {
+        let mut r = 0x9e37_79b9_7f4a_7c15_f39c_c060_5ced_c834u128;
+        for _ in 0..200 {
+            r = r.wrapping_mul(0x2545_f491_4f6c_dd1d_1405_7b7e_f767_814f) ^ (r >> 41);
+            for long in [false, true] {
+                let r = r & ((1u128 << if long { 5 * 15 + 5 } else { 5 * 13 + 5 }) - 1);
+                for v in 0..32 {
+                    assert_eq!(residue_step(r, v, long), old_residue_step(r, v, long));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn every_character_and_symbol_round_trips_in_either_case() {
+        for v in 0..32u8 {
+            let c = symbol_char(v);
+            assert_eq!(charval(c), Some(v));
+            assert_eq!(charval(c.to_ascii_uppercase()), Some(v));
+        }
+        for c in 0..=255u8 {
+            if !CHARSET.contains(&c.to_ascii_lowercase()) {
+                assert_eq!(charval(c), None, "{c}");
+            }
+        }
+    }
+
+    /// The identifier of the fingerprint `73c5da0a`, worked out by hand:
+    /// its first twenty bits are 01110 01111 00010 11101, which are 14,
+    /// 15, 2 and 29, and those places in the bech32 alphabet are `w`,
+    /// `0`, `z` and `a`.
+    #[test]
+    fn an_identifier_is_the_first_twenty_bits_of_the_fingerprint() {
+        assert_eq!(&identifier_for([0x73, 0xc5, 0xda, 0x0a]), b"w0za");
+        // Every character is one the alphabet has, and the low twelve
+        // bits of the fingerprint do not reach it.
+        assert_eq!(
+            identifier_for([0xff, 0xff, 0xf0, 0x00]),
+            identifier_for([0xff, 0xff, 0xff, 0xff])
+        );
+    }
+}

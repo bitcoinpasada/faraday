@@ -1,0 +1,2525 @@
+//! BIP-388 wallet policies: the form Sparrow, Ledger and Coldcard
+//! exchange a multisig wallet in.
+//!
+//! A policy is a descriptor template whose keys are the placeholders
+//! `@0/**`, `@1/**` …, plus the vector of keys those placeholders stand
+//! for, each `[fingerprint/path]xpub`. The template is what a person
+//! reads and compares; the keys are what the device derives from.
+//!
+//! ```
+//! use faraday_bip::policy::WalletPolicy;
+//!
+//! let c = faraday_crypto::work::Compute::unchecked();
+//! let policy = WalletPolicy::parse(
+//!     &c,
+//!     "pkh(@0/**)\n\
+//!      [d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL",
+//! )
+//! .unwrap();
+//! assert_eq!(
+//!     policy.to_descriptor(),
+//!     "pkh([d34db33f/44h/0h/0h]xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/<0;1>/*)"
+//! );
+//! ```
+//!
+//! Accepted templates: `multi` and `sortedmulti` inside `wsh`,
+//! `sh(wsh(…))` or `sh(…)`, the four single-key templates,
+//! `tr(musig(@0,@1,…)/**)` — the BIP-390 MuSig2 wallet whose addresses
+//! come from the aggregate key — and, through `miniscript`,
+//! `wsh(<miniscript>)`, `sh(wsh(<miniscript>))` and
+//! `tr(<key>,<tree of leaves>)`. The last three are the wallets Liana,
+//! Sparrow and Nunchuk write for timelocked recovery and inheritance:
+//! their addresses, their keys and the ways they can be spent
+//! ([`WalletPolicy::spend_paths`]) are read here.
+//!
+//! A tap tree's leaves include BIP 387's `multi_a` and `sortedmulti_a`,
+//! the k-of-n taproot multisig, whose internal key is usually the NUMS
+//! point ([`WalletPolicy::key_path_unspendable`]). `miniscript` reads
+//! `multi_a`; the sorted form is read through [`crate::tapmulti`],
+//! which puts the keys in the script's order at every index.
+
+use alloc::vec::Vec;
+use core::fmt;
+use core::str::FromStr;
+
+use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub};
+use bitcoin::opcodes::all::OP_CHECKMULTISIG;
+use bitcoin::script::Builder;
+use bitcoin::secp256k1::{Secp256k1, Verification};
+use bitcoin::{Address, PublicKey, ScriptBuf};
+
+use miniscript::descriptor::{DescriptorMultiXKey, DescriptorPublicKey, Wildcard};
+use miniscript::{Descriptor, ForEachKey, ToPublicKey};
+
+use faraday_crypto::work::{Compute, Work};
+use faraday_text::{Text, text};
+
+use crate::descriptor::descriptor_checksum;
+use crate::keys::{Fingerprint, Network, ScriptType};
+use crate::silent_wallet::SilentWallet;
+use crate::spend::SpendPath;
+
+/// Which wallet a policy is: a SHA-256 over a domain tag and the whole
+/// written descriptor ([`WalletPolicy::to_descriptor`]), so two wallets
+/// that differ in any character have two ids, which the 8-character
+/// BIP-380 checksum does not give (it is 40 bits, found for a second
+/// descriptor in seconds). A silent payments wallet is its address and
+/// the key origin its record states (fingerprint, coin type and account),
+/// under a tag of its own: two records over one address with another
+/// fingerprint or account are two wallets, as `same_wallet` counts them.
+/// The checksum stays for what a person reads and for a typed
+/// `#checksum`, and stays over the address alone for a silent wallet
+/// (records already kept hold it). There is no way to make one from a checksum or a string
+/// other than the 64-hex form a kept state holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WalletId([u8; 32]);
+
+impl WalletId {
+    /// The domain tag the descriptor text is hashed under.
+    const TAG: &'static [u8] = b"faraday/wallet-id/1\0";
+
+    /// The domain tag a silent payments wallet's address and origin are
+    /// hashed under: its own, so no descriptor text can give the same
+    /// input (the address has no `[`, the origin starts with one, so the
+    /// two parts cannot be moved against each other either).
+    const SILENT_TAG: &'static [u8] = b"faraday/wallet-id/silent/1\0";
+
+    fn of_descriptor(text: &str) -> Self {
+        Self::hashed(Self::TAG, text, "")
+    }
+
+    fn of_silent(address: &str, origin: &str) -> Self {
+        Self::hashed(Self::SILENT_TAG, address, origin)
+    }
+
+    fn hashed(tag: &[u8], first: &str, second: &str) -> Self {
+        let mut bytes = alloc::vec::Vec::with_capacity(tag.len() + first.len() + second.len());
+        bytes.extend_from_slice(tag);
+        bytes.extend_from_slice(first.as_bytes());
+        bytes.extend_from_slice(second.as_bytes());
+        Self(faraday_crypto::sha256(&bytes))
+    }
+
+    /// The id as 64 lower-case hex characters, for a kept form.
+    pub fn to_hex(&self) -> Text {
+        const DIGITS: &[u8; 16] = b"0123456789abcdef";
+        let mut out = Text::new();
+        for b in self.0 {
+            out.push(DIGITS[usize::from(b >> 4)] as char);
+            out.push(DIGITS[usize::from(b & 15)] as char);
+        }
+        out
+    }
+
+    /// The id a kept 64-hex form holds; `None` for any other text (an
+    /// 8-character checksum from before included).
+    pub fn from_hex(hex: &str) -> Option<Self> {
+        let bytes = hex.as_bytes();
+        if bytes.len() != 64 {
+            return None;
+        }
+        let digit = |c: u8| match c {
+            b'0'..=b'9' => Some(c - b'0'),
+            b'a'..=b'f' => Some(c - b'a' + 10),
+            _ => None,
+        };
+        let mut id = [0u8; 32];
+        for (i, pair) in bytes.chunks_exact(2).enumerate() {
+            id[i] = digit(pair[0])? << 4 | digit(pair[1])?;
+        }
+        Some(Self(id))
+    }
+}
+
+/// Why a policy or a descriptor could not be read as a wallet policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    /// The template is not one of the supported script forms.
+    Template,
+    /// A key is not `[fingerprint/path]xpub`.
+    Key,
+    /// Two keys are the same key.
+    RepeatedKey,
+    /// The keys are of more than one network.
+    MixedNetwork,
+    /// A placeholder is repeated, out of order, or names no key; or a
+    /// `musig()` holds fewer than two participants.
+    Placeholder,
+    /// A key expression's derivation is not `/**` or `/<0;1>/*`.
+    Derivation,
+    /// The threshold is not between 1 and the number of keys (at most
+    /// 15, the most `OP_CHECKMULTISIG` takes).
+    Threshold,
+    /// The descriptor carries a `#checksum` that does not match.
+    Checksum,
+    /// An address index is 2³¹ or larger.
+    IndexOutOfRange,
+}
+
+/// The multipath suffix a template writes: `/**`, BIP-388's shorthand
+/// for the receive chain then the change chain.
+pub const TEMPLATE_SUFFIX: &str = "/**";
+/// The same two chains as a descriptor writes them (BIP-389).
+pub const DESCRIPTOR_SUFFIX: &str = "/<0;1>/*";
+
+/// BIP-341's NUMS point, the internal key of a taproot wallet no key of
+/// which can take the key path.
+const NUMS: &str = "0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
+
+/// Blocks mined in a day, as a delay of a Liana-shaped wallet counts them.
+const BLOCKS_A_DAY: u32 = 144;
+
+/// The whole days `blocks` of mining is expected to be, rounded down.
+pub fn days_of_blocks(blocks: u32) -> u32 {
+    blocks / BLOCKS_A_DAY
+}
+
+fn nums() -> bitcoin::secp256k1::PublicKey {
+    bitcoin::secp256k1::PublicKey::from_str(NUMS).expect("BIP-341's NUMS point")
+}
+
+/// The internal key of a taproot wallet no key of which can take the key
+/// path: BIP-341's NUMS point with a chain code that is the SHA-256 of
+/// every leaf key's public key, so that anyone holding the descriptor
+/// can recompute it and see that the key path cannot be spent.
+fn unspendable_xpub(tr: &miniscript::descriptor::Tr<DescriptorPublicKey>) -> Option<Xpub> {
+    use bitcoin::hashes::Hash;
+    let tree = tr.tap_tree().as_ref()?;
+    let first = tree.iter().flat_map(|(_, ms)| ms.iter_pk()).next()?;
+    let network = multi_xkey(&first)?.network;
+    let mut concat = Vec::new();
+    for key in tree.iter().flat_map(|(_, ms)| ms.iter_pk()) {
+        concat.extend_from_slice(&multi_xkey(&key)?.public_key.serialize());
+    }
+    Some(Xpub {
+        public_key: nums(),
+        chain_code: bitcoin::bip32::ChainCode::from(
+            bitcoin::hashes::sha256::Hash::hash(&concat).to_byte_array(),
+        ),
+        depth: 0,
+        parent_fingerprint: [0u8; 4].into(),
+        child_number: 0.into(),
+        network,
+    })
+}
+
+fn multi_xkey(key: &DescriptorPublicKey) -> Option<Xpub> {
+    match key {
+        DescriptorPublicKey::MultiXPub(multi) => Some(multi.xkey),
+        _ => None,
+    }
+}
+
+/// The semantic policy of a wallet's script, with an unspendable taproot
+/// internal key left out of it, as Liana reads one.
+///
+/// A key path no one can take is not a way to spend, so a review built
+/// on this never offers one.
+fn lift(
+    script: &Descriptor<DescriptorPublicKey>,
+) -> Option<miniscript::policy::Semantic<DescriptorPublicKey>> {
+    match script {
+        Descriptor::Tr(tr) if tr.tap_tree().is_some() => {
+            let tree = tr.tap_tree().as_ref()?;
+            let leaves = miniscript::policy::Liftable::lift(tree).ok()?;
+            let internal = multi_xkey(tr.internal_key())?;
+            if Some(internal) == unspendable_xpub(tr) {
+                Some(leaves)
+            } else {
+                Some(miniscript::policy::Semantic::Thresh(
+                    miniscript::Threshold::or(
+                        alloc::sync::Arc::new(miniscript::policy::Semantic::Key(
+                            tr.internal_key().clone(),
+                        )),
+                        alloc::sync::Arc::new(leaves),
+                    ),
+                ))
+            }
+        }
+        _ => miniscript::policy::Liftable::lift(script).ok(),
+    }
+}
+
+/// How a multisig script is wrapped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Wrapper {
+    /// `sh(multi(…))`.
+    Sh,
+    /// `wsh(multi(…))`.
+    Wsh,
+    /// `sh(wsh(multi(…)))`.
+    ShWsh,
+}
+
+/// What a policy's template pays to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Template {
+    /// `multi` or `sortedmulti` inside a wrapper.
+    Multi {
+        /// Signatures required.
+        threshold: usize,
+        /// Whether the keys are sorted in the script (`sortedmulti`).
+        sorted: bool,
+        /// How the multisig script is wrapped.
+        wrapper: Wrapper,
+    },
+    /// One of the four single-key templates.
+    Single {
+        /// Which of them.
+        script: ScriptType,
+    },
+    /// `tr(musig(@0,@1,…)/**)`: the BIP-390 MuSig2 key expression, with
+    /// the wallet's derivation on the `musig()` and not on any
+    /// participant, which is how BIP-388 and BIP-390 write a wallet of
+    /// one aggregate key. Every participant signs.
+    MuSig,
+    /// A silent payments wallet (BIP-352): one scan key and one spend
+    /// key derived from one of this device's keys, which pays to
+    /// taproot outputs a sender computes and no descriptor lists. Its
+    /// text is [`crate::silent_wallet::SilentWallet`]'s record and its
+    /// addresses are the `sp1q…` string and its labels, so it has no
+    /// key expression and derives no address at an index.
+    Silent,
+    /// `wsh(<miniscript>)` or `sh(wsh(<miniscript>))`: a script whose
+    /// spend paths are what [`WalletPolicy::spend_paths`] lists.
+    Miniscript {
+        /// Which of the two wrappers the script is in.
+        kind: MiniscriptKind,
+    },
+    /// `tr(<key>,<tree of miniscript leaves>)`: the key path first, then
+    /// one leaf per branch of the tree.
+    Tree,
+}
+
+/// How a miniscript is wrapped. A bare `sh(<miniscript>)` is not one of
+/// these: its spends are legacy script, which nothing else here reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MiniscriptKind {
+    /// `wsh(<miniscript>)`.
+    Wsh,
+    /// `sh(wsh(<miniscript>))`.
+    ShWsh,
+}
+
+/// Where a key came from: the master it descends from and the path down
+/// to the xpub, as the descriptor writes them between brackets, with
+/// every hardened step written `h` however it was read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Origin {
+    text: Text,
+    fingerprint: Fingerprint,
+    path: DerivationPath,
+}
+
+/// One key of a policy: its origin where it has one, and its extended
+/// public key.
+///
+/// A key read from a bare xpub has no origin. Addresses derive without
+/// one; what an origin is needed for is matching a PSBT's key paths and
+/// writing the BIP-388 form, and neither is guessed at.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolicyKey {
+    origin: Option<Origin>,
+    xpub: Xpub,
+}
+
+impl PolicyKey {
+    /// The kind of network the extended key's version bytes name.
+    pub fn network_kind(&self) -> bitcoin::NetworkKind {
+        self.xpub.network
+    }
+
+    /// The master fingerprint the origin names, or `None` when the key
+    /// arrived with no origin. This is never the xpub's own identifier:
+    /// a key whose master is unknown says so.
+    pub fn fingerprint(&self) -> Option<Fingerprint> {
+        self.origin.as_ref().map(|o| o.fingerprint)
+    }
+
+    /// The BIP-32 fingerprint of the xpub itself — the first four bytes
+    /// of its own identifier — which every key has and which names the
+    /// key as a parent, not as a master.
+    pub fn identifier_fingerprint(&self) -> Fingerprint {
+        Fingerprint(self.xpub.fingerprint().to_bytes())
+    }
+
+    /// The derivation path from that master down to the xpub, when the
+    /// key has an origin.
+    pub fn path(&self) -> Option<&DerivationPath> {
+        self.origin.as_ref().map(|o| &o.path)
+    }
+
+    /// The account extended public key.
+    pub fn xpub(&self) -> &Xpub {
+        &self.xpub
+    }
+
+    /// Reads one key expression, `[fingerprint/path]xpub` or a bare
+    /// xpub, without a multipath suffix: the form a BSMS key record's
+    /// third line carries.
+    pub fn parse(text: &str) -> Result<Self, Error> {
+        parse_key(text)
+    }
+
+    /// Whether `other` is the same key: the same public key and chain
+    /// code, whatever origin, depth, parent or network the two extended
+    /// keys are written with.
+    pub fn same_key(&self, other: &PolicyKey) -> bool {
+        same_material(&self.xpub, &other.xpub)
+    }
+
+    /// The key as a descriptor key expression, without the multipath
+    /// suffix: `[fingerprint/path]xpub`, or the bare xpub when there is
+    /// no origin, which BIP-380 allows.
+    pub fn key_text(&self) -> Text {
+        match &self.origin {
+            Some(o) => text!("[{}]{}", &*o.text, self.xpub),
+            None => text!("{}", self.xpub),
+        }
+    }
+}
+
+/// Who can spend a `tr()` wallet with a script tree by its key path:
+/// the internal key alone, without the tree. Every such wallet states
+/// it (`docs/decisions/F132.md`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyPath {
+    /// The internal key is BIP 341's NUMS point `H`, or an extended key
+    /// whose public key is `H` (every child of it is `H` plus a tweak
+    /// anyone can work out): nobody can spend by the key path, and the
+    /// tree is the only way to spend.
+    Unspendable,
+    /// The internal key is the wallet's key at this index in
+    /// [`WalletPolicy::keys`], an extended key with its origin: that key
+    /// alone spends by the key path.
+    WalletKey(usize),
+    /// The internal key is some other key: a plain public key that is
+    /// not `H`. Whoever holds it spends every coin alone. The x-only
+    /// public key in hex. (An extended key with no origin is read only
+    /// over `H`; the variant names any key that could arrive here.)
+    Other(Text),
+}
+
+/// A registered wallet: a descriptor template and its keys.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WalletPolicy {
+    template: Template,
+    keys: Vec<PolicyKey>,
+    /// The parsed descriptor, for the two templates whose script,
+    /// addresses and spend paths come from `miniscript` rather than from
+    /// this module. `None` for every other template.
+    script: Option<Descriptor<DescriptorPublicKey>>,
+    /// The threshold of a `sortedmulti_a` leaf, which `script` holds as
+    /// the `multi_a` over the same keys because `miniscript` has no
+    /// `sortedmulti_a`. `None` for every other wallet, including the
+    /// `multi_a` a descriptor states in that order.
+    sorted_a: Option<usize>,
+    /// The silent payments record, for [`Template::Silent`] and no
+    /// other template, which is the text such a wallet is written as.
+    silent: Option<SilentWallet>,
+    /// Who can spend by the key path, for a `tr()` with a script tree
+    /// ([`Template::Tree`]) and no other template. Worked out once from
+    /// `script` when the policy is read; `script` never changes after,
+    /// so it stays in step with it.
+    key_path: Option<KeyPath>,
+    /// The BIP-380 checksum of [`to_descriptor`](Self::to_descriptor),
+    /// worked out once when the policy is made. A function of the fields
+    /// above, so the derived `PartialEq` is unchanged by it.
+    checksum: [u8; 8],
+    /// The [`WalletId`]: of [`to_descriptor`](Self::to_descriptor), and for
+    /// a silent payments wallet also of its record's origin; worked out
+    /// with the checksum.
+    id: WalletId,
+}
+
+impl WalletPolicy {
+    /// Costs a parse of the policy and its keys: reads the two-part form,
+    /// the descriptor template on the first line, then one
+    /// `[fingerprint/path]xpub` per line (or several, separated by
+    /// commas).
+    pub fn parse(c: &Compute, text: &str) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
+        Self::read_two_part(text)
+    }
+
+    /// [`parse`](Self::parse) uncounted, for the readers here that count
+    /// once themselves.
+    fn read_two_part(text: &str) -> Result<Self, Error> {
+        let mut lines = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'));
+        let template = lines.next().ok_or(Error::Template)?;
+        let mut keys = Vec::new();
+        for line in lines {
+            for key in line.split(',') {
+                let key = key.trim().trim_matches('"').trim();
+                if !key.is_empty() {
+                    keys.push(key);
+                }
+            }
+        }
+        Self::read_parts(template, &keys)
+    }
+
+    /// Costs a parse of the template and its keys: reads a template and
+    /// its key vector as separate pieces.
+    pub fn from_parts(c: &Compute, template: &str, keys: &[&str]) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
+        Self::read_parts(template, keys)
+    }
+
+    /// [`from_parts`](Self::from_parts) uncounted.
+    fn read_parts(template: &str, keys: &[&str]) -> Result<Self, Error> {
+        let (structure, placeholders) = match parse_template(template) {
+            Ok(parsed) => parsed,
+            // A template none of the named shapes matches is a
+            // miniscript, which is read from the descriptor the keys
+            // make of it.
+            Err(Error::Template) => return Self::read_descriptor(&fill(template, keys, false)?),
+            Err(error) => return Err(error),
+        };
+        if placeholders != keys.len() {
+            return Err(Error::Placeholder);
+        }
+        let keys: Vec<PolicyKey> = keys
+            .iter()
+            .map(|key| parse_key(key))
+            .collect::<Result<_, _>>()?;
+        check(&structure, &keys)?;
+        Ok(WalletPolicy {
+            template: structure,
+            keys,
+            script: None,
+            sorted_a: None,
+            silent: None,
+            key_path: None,
+            checksum: [0; 8],
+            id: WalletId([0; 32]),
+        }
+        .sealed())
+    }
+
+    /// Costs a parse of the descriptor and its keys: reads a plain
+    /// multipath descriptor as a policy, so that a descriptor and the
+    /// policy made from it show the same review. A `#checksum`, if
+    /// present, must hold.
+    pub fn from_descriptor(c: &Compute, text: &str) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
+        Self::read_descriptor(text)
+    }
+
+    /// [`from_descriptor`](Self::from_descriptor) uncounted, for the
+    /// readers in this crate that count once themselves.
+    pub(crate) fn read_descriptor(text: &str) -> Result<Self, Error> {
+        let body = match text.trim().split_once('#') {
+            Some((body, _)) => {
+                if !crate::descriptor::verify_checksum(text.trim()) {
+                    return Err(Error::Checksum);
+                }
+                body
+            }
+            None => text.trim(),
+        };
+        let mut keys = Vec::new();
+        let template = match parse_structure(body, &mut |expr| {
+            keys.push(parse_key(expr)?);
+            Ok(())
+        }) {
+            Ok(template) => template,
+            Err(Error::Template) => return parse_miniscript(body),
+            Err(error) => return Err(error),
+        };
+        check(&template, &keys)?;
+        Ok(WalletPolicy {
+            template,
+            keys,
+            script: None,
+            sorted_a: None,
+            silent: None,
+            key_path: None,
+            checksum: [0; 8],
+            id: WalletId([0; 32]),
+        }
+        .sealed())
+    }
+
+    /// Costs a parse of the text and its keys: reads any of the three
+    /// forms, a silent payments record, the two-part policy, or a plain
+    /// descriptor.
+    pub fn parse_any(c: &Compute, text: &str) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
+        if SilentWallet::looks_like_record(text) {
+            return SilentWallet::parse(text)
+                .map(Self::of_silent)
+                .ok_or(Error::Template);
+        }
+        if text.contains('@') {
+            Self::read_two_part(text)
+        } else {
+            Self::read_descriptor(text)
+        }
+    }
+
+    /// The single-key wallet of one extended public key at `script`,
+    /// with no origin: what a bare `xpub` (or its SLIP-132 spelling)
+    /// arrives as. Its addresses derive; its BIP-388 form does not
+    /// exist, and nothing invents one.
+    pub fn from_xpub(xpub: Xpub, script: ScriptType) -> Result<Self, Error> {
+        let keys = alloc::vec![PolicyKey { origin: None, xpub }];
+        let template = Template::Single { script };
+        check(&template, &keys)?;
+        Ok(WalletPolicy {
+            template,
+            keys,
+            script: None,
+            sorted_a: None,
+            silent: None,
+            key_path: None,
+            checksum: [0; 8],
+            id: WalletId([0; 32]),
+        }
+        .sealed())
+    }
+
+    /// The silent payments wallet a record states: no key expression at
+    /// all, because the two public keys the address carries are not
+    /// extended keys and nothing derives from them at an index.
+    pub fn of_silent(silent: SilentWallet) -> Self {
+        WalletPolicy {
+            template: Template::Silent,
+            keys: Vec::new(),
+            script: None,
+            sorted_a: None,
+            silent: Some(silent),
+            key_path: None,
+            checksum: [0; 8],
+            id: WalletId([0; 32]),
+        }
+        .sealed()
+    }
+
+    /// That record, for a silent payments wallet and for nothing else.
+    pub fn silent(&self) -> Option<&SilentWallet> {
+        self.silent.as_ref()
+    }
+
+    /// What the template pays to.
+    pub fn template(&self) -> Template {
+        self.template
+    }
+
+    /// The keys, in placeholder order.
+    pub fn keys(&self) -> &[PolicyKey] {
+        &self.keys
+    }
+
+    /// The internal key of a `tr()` wallet whose internal key is a plain
+    /// public key rather than one of the wallet's own extended keys:
+    /// the NUMS point of a script-only wallet, or another key a
+    /// descriptor states. `None` for every other wallet, including a
+    /// `tr()` over an extended key, whose key path is
+    /// [`keys`](Self::keys)`[0]`.
+    pub fn internal_key(&self) -> Option<bitcoin::secp256k1::XOnlyPublicKey> {
+        let Some(Descriptor::Tr(tr)) = &self.script else {
+            return None;
+        };
+        match tr.internal_key() {
+            DescriptorPublicKey::Single(_) => Some(
+                tr.internal_key()
+                    .clone()
+                    .at_derivation_index(0)
+                    .ok()?
+                    .to_x_only_pubkey(),
+            ),
+            _ => None,
+        }
+    }
+
+    /// Who can spend by the key path, for a `tr()` with a script tree;
+    /// `None` for every other wallet. A lookup: worked out when the
+    /// policy was read.
+    pub fn key_path(&self) -> Option<&KeyPath> {
+        self.key_path.as_ref()
+    }
+
+    /// Whether the key path cannot be spent: the internal key is BIP
+    /// 341's NUMS point (or an extended key over it), so the tree is the
+    /// only way to spend.
+    ///
+    /// `false` for every wallet whose key path someone holds, and for a
+    /// wallet whose internal key is some other key nobody claims — a
+    /// device cannot tell that one from a key path it simply does not
+    /// have.
+    pub fn key_path_unspendable(&self) -> bool {
+        self.key_path == Some(KeyPath::Unspendable)
+    }
+
+    /// `(signatures required, keys)` for a BIP 387 tapscript multisig:
+    /// a `tr()` whose key path nobody can spend and whose tree is one
+    /// `multi_a` or `sortedmulti_a` leaf over every key of the wallet.
+    ///
+    /// `None` when someone can spend by the key path: "2 of 3" would
+    /// leave out the one key that spends alone, so such a wallet is a
+    /// tree whose key path is its first way to spend.
+    pub fn tapscript_quorum(&self) -> Option<(usize, usize)> {
+        if !self.key_path_unspendable() {
+            return None;
+        }
+        self.leaf_quorum()
+    }
+
+    /// `(signatures required, keys)` of a `tr()` tree's script path alone,
+    /// when the tree is one `multi_a` or `sortedmulti_a` leaf over every
+    /// key of the wallet, whoever holds the key path. What the script
+    /// asks for; [`tapscript_quorum`](Self::tapscript_quorum) is what the
+    /// wallet as a whole asks for, and is `None` when someone can spend
+    /// by the key path.
+    pub fn leaf_quorum(&self) -> Option<(usize, usize)> {
+        let Some(Descriptor::Tr(tr)) = &self.script else {
+            return None;
+        };
+        let text = text!("{tr}");
+        let mut leaves = tr.iter_scripts();
+        let (_, leaf) = leaves.next()?;
+        if leaves.next().is_some() || !text.contains("multi_a(") {
+            return None;
+        }
+        // A sorted leaf is held as its `multi_a` twin over the same keys,
+        // so the leaf is counted the same way for both.
+        let threshold = match self.sorted_a {
+            Some(threshold) => threshold,
+            None => multi_a_threshold(&text)?,
+        };
+        let keys = leaf.iter_pk().count();
+        (keys == self.keys.len()).then_some((threshold, keys))
+    }
+
+    /// Whether the tapscript multisig's keys are sorted in the script
+    /// (`sortedmulti_a`) rather than kept in the order the descriptor
+    /// writes them (`multi_a`).
+    pub fn tapscript_sorted(&self) -> bool {
+        self.sorted_a.is_some()
+    }
+
+    /// `(signatures required, keys)` for a multisig policy.
+    ///
+    /// A MuSig2 wallet has none: the output carries one key and one
+    /// signature, so "2 of 2" would state a script fact that is not
+    /// there. What it has instead is the number of keys, which
+    /// [`keys`](Self::keys) gives.
+    pub fn quorum(&self) -> Option<(usize, usize)> {
+        match self.template {
+            Template::Multi { threshold, .. } => Some((threshold, self.keys.len())),
+            Template::Single { .. }
+            | Template::MuSig
+            | Template::Silent
+            | Template::Miniscript { .. }
+            | Template::Tree => None,
+        }
+    }
+
+    /// The script type the template's outermost function names, in the
+    /// one vocabulary the screens use.
+    pub fn script_type(&self) -> ScriptType {
+        match self.template {
+            Template::Single { script } => script,
+            Template::MuSig | Template::Silent => ScriptType::Taproot,
+            Template::Multi { wrapper, .. } => match wrapper {
+                Wrapper::Sh => ScriptType::Legacy,
+                Wrapper::Wsh => ScriptType::NativeSegwit,
+                Wrapper::ShWsh => ScriptType::NestedSegwit,
+            },
+            Template::Miniscript { kind } => match kind {
+                MiniscriptKind::Wsh => ScriptType::NativeSegwit,
+                MiniscriptKind::ShWsh => ScriptType::NestedSegwit,
+            },
+            Template::Tree => ScriptType::Taproot,
+        }
+    }
+
+    /// The descriptor template, with `@i` in place of every key.
+    pub fn template_text(&self) -> Text {
+        if self.script.is_some() {
+            // The descriptor is what `miniscript` wrote, so the template
+            // is that text with each key expression — which is unique
+            // within it — put back as its placeholder.
+            let mut text = self.to_descriptor();
+            for (i, key) in self.keys.iter().enumerate().rev() {
+                let expr = text!("{}{DESCRIPTOR_SUFFIX}", &*key.key_text());
+                text = replaced(&text, &expr, &text!("@{i}{TEMPLATE_SUFFIX}"), usize::MAX);
+            }
+            return text;
+        }
+        let keys: Vec<Text> = (0..self.keys.len()).map(|i| text!("@{i}")).collect();
+        self.render(&keys, TEMPLATE_SUFFIX)
+    }
+
+    /// The policy in the two-part form [`parse`](Self::parse) reads: the
+    /// template, then one key per line.
+    ///
+    /// BIP-388 requires an origin on every key, so a single-key wallet
+    /// read from a bare extended public key has no two-part form; what
+    /// comes back for it is [`to_descriptor`](Self::to_descriptor),
+    /// which is a valid descriptor and which
+    /// [`parse_any`](Self::parse_any) reads back as the same wallet. A
+    /// refusal would leave the caller with nothing to write down, and
+    /// inventing an origin would state a fact the device does not have.
+    pub fn to_text(&self) -> Text {
+        if let Some(silent) = &self.silent {
+            return Text::of(&silent.to_text());
+        }
+        if self.keys.iter().any(|k| k.origin.is_none()) {
+            return self.to_descriptor();
+        }
+        let mut out = self.template_text();
+        for key in &self.keys {
+            out.push('\n');
+            out.push_str(&key.key_text());
+        }
+        out
+    }
+
+    /// The multipath descriptor the policy stands for, without a
+    /// checksum.
+    pub fn to_descriptor(&self) -> Text {
+        // A silent payments wallet has no descriptor anyone can be
+        // handed: BIP-392's `sp(spscan1q…)` carries the scan private
+        // key, so it is an export and not an identity. What identifies
+        // the wallet is its address, which is in the descriptor
+        // character set and is what its checksum is taken over.
+        if let Some(silent) = &self.silent {
+            return Text::of(&silent.address());
+        }
+        if let Some(script) = &self.script {
+            let text = text!("{script}");
+            // `miniscript` writes the checksum; this crate's callers ask
+            // for it separately. It writes a hardened step `'`, which in
+            // a descriptor is only ever that marker: kept and written `h`.
+            let body = text.split('#').next().unwrap_or(&text);
+            let text = replaced(&Text::of(body), "'", "h", usize::MAX);
+            // A sorted leaf is held as its `multi_a` twin and written
+            // back as what it is.
+            if self.sorted_a.is_some() {
+                return replaced(&text, "multi_a(", "sortedmulti_a(", 1); // not wording: a descriptor's function name
+            }
+            return text;
+        }
+        let keys: Vec<Text> = self.keys.iter().map(PolicyKey::key_text).collect();
+        self.render(&keys, DESCRIPTOR_SUFFIX)
+    }
+
+    /// The template written out with `keys` in place of its keys and
+    /// `suffix` as the multipath derivation. A MuSig2 wallet derives
+    /// from the aggregate, so its suffix follows the `musig()`; every
+    /// other template derives per key.
+    fn render(&self, keys: &[Text], suffix: &str) -> Text {
+        match self.template {
+            Template::MuSig => text!("tr(musig({}){suffix})", &*Text::joined(keys, ",")),
+            template => {
+                let args: Vec<Text> = keys.iter().map(|k| text!("{}{suffix}", &**k)).collect();
+                wrap(template, &Text::joined(&args, ","))
+            }
+        }
+    }
+
+    /// The same descriptor with BIP-388's `/**` in place of the two
+    /// chains: the form a BSMS descriptor record's second line carries.
+    /// A wallet whose script comes from `miniscript` has no such form
+    /// here, and gets the plain descriptor.
+    pub fn to_descriptor_template(&self) -> Text {
+        if self.silent.is_some() {
+            return self.to_descriptor();
+        }
+        if self.script.is_some() {
+            return self.to_descriptor();
+        }
+        let keys: Vec<Text> = self.keys.iter().map(PolicyKey::key_text).collect();
+        self.render(&keys, TEMPLATE_SUFFIX)
+    }
+
+    /// That descriptor with its BIP-380 checksum, the form a person
+    /// compares against another wallet's.
+    pub fn to_descriptor_checksummed(&self) -> Text {
+        let mut desc = self.to_descriptor();
+        desc.push('#');
+        desc.push_str(self.checksum());
+        desc
+    }
+
+    /// The eight-character checksum of that descriptor; a lookup, worked
+    /// out when the policy was made.
+    pub fn checksum(&self) -> &str {
+        core::str::from_utf8(&self.checksum).expect("the checksum alphabet is ASCII")
+    }
+
+    /// Which wallet this is: the id of the whole descriptor (a silent
+    /// wallet: its address and its record's origin), never the checksum;
+    /// a lookup, worked out when the policy was made.
+    pub fn id(&self) -> WalletId {
+        self.id
+    }
+
+    /// The policy with its checksum (over the descriptor, the address for
+    /// a silent wallet) and id (a silent wallet's over the address and
+    /// the record's origin) worked out (writes the descriptor out and
+    /// hashes it): every constructor ends here.
+    fn sealed(mut self) -> Self {
+        let desc = self.to_descriptor();
+        self.checksum =
+            descriptor_checksum(&desc).expect("descriptor uses only charset characters");
+        self.id = match &self.silent {
+            Some(w) => WalletId::of_silent(&desc, &w.origin()),
+            None => WalletId::of_descriptor(&desc),
+        };
+        self
+    }
+
+    /// Costs a derivation of each key: the script the policy pays to at
+    /// `change`/`index`.
+    pub fn script_at(&self, c: &Compute, change: bool, index: u32) -> Result<ScriptBuf, Error> {
+        c.count(Work::Address);
+        let secp = Secp256k1::verification_only();
+        self.script_with(&secp, change, index)
+    }
+
+    /// Costs a derivation of each key, uncounted here (the caller counts
+    /// it: `Wallet::derives`). Each of the policy's keys with a
+    /// master, derived at `change`/`index`.
+    pub fn keys_at(&self, change: bool, index: u32) -> Vec<(Fingerprint, PublicKey)> {
+        let secp = Secp256k1::verification_only();
+        self.keys
+            .iter()
+            .filter_map(|k| Some((k.fingerprint()?, derive(&secp, k, change, index).ok()?)))
+            .collect()
+    }
+
+    /// Costs a derivation of each key: the same script, with a caller's
+    /// secp context.
+    pub fn script_at_with<V: Verification>(
+        &self,
+        c: &Compute,
+        secp: &Secp256k1<V>,
+        change: bool,
+        index: u32,
+    ) -> Result<ScriptBuf, Error> {
+        c.count(Work::Address);
+        self.script_with(secp, change, index)
+    }
+
+    /// [`script_at_with`](Self::script_at_with) uncounted.
+    fn script_with<C: Verification>(
+        &self,
+        secp: &Secp256k1<C>,
+        change: bool,
+        index: u32,
+    ) -> Result<ScriptBuf, Error> {
+        if let Some(script) = &self.script {
+            let chains = script
+                .clone()
+                .into_single_descriptors()
+                .map_err(|_| Error::Derivation)?;
+            let chain = chains
+                .get(usize::from(change))
+                .ok_or(Error::Derivation)?
+                .clone();
+            let derived = chain
+                .at_derivation_index(index)
+                .map_err(|_| Error::IndexOutOfRange)?
+                .derived_descriptor(secp)
+                .map_err(|_| Error::Key)?;
+            let Some(threshold) = self.sorted_a else {
+                return Ok(derived.script_pubkey());
+            };
+            let (internal, keys) =
+                crate::tapmulti::derived_keys(&derived).ok_or(Error::Template)?;
+            let leaf = crate::tapmulti::sorted_multi_a_script(threshold, &keys);
+            return crate::tapmulti::output_script(secp, internal, &leaf).ok_or(Error::Template);
+        }
+        if self.template == Template::MuSig {
+            let xpubs: Vec<Xpub> = self.keys.iter().map(|k| k.xpub).collect();
+            let expr = crate::musig::MusigExpr::from_xpubs(&xpubs).map_err(musig_error)?;
+            return crate::musig::script_pubkey_at_with(secp, &expr, change, index)
+                .map_err(musig_error);
+        }
+        let mut keys = Vec::with_capacity(self.keys.len());
+        for key in &self.keys {
+            keys.push(derive(secp, key, change, index)?);
+        }
+        Ok(match self.template {
+            Template::Multi {
+                threshold,
+                sorted,
+                wrapper,
+            } => {
+                if sorted {
+                    keys.sort_by_key(|k| k.to_bytes());
+                }
+                let script = multisig_script(threshold, &keys);
+                match wrapper {
+                    Wrapper::Sh => script.to_p2sh(),
+                    Wrapper::Wsh => script.to_p2wsh(),
+                    Wrapper::ShWsh => script.to_p2wsh().to_p2sh(),
+                }
+            }
+            // Both returned above: the MuSig2 aggregate key rather than
+            // the per-key list is what pays, and a miniscript's script
+            // is `miniscript`'s to build.
+            Template::MuSig | Template::Silent | Template::Miniscript { .. } | Template::Tree => {
+                return Err(Error::Template);
+            }
+            Template::Single { script } => single_script(secp, script, keys[0])?,
+        })
+    }
+
+    /// Costs a derivation of each key: the address that script is, on
+    /// `network`.
+    pub fn address_at(
+        &self,
+        c: &Compute,
+        network: Network,
+        change: bool,
+        index: u32,
+    ) -> Result<Address, Error> {
+        c.count(Work::Address);
+        let secp = Secp256k1::verification_only();
+        let script = self.script_with(&secp, change, index)?;
+        Address::from_script(&script, bitcoin::Network::from(network)).map_err(|_| Error::Template)
+    }
+
+    /// Costs an address derivation per address tried, up to
+    /// `2 * (max_index + 1)`: looks for `target` among the first
+    /// `max_index + 1` receive and change addresses on `network`, nearest
+    /// index first. Returns `(change, index)`.
+    pub fn find_address(
+        &self,
+        c: &Compute,
+        network: Network,
+        target: &Address,
+        max_index: u32,
+    ) -> Option<(bool, u32)> {
+        (0..=max_index)
+            .flat_map(|index| [(false, index), (true, index)])
+            .find(|&(change, index)| {
+                self.address_at(c, network, change, index)
+                    .is_ok_and(|a| &a == target)
+            })
+    }
+
+    /// The key of this policy whose origin names `fingerprint`, if any.
+    /// A key with no origin names no master and so matches nothing.
+    pub fn key(&self, fingerprint: Fingerprint) -> Option<&PolicyKey> {
+        self.keys
+            .iter()
+            .find(|k| k.fingerprint() == Some(fingerprint))
+    }
+
+    /// `(change, index)` when `path` is `key/change/index` for one of
+    /// the policy's keys, with both leaf steps unhardened and the chain
+    /// 0 or 1.
+    ///
+    /// A MuSig2 wallet has no such path: the chain and the index are
+    /// steps of the aggregate key, and a participant's origin names the
+    /// participant's own account key and stops there. So there is no
+    /// leaf of a participant to read an address off, and this is `None`
+    /// for every MuSig2 policy. What names the address in a transaction
+    /// is BIP-373's participant-public-keys field, which the PSBT reader
+    /// does not have yet.
+    pub fn leaf_of(&self, fingerprint: Fingerprint, path: &DerivationPath) -> Option<(bool, u32)> {
+        if self.template == Template::MuSig {
+            return None;
+        }
+        let steps: Vec<ChildNumber> = path.into_iter().copied().collect();
+        // Every key of that master is tried: a wallet may hold two accounts
+        // of one master (a recovery branch under another account).
+        self.keys
+            .iter()
+            .filter(|k| k.fingerprint() == Some(fingerprint))
+            .find_map(|key| {
+                let prefix: Vec<ChildNumber> = key.path()?.into_iter().copied().collect();
+                if steps.len() != prefix.len() + 2 || steps[..prefix.len()] != prefix[..] {
+                    return None;
+                }
+                match (steps[prefix.len()], steps[prefix.len() + 1]) {
+                    (ChildNumber::Normal { index: c @ (0 | 1) }, ChildNumber::Normal { index }) => {
+                        Some((c == 1, index))
+                    }
+                    _ => None,
+                }
+            })
+    }
+
+    /// Costs a key derivation per key, each a public derivation per step
+    /// of `path` past the key's origin: a path read from a PSBT has at most
+    /// [`crate::keys::MAX_PATH_STEPS`] steps (the PSBT is refused when read,
+    /// `faraday_psbt`'s `refuse_long_paths`). `None` when no key of this
+    /// policy names master `fingerprint`; else, for each such key whose origin
+    /// path is a prefix of `path`, what its xpub derives to over the rest
+    /// of the path (nothing for a hardened step there).
+    pub fn derive_named(
+        &self,
+        c: &Compute,
+        fingerprint: Fingerprint,
+        path: &DerivationPath,
+    ) -> Option<Vec<PublicKey>> {
+        let mut named = false;
+        let mut out = Vec::new();
+        let steps: Vec<ChildNumber> = path.into_iter().copied().collect();
+        for key in self
+            .keys
+            .iter()
+            .filter(|k| k.fingerprint() == Some(fingerprint))
+        {
+            named = true;
+            let Some(origin) = key.path() else { continue };
+            let prefix: Vec<ChildNumber> = origin.into_iter().copied().collect();
+            if steps.len() < prefix.len() || steps[..prefix.len()] != prefix[..] {
+                continue;
+            }
+            c.count(Work::KeyDerive);
+            let secp = Secp256k1::verification_only();
+            if let Ok(x) = key
+                .xpub
+                .derive_pub(&secp, &DerivationPath::from(steps[prefix.len()..].to_vec()))
+            {
+                out.push(PublicKey::new(x.public_key));
+            }
+        }
+        named.then_some(out)
+    }
+
+    /// The ways this wallet's coins can be spent: one entry per
+    /// combination of keys and waits the script allows, each key named
+    /// by its index in [`keys`](Self::keys).
+    ///
+    /// A taproot tree lists the key path first and then one entry per
+    /// leaf, because that is the order `tr()` writes them in — unless
+    /// the internal key is the unspendable one a wallet whose every path
+    /// is a leaf carries, which is no way to spend and is not listed.
+    ///
+    /// Empty for every template whose spend is one fixed set of
+    /// signatures — the single-key wallets, `multi`, `sortedmulti` and
+    /// MuSig2 — where the quorum and the key list already say it, and
+    /// for a script with more ways to spend it than a person would read.
+    pub fn spend_paths(&self) -> Vec<SpendPath> {
+        let Some(script) = &self.script else {
+            return Vec::new();
+        };
+        // A key path whose holder is not one of the wallet's keys is no
+        // path of theirs: the tree's paths are listed, and the key path
+        // is stated on its own ([`KeyPath`]).
+        let semantic = match (&self.key_path, script) {
+            (Some(KeyPath::Unspendable | KeyPath::Other(_)), Descriptor::Tr(tr)) => {
+                use miniscript::policy::Liftable;
+                tr.tap_tree().as_ref().and_then(|t| t.lift().ok())
+            }
+            _ => lift(script),
+        };
+        let Some(semantic) = semantic else {
+            return Vec::new();
+        };
+        let keys = wallet_keys(script);
+        crate::spend::spend_paths(&semantic, &keys).unwrap_or_default()
+    }
+}
+
+impl fmt::Display for WalletPolicy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.to_text())
+    }
+}
+
+/// What one of the four single-key templates pays to at a derived key.
+fn single_script<C: Verification>(
+    secp: &Secp256k1<C>,
+    script: ScriptType,
+    key: PublicKey,
+) -> Result<ScriptBuf, Error> {
+    Ok(match script {
+        ScriptType::Legacy => ScriptBuf::new_p2pkh(&key.pubkey_hash()),
+        ScriptType::NestedSegwit => {
+            ScriptBuf::new_p2wpkh(&key.wpubkey_hash().map_err(|_| Error::Key)?).to_p2sh()
+        }
+        ScriptType::NativeSegwit => {
+            ScriptBuf::new_p2wpkh(&key.wpubkey_hash().map_err(|_| Error::Key)?)
+        }
+        ScriptType::Taproot => ScriptBuf::new_p2tr(secp, key.inner.x_only_public_key().0, None),
+    })
+}
+
+fn derive<C: Verification>(
+    secp: &Secp256k1<C>,
+    key: &PolicyKey,
+    change: bool,
+    index: u32,
+) -> Result<PublicKey, Error> {
+    let chain = ChildNumber::from_normal_idx(u32::from(change)).expect("0 or 1");
+    let index = ChildNumber::from_normal_idx(index).map_err(|_| Error::IndexOutOfRange)?;
+    let derived = key
+        .xpub
+        .derive_pub(secp, &[chain, index])
+        .expect("normal child derivation yields a valid key");
+    Ok(PublicKey::new(derived.public_key))
+}
+
+/// What a failure inside the `musig()` machinery is in this module's
+/// vocabulary.
+fn musig_error(error: crate::musig::Error) -> Error {
+    match error {
+        crate::musig::Error::IndexOutOfRange => Error::IndexOutOfRange,
+        crate::musig::Error::Derivation => Error::Derivation,
+        crate::musig::Error::Key | crate::musig::Error::NoKeys => Error::Key,
+        _ => Error::Template,
+    }
+}
+
+fn multisig_script(threshold: usize, keys: &[PublicKey]) -> ScriptBuf {
+    let mut b = Builder::new().push_int(threshold as i64);
+    for key in keys {
+        b = b.push_key(key);
+    }
+    b.push_int(keys.len() as i64)
+        .push_opcode(OP_CHECKMULTISIG)
+        .into_script()
+}
+
+/// Writes `args` (the key expressions or placeholders, comma-separated)
+/// inside the template's functions. A MuSig2 template is written by
+/// [`WalletPolicy::render`], which puts the derivation outside the
+/// `musig()`.
+fn wrap(template: Template, args: &str) -> Text {
+    match template {
+        Template::Miniscript { .. } | Template::Tree => {
+            unreachable!("a miniscript wallet is written by `miniscript`")
+        }
+        Template::Silent => unreachable!("a silent payments wallet has no key expression"),
+        Template::MuSig => text!("tr(musig({args}))"),
+        Template::Multi {
+            threshold,
+            sorted,
+            wrapper,
+        } => {
+            let name = if sorted { "sortedmulti" } else { "multi" };
+            let inner = text!("{name}({threshold},{args})");
+            match wrapper {
+                Wrapper::Sh => text!("sh({})", &*inner),
+                Wrapper::Wsh => text!("wsh({})", &*inner),
+                Wrapper::ShWsh => text!("sh(wsh({}))", &*inner),
+            }
+        }
+        Template::Single { script } => match script {
+            ScriptType::Legacy => text!("pkh({args})"),
+            ScriptType::NestedSegwit => text!("sh(wpkh({args}))"),
+            ScriptType::NativeSegwit => text!("wpkh({args})"),
+            ScriptType::Taproot => text!("tr({args})"),
+        },
+    }
+}
+
+/// The keys a descriptor names, in the order its text writes them.
+///
+/// `for_each_key` visits a `tr()`'s leaves before its internal key, so
+/// the order it gives is not the order a person reads; the position of
+/// each key expression in the descriptor is.
+fn descriptor_keys(script: &Descriptor<DescriptorPublicKey>) -> Vec<DescriptorPublicKey> {
+    let text = text!("{script}");
+    let mut keys: Vec<DescriptorPublicKey> = Vec::new();
+    script.for_each_key(|key| {
+        if !keys.contains(key) {
+            keys.push(key.clone());
+        }
+        true
+    });
+    keys.sort_by_key(|key| text.find(&*text!("{key}")).unwrap_or(usize::MAX));
+    keys
+}
+
+/// Reads `wsh(<miniscript>)`, `sh(wsh(<miniscript>))` or
+/// `tr(<key>,<tree>)` as a wallet, with `miniscript` doing the parsing
+/// and the type check.
+fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
+    // `sortedmulti_a` is BIP 387's sorted tapscript multisig, which
+    // `miniscript` does not read. Its keys and its tree are those of the
+    // `multi_a` over the same keys; what differs is the order they are
+    // put in the script, which [`WalletPolicy::script_at_with`] applies
+    // at every index.
+    let sorted_a = crate::tapmulti::unsorted_text(text);
+    let (text, sorted) = match &sorted_a {
+        Some(rewritten) => (rewritten.as_str(), true),
+        None => (text, false),
+    };
+    let script = read_script_descriptor::<DescriptorPublicKey>(text)?;
+    let template = match &script {
+        Descriptor::Wsh(_) => Template::Miniscript {
+            kind: MiniscriptKind::Wsh,
+        },
+        Descriptor::Sh(sh) => match sh.as_inner() {
+            miniscript::descriptor::ShInner::Wsh(_) => Template::Miniscript {
+                kind: MiniscriptKind::ShWsh,
+            },
+            _ => return Err(Error::Template),
+        },
+        // A `tr()` with no tree is the single-key template, which
+        // `parse_structure` already reads.
+        Descriptor::Tr(tr) if tr.tap_tree().is_some() => Template::Tree,
+        _ => return Err(Error::Template),
+    };
+    // A `tr()`'s internal key may be a plain public key — the NUMS point
+    // a script-only wallet writes there. It is not one of the wallet's
+    // keys: nobody holds it and nothing derives from it, so it stays in
+    // the template's text where a person can read it, and the keys are
+    // the extended keys of the tree.
+    let keys: Vec<PolicyKey> = wallet_keys(&script)
+        .iter()
+        .map(wallet_key)
+        .collect::<Result<_, _>>()?;
+    let sorted_a = match sorted {
+        true => Some(multi_a_threshold(text).ok_or(Error::Threshold)?),
+        false => None,
+    };
+    if let Some(threshold) = sorted_a
+        && (threshold == 0 || threshold > keys.len())
+    {
+        return Err(Error::Threshold);
+    }
+    // A key with no origin is taken only as a `tr()`'s internal key over
+    // the NUMS point, which descends from no master; any other key, a
+    // leaf's included, carries the origin BIP-388 writes.
+    let internal_nums = matches!(&script, Descriptor::Tr(tr)
+        if !matches!(tr.internal_key(), DescriptorPublicKey::Single(_))
+            && keys.first().is_some_and(|k| crate::tapmulti::is_nums(&k.xpub.public_key.x_only_public_key().0)));
+    if keys
+        .iter()
+        .enumerate()
+        .any(|(i, k)| k.origin.is_none() && !(i == 0 && internal_nums))
+    {
+        return Err(Error::Key);
+    }
+    check(&template, &keys)?;
+    let key_path = match &script {
+        Descriptor::Tr(tr) if matches!(template, Template::Tree) => {
+            Some(key_path_of(tr.internal_key(), &keys))
+        }
+        _ => None,
+    };
+    Ok(WalletPolicy {
+        template,
+        keys,
+        script: Some(script),
+        sorted_a,
+        silent: None,
+        key_path,
+        checksum: [0; 8],
+        id: WalletId([0; 32]),
+    }
+    .sealed())
+}
+
+/// Costs a parse of the descriptor: `text` read the way a miniscript
+/// wallet's descriptor is read ([`read_script_descriptor`]), with keys
+/// of any kind `miniscript` reads. The crypto cross-check reads Bitcoin
+/// Core's miniscript vectors, whose keys are raw, through this.
+pub fn parse_script_descriptor<Pk: miniscript::FromStrKey>(
+    c: &Compute,
+    text: &str,
+) -> Result<Descriptor<Pk>, Error> {
+    c.count(Work::DescriptorParse);
+    read_script_descriptor(text)
+}
+
+/// `text` read by `miniscript` as a descriptor whose miniscript is
+/// sane, the rule the PSBT reader holds a witness script to
+/// (`ExtParams::sane`): every spend needs a signature, none is
+/// malleable, no timelocks of two kinds are mixed, no key is repeated
+/// and every satisfaction fits the consensus and standardness limits.
+/// `miniscript`'s descriptor parser checks the types only; Bitcoin Core
+/// refuses a descriptor that is not sane, and so does this. Uncounted,
+/// for the readers here that count once themselves.
+fn read_script_descriptor<Pk: miniscript::FromStrKey>(text: &str) -> Result<Descriptor<Pk>, Error> {
+    if !crate::descriptor::tokens_fit(text) {
+        return Err(Error::Template);
+    }
+    let script = Descriptor::<Pk>::from_str(text).map_err(|_| Error::Template)?;
+    script.sanity_check().map_err(|_| Error::Template)?;
+    Ok(script)
+}
+
+/// The descriptor's keys that are the wallet's keys, in the order a
+/// person reads them: every key but a `tr()`'s internal key where that
+/// is a plain public key — the NUMS point a script-only wallet writes
+/// there, or another key a descriptor states. Nothing derives from a
+/// plain key, so it stays in the template's text where a person can read
+/// it, and its holder is what [`KeyPath`] states.
+fn wallet_keys(script: &Descriptor<DescriptorPublicKey>) -> Vec<DescriptorPublicKey> {
+    let internal = internal_key_text(script);
+    descriptor_keys(script)
+        .into_iter()
+        .filter(|key| {
+            !matches!(key, DescriptorPublicKey::Single(_))
+                || internal.as_deref() != Some(&*text!("{key}"))
+        })
+        .collect()
+}
+
+/// Who spends a `tr()` by its key path, from its internal key and the
+/// wallet's keys (`docs/decisions/F132.md`): `H` or an extended key over
+/// `H` nobody; an extended key with its origin, that key of the wallet;
+/// anything else, a key the wallet does not hold.
+fn key_path_of(internal: &DescriptorPublicKey, keys: &[PolicyKey]) -> KeyPath {
+    match internal {
+        DescriptorPublicKey::Single(single) => {
+            let key = match single.key {
+                miniscript::descriptor::SinglePubKey::FullKey(k) => k.inner.x_only_public_key().0,
+                miniscript::descriptor::SinglePubKey::XOnly(k) => k,
+            };
+            if crate::tapmulti::is_nums(&key) {
+                KeyPath::Unspendable
+            } else {
+                KeyPath::Other(text!("{key}"))
+            }
+        }
+        DescriptorPublicKey::XPub(x) => xkey_path(&x.xkey, keys),
+        DescriptorPublicKey::MultiXPub(x) => xkey_path(&x.xkey, keys),
+    }
+}
+
+/// [`key_path_of`] for an extended internal key.
+fn xkey_path(xkey: &Xpub, keys: &[PolicyKey]) -> KeyPath {
+    // Unhardened derivation adds a tweak anyone can work out to the
+    // parent's point, so every child of `H` is as unspendable as `H`.
+    if crate::tapmulti::is_nums(&xkey.public_key.x_only_public_key().0) {
+        return KeyPath::Unspendable;
+    }
+    match keys
+        .iter()
+        .position(|k| k.xpub == *xkey && k.origin.is_some())
+    {
+        Some(i) => KeyPath::WalletKey(i),
+        None => KeyPath::Other(text!("{xkey}")),
+    }
+}
+
+/// The internal key of a `tr()`, as the descriptor writes it.
+fn internal_key_text(script: &Descriptor<DescriptorPublicKey>) -> Option<Text> {
+    match script {
+        Descriptor::Tr(tr) => Some(text!("{}", tr.internal_key())),
+        _ => None,
+    }
+}
+
+/// The threshold of the one `multi_a` in a descriptor's text.
+fn multi_a_threshold(text: &str) -> Option<usize> {
+    let after = text.split_once("multi_a(")?.1;
+    after.split_once(',')?.0.parse().ok()
+}
+
+/// One descriptor key as a wallet's key.
+///
+/// A wallet needs both chains: its addresses are the receive chain and
+/// its change is verified on the change chain, so a key written with one
+/// path only is refused rather than half-read.
+fn wallet_key(key: &DescriptorPublicKey) -> Result<PolicyKey, Error> {
+    let multi: &DescriptorMultiXKey<Xpub> = match key {
+        DescriptorPublicKey::MultiXPub(multi) => multi,
+        DescriptorPublicKey::XPub(_) => return Err(Error::Derivation),
+        DescriptorPublicKey::Single(_) => return Err(Error::Key),
+    };
+    let paths = multi.derivation_paths.paths();
+    let chains: Vec<Vec<ChildNumber>> = paths
+        .iter()
+        .map(|p| p.into_iter().copied().collect())
+        .collect();
+    let expected = [
+        alloc::vec![ChildNumber::Normal { index: 0 }],
+        alloc::vec![ChildNumber::Normal { index: 1 }],
+    ];
+    if multi.wildcard != Wildcard::Unhardened || chains != expected {
+        return Err(Error::Derivation);
+    }
+    let origin = multi.origin.as_ref().map(|(fingerprint, path)| {
+        let mut text = Text::of(&faraday_crypto::hex::encode_string(fingerprint.as_bytes()));
+        for step in path {
+            text.push_str(&text!("/{step:#}"));
+        }
+        Origin {
+            text,
+            fingerprint: Fingerprint(fingerprint.to_bytes()),
+            path: path.clone(),
+        }
+    });
+    Ok(PolicyKey {
+        origin,
+        xpub: multi.xkey,
+    })
+}
+
+/// A BIP-388 template with its keys written in, so that `miniscript`
+/// reads the descriptor the two halves stand for.
+///
+/// The placeholders must be `@0`, `@1`, … first used in order, and each
+/// must carry the multipath suffix a wallet policy writes. A miniscript
+/// may name one key more than once — a recovery key that is also in a
+/// threshold is the usual reason — so a placeholder already seen may
+/// appear again. With `lenient`, a placeholder may also carry any BIP 389
+/// multipath suffix (`/<2;3>/*`), which the wallet's own read refuses.
+fn fill(template: &str, keys: &[&str], lenient: bool) -> Result<Text, Error> {
+    let template = template.trim();
+    let mut out = Text::with_room(template.len());
+    let mut rest = template;
+    let mut next = 0usize;
+    while let Some(at) = rest.find('@') {
+        out.push_str(&rest[..at]);
+        let tail = &rest[at + 1..];
+        let digits = tail
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(tail.len());
+        let index: usize = tail[..digits]
+            .parse()
+            .ok()
+            .filter(|_| digits == 1 || !tail.starts_with('0'))
+            .ok_or(Error::Placeholder)?;
+        if index > next {
+            return Err(Error::Placeholder);
+        }
+        let key = keys.get(index).ok_or(Error::Placeholder)?;
+        if index == next {
+            next += 1;
+        }
+        let after = &tail[digits..];
+        let (suffix, after) = if let Some(after) = after.strip_prefix(TEMPLATE_SUFFIX) {
+            (DESCRIPTOR_SUFFIX, after)
+        } else if let Some(after) = after.strip_prefix(DESCRIPTOR_SUFFIX) {
+            (DESCRIPTOR_SUFFIX, after)
+        } else if let Some(split) = lenient.then(|| multipath_suffix(after)).flatten() {
+            split
+        } else {
+            return Err(Error::Derivation);
+        };
+        out.push_str(key);
+        out.push_str(suffix);
+        rest = after;
+    }
+    if next != keys.len() {
+        return Err(Error::Placeholder);
+    }
+    out.push_str(rest);
+    Ok(out)
+}
+
+/// The `/<M;N>/*` a text starts with, and what follows it: the
+/// alternatives are numbers (hardened or not) separated by `;`.
+fn multipath_suffix(text: &str) -> Option<(&str, &str)> {
+    let inner = text.strip_prefix("/<")?;
+    let close = inner.find('>')?;
+    let (list, tail) = inner.split_at(close);
+    let tail = tail.strip_prefix(">/*")?;
+    let ok = list.split(';').count() >= 2
+        && list.split(';').all(|n| {
+            let n = n.strip_suffix(['h', '\'']).unwrap_or(n);
+            !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())
+        });
+    ok.then(|| (&text[..text.len() - tail.len()], tail))
+}
+
+/// `text` with up to `limit` occurrences of `from` written as `to`.
+fn replaced(text: &str, from: &str, to: &str, limit: usize) -> Text {
+    debug_assert!(!from.is_empty(), "an empty pattern matches forever");
+    let mut out = Text::with_room(text.len());
+    let mut rest = text;
+    let mut done = 0;
+    while done < limit
+        && let Some(at) = rest.find(from)
+    {
+        out.push_str(&rest[..at]);
+        out.push_str(to);
+        rest = &rest[at + from.len()..];
+        done += 1;
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Whether two extended keys hold the same key material.
+fn same_material(a: &Xpub, b: &Xpub) -> bool {
+    a.public_key == b.public_key && a.chain_code == b.chain_code
+}
+
+/// `(first, later)` for the keys of `texts`, each `[fingerprint/path]xpub`
+/// or a bare xpub, that are the same key as an earlier text's
+/// ([`PolicyKey::same_key`]). A text that is not a key counts as none.
+pub fn repeated_key_texts<S: AsRef<str>>(texts: &[S]) -> Vec<(usize, usize)> {
+    let keys: Vec<Option<PolicyKey>> = texts
+        .iter()
+        .map(|t| parse_key(t.as_ref().trim()).ok())
+        .collect();
+    (0..keys.len())
+        .filter_map(|later| {
+            let key = keys[later].as_ref()?;
+            (0..later)
+                .find(|&i| keys[i].as_ref().is_some_and(|k| k.same_key(key)))
+                .map(|first| (first, later))
+        })
+        .collect()
+}
+
+/// One key expression of a descriptor as written: its identity (origin
+/// and extended key, or a plain key's text), where it derives and how it
+/// ends.
+struct Placed {
+    id: Id,
+    /// For a two-part policy, the place in its list of keys the key was
+    /// written in; `None` for a key written in the template.
+    tag: Option<usize>,
+    key: PlainOrXpub,
+    paths: Vec<Vec<ChildNumber>>,
+    wildcard: Wildcard,
+}
+
+/// What makes two key expressions one in the numbering: an extended key
+/// with its origin, or a plain key's text.
+#[derive(PartialEq)]
+enum Id {
+    Xpub(Option<(bitcoin::bip32::Fingerprint, DerivationPath)>, Xpub),
+    Plain(Text),
+}
+
+fn id_of(key: &DescriptorPublicKey) -> Id {
+    match key {
+        DescriptorPublicKey::XPub(x) => Id::Xpub(x.origin.clone(), x.xkey),
+        DescriptorPublicKey::MultiXPub(x) => Id::Xpub(x.origin.clone(), x.xkey),
+        DescriptorPublicKey::Single(_) => Id::Plain(text!("{key}")),
+    }
+}
+
+/// The key material an expression starts from.
+#[derive(Clone)]
+enum PlainOrXpub {
+    Xpub(Xpub),
+    /// A plain key; `true` when only its x coordinate is known.
+    Plain(bitcoin::secp256k1::PublicKey, bool),
+}
+
+/// A key an expression reaches by deriving along an unhardened fixed
+/// prefix of its path, and what is left of its path from there.
+struct Node {
+    key: bitcoin::secp256k1::PublicKey,
+    x_only: bool,
+    chain_code: Option<bitcoin::bip32::ChainCode>,
+    rest: Vec<Vec<ChildNumber>>,
+    wildcard: Wildcard,
+}
+
+/// Whether two paths, each ending as its wildcard says, reach one key.
+fn paths_meet(a: &[ChildNumber], aw: Wildcard, b: &[ChildNumber], bw: Wildcard) -> bool {
+    let end = |w: Wildcard| usize::from(w != Wildcard::None);
+    if a.len() + end(aw) != b.len() + end(bw) {
+        return false;
+    }
+    // One step of a path: a number, or a wildcard (`Some(hardened)`).
+    let step = |p: &[ChildNumber], w: Wildcard, i: usize| match p.get(i) {
+        Some(n) => (Some(*n), false),
+        None => (None, w == Wildcard::Hardened),
+    };
+    (0..a.len() + end(aw)).all(|i| match (step(a, aw, i), step(b, bw, i)) {
+        ((Some(x), _), (Some(y), _)) => x == y,
+        ((Some(n), _), (None, hardened)) | ((None, hardened), (Some(n), _)) => {
+            n.is_hardened() == hardened
+        }
+        ((None, x), (None, y)) => x == y,
+    })
+}
+
+/// Whether two nodes are one key and some path is reached from both.
+fn nodes_meet(a: &Node, b: &Node) -> bool {
+    let same = if a.x_only || b.x_only {
+        a.key.x_only_public_key().0 == b.key.x_only_public_key().0
+    } else {
+        a.key == b.key
+    };
+    same && match (&a.chain_code, &b.chain_code) {
+        (Some(x), Some(y)) => x == y,
+        _ => true,
+    } && a.rest.iter().any(|p| {
+        b.rest
+            .iter()
+            .any(|q| paths_meet(p, a.wildcard, q, b.wildcard))
+    })
+}
+
+/// Costs one public derivation for each unhardened step each of its
+/// alternatives starts with: the nodes of an expression, its key derived
+/// along each such prefix of each alternative.
+fn nodes_of(
+    c: &Compute,
+    secp: &Secp256k1<bitcoin::secp256k1::VerifyOnly>,
+    e: &Placed,
+) -> Vec<Node> {
+    match &e.key {
+        PlainOrXpub::Plain(key, x_only) => alloc::vec![Node {
+            key: *key,
+            x_only: *x_only,
+            chain_code: None,
+            rest: e.paths.clone(),
+            wildcard: e.wildcard,
+        }],
+        PlainOrXpub::Xpub(x) => {
+            let mut nodes = Vec::new();
+            for path in &e.paths {
+                let fixed = path.iter().take_while(|n| !n.is_hardened()).count();
+                let mut at = *x;
+                for k in 0..=fixed {
+                    nodes.push(Node {
+                        key: at.public_key,
+                        x_only: false,
+                        chain_code: Some(at.chain_code),
+                        rest: alloc::vec![path[k..].to_vec()],
+                        wildcard: e.wildcard,
+                    });
+                    if k < fixed {
+                        c.count(Work::Address);
+                        match at.ckd_pub(secp, path[k]) {
+                            Ok(next) => at = next,
+                            Err(_) => break,
+                        }
+                    }
+                }
+            }
+            nodes
+        }
+    }
+}
+
+/// Costs a parse of the text and, for each key expression, one public
+/// derivation for every unhardened step each alternative of its path
+/// starts with: the
+/// keys of a descriptor, a two-part policy or a plain descriptor that are
+/// the same key as an earlier one, as `(first, later)` numbers (from 0,
+/// in the order the keys are read, plain and extended alike)
+/// of its distinct key expressions, whether or not the wallet loads. Two
+/// expressions are reported when some key is reached by both: they are
+/// compared step by step, a wildcard standing for any index of its kind
+/// and a multipath step for any of its alternatives, so `xpub/0/*` and
+/// `xpub/0/5` repeat, and an expression is also derived down its fixed
+/// steps, so a parent's `xpubP/0/*` and the child `xpubC/*` with C = P/0,
+/// or `xpubP/0/5` and the plain key at P/0/5, repeat too (each
+/// alternative of a multipath step is followed on its own). A plain key
+/// is not matched against an expression that ends in a wildcard: that
+/// would need a search over every index. The same
+/// public key and chain code count whatever origin and depth they are
+/// written with. BIP-388 reads one key placed at disjoint derivations
+/// (`@0/<0;1>/*` and `@0/<2;3>/*`) as one key with two uses, which is
+/// allowed, so that is not reported. One key expression used twice at
+/// one derivation is reported as `(n, n)`. A two-part policy numbers its
+/// list of keys, each entry its own number; a key written in its
+/// template has no number and a repeat involving it is not reported, and
+/// the text is read again here, under the count of the parse before it. A two-part policy's
+/// placeholders may carry any `/<M;N>/*` here. Empty when the text is
+/// not a descriptor.
+pub fn repeated_keys_in(c: &Compute, text: &str) -> Vec<(usize, usize)> {
+    c.count(Work::DescriptorParse);
+    repeated_keys_after_parse(c, text)
+}
+
+/// Costs the public derivations [`repeated_keys_in`] makes and the read
+/// of the text, which the caller counts as the parse it already counted
+/// for the same text.
+pub(crate) fn repeated_keys_after_parse(c: &Compute, text: &str) -> Vec<(usize, usize)> {
+    let Some((script, listed)) = lenient_script(text) else {
+        return Vec::new();
+    };
+    let mut placed: Vec<Placed> = Vec::new();
+    let paths_of = |p: &DerivationPath| -> Vec<ChildNumber> { p.into_iter().copied().collect() };
+    script.for_each_key(|key| {
+        match key {
+            DescriptorPublicKey::XPub(x) => placed.push(Placed {
+                id: id_of(key),
+                tag: tag_of(key),
+                key: PlainOrXpub::Xpub(x.xkey),
+                paths: alloc::vec![paths_of(&x.derivation_path)],
+                wildcard: x.wildcard,
+            }),
+            DescriptorPublicKey::MultiXPub(x) => placed.push(Placed {
+                id: id_of(key),
+                tag: tag_of(key),
+                key: PlainOrXpub::Xpub(x.xkey),
+                paths: x.derivation_paths.paths().iter().map(paths_of).collect(),
+                wildcard: x.wildcard,
+            }),
+            DescriptorPublicKey::Single(s) => {
+                let (k, x_only) = match &s.key {
+                    miniscript::descriptor::SinglePubKey::FullKey(k) => (k.inner, false),
+                    miniscript::descriptor::SinglePubKey::XOnly(k) => (
+                        bitcoin::secp256k1::PublicKey::from_x_only_public_key(
+                            *k,
+                            bitcoin::secp256k1::Parity::Even,
+                        ),
+                        true,
+                    ),
+                };
+                placed.push(Placed {
+                    id: id_of(key),
+                    tag: tag_of(key),
+                    key: PlainOrXpub::Plain(k, x_only),
+                    paths: alloc::vec![Vec::new()],
+                    wildcard: Wildcard::None,
+                });
+            }
+        }
+        true
+    });
+    // A one-part descriptor numbers its distinct key expressions in the
+    // order the script visits them, plain and extended alike; a two-part
+    // policy numbers its list of keys, a key written in the template
+    // having no number.
+    // A `tr()` writes its internal key first, which the script visits last.
+    let internal = match &script {
+        Descriptor::Tr(tr) => Some(id_of(&tr.internal_key().clone())),
+        _ => None,
+    };
+    let mut order: Vec<&Id> = internal.iter().collect();
+    for e in &placed {
+        if !order.contains(&&e.id) {
+            order.push(&e.id);
+        }
+    }
+    let ids: Vec<Option<usize>> = placed
+        .iter()
+        .map(|e| {
+            if let Some(len) = listed {
+                e.tag.filter(|n| *n < len)
+            } else {
+                order.iter().position(|o| **o == e.id)
+            }
+        })
+        .collect();
+    let secp = Secp256k1::verification_only();
+    let nodes: Vec<Vec<Node>> = placed.iter().map(|e| nodes_of(c, &secp, e)).collect();
+    let mut out: Vec<(usize, usize)> = Vec::new();
+    for j in 0..placed.len() {
+        for i in 0..j {
+            let meet = nodes[i]
+                .iter()
+                .any(|a| nodes[j].iter().any(|b| nodes_meet(a, b)));
+            let (Some(x), Some(y)) = (ids[i], ids[j]) else {
+                continue;
+            };
+            if !meet {
+                continue;
+            }
+            let (first, later) = (x.min(y), x.max(y));
+            if !out.iter().any(|&(_, l)| l == later) {
+                out.push((first, later));
+            }
+        }
+    }
+    out.sort_by_key(|&(_, later)| later);
+    out
+}
+
+/// The descriptor of any readable text, with `miniscript` reading the
+/// keys alone: none of the rules [`check`] states is applied.
+fn lenient_script(text: &str) -> Option<(Descriptor<DescriptorPublicKey>, Option<usize>)> {
+    let mut listed = None;
+    let body = if text.contains('@') {
+        let mut lines = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'));
+        // An origin written on a key in the template is dropped: such a
+        // key has no number, so its origin does not matter, and none may
+        // look like the marker a listed key is given.
+        let mut template = Text::default();
+        let mut inside = false;
+        for ch in lines.next()?.chars() {
+            match ch {
+                '[' => inside = true,
+                ']' if inside => inside = false,
+                _ if !inside => template.push(ch),
+                _ => {}
+            }
+        }
+        let keys: Vec<&str> = lines
+            .flat_map(|l| l.split(','))
+            .map(|k| k.trim().trim_matches('"').trim())
+            .filter(|k| !k.is_empty())
+            .collect();
+        // Each key of the list gets an origin that holds its place in the
+        // list, so that the script says which key each use came from.
+        let tagged: Vec<Text> = keys
+            .iter()
+            .enumerate()
+            .map(|(n, k)| {
+                let bare = k.rsplit_once(']').map_or(*k, |(_, rest)| rest);
+                text!("[{:08x}]{bare}", TAG_BASE | n as u32)
+            })
+            .collect();
+        let tagged: Vec<&str> = tagged.iter().map(Text::as_str).collect();
+        listed = Some(tagged.len());
+        fill(&template, &tagged, true).ok()?
+    } else {
+        let text = text.trim();
+        Text::of(text.split_once('#').map_or(text, |(body, _)| body))
+    };
+    if !crate::descriptor::tokens_fit(&body) {
+        return None;
+    }
+    let body = crate::tapmulti::unsorted_text(&body).unwrap_or(body);
+    let script = Descriptor::<DescriptorPublicKey>::from_str(&body).ok()?;
+    Some((script, listed))
+}
+
+/// The fingerprint a two-part policy's keys are given by their place in
+/// its list, added to that place.
+const TAG_BASE: u32 = 0xfa00_0000;
+
+/// The place in a two-part policy's list of keys a key was written in.
+fn tag_of(key: &DescriptorPublicKey) -> Option<usize> {
+    let fp = match key {
+        DescriptorPublicKey::XPub(x) => x.origin.as_ref()?.0,
+        DescriptorPublicKey::MultiXPub(x) => x.origin.as_ref()?.0,
+        DescriptorPublicKey::Single(s) => s.origin.as_ref()?.0,
+    };
+    let n = u32::from_be_bytes(*fp.as_bytes());
+    (n & 0xff00_0000 == TAG_BASE).then_some((n & 0x00ff_ffff) as usize)
+}
+
+/// The rules BIP-388 states about the whole policy: at least one key,
+/// keys pairwise distinct, and a threshold that a script can hold.
+fn check(template: &Template, keys: &[PolicyKey]) -> Result<(), Error> {
+    if keys.is_empty() {
+        return Err(Error::Placeholder);
+    }
+    for (i, key) in keys.iter().enumerate() {
+        // The same public key and chain code under another origin, depth
+        // or parent is the same key: a quorum counting it twice is lower
+        // than it says.
+        if keys[..i].iter().any(|k| k.same_key(key)) {
+            return Err(Error::RepeatedKey);
+        }
+        // One wallet is one network: a policy that mixes mainnet and
+        // test keys is ambiguous.
+        if key.xpub.network != keys[0].xpub.network {
+            return Err(Error::MixedNetwork);
+        }
+        if key
+            .path()
+            .is_some_and(|p| p.len() > crate::keys::MAX_PATH_STEPS)
+        {
+            return Err(Error::Key);
+        }
+        // BIP-388 writes every key of a policy with its origin. Only a
+        // single-key wallet is allowed without one, because that is the
+        // wallet a bare extended public key makes and its addresses need
+        // nothing else.
+        // So is a taproot tree's internal key where no key of the wallet
+        // can take the key path: the descriptor then writes a key over
+        // the NUMS point, derived from the leaves, so that anyone can see
+        // the key path is unspendable, and it descends from no master.
+        // `tr()` writes the internal key first, so it is the key at index
+        // zero and no other; `parse_miniscript` takes it only over the
+        // NUMS point.
+        let originless = matches!(template, Template::Single { .. })
+            || (matches!(template, Template::Tree) && i == 0);
+        if key.origin.is_none() && !originless {
+            return Err(Error::Key);
+        }
+    }
+    match template {
+        Template::Multi { threshold, .. } => {
+            if *threshold == 0 || *threshold > keys.len() || keys.len() > 15 {
+                return Err(Error::Threshold);
+            }
+        }
+        // A MuSig2 wallet is two or more participants aggregating into
+        // one key; one key aggregates with nothing.
+        Template::MuSig => {
+            if keys.len() < 2 {
+                return Err(Error::Placeholder);
+            }
+        }
+        Template::Single { .. } => {
+            if keys.len() != 1 {
+                return Err(Error::Placeholder);
+            }
+        }
+        // A miniscript states its own rules; what this function has left
+        // to say about one is that its keys are distinct and carry the
+        // origin BIP-388 writes, which the loop above checked.
+        // A silent payments wallet has no key expression at all, so it
+        // never reaches this function: it is built from its record.
+        Template::Silent => return Err(Error::Template),
+        Template::Miniscript { .. } | Template::Tree => {}
+    }
+    Ok(())
+}
+
+/// Parses a template, checking that its placeholders are `@0`, `@1`, …
+/// each used once and in order. Returns how many there are.
+fn parse_template(text: &str) -> Result<(Template, usize), Error> {
+    let mut next = 0usize;
+    let template = parse_structure(text.trim(), &mut |key| {
+        let index: usize = key
+            .strip_prefix('@')
+            .filter(|n| *n == "0" || !n.starts_with('0'))
+            .and_then(|n| n.parse().ok())
+            .ok_or(Error::Placeholder)?;
+        if index != next {
+            return Err(Error::Placeholder);
+        }
+        next += 1;
+        Ok(())
+    })?;
+    Ok((template, next))
+}
+
+/// A key expression without its multipath suffix, which BIP-388 allows
+/// only as `/**` or its spelled-out form.
+fn strip_suffix(expr: &str) -> Result<&str, Error> {
+    expr.strip_suffix(TEMPLATE_SUFFIX)
+        .or_else(|| expr.strip_suffix(DESCRIPTOR_SUFFIX))
+        .ok_or(Error::Derivation)
+}
+
+/// Parses `[fingerprint/path]xpub`, or a bare `xpub` with no origin.
+/// Which templates accept an origin-less key is [`check`]'s business.
+fn parse_key(text: &str) -> Result<PolicyKey, Error> {
+    let Some(rest) = text.strip_prefix('[') else {
+        return Ok(PolicyKey {
+            origin: None,
+            xpub: crate::xkey::decode_xpub(text).map_err(|_| Error::Key)?,
+        });
+    };
+    let (origin, xpub) = rest.split_once(']').ok_or(Error::Key)?;
+    let fingerprint = origin.get(..8).ok_or(Error::Key)?;
+    let path = &origin[8..];
+    if fingerprint.len() != 8 || !fingerprint.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return Err(Error::Key);
+    }
+    let bytes: [u8; 4] = faraday_crypto::hex::decode_exact(fingerprint).ok_or(Error::Key)?;
+    let path = if path.is_empty() {
+        DerivationPath::master()
+    } else {
+        // BIP-380 writes the path after the fingerprint with no `m/`
+        // head, and writes no path as no slash.
+        let steps = path.strip_prefix('/').ok_or(Error::Key)?;
+        if steps.is_empty() || steps.starts_with(['m', 'M']) {
+            return Err(Error::Key);
+        }
+        DerivationPath::from_str(steps).map_err(|_| Error::Key)?
+    };
+    Ok(PolicyKey {
+        origin: Some(Origin {
+            // Read with `'` or `h`, kept and written `h`.
+            text: replaced(origin, "'", "h", usize::MAX),
+            fingerprint: Fingerprint(bytes),
+            path,
+        }),
+        xpub: crate::xkey::decode_xpub(xpub).map_err(|_| Error::Key)?,
+    })
+}
+
+/// Walks the supported template shapes, handing every key expression —
+/// without the multipath suffix a wallet policy writes on it — to `key`
+/// in the order it appears.
+fn parse_structure(
+    text: &str,
+    key: &mut dyn FnMut(&str) -> Result<(), Error>,
+) -> Result<Template, Error> {
+    if let Some(inner) = inside(text, "sh(") {
+        if let Some(inner) = inside(inner, "wsh(") {
+            let (threshold, sorted) = multi_args(inner, key)?;
+            return Ok(Template::Multi {
+                threshold,
+                sorted,
+                wrapper: Wrapper::ShWsh,
+            });
+        }
+        if let Some(arg) = inside(inner, "wpkh(") {
+            key(strip_suffix(arg)?)?;
+            return Ok(Template::Single {
+                script: ScriptType::NestedSegwit,
+            });
+        }
+        let (threshold, sorted) = multi_args(inner, key)?;
+        return Ok(Template::Multi {
+            threshold,
+            sorted,
+            wrapper: Wrapper::Sh,
+        });
+    }
+    if let Some(inner) = inside(text, "wsh(") {
+        let (threshold, sorted) = multi_args(inner, key)?;
+        return Ok(Template::Multi {
+            threshold,
+            sorted,
+            wrapper: Wrapper::Wsh,
+        });
+    }
+    if let Some(inner) = inside(text, "tr(")
+        && inner.starts_with("musig(")
+    {
+        musig_args(inner, key)?;
+        return Ok(Template::MuSig);
+    }
+    for (prefix, script) in [
+        ("pkh(", ScriptType::Legacy),
+        ("wpkh(", ScriptType::NativeSegwit),
+        ("tr(", ScriptType::Taproot),
+    ] {
+        if let Some(arg) = inside(text, prefix) {
+            if arg.contains(['(', ',', '{']) {
+                return Err(Error::Template);
+            }
+            key(strip_suffix(arg)?)?;
+            return Ok(Template::Single { script });
+        }
+    }
+    Err(Error::Template)
+}
+
+/// `musig(KEY,…)/**`: every participant handed to `key`.
+///
+/// BIP-390 lets a participant carry a derivation of its own, and lets
+/// the `musig()` carry one, but not both. A wallet policy is the second:
+/// the addresses are a run off the aggregate key, which is what BIP-388
+/// writes `/**` for. A `musig()` whose participants are ranged names one
+/// aggregate key per participant index and is refused here.
+fn musig_args(text: &str, key: &mut dyn FnMut(&str) -> Result<(), Error>) -> Result<(), Error> {
+    let rest = text.strip_prefix("musig(").ok_or(Error::Template)?;
+    let close = rest.find(')').ok_or(Error::Template)?;
+    let (args, tail) = rest.split_at(close);
+    if args.contains(['(', '{']) {
+        return Err(Error::Template);
+    }
+    let tail = &tail[1..];
+    if tail != TEMPLATE_SUFFIX && tail != DESCRIPTOR_SUFFIX {
+        return Err(Error::Derivation);
+    }
+    let mut n = 0;
+    for part in args.split(',') {
+        let part = part.trim();
+        // The origin is the only place a `/` belongs in a participant of
+        // a wallet policy's `musig()`.
+        let after_origin = part.rsplit(']').next().unwrap_or(part);
+        if after_origin.contains('/') {
+            return Err(Error::Derivation);
+        }
+        key(part)?;
+        n += 1;
+    }
+    if n < 2 {
+        return Err(Error::Placeholder);
+    }
+    Ok(())
+}
+
+/// `multi(k,…)` or `sortedmulti(k,…)`: the threshold, whether it sorts,
+/// and every key expression handed to `key`.
+fn multi_args(
+    text: &str,
+    key: &mut dyn FnMut(&str) -> Result<(), Error>,
+) -> Result<(usize, bool), Error> {
+    const SORTED: &str = "sortedmulti("; // not wording: a descriptor's function name
+    let (args, sorted) = match inside(text, SORTED) {
+        Some(args) => (args, true),
+        None => (inside(text, "multi(").ok_or(Error::Template)?, false), // not wording: a descriptor's function name
+    };
+    let mut parts = args.split(',');
+    let threshold: usize = parts
+        .next()
+        .ok_or(Error::Template)?
+        .parse()
+        .map_err(|_| Error::Threshold)?;
+    let mut n = 0;
+    for part in parts {
+        if part.contains(['(', ')', '{']) {
+            return Err(Error::Template);
+        }
+        key(strip_suffix(part)?)?;
+        n += 1;
+    }
+    if n == 0 {
+        return Err(Error::Placeholder);
+    }
+    Ok((threshold, sorted))
+}
+
+/// The text between `prefix` and the matching final `)`, when `text` is
+/// exactly that function call.
+fn inside<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
+    text.strip_prefix(prefix)?.strip_suffix(')')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `s` with each hardened step's `'` written `h`, worked out here
+    /// rather than by the code under test.
+    fn hardened_as_h(s: &str) -> Text {
+        s.chars().map(|c| if c == '\'' { 'h' } else { c }).collect()
+    }
+
+    /// The BIP-388 "Examples" section: every template with its keys
+    /// produces the descriptor the BIP lists.
+    #[test]
+    fn bip388_examples_produce_their_descriptors() {
+        let c = Compute::unchecked();
+        const CASES: &[(&str, &[&str], &str)] = &[
+            (
+                "pkh(@0/**)",
+                &[
+                    "[6738736c/44'/0'/0']xpub6Br37sWxruYfT8ASpCjVHKGwgdnYFEn98DwiN76i2oyY6fgH1LAPmmDcF46xjxJr22gw4jmVjTE2E3URMnRPEPYyo1zoPSUba563ESMXCeb",
+                ],
+                "pkh([6738736c/44'/0'/0']xpub6Br37sWxruYfT8ASpCjVHKGwgdnYFEn98DwiN76i2oyY6fgH1LAPmmDcF46xjxJr22gw4jmVjTE2E3URMnRPEPYyo1zoPSUba563ESMXCeb/<0;1>/*)",
+            ),
+            (
+                "sh(wpkh(@0/**))",
+                &[
+                    "[6738736c/49'/0'/1']xpub6Bex1CHWGXNNwGVKHLqNC7kcV348FxkCxpZXyCWp1k27kin8sRPayjZUKDjyQeZzGUdyeAj2emoW5zStFFUAHRgd5w8iVVbLgZ7PmjAKAm9",
+                ],
+                "sh(wpkh([6738736c/49'/0'/1']xpub6Bex1CHWGXNNwGVKHLqNC7kcV348FxkCxpZXyCWp1k27kin8sRPayjZUKDjyQeZzGUdyeAj2emoW5zStFFUAHRgd5w8iVVbLgZ7PmjAKAm9/<0;1>/*))",
+            ),
+            (
+                "wpkh(@0/**)",
+                &[
+                    "[6738736c/84'/0'/2']xpub6CRQzb8u9dmMcq5XAwwRn9gcoYCjndJkhKgD11WKzbVGd932UmrExWFxCAvRnDN3ez6ZujLmMvmLBaSWdfWVn75L83Qxu1qSX4fJNrJg2Gt",
+                ],
+                "wpkh([6738736c/84'/0'/2']xpub6CRQzb8u9dmMcq5XAwwRn9gcoYCjndJkhKgD11WKzbVGd932UmrExWFxCAvRnDN3ez6ZujLmMvmLBaSWdfWVn75L83Qxu1qSX4fJNrJg2Gt/<0;1>/*)",
+            ),
+            (
+                "tr(@0/**)",
+                &[
+                    "[6738736c/86'/0'/0']xpub6CryUDWPS28eR2cDyojB8G354izmx294BdjeSvH469Ty3o2E6Tq5VjBJCn8rWBgesvTJnyXNAJ3QpLFGuNwqFXNt3gn612raffLWfdHNkYL",
+                ],
+                "tr([6738736c/86'/0'/0']xpub6CryUDWPS28eR2cDyojB8G354izmx294BdjeSvH469Ty3o2E6Tq5VjBJCn8rWBgesvTJnyXNAJ3QpLFGuNwqFXNt3gn612raffLWfdHNkYL/<0;1>/*)",
+            ),
+            (
+                "wsh(sortedmulti(2,@0/**,@1/**))",
+                &[
+                    "[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw",
+                    "[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7",
+                ],
+                "wsh(sortedmulti(2,[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))",
+            ),
+        ];
+        for (template, keys, descriptor) in CASES {
+            let policy = WalletPolicy::from_parts(&c, template, keys).expect(template);
+            // The BIP writes a hardened step `'`; the policy writes `h`.
+            let written = hardened_as_h(descriptor);
+            assert_eq!(policy.to_descriptor(), written);
+            assert_eq!(&policy.template_text(), template);
+            // The descriptor read back is the same policy, so both forms
+            // of the same wallet show the same review.
+            let from_descriptor = WalletPolicy::from_descriptor(&c, descriptor).expect(descriptor);
+            assert_eq!(from_descriptor.keys(), policy.keys());
+            assert_eq!(from_descriptor.to_descriptor(), written);
+        }
+    }
+
+    /// The BIP-388 "Invalid policies" section, restricted to the forms
+    /// this crate accepts at all.
+    #[test]
+    fn bip388_invalid_policies_are_refused() {
+        let c = Compute::unchecked();
+        const KEY: &str = "[d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL";
+        const OTHER: &str = "[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
+        for (template, keys) in [
+            ("pkh(@0)", &[KEY][..]),
+            ("pkh(@0/0/**)", &[KEY]),
+            ("pkh(@0/<0;1;2>/*)", &[KEY]),
+            ("sh(multi(1,@1/**,@0/**))", &[KEY, OTHER]),
+            ("sh(multi(1,@0/**,@2/**))", &[KEY, OTHER]),
+            ("sh(multi(1,@0/**,@0/**))", &[KEY, OTHER]),
+            ("sh(multi(1,@0/<0;1>/*,@0/<1;2>/*))", &[KEY, OTHER]),
+            (
+                "sh(multi(1,@0/**,xpub6AHA9hZDN11k2ijHMeS5QqHx2KP9aMBRhTDqANMnwVtdyw2TDYRmF8PjpvwUFcL1Et8Hj59S3gTSMcUQ5gAqTz3Wd8EsMTmF3DChhqPQBnU/<0;1>/*))",
+                &[KEY, OTHER],
+            ),
+        ] {
+            assert!(
+                WalletPolicy::from_parts(&c, template, keys).is_err(),
+                "{template} was accepted"
+            );
+        }
+    }
+
+    /// A miniscript template whose key carries one chain is refused: a
+    /// wallet with no change chain cannot verify its own change.
+    #[test]
+    fn a_miniscript_key_with_one_chain_is_refused() {
+        let c = Compute::unchecked();
+        const KEY: &str = "[d34db33f/48'/0'/0'/2']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL";
+        let one_chain = text!("wsh(and_v(v:pk({KEY}/0/*),older(12960)))");
+        assert_eq!(
+            WalletPolicy::from_descriptor(&c, &one_chain),
+            Err(Error::Derivation)
+        );
+    }
+
+    /// The two BIP-390 vector participants, with origins a wallet
+    /// policy requires.
+    const MUSIG_A: &str = "[6738736c/86'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL";
+    const MUSIG_B: &str = "[b2b1f0cf/86'/0'/0']xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y";
+
+    /// A BIP-390 MuSig2 wallet reads the same from its policy and from
+    /// its descriptor, and each is written back the way it arrived: the
+    /// derivation follows the `musig()`, because the addresses come from
+    /// the aggregate key.
+    #[test]
+    fn a_musig_wallet_is_one_policy_in_both_forms() {
+        let c = Compute::unchecked();
+        let policy =
+            WalletPolicy::from_parts(&c, "tr(musig(@0,@1)/**)", &[MUSIG_A, MUSIG_B]).unwrap();
+        assert_eq!(policy.template_text(), "tr(musig(@0,@1)/**)");
+        assert_eq!(
+            policy.to_descriptor(),
+            hardened_as_h(&text!("tr(musig({MUSIG_A},{MUSIG_B})/<0;1>/*)"))
+        );
+        assert_eq!(policy.script_type(), ScriptType::Taproot);
+        assert_eq!(policy.quorum(), None);
+        assert_eq!(policy.keys().len(), 2);
+
+        let text = policy.to_text();
+        assert_eq!(WalletPolicy::parse_any(&c, &text).unwrap(), policy);
+        let descriptor = policy.to_descriptor_checksummed();
+        assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
+        // The spelled-out multipath is the same wallet as `/**`.
+        assert_eq!(
+            WalletPolicy::from_parts(&c, "tr(musig(@0,@1)/<0;1>/*)", &[MUSIG_A, MUSIG_B]).unwrap(),
+            policy
+        );
+    }
+
+    /// The `musig()` forms that are not a wallet: no derivation to run
+    /// addresses over, a derivation on the participants instead of the
+    /// aggregate, one participant, and a participant with no origin.
+    #[test]
+    fn musig_expressions_that_are_not_a_wallet_are_refused() {
+        let c = Compute::unchecked();
+        for (template, keys) in [
+            ("tr(musig(@0,@1))", &[MUSIG_A, MUSIG_B][..]),
+            ("tr(musig(@0/**,@1/**))", &[MUSIG_A, MUSIG_B]),
+            ("tr(musig(@0,@1)/0/**)", &[MUSIG_A, MUSIG_B]),
+            ("tr(musig(@0,@1)/**/*)", &[MUSIG_A, MUSIG_B]),
+            ("tr(musig(@0)/**)", &[MUSIG_A]),
+        ] {
+            assert!(
+                WalletPolicy::from_parts(&c, template, keys).is_err(),
+                "{template} was accepted"
+            );
+        }
+        let no_origin = text!(
+            "tr(musig({},{})/<0;1>/*)",
+            MUSIG_A.split_once(']').unwrap().1,
+            MUSIG_B.split_once(']').unwrap().1
+        );
+        assert_eq!(
+            WalletPolicy::from_descriptor(&c, &no_origin),
+            Err(Error::Key),
+            "a participant with no origin is no wallet key"
+        );
+    }
+
+    /// BIP-84's test vector for `abandon … about`: the account key as
+    /// SLIP-132 writes it, and the first receive and change addresses it
+    /// pays to. A wallet over the key alone derives the same run as one
+    /// with an origin, because the origin is not what addresses come
+    /// from.
+    #[test]
+    fn a_wallet_over_a_bare_key_derives_the_published_addresses() {
+        let c = Compute::unchecked();
+        const ZPUB: &str = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs";
+        let (xpub, script) = crate::slip132::decode_xpub(ZPUB).unwrap();
+        assert_eq!(script, ScriptType::NativeSegwit);
+        let policy = WalletPolicy::from_xpub(xpub, script).unwrap();
+        assert_eq!(
+            text!(
+                "{}",
+                policy.address_at(&c, Network::Mainnet, false, 0).unwrap()
+            ),
+            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+        );
+        assert_eq!(
+            text!(
+                "{}",
+                policy.address_at(&c, Network::Mainnet, true, 0).unwrap()
+            ),
+            "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el"
+        );
+
+        // The key writes with no origin, which is a descriptor of its
+        // own, and the same wallet reads back out of it. BIP-388 has no
+        // form for it, so the two-part text is that descriptor.
+        let descriptor = policy.to_descriptor();
+        assert_eq!(descriptor, text!("wpkh({xpub}{DESCRIPTOR_SUFFIX})"));
+        assert_eq!(policy.to_text(), descriptor);
+        assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
+        assert_eq!(
+            WalletPolicy::parse_any(&c, &policy.to_descriptor_checksummed()).unwrap(),
+            policy
+        );
+
+        // The master it came from is not among the facts; what it has is
+        // its own identifier, which is not a master fingerprint and is
+        // never offered as one.
+        let key = &policy.keys()[0];
+        assert_eq!(key.fingerprint(), None);
+        assert_eq!(key.path(), None);
+        assert_eq!(
+            key.identifier_fingerprint().to_hex(),
+            *b"fd13aac9",
+            "the xpub's own BIP-32 fingerprint"
+        );
+        assert_eq!(policy.key(key.identifier_fingerprint()), None);
+        assert_eq!(
+            policy.leaf_of(
+                key.identifier_fingerprint(),
+                &DerivationPath::from_str("0/0").unwrap()
+            ),
+            None,
+            "a wallet with no origin matches no output"
+        );
+    }
+
+    /// The other three single-key templates read a bare key too, and
+    /// every template that needs more than one key still requires the
+    /// origin BIP-388 writes.
+    #[test]
+    fn only_a_single_key_template_reads_a_key_with_no_origin() {
+        let c = Compute::unchecked();
+        const A: &str = "xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw";
+        const B: &str = "xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
+        for (template, script) in [
+            ("pkh", ScriptType::Legacy),
+            ("wpkh", ScriptType::NativeSegwit),
+            ("tr", ScriptType::Taproot),
+        ] {
+            let descriptor = text!("{template}({A}{DESCRIPTOR_SUFFIX})");
+            let policy = WalletPolicy::from_descriptor(&c, &descriptor).expect(&descriptor);
+            assert_eq!(policy.script_type(), script);
+            assert_eq!(policy.to_descriptor(), descriptor);
+        }
+        let nested = text!("sh(wpkh({A}{DESCRIPTOR_SUFFIX}))");
+        assert_eq!(
+            WalletPolicy::from_descriptor(&c, &nested)
+                .unwrap()
+                .script_type(),
+            ScriptType::NestedSegwit
+        );
+        for descriptor in [
+            text!("wsh(sortedmulti(2,{A}{DESCRIPTOR_SUFFIX},{B}{DESCRIPTOR_SUFFIX}))"),
+            text!("sh(multi(1,{A}{DESCRIPTOR_SUFFIX},{B}{DESCRIPTOR_SUFFIX}))"),
+            text!("tr(musig({A},{B}){DESCRIPTOR_SUFFIX})"),
+        ] {
+            assert_eq!(
+                WalletPolicy::from_descriptor(&c, &descriptor),
+                Err(Error::Key),
+                "{} was accepted with no origin on its keys",
+                &*descriptor
+            );
+        }
+    }
+
+    /// A key with two different masters behind the same xpub is the same
+    /// key twice; BIP-388 requires the keys to be distinct.
+    #[test]
+    fn repeated_keys_are_refused() {
+        let c = Compute::unchecked();
+        const KEY: &str = "[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw";
+        assert_eq!(
+            WalletPolicy::from_parts(&c, "wsh(sortedmulti(2,@0/**,@1/**))", &[KEY, KEY]),
+            Err(Error::RepeatedKey)
+        );
+    }
+
+    /// The threshold a wallet states must be one a script can hold.
+    #[test]
+    fn a_threshold_above_the_keys_is_refused() {
+        let c = Compute::unchecked();
+        const A: &str = "[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw";
+        const B: &str = "[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
+        assert_eq!(
+            WalletPolicy::from_parts(&c, "wsh(sortedmulti(3,@0/**,@1/**))", &[A, B]),
+            Err(Error::Threshold)
+        );
+        assert_eq!(
+            WalletPolicy::from_parts(&c, "wsh(sortedmulti(0,@0/**,@1/**))", &[A, B]),
+            Err(Error::Threshold)
+        );
+    }
+
+    /// A descriptor whose checksum does not hold is not a wallet.
+    #[test]
+    fn a_wrong_checksum_is_refused() {
+        let c = Compute::unchecked();
+        let policy = WalletPolicy::from_descriptor(&c,
+            "wpkh([6738736c/84'/0'/2']xpub6CRQzb8u9dmMcq5XAwwRn9gcoYCjndJkhKgD11WKzbVGd932UmrExWFxCAvRnDN3ez6ZujLmMvmLBaSWdfWVn75L83Qxu1qSX4fJNrJg2Gt/<0;1>/*)",
+        )
+        .unwrap();
+        let good = policy.to_descriptor_checksummed();
+        assert!(WalletPolicy::from_descriptor(&c, &good).is_ok());
+        let mut bad = good.clone();
+        bad.pop();
+        bad.push('q');
+        assert_eq!(
+            WalletPolicy::from_descriptor(&c, &bad),
+            Err(Error::Checksum)
+        );
+    }
+
+    /// The two-part form and the descriptor form of one wallet are one
+    /// policy, and the policy is written back as it arrived, every
+    /// hardened step `h`.
+    #[test]
+    fn both_forms_are_the_same_wallet() {
+        let c = Compute::unchecked();
+        let text = "wsh(sortedmulti(2,@0/**,@1/**))\n\
+            [6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw\n\
+            [b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
+        let policy = WalletPolicy::parse_any(&c, text).unwrap();
+        assert_eq!(policy.to_text(), hardened_as_h(text));
+        assert_eq!(policy.quorum(), Some((2, 2)));
+        let descriptor = policy.to_descriptor_checksummed();
+        assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
+    }
+
+    /// One wallet written with `'`, with `h`, or with both is one wallet:
+    /// the same text and the same checksum, the checksum of its `h` form.
+    #[test]
+    fn a_hardened_step_written_either_way_is_the_same_wallet() {
+        let c = Compute::unchecked();
+        const H: &str = "wsh(sortedmulti(2,[6738736c/48h/0h/0h/2h]xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48h/0h/0h/2h]xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
+        const APOSTROPHE: &str = "wsh(sortedmulti(2,[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
+        const MIXED: &str = "wsh(sortedmulti(2,[6738736c/48h/0'/0h/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48'/0h/0'/2h]xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
+        let sum = descriptor_checksum(H).expect("a descriptor");
+        let sum = core::str::from_utf8(&sum).unwrap();
+        // The same keys in a miniscript wallet, which `miniscript` reads.
+        let tree = |text: &str| {
+            let (a, b) = text
+                .strip_prefix("wsh(sortedmulti(2,")
+                .and_then(|t| t.strip_suffix("))"))
+                .and_then(|t| t.split_once(",["))
+                .unwrap();
+            text!("wsh(or_d(pk({a}),and_v(v:pkh([{b}),older(144))))")
+        };
+        let text_h = WalletPolicy::from_descriptor(&c, H).unwrap().to_text();
+        assert!(!text_h.contains('\''));
+        let tree_h = tree(H);
+        let tree_sum = descriptor_checksum(&tree_h).expect("a descriptor");
+        let tree_sum = core::str::from_utf8(&tree_sum).unwrap();
+        for text in [H, APOSTROPHE, MIXED] {
+            let policy = WalletPolicy::from_descriptor(&c, text).unwrap();
+            assert_eq!(policy.to_descriptor(), H, "{text}");
+            assert_eq!(policy.checksum(), sum);
+            assert_eq!(policy.to_text(), text_h);
+            assert_eq!(
+                WalletPolicy::parse_any(&c, &policy.to_text()).unwrap(),
+                policy
+            );
+            let policy = WalletPolicy::from_descriptor(&c, &tree(text)).unwrap();
+            assert_eq!(policy.to_descriptor(), tree_h, "{text}");
+            assert_eq!(policy.checksum(), tree_sum);
+        }
+    }
+}

@@ -1,0 +1,37 @@
+//! The integration tests of faraday-bip, one module per subject.
+#![allow(clippy::disallowed_methods)]
+
+mod accounts;
+mod aez;
+mod api;
+mod bip32;
+mod bip387;
+mod bip85;
+mod bsms;
+mod calculators;
+mod codex32;
+mod codex32_correct;
+mod codex32_sheets;
+mod coldcard;
+mod common;
+mod core_import;
+mod crosscheck;
+mod descriptor;
+mod diceware;
+mod json;
+mod key_reads;
+mod liana_shapes;
+mod long_keys;
+mod miniscript;
+mod musig;
+mod policy_key_path;
+mod readings;
+mod repeated_keys;
+mod silent;
+mod slip132;
+mod slip39;
+mod vanity;
+mod vectors;
+mod wallet_id;
+mod wif;
+mod wordlists;
