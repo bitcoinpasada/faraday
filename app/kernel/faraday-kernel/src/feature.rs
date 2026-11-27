@@ -1,0 +1,96 @@
+//! `Feature`, `Notice`, `route`, and what the top states tell the runtime (03 §2; 05 §1.1).
+
+use crate::cx::{Ctx, FactsChanged, View};
+use crate::effects::Effects;
+use crate::lock::{AtLock, Carried};
+use crate::message::Message;
+use crate::shared;
+use crate::words::Refused;
+
+pub trait Feature {
+    /// Never Clone (L1). Its fields are private to the feature's crate (A7).
+    type State: AtLock;
+    type Msg: Message;
+    /// What the feature tells its parent (A6).
+    type Out: Message;
+    /// Why a message is refused before `update` sees it.
+    type Refusal: Refused;
+
+    /// The state at a build of the lock scope, from what the last build carried for this
+    /// feature.
+    fn start(carried: &mut Carried, cx: &Ctx<'_>) -> (Self::State, Effects<Self::Msg, Self::Out>);
+
+    /// One message: the state changes, effects come back.
+    fn update(
+        state: &mut Self::State,
+        msg: Self::Msg,
+        cx: &Ctx<'_>,
+    ) -> Effects<Self::Msg, Self::Out>;
+
+    /// What every feature is told. No default: each feature says what it does with each notice.
+    fn notice(
+        state: &mut Self::State,
+        notice: &Notice<'_>,
+        cx: &Ctx<'_>,
+    ) -> Effects<Self::Msg, Self::Out>;
+
+    /// Whether `msg` is refused now. Called by `route` before `update`, and by `present` to draw
+    /// the control that would send it.
+    fn refuses(state: &Self::State, msg: &Self::Msg, view: &View<'_>) -> Option<Self::Refusal>;
+
+    /// At a lock, after the seal and before `at_lock`: put what the next build's `start` needs
+    /// into the carry. Most features carry nothing.
+    fn carry(_state: &mut Self::State, _into: &mut Carried) {}
+}
+
+pub enum Notice<'a> {
+    /// None of this feature's pages is shown any more: a press elsewhere, Back, Home, a sheet's
+    /// Cancel. Drop what only a screen needed.
+    Left,
+    /// Take secrets off the screen now (`AtLock::hide` is called after).
+    Hide,
+    /// A key, wallet, file or vault came, went or changed.
+    Shared(&'a shared::Changed),
+    /// A fact in `View::facts` changed: sticks, display, cameras, time.
+    Facts(FactsChanged),
+}
+
+/// How a composite or root passes a message to a child.
+pub fn route<F: Feature>(
+    _state: &mut F::State,
+    _msg: F::Msg,
+    _cx: &Ctx<'_>,
+) -> Effects<F::Msg, F::Out> {
+    todo!()
+}
+
+/// In the kernel's `feature` module: what the top states tell the runtime.
+#[derive(Message)]
+pub enum Top {
+    /// Every secret on show off the screen now: the idle warning.
+    Hide,
+    /// What an owner holds came, went or changed; broadcast as `Notice::Shared`.
+    Shared(shared::Changed),
+    /// Begin a lock of the scope.
+    Lock(Lock),
+    /// End the process, or close the Starter's scope.
+    End(End),
+    /// Run the self-test again (Settings' Run again).
+    SelfTest,
+    /// The Starter only: build the lock scope, after `PrepareDemoSticks` answers `Ok`.
+    Open,
+}
+
+/// `seal: false` is "lock without saving".
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Lock {
+    pub seal: bool,
+    pub idle: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum End {
+    PowerOff,
+    RestartComputer,
+    Quit,
+}

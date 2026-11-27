@@ -1,0 +1,42 @@
+//! The motion store: what a component's motion needs between frames (04 §8.1).
+
+use faraday_draw::geom::Rect;
+use faraday_port::values::Anchor;
+
+/// Owned by the runtime, lent to each frame's `Ui`: entries keyed by (page anchor, component
+/// anchor).
+pub struct MotionStore(());
+
+/// Numbers, rectangles and times only (K9).
+pub enum Motion {
+    Region {
+        offset: f32,
+        velocity: f32,
+        stretch: f32,
+        extent: f32,
+        bar_shown_ms: u64,
+    },
+    /// The session pane, the guide's pane.
+    Glide { from: Rect, to: Rect, began_ms: u64 },
+    /// A sheet, a menu, the dice sheet, the snackbar.
+    Shown { at: f32, began_ms: u64 },
+    /// Hold-to-confirm's fill.
+    Hold { began_ms: u64 },
+    /// A segmented control's fill.
+    Slide { from: u16, to: u16, began_ms: u64 },
+    /// A page turn, a step's fade through.
+    Fade { kind: Turn, began_ms: u64 },
+    /// A last-frame measure of 04 §7.2's table.
+    Laid { measure: f32 },
+}
+
+/// What fades.
+// Spec: 04 §8.1 names `Turn` without a shape.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Turn {
+    Page,
+    Step,
+}
+
+/// A component's key in the store: the page's anchor, the component's anchor.
+pub struct ComponentId(pub Anchor, pub Anchor);

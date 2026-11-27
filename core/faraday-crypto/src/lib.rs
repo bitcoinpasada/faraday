@@ -5,3 +5,11 @@
 
 // Placeholder until the domain copy: `main`'s `core/faraday-crypto/src/secret.rs`.
 pub struct Secret<T>(T);
+
+pub mod work {
+    use core::marker::PhantomData;
+
+    // Placeholder until the domain copy: `main`'s `core/faraday-crypto/src/work.rs`. The token is
+    // not `Send`, as on `main`.
+    pub struct Compute(PhantomData<*const ()>);
+}
