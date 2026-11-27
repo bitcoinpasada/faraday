@@ -96,10 +96,25 @@ fn secp() -> Secp256k1<All> {
 /// name of the first that failed.
 pub type Outcome = Result<usize, &'static str>;
 
+/// The name of the check on the root filesystem, which takes its answer as
+/// an argument and so is not one of [`CHECKS`].
+pub const ROOT_READ_ONLY: &str = "Root filesystem read-only";
+
 /// Costs three PBKDF2s, an scrypt and an Argon2id at small costs, a few
-/// key derivations and two signatures: runs [`CHECKS`].
-pub fn run(c: &Compute) -> Outcome {
-    run_checks(c, &CHECKS)
+/// key derivations and two signatures: runs [`CHECKS`], then the check
+/// that the device's root is mounted read-only. `root_read_only` is the
+/// stick adapter's answer (the port's `Start::root_read_only`): a
+/// remount the boot script could not make leaves the root writable, which
+/// nothing else would show, and `Some(false)` fails the check. `Some(true)`
+/// passes, and so does `None` (off the device image, where there is no
+/// such mount); an adapter on the image that cannot read the mount list
+/// gives `Some(false)`.
+pub fn run(c: &Compute, root_read_only: Option<bool>) -> Outcome {
+    let passed = run_checks(c, &CHECKS)?;
+    if root_read_only == Some(false) {
+        return Err(ROOT_READ_ONLY);
+    }
+    Ok(passed + 1)
 }
 
 /// Costs what the checks cost: runs `checks` in order and stops at the
@@ -357,7 +372,14 @@ mod tests {
     #[test]
     fn every_check_passes_on_its_own() {
         let c = Compute::unchecked();
-        assert_eq!(run(&c), Ok(CHECKS.len()));
+        assert_eq!(run(&c, None), Ok(CHECKS.len() + 1));
+        assert_eq!(run(&c, Some(true)), Ok(CHECKS.len() + 1));
+    }
+
+    #[test]
+    fn a_root_filesystem_still_writable_fails() {
+        let c = Compute::unchecked();
+        assert_eq!(run(&c, Some(false)), Err(ROOT_READ_ONLY));
     }
 
     #[test]
