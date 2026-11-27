@@ -18,7 +18,18 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use faraday_core::FadeCounts;
+/// What the fades did, for the dev card's `fade` line. The port carries no fade counts, so the
+/// stick adapter has none to give and the line is left out.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FadeCounts {
+    pub started: u32,
+    pub reduced: u32,
+    pub steps: u32,
+    pub gaps_known: u8,
+    pub median_gap_ms: Option<u16>,
+    pub worst_gap_ms: Option<u16>,
+    pub bands: u8,
+}
 
 /// How much of the shell's clock one block covers.
 pub const INTERVAL: Duration = Duration::from_secs(5);
@@ -866,6 +877,9 @@ mod tests {
         block.lines().filter(|l| l.starts_with("work ")).collect()
     }
 
+    /// Invariant: a block has a row for each kind of costly work and the next starts empty.
+    /// Regression: a change that breaks it, so that a block has a row for each kind of costly work and the next starts empty no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_block_has_a_row_for_each_kind_of_costly_work_and_the_next_starts_empty() {
         let mut t = Timings::new("0.0.0", 480, 640);
@@ -887,6 +901,9 @@ mod tests {
         assert!(work_rows(&next).is_empty());
     }
 
+    /// Invariant: work past the rows a block keeps is counted on one more.
+    /// Regression: a change that breaks it, so that work past the rows a block keeps is counted on one more no longer holds.
+    /// Owner: adapter
     #[test]
     fn work_past_the_rows_a_block_keeps_is_counted_on_one_more() {
         let mut t = Timings::new("0.0.0", 480, 640);
@@ -902,6 +919,9 @@ mod tests {
         );
     }
 
+    /// Invariant: a block says what the calls outside the buckets cost.
+    /// Regression: a change that breaks it, so that a block says what the calls outside the buckets cost no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_block_says_what_the_calls_outside_the_buckets_cost() {
         let mut t = Timings::new("0.0.0", 480, 640);
@@ -922,6 +942,9 @@ mod tests {
         assert!(!next.contains("part  "));
     }
 
+    /// Invariant: the grid line counts how often the step changed in the block.
+    /// Regression: a change that breaks it, so that the grid line counts how often the step changed in the block no longer holds.
+    /// Owner: adapter
     #[test]
     fn the_grid_line_counts_how_often_the_step_changed_in_the_block() {
         let mut t = Timings::new("0.0.0", 480, 640);
@@ -938,6 +961,9 @@ mod tests {
         assert!(next.contains("changes 0 late 0"), "{next}");
     }
 
+    /// Invariant: a block counts moved and whole frames and each screen.
+    /// Regression: a change that breaks it, so that a block counts moved and whole frames and each screen no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_block_counts_moved_and_whole_frames_and_each_screen() {
         let mut t = Timings::new("0.0.0", 480, 640);
@@ -972,6 +998,9 @@ mod tests {
         assert!(!next.contains("by_screen "), "{next}");
     }
 
+    /// Invariant: the slowest pass that drew says how much of it nothing explains.
+    /// Regression: a change that breaks it, so that the slowest pass that drew says how much of it nothing explains no longer holds.
+    /// Owner: adapter
     #[test]
     fn the_slowest_pass_that_drew_says_how_much_of_it_nothing_explains() {
         let mut t = Timings::new("0.0.0", 480, 640);
@@ -1001,6 +1030,9 @@ mod tests {
         );
     }
 
+    /// Invariant: the fade line says the step gaps and the bands.
+    /// Regression: a change that breaks it, so that the fade line says the step gaps and the bands no longer holds.
+    /// Owner: adapter
     #[test]
     fn the_fade_line_says_the_step_gaps_and_the_bands() {
         let mut t = Timings::new("0.0.0", 480, 640);
@@ -1054,6 +1086,9 @@ mod tests {
             .collect()
     }
 
+    /// Invariant: each run since boot is in the file in order under its number.
+    /// Regression: a change that breaks it, so that each run since boot is in the file in order under its number no longer holds.
+    /// Owner: adapter
     #[test]
     fn each_run_since_boot_is_in_the_file_in_order_under_its_number() {
         let dir = scratch("runs");
@@ -1067,6 +1102,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Invariant: a carry file that is missing or garbage starts at run one.
+    /// Regression: a change that breaks it, so that a carry file that is missing or garbage starts at run one no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_carry_file_that_is_missing_or_garbage_starts_at_run_one() {
         let dir = scratch("garbage");
@@ -1081,6 +1119,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Invariant: past the limit the oldest runs go with a line saying so.
+    /// Regression: a change that breaks it, so that past the limit the oldest runs go with a line saying so no longer holds.
+    /// Owner: adapter
     #[test]
     fn past_the_limit_the_oldest_runs_go_with_a_line_saying_so() {
         let dir = scratch("limit");

@@ -1,5 +1,5 @@
 //! The touch controller: turning its packets into
-//! [`faraday_shell_api::Event::Touch`].
+//! [`faraday_port::event::Input::Touch`].
 //!
 //! A controller reports multitouch (`ABS_MT_POSITION_X`,
 //! `ABS_MT_POSITION_Y`, `ABS_MT_TRACKING_ID`) and single touch (`ABS_X`,

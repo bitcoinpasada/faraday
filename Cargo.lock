@@ -2242,6 +2242,7 @@ name = "faraday-v4l2"
 version = "0.0.0"
 dependencies = [
  "faraday-camera",
+ "libc",
 ]
 
 [[package]]

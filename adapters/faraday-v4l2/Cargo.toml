@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 faraday-camera = { path = "../faraday-camera" }
+libc.workspace = true
 
 [lints.rust]
 unsafe_code = "deny"

@@ -1,4 +1,4 @@
-//! The keyboard: evdev key codes to [`faraday_shell_api::Key`].
+//! The keyboard: evdev key codes to [`faraday_port::event::Key`].
 //!
 //! One US layout, in one table. The core's keyboards need the BIP-39
 //! letters, the digits, space and hyphen for a wallet name, and the

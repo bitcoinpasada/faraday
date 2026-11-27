@@ -1,5 +1,7 @@
 //! An adapter: V4L2 capture (09 §6).
 
+mod ioctl;
+
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -9,6 +11,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 pub use faraday_camera::Frame;
+pub use ioctl::{grab_input, wait_vblank};
 
 /// The most frames a second a `Camera` sends on.
 pub const MAX_FPS: u8 = 10;

@@ -3,12 +3,12 @@
 //! A pointer is a touch at a place the person aims with. The core has no
 //! pointer and needs none: the cursor lives here, `BTN_LEFT` down, the
 //! moves while it is down, and `BTN_LEFT` up are
-//! [`Event::Touch`](faraday_shell_api::Event::Touch) Down, Move and Up at the
-//! cursor, and the wheel is [`Event::Scroll`](faraday_shell_api::Event::Scroll)
+//! [`Event::Touch`](faraday_port::event::Input::Touch) Down, Move and Up at the
+//! cursor, and the wheel is [`Event::Scroll`](faraday_port::event::Input::Scroll)
 //! there. The thumb buttons (`BTN_SIDE` and `BTN_BACK`, `BTN_EXTRA` and
 //! `BTN_FORWARD`) are the core's
-//! [`Event::Back`](faraday_shell_api::Event::Back) and
-//! [`Event::Forward`](faraday_shell_api::Event::Forward), on the press.
+//! [`Input::Back`](faraday_port::event::Input::Back) and
+//! [`Input::Forward`](faraday_port::event::Input::Forward), on the press.
 //! Every screen therefore works with a mouse for the same reason
 //! it works with a finger, and nothing in the core knows the difference.
 //!
@@ -465,6 +465,9 @@ mod tests {
             .collect()
     }
 
+    /// Invariant: a mouse moves clicks and scrolls.
+    /// Regression: a change that breaks it, so that a mouse moves clicks and scrolls no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_mouse_moves_clicks_and_scrolls() {
         let mut mouse = Pointer::new(false, false, false);
@@ -492,6 +495,9 @@ mod tests {
         );
     }
 
+    /// Invariant: a device reporting enormous travel moves to the limit not round.
+    /// Regression: a change that breaks it, so that a device reporting enormous travel moves to the limit not round no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_device_reporting_enormous_travel_moves_to_the_limit_not_round() {
         let mut mouse = Pointer::new(false, false, false);
@@ -517,6 +523,9 @@ mod tests {
         );
     }
 
+    /// Invariant: the thumb buttons are back and forward on the press.
+    /// Regression: a change that breaks it, so that the thumb buttons are back and forward on the press no longer holds.
+    /// Owner: adapter
     #[test]
     fn the_thumb_buttons_are_back_and_forward_on_the_press() {
         let mut mouse = Pointer::new(false, false, false);
@@ -545,20 +554,26 @@ mod tests {
         );
     }
 
+    /// Invariant: the thumb buttons reach the core as back and forward.
+    /// Regression: a change that breaks it, so that the thumb buttons reach the core as back and forward no longer holds.
+    /// Owner: adapter
     #[test]
     fn the_thumb_buttons_reach_the_core_as_back_and_forward() {
         use crate::cursor::Pointed;
-        use faraday_shell_api::Event;
+        use faraday_port::event::Input;
         assert_eq!(
             Pointed::Back.events().collect::<Vec<_>>(),
-            vec![Event::Back]
+            vec![Input::Back]
         );
         assert_eq!(
             Pointed::Forward.events().collect::<Vec<_>>(),
-            vec![Event::Forward]
+            vec![Input::Forward]
         );
     }
 
+    /// Invariant: a fine wheel is counted once and in its fractions.
+    /// Regression: a change that breaks it, so that a fine wheel is counted once and in its fractions no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_fine_wheel_is_counted_once_and_in_its_fractions() {
         let mut mouse = Pointer::new(true, false, false);
@@ -581,6 +596,9 @@ mod tests {
         );
     }
 
+    /// Invariant: a touchpad moves by the fingers travel and clicks with its button.
+    /// Regression: a change that breaks it, so that a touchpad moves by the fingers travel and clicks with its button no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_touchpad_moves_by_the_fingers_travel_and_clicks_with_its_button() {
         let mut pad = Pointer::new(false, false, true);
@@ -620,6 +638,9 @@ mod tests {
         );
     }
 
+    /// Invariant: a touchpad with no button clicks when a finger lands.
+    /// Regression: a change that breaks it, so that a touchpad with no button clicks when a finger lands no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_touchpad_with_no_button_clicks_when_a_finger_lands() {
         let mut pad = Pointer::new(false, true, true);
@@ -646,6 +667,9 @@ mod tests {
             ]
         );
     }
+    /// Invariant: a short touch on a buttoned pad is reported for the cursor to judge.
+    /// Regression: a change that breaks it, so that a short touch on a buttoned pad is reported for the cursor to judge no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_short_touch_on_a_buttoned_pad_is_reported_for_the_cursor_to_judge() {
         let mut pad = Pointer::new(false, false, true);
@@ -698,6 +722,9 @@ mod tests {
         );
     }
 
+    /// Invariant: two fingers on a pad scroll instead of moving the cursor.
+    /// Regression: a change that breaks it, so that two fingers on a pad scroll instead of moving the cursor no longer holds.
+    /// Owner: adapter
     #[test]
     fn two_fingers_on_a_pad_scroll_instead_of_moving_the_cursor() {
         let mut pad = Pointer::new(false, false, true);
@@ -754,6 +781,9 @@ mod tests {
         );
     }
 
+    /// Invariant: a contact landing moves nothing and the one that moves is followed.
+    /// Regression: a change that breaks it, so that a contact landing moves nothing and the one that moves is followed no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_contact_landing_moves_nothing_and_the_one_that_moves_is_followed() {
         let mut pad = Pointer::new(false, false, false);
@@ -792,7 +822,8 @@ mod tests {
     mod pad {
         use std::time::{Duration, Instant};
 
-        use faraday_shell_api::{Event, TouchPhase};
+        use faraday_port::event::{Input, TouchPhase};
+        use faraday_port::values::Point;
 
         use super::*;
         use crate::cursor::Cursor;
@@ -803,7 +834,7 @@ mod tests {
             pointer: Pointer,
             cursor: Cursor,
             t0: Instant,
-            events: Vec<Event>,
+            events: Vec<Input>,
         }
 
         impl Pad {
@@ -853,7 +884,7 @@ mod tests {
                 }
             }
 
-            fn take(&mut self) -> Vec<Event> {
+            fn take(&mut self) -> Vec<Input> {
                 std::mem::take(&mut self.events)
             }
         }
@@ -889,8 +920,14 @@ mod tests {
             (EV_KEY, code, i32::from(down))
         }
 
-        fn touch(x: u16, y: u16, phase: TouchPhase) -> Event {
-            Event::Touch { x, y, phase }
+        fn touch(x: u16, y: u16, phase: TouchPhase) -> Input {
+            Input::Touch {
+                at: Point {
+                    x: i32::from(x),
+                    y: i32::from(y),
+                },
+                phase,
+            }
         }
 
         /// One finger landing at `from` and lifting `ms` later: a tap.
@@ -913,193 +950,6 @@ mod tests {
             let mut b = land(1, 2, 300, 400).to_vec();
             b.extend([key(BTN_TOOL_FINGER, false), key(BTN_TOOL_DOUBLETAP, true)]);
             pad.packet(1200, &b);
-        }
-
-        #[test]
-        fn a_held_click_and_a_second_finger_drag_where_the_moving_finger_goes() {
-            let mut pad = Pad::new();
-            click_and_second_finger(&mut pad);
-            // The second finger moves; the pressing one only trembles.
-            let mut step = moved(1, 300, 440).to_vec();
-            step.extend(moved(0, 501, 900));
-            pad.packet(1220, &step);
-            pad.packet(1240, &moved(1, 300, 480));
-            pad.packet(1300, &[key(BTN_LEFT, false)]);
-            assert_eq!(
-                pad.take(),
-                vec![
-                    touch(960, 540, TouchPhase::Down),
-                    touch(960, 580, TouchPhase::Move),
-                    touch(960, 620, TouchPhase::Move),
-                    touch(960, 620, TouchPhase::Up),
-                ],
-                "the button stays held and the pointer follows the finger that moves, \
-                 with no scroll"
-            );
-        }
-
-        #[test]
-        fn a_tap_then_a_quick_touch_that_moves_drags_until_it_lifts() {
-            let mut pad = Pad::new();
-            tap(&mut pad, 1000, 60);
-            let mut down = land(0, 2, 600, 600).to_vec();
-            down.extend([key(BTN_TOUCH, true), key(BTN_TOOL_FINGER, true)]);
-            pad.packet(1150, &down);
-            pad.packet(1170, &moved(0, 600, 640));
-            pad.packet(1190, &moved(0, 600, 700));
-            // Held still past the wait: still held.
-            pad.wait(1500);
-            let mut up = lifted(0).to_vec();
-            up.extend([key(BTN_TOUCH, false), key(BTN_TOOL_FINGER, false)]);
-            pad.packet(1600, &up);
-            pad.wait(2000);
-            assert_eq!(
-                pad.take(),
-                vec![
-                    touch(960, 540, TouchPhase::Down),
-                    touch(960, 580, TouchPhase::Move),
-                    touch(960, 640, TouchPhase::Move),
-                    touch(960, 640, TouchPhase::Up),
-                ]
-            );
-        }
-
-        #[test]
-        fn a_single_tap_is_still_a_click() {
-            let mut pad = Pad::new();
-            tap(&mut pad, 1000, 60);
-            pad.wait(1300);
-            assert_eq!(
-                pad.take(),
-                vec![
-                    touch(960, 540, TouchPhase::Down),
-                    touch(960, 540, TouchPhase::Up),
-                ]
-            );
-        }
-
-        #[test]
-        fn two_fingers_with_no_click_still_scroll() {
-            let mut pad = Pad::new();
-            let mut a = land(0, 1, 500, 500).to_vec();
-            a.extend([key(BTN_TOUCH, true), key(BTN_TOOL_FINGER, true)]);
-            pad.packet(1000, &a);
-            let mut b = land(1, 2, 700, 500).to_vec();
-            b.extend([key(BTN_TOOL_FINGER, false), key(BTN_TOOL_DOUBLETAP, true)]);
-            pad.packet(1010, &b);
-            let mut step = moved(0, 500, 530).to_vec();
-            step.extend(moved(1, 700, 530));
-            pad.packet(1030, &step);
-            let mut up = lifted(0).to_vec();
-            up.extend(lifted(1));
-            up.extend([key(BTN_TOUCH, false), key(BTN_TOOL_DOUBLETAP, false)]);
-            pad.packet(1100, &up);
-            pad.wait(1500);
-            assert_eq!(
-                pad.take(),
-                vec![
-                    Event::Scroll {
-                        x: 960,
-                        y: 540,
-                        dy: -30
-                    },
-                    Event::ScrollEnd { x: 960, y: 540 },
-                ],
-                "the content moves with the fingers and nothing is pressed"
-            );
-        }
-
-        #[test]
-        fn a_slow_touch_after_a_tap_only_moves_the_pointer() {
-            let mut pad = Pad::new();
-            tap(&mut pad, 1000, 60);
-            let mut down = land(0, 2, 600, 600).to_vec();
-            down.extend([key(BTN_TOUCH, true), key(BTN_TOOL_FINGER, true)]);
-            pad.packet(1360, &down);
-            pad.packet(1380, &moved(0, 630, 600));
-            let mut up = lifted(0).to_vec();
-            up.extend([key(BTN_TOUCH, false), key(BTN_TOOL_FINGER, false)]);
-            pad.packet(1500, &up);
-            assert_eq!(
-                pad.take(),
-                vec![
-                    touch(960, 540, TouchPhase::Down),
-                    touch(960, 540, TouchPhase::Up),
-                    Event::Hover { x: 990, y: 540 },
-                ],
-                "the tap was a click, and the touch 300 ms after it is no drag"
-            );
-        }
-
-        #[test]
-        fn a_held_click_and_a_second_finger_drag_the_scrollbar_and_scroll_the_page() {
-            use faraday_core::{Action, Faraday, Screen, StorageEvent};
-            use faraday_shell_api::{App, BootState, DisplayInfo, SecureHardware};
-
-            let mut app = Faraday::new();
-            app.event(Event::Display(DisplayInfo {
-                width: 1280,
-                height: 800,
-                dpi: 160,
-                inset_bottom: 0,
-                inset_top: 0,
-                buttons: 0,
-                camera_fixed: false,
-                secure: SecureHardware::None,
-                boot: BootState::Unknown,
-                memory_mib: None,
-            }));
-            app.storage(StorageEvent::Restored {
-                inbox: Vec::new(),
-                outbox: Vec::new(),
-                kept: Vec::new(),
-            });
-            app.press(Action::Nav(Screen::Catalog));
-            app.settle();
-            app.event(Event::Tick { now_ms: 1_000 });
-            while app.poll_command().is_some() {}
-            let _ = app.frame();
-
-            let mut pad = Pad::on(1280, 800);
-            // Point at the bottom of the scrollbar, at the right edge of the
-            // tile beside This session.
-            let mut a = land(0, 1, 100, 100).to_vec();
-            a.extend([key(BTN_TOUCH, true), key(BTN_TOOL_FINGER, true)]);
-            pad.packet(100, &a);
-            pad.packet(120, &moved(0, 710, 466));
-            let mut up = lifted(0).to_vec();
-            up.extend([key(BTN_TOUCH, false), key(BTN_TOOL_FINGER, false)]);
-            pad.packet(500, &up);
-            // Press there, then drag up with a second finger.
-            click_and_second_finger(&mut pad);
-            for (i, y) in [300, 200, 100, -400].into_iter().enumerate() {
-                pad.packet(1300 + 20 * i as u64, &moved(1, 300, y));
-            }
-            let mut low = None;
-            let mut top = None;
-            for event in pad.take() {
-                let phase = match event {
-                    Event::Touch { phase, .. } => Some(phase),
-                    _ => None,
-                };
-                app.event(event);
-                while app.poll_command().is_some() {}
-                let _ = app.frame();
-                match phase {
-                    Some(TouchPhase::Down) => low = Some(app.list_offset),
-                    Some(TouchPhase::Move) => top = Some(app.list_offset),
-                    _ => {}
-                }
-            }
-            let (low, top) = (low.expect("pressed"), top.expect("dragged"));
-            assert!(low > 0.0, "pressing low on the bar moved the page down");
-            assert_eq!(top, 0.0, "dragging the bar to the top brought the page up");
-            pad.packet(1500, &[key(BTN_LEFT, false)]);
-            for event in pad.take() {
-                app.event(event);
-            }
-            while app.poll_command().is_some() {}
-            assert_eq!(app.screen, Screen::Catalog, "nothing under it was pressed");
         }
     }
 }

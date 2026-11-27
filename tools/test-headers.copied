@@ -3,6 +3,21 @@
 
 adapters/faraday-scanner/src/lib.rs
 adapters/faraday-scanner/src/scan.rs
+adapters/faraday-stick-adapter/src/attached.rs
+adapters/faraday-stick-adapter/src/cursor.rs
+adapters/faraday-stick-adapter/src/devnodes.rs
+adapters/faraday-stick-adapter/src/evdev.rs
+adapters/faraday-stick-adapter/src/fb.rs
+adapters/faraday-stick-adapter/src/hid.rs
+adapters/faraday-stick-adapter/src/keyboard.rs
+adapters/faraday-stick-adapter/src/notice.rs
+adapters/faraday-stick-adapter/src/orient.rs
+adapters/faraday-stick-adapter/src/pace.rs
+adapters/faraday-stick-adapter/src/panel.rs
+adapters/faraday-stick-adapter/src/refresh.rs
+adapters/faraday-stick-adapter/src/touch.rs
+adapters/faraday-stick-adapter/src/wakechan.rs
+adapters/faraday-stick-adapter/src/writer.rs
 core/faraday-bip/src/aezeed.rs
 core/faraday-bip/src/aez.rs
 core/faraday-bip/src/base64.rs

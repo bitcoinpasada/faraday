@@ -51,11 +51,11 @@ pub fn devices(root: &Path) -> Vec<UsbDevice> {
             })
             .collect();
         out.push(UsbDevice {
-            port: port.clone(),
+            port: faraday_text::Text::of(port),
             vendor,
             product,
-            manufacturer: read(&dir, "manufacturer").unwrap_or_default(),
-            name: read(&dir, "product").unwrap_or_default(),
+            manufacturer: faraday_text::Text::of(&read(&dir, "manufacturer").unwrap_or_default()),
+            name: faraday_text::Text::of(&read(&dir, "product").unwrap_or_default()),
             interfaces,
         });
     }
@@ -66,6 +66,9 @@ pub fn devices(root: &Path) -> Vec<UsbDevice> {
 mod tests {
     use super::*;
 
+    /// Invariant: a receiver reads as its identity and interfaces.
+    /// Regression: a change that breaks it, so that a receiver reads as its identity and interfaces no longer holds.
+    /// Owner: adapter
     /// A receiver as sysfs lays it out: the device's attributes, and an
     /// interface beside it; a root hub's interface-less entry too.
     #[test]

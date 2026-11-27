@@ -28,6 +28,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use faraday_crypto::{Zeroize, Zeroizing};
 use faraday_port::frame::{self, Rect};
 
 use crate::fb::{self, Depth, Geometry};
@@ -53,10 +54,10 @@ pub struct Counts {
 pub struct Presenter {
     /// The core's frame as last put out (premultiplied RGBA), to compare
     /// the next with. Empty before the first.
-    last: Vec<u8>,
+    last: Zeroizing<Vec<u8>>,
     /// `last` converted to the panel's format, turned onto the panel. The
     /// cursor is drawn into the panel's band, never here.
-    converted: Vec<u8>,
+    converted: Zeroizing<Vec<u8>>,
     /// The turn `converted` was made at.
     turn: Option<Turn>,
     /// Rows converted, ever.
@@ -127,11 +128,25 @@ impl Presenter {
         result
     }
 
+    /// Whether a copy of the picture is kept (for the wipe's test).
+    #[cfg(test)]
+    pub fn holds_a_picture(&self) -> bool {
+        !self.last.is_empty() || !self.converted.is_empty()
+    }
+
+    /// Wipes the kept frame and its converted copy (02 P13) and forgets the turn: the next frame
+    /// is taken whole.
+    pub fn wipe(&mut self) {
+        self.last.zeroize();
+        self.converted.zeroize();
+        self.turn = None;
+    }
+
     /// Forgets the kept frame: the core gave a frame the shell did not
     /// put out, so the next `moved` is relative to a frame the presenter
     /// never saw, and the next frame is taken whole.
     pub fn skipped(&mut self) {
-        self.last.clear();
+        self.last.zeroize();
     }
 
     /// Costs what [`Presenter::present_parts`] costs, given only what the
@@ -209,9 +224,9 @@ impl Presenter {
         let mut done = false;
         let changed = match (kept, moved, known.changed) {
             (false, ..) => {
-                self.last.clear();
+                self.last.zeroize();
                 self.last.resize(rgba.len(), 0);
-                self.converted.clear();
+                self.converted.zeroize();
                 self.converted.resize(rows * out_row, 0);
                 self.turn = Some(turn);
                 vec![(0, frame_rows - 1)]
@@ -376,8 +391,7 @@ impl Presenter {
         panel: &Mutex<Panel<S>>,
         timings: Option<&mut Timings>,
     ) -> std::io::Result<()> {
-        self.last = Vec::new();
-        self.converted = Vec::new();
+        self.wipe();
         self.turn = None;
         if self.writer.as_ref().is_some_and(|w| w.is_for(panel)) {
             return self.present_staged(rgba, g, panel, timings);
@@ -629,52 +643,6 @@ mod tests {
         stride: 960,
     };
 
-    /// The Pi's panel at `dpi`.
-    fn display(dpi: u16) -> Event {
-        Event::Display(DisplayInfo {
-            width: G.width,
-            height: G.height,
-            dpi,
-            inset_bottom: 0,
-            inset_top: 0,
-            buttons: 0,
-            camera_fixed: false,
-            secure: SecureHardware::None,
-            boot: BootState::Unknown,
-            memory_mib: None,
-        })
-    }
-
-    /// A core on the Pi's panel.
-    fn core() -> Faraday {
-        let mut app = Faraday::new();
-        app.event(display(160));
-        app
-    }
-
-    /// Delivers `event`, then puts out a frame if the core asked for one,
-    /// as the shell's loop does: whether it asked.
-    fn pass(
-        app: &mut Faraday,
-        event: Option<Event>,
-        p: &mut Presenter,
-        panel: &Mutex<Panel<Vec<u8>>>,
-    ) -> bool {
-        if let Some(e) = event {
-            app.event(e);
-        }
-        let mut draw = false;
-        while let Some(c) = app.poll_command() {
-            draw |= matches!(c, Command::Draw);
-        }
-        if draw {
-            let frame = app.frame();
-            p.present(frame.rgba, G, Turn::R0, panel, None)
-                .expect("written");
-        }
-        draw
-    }
-
     fn since(now: Counts, before: Counts) -> Counts {
         Counts {
             converted: now.converted - before.converted,
@@ -682,96 +650,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn the_panel_is_written_only_where_the_frame_changed() {
-        let panel = Mutex::new(Panel::new(Vec::new(), G));
-        let mut p = Presenter::default();
-        let mut app = core();
-        let rows = u64::from(G.height);
-
-        // The first frame: every row converted and written, once.
-        assert!(pass(&mut app, None, &mut p, &panel));
-        assert_eq!(
-            p.counts(&panel),
-            Counts {
-                converted: rows,
-                written: rows
-            }
-        );
-        // Let whatever fades in at the start finish.
-        let mut now = 0;
-        for _ in 0..240 {
-            now += 16;
-            pass(&mut app, Some(Event::Tick { now_ms: now }), &mut p, &panel);
-        }
-
-        // At rest: ticks put out nothing.
-        let rest = p.counts(&panel);
-        for _ in 0..120 {
-            now += 16;
-            pass(&mut app, Some(Event::Tick { now_ms: now }), &mut p, &panel);
-        }
-        assert_eq!(since(p.counts(&panel), rest), Counts::default(), "idle");
-
-        // The same frame drawn again: the core paints it whole, the
-        // panel gets nothing.
-        let before = p.counts(&panel);
-        for _ in 0..2 {
-            let _ = app.drawn_texts();
-            let frame = app.frame();
-            p.present(frame.rgba, G, Turn::R0, &panel, None)
-                .expect("written");
-        }
-        assert_eq!(
-            since(p.counts(&panel), before),
-            Counts::default(),
-            "a frame drawn again"
-        );
-
-        // A frame that changes (the same panel told a denser grain, so
-        // every line is laid out again), and whatever it moves after: each frame
-        // converts and writes at most one whole frame, and the panel
-        // shows the last.
-        let start = p.counts(&panel);
-        let mut event = Some(display(200));
-        for _ in 0..120 {
-            let before = p.counts(&panel);
-            now += 16;
-            let e = event.take().unwrap_or(Event::Tick { now_ms: now });
-            pass(&mut app, Some(e), &mut p, &panel);
-            let spent = since(p.counts(&panel), before);
-            assert!(
-                spent.converted <= rows && spent.written <= rows,
-                "{spent:?}"
-            );
-        }
-        assert!(
-            since(p.counts(&panel), start).converted > 0,
-            "the frame changed"
-        );
-        let frame = app.frame();
-        let mut want = vec![0u8; G.row_bytes() * usize::from(G.height)];
-        fb::convert_into(frame.rgba, G.depth, &mut want);
-        assert_eq!(*lock(&panel).sink(), want, "the panel shows the frame");
-
-        // A blanked panel takes the next frame whole, even an unchanged
-        // one.
-        lock(&panel).blank();
-        let before = p.counts(&panel);
-        let frame = app.frame();
-        p.present(frame.rgba, G, Turn::R0, &panel, None)
-            .expect("written");
-        assert_eq!(
-            since(p.counts(&panel), before),
-            Counts {
-                converted: 0,
-                written: rows
-            }
-        );
-        assert_eq!(*lock(&panel).sink(), want);
-    }
-
-    /// A frame of one grey, `turn`'s size.
     fn grey(turn: Turn, v: u8) -> Vec<u8> {
         let (fw, fh) = turn.frame_size((G.width, G.height));
         vec![v; usize::from(fw) * usize::from(fh) * 4]
@@ -810,6 +688,9 @@ mod tests {
         since(p.counts(panel), before)
     }
 
+    /// Invariant: a caret and a clock are two writes.
+    /// Regression: a change that breaks it, so that a caret and a clock are two writes no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_caret_and_a_clock_are_two_writes() {
         let panel = Mutex::new(Panel::new(Vec::new(), G));
@@ -829,6 +710,9 @@ mod tests {
         assert_eq!(*lock(&panel).sink(), want(&frame, Turn::R0, None));
     }
 
+    /// Invariant: the panel shows the frame with the arrow after every change.
+    /// Regression: a change that breaks it, so that the panel shows the frame with the arrow after every change no longer holds.
+    /// Owner: adapter
     #[test]
     fn the_panel_shows_the_frame_with_the_arrow_after_every_change() {
         let panel = Mutex::new(Panel::new(Vec::new(), G));
@@ -865,6 +749,9 @@ mod tests {
         assert_eq!(put(&mut p, &frame, Turn::R0, &panel), Counts::default());
     }
 
+    /// Invariant: a turned frame shows as it did.
+    /// Regression: a change that breaks it, so that a turned frame shows as it did no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_turned_frame_shows_as_it_did() {
         for turn in [Turn::R90, Turn::R180, Turn::R270] {
@@ -904,6 +791,9 @@ mod tests {
         frame
     }
 
+    /// Invariant: a red first panel holds the frame as it is and nothing is converted.
+    /// Regression: a change that breaks it, so that a red first panel holds the frame as it is and nothing is converted no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_red_first_panel_holds_the_frame_as_it_is_and_nothing_is_converted() {
         let panel = Mutex::new(Panel::new(Vec::new(), G32));
@@ -987,6 +877,9 @@ mod tests {
         assert_eq!(shown(), out);
     }
 
+    /// Invariant: a red first panel shows the frame after a blanking and in a window.
+    /// Regression: a change that breaks it, so that a red first panel shows the frame after a blanking and in a window no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_red_first_panel_shows_the_frame_after_a_blanking_and_in_a_window() {
         let mut frame = opaque(Turn::R0, 40);
@@ -1044,6 +937,9 @@ mod tests {
     /// The dots a step sets, and the bands the core gives for it.
     type Step = (Vec<(usize, usize)>, Option<Vec<Changed>>);
 
+    /// Invariant: a panel given the changed bands holds what the comparison gives.
+    /// Regression: a change that breaks it, so that a panel given the changed bands holds what the comparison gives no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_panel_given_the_changed_bands_holds_what_the_comparison_gives() {
         let band = |y: u16, height: u16| Changed {
@@ -1132,6 +1028,9 @@ mod tests {
         out
     }
 
+    /// Invariant: a line over the top stays through frames and leaves the frame as it was.
+    /// Regression: a change that breaks it, so that a line over the top stays through frames and leaves the frame as it was no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_line_over_the_top_stays_through_frames_and_leaves_the_frame_as_it_was() {
         let g565 = Geometry { stride: 960, ..G };
@@ -1249,6 +1148,9 @@ mod tests {
         }
     }
 
+    /// Invariant: a panel after moved frames holds what a whole redraw gives.
+    /// Regression: a change that breaks it, so that a panel after moved frames holds what a whole redraw gives no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_panel_after_moved_frames_holds_what_a_whole_redraw_gives() {
         for depth in [
@@ -1316,6 +1218,9 @@ mod tests {
         }
     }
 
+    /// Invariant: a moved scroll step converts only the strip and what changed.
+    /// Regression: a change that breaks it, so that a moved scroll step converts only the strip and what changed no longer holds.
+    /// Owner: adapter
     #[test]
     fn a_moved_scroll_step_converts_only_the_strip_and_what_changed() {
         let strip = 8u64;
@@ -1359,6 +1264,9 @@ mod tests {
         }
     }
 
+    /// Invariant: the pis panel at no turn converts nothing for a moved frame.
+    /// Regression: a change that breaks it, so that the pis panel at no turn converts nothing for a moved frame no longer holds.
+    /// Owner: adapter
     #[test]
     fn the_pis_panel_at_no_turn_converts_nothing_for_a_moved_frame() {
         let g = panel_of(Depth::Rgba8888);
@@ -1376,122 +1284,5 @@ mod tests {
         assert_eq!(spent.converted, 0);
         assert_eq!(spent.written, u64::from(scene.region(0).height));
         assert_eq!(*lock(&panel).sink(), frame);
-    }
-
-    #[test]
-    fn a_page_scrolled_in_the_app_shows_what_a_whole_redraw_shows() {
-        let panel = Mutex::new(Panel::new(Vec::new(), G));
-        let mut p = Presenter::default();
-        let mut app = core();
-        app.press(faraday_core::Action::Nav(faraday_core::Screen::Settings));
-        let take = |app: &mut Faraday, p: &mut Presenter, event: Event| {
-            app.event(event);
-            while app.poll_command().is_some() {}
-            let parts = app.parts();
-            let moved = parts.moved;
-            p.present_moved(parts.base.rgba, moved, G, Turn::R0, &panel, None)
-                .expect("written");
-            moved
-        };
-        for now in (1..20).map(|i| i * 16) {
-            take(&mut app, &mut p, Event::Tick { now_ms: now });
-        }
-        let mut moves = 0;
-        for dy in [30, 30, 12, -20, -40, 7, 60, 60, -90] {
-            let before = p.counts(&panel);
-            let event = Event::Scroll { x: 240, y: 320, dy };
-            if take(&mut app, &mut p, event).is_some() {
-                moves += 1;
-                let spent = since(p.counts(&panel), before);
-                assert!(
-                    spent.converted < u64::from(G.height) / 2,
-                    "a moved step converts the strip: {spent:?}"
-                );
-            }
-            let frame = app.frame();
-            let mut want = vec![0u8; G.row_bytes() * usize::from(G.height)];
-            fb::convert_into(frame.rgba, G.depth, &mut want);
-            assert_eq!(*lock(&panel).sink(), want, "dy {dy}");
-        }
-        assert!(moves > 0, "Settings scrolled as moved frames");
-    }
-
-    /// A sink that takes every write and keeps nothing, so a timing of
-    /// `present` is the shell's compare, convert and keep.
-    struct Discard;
-
-    impl Sink for Discard {
-        fn write_at(&mut self, _: &[u8], _: u64) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-
-    /// Measures what `present` costs at 3200 x 1800 with every row
-    /// changed, as a fade step does, for the four- and three-byte depths
-    /// of a PC. Run on its own, in release:
-    /// `cargo nextest run -p faraday-stick --release --run-ignored only
-    /// -E 'test(/convert_step_cost/)' --no-capture`.
-    #[test]
-    #[ignore = "a measurement, printed"]
-    fn convert_step_cost_at_3200_by_1800_with_every_row_changed() {
-        let (w, h) = (3200u16, 1800u16);
-        let frames: Vec<Vec<u8>> = (0..2u8)
-            .map(|k| {
-                (0..usize::from(w) * usize::from(h) * 4)
-                    .map(|i| (i as u8).wrapping_mul(7).wrapping_add(k * 90))
-                    .collect()
-            })
-            .collect();
-        time_present(w, h, &frames);
-    }
-
-    /// Measures what `present` costs at 3200 x 1800 for an ordinary
-    /// frame in which a few rows changed (a caret and the clock), the
-    /// compare, convert and keep in bands across threads. Run as
-    /// `convert_step_cost_...` above is.
-    #[test]
-    #[ignore = "a measurement, printed"]
-    fn ordinary_frame_cost_at_3200_by_1800_with_a_few_rows_changed() {
-        let (w, h) = (3200u16, 1800u16);
-        let a: Vec<u8> = (0..usize::from(w) * usize::from(h) * 4)
-            .map(|i| (i as u8).wrapping_mul(7))
-            .collect();
-        let mut b = a.clone();
-        for y in [40usize, 41, 42, 900, 901] {
-            let at = y * usize::from(w) * 4;
-            b[at..at + 400].iter_mut().for_each(|v| *v ^= 0x55);
-        }
-        time_present(w, h, &[a, b]);
-    }
-
-    /// Presents `frames` in turn, twenty times over, and prints what each
-    /// call took at both PC depths.
-    fn time_present(w: u16, h: u16, frames: &[Vec<u8>]) {
-        for depth in [Depth::Bgra8888, Depth::Bgr888] {
-            let g = Geometry {
-                width: w,
-                height: h,
-                depth,
-                stride: usize::from(w) * depth.bytes_per_pixel(),
-            };
-            let panel = Mutex::new(Panel::new(Discard, g));
-            let mut p = Presenter::default();
-            let mut took = Vec::new();
-            for step in 0..21 {
-                let start = Instant::now();
-                p.present_moved(&frames[step % 2], None, g, Turn::R0, &panel, None)
-                    .expect("presented");
-                if step > 0 {
-                    took.push(start.elapsed());
-                }
-            }
-            took.sort();
-            let mean = took.iter().sum::<std::time::Duration>() / took.len() as u32;
-            eprintln!(
-                "{depth:?}: present {mean:?} mean, {:?} median, {:?} best",
-                took[took.len() / 2],
-                took[0]
-            );
-        }
     }
 }

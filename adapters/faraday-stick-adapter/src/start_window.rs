@@ -193,9 +193,9 @@ pub fn names(root: &Path, usb: &[UsbDevice], boot_port: Option<&str>) -> Vec<Str
     usb.iter()
         .filter(|d| !is_hub(d) && has_usable_class(d) && boot_port != Some(d.port.as_str()))
         .filter(|d| {
-            fs::canonicalize(root.join(&d.port)).is_ok_and(|at| !crate::evdev::port_fixed(at))
+            fs::canonicalize(root.join(&*d.port)).is_ok_and(|at| !crate::evdev::port_fixed(at))
         })
-        .map(|d| d.name.clone())
+        .map(|d| String::from(&*d.name))
         .collect()
 }
 
@@ -206,8 +206,8 @@ mod tests {
 
     fn dev(port: &str, name: &str, class: u8) -> UsbDevice {
         UsbDevice {
-            port: port.into(),
-            name: name.into(),
+            port: faraday_text::Text::of(port),
+            name: faraday_text::Text::of(name),
             interfaces: vec![Interface {
                 class,
                 subclass: 0,
@@ -217,6 +217,9 @@ mod tests {
         }
     }
 
+    /// Invariant: a ps2 keyboard appearing late is trusted only on a laptop.
+    /// Regression: a change that breaks it, so that a ps2 keyboard appearing late is trusted only on a laptop no longer holds.
+    /// Owner: adapter
     /// A PS/2 keyboard that appears after the window closed on a desktop is
     /// held; one found in the window, or on a laptop at any time, is not.
     #[test]
@@ -239,6 +242,9 @@ mod tests {
         Duration::from_millis(ms)
     }
 
+    /// Invariant: a quiet list closes the window after the minimum uptime.
+    /// Regression: a change that breaks it, so that a quiet list closes the window after the minimum uptime no longer holds.
+    /// Owner: adapter
     /// With the list settled from the first look, the window stays open
     /// until the shell has been up 3 s, then closes.
     #[test]
@@ -253,6 +259,9 @@ mod tests {
         assert!(!w.is_open());
     }
 
+    /// Invariant: a change in the list restarts the quiet time.
+    /// Regression: a change that breaks it, so that a change in the list restarts the quiet time no longer holds.
+    /// Owner: adapter
     /// A device arriving restarts the quiet time.
     #[test]
     fn a_change_in_the_list_restarts_the_quiet_time() {
@@ -264,6 +273,9 @@ mod tests {
         assert!(w.ready(secs(5000)));
     }
 
+    /// Invariant: the window closes at the cap whatever arrives.
+    /// Regression: a change that breaks it, so that the window closes at the cap whatever arrives no longer holds.
+    /// Owner: adapter
     /// Devices that keep arriving do not hold the window past 8 s.
     #[test]
     fn the_window_closes_at_the_cap_whatever_arrives() {
@@ -314,6 +326,9 @@ mod tests {
         out
     }
 
+    /// Invariant: the notice lists external devices once.
+    /// Regression: a change that breaks it, so that the notice lists external devices once no longer holds.
+    /// Owner: adapter
     /// A receiver is one name; hubs, the hard-wired port and the boot
     /// medium are left out; another stick and a device with no name are
     /// listed.
@@ -341,6 +356,9 @@ mod tests {
         dir
     }
 
+    /// Invariant: a lock does not open the window again.
+    /// Regression: a change that breaks it, so that a lock does not open the window again no longer holds.
+    /// Owner: adapter
     /// After a lock a fresh process starts with the window closed: a
     /// device that was trusted is, a new one is held, and a device
     /// unplugged and plugged back in (a new path) is held.
@@ -372,6 +390,9 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    /// Invariant: a malformed list trusts nothing.
+    /// Regression: a change that breaks it, so that a malformed list trusts nothing no longer holds.
+    /// Owner: adapter
     /// A list that cannot be read as one trusts nothing and closes the
     /// window.
     #[test]
@@ -391,6 +412,9 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    /// Invariant: unusable devices and the boot medium alone give no notice.
+    /// Regression: a change that breaks it, so that unusable devices and the boot medium alone give no notice no longer holds.
+    /// Owner: adapter
     /// A device with no interface Faraday can use is not listed, and with
     /// only that or only the boot medium present nothing is listed.
     #[test]
@@ -406,6 +430,9 @@ mod tests {
         assert_eq!(both, vec!["Stick".to_string()]);
     }
 
+    /// Invariant: the boot medium is found through sys.
+    /// Regression: a change that breaks it, so that the boot medium is found through sys no longer holds.
+    /// Owner: adapter
     /// The boot medium's port is found from the partition's real path.
     #[test]
     fn the_boot_medium_is_found_through_sys() {

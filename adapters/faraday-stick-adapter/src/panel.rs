@@ -15,6 +15,8 @@ use std::fs::File;
 use std::os::unix::fs::FileExt;
 use std::sync::{Mutex, MutexGuard};
 
+use faraday_crypto::{Zeroize, Zeroizing};
+
 use crate::cursor;
 use crate::fb::{self, Geometry};
 use crate::notice;
@@ -110,7 +112,7 @@ pub struct Panel<S: Sink = File> {
     origin: u64,
     /// The converted frame the panel shows, without the arrow. Rows are
     /// kept in step with the panel as they are written.
-    shown: Vec<u8>,
+    shown: Zeroizing<Vec<u8>>,
     /// `shown` does not yet describe the whole panel: before the first
     /// frame, after a blanking, and after a write that failed. Every row
     /// of the next frame is written, and the arrow waits for it.
@@ -124,7 +126,7 @@ pub struct Panel<S: Sink = File> {
     turn: Turn,
     /// The band of rows being written, kept so a write allocates
     /// nothing.
-    band: Vec<u8>,
+    band: Zeroizing<Vec<u8>>,
     /// Rows written to the framebuffer, ever, the arrow's included: what
     /// the budget test counts (`present.rs`).
     written: u64,
@@ -137,12 +139,12 @@ impl<S: Sink> Panel<S> {
             fb,
             geometry,
             origin: 0,
-            shown: Vec::new(),
+            shown: Zeroizing::new(Vec::new()),
             stale: true,
             arrow: None,
             notice: None,
             turn: Turn::R0,
-            band: Vec::new(),
+            band: Zeroizing::new(Vec::new()),
             written: 0,
         }
     }
@@ -210,7 +212,7 @@ impl<S: Sink> Panel<S> {
     pub fn write_rows(&mut self, frame: &[u8], first: usize, last: usize) -> std::io::Result<()> {
         let row = self.geometry.row_bytes();
         if self.shown.len() != frame.len() {
-            self.shown.clear();
+            self.shown.zeroize();
             self.shown.resize(frame.len(), 0);
             self.stale = true;
         }
@@ -262,7 +264,7 @@ impl<S: Sink> Panel<S> {
     pub fn keep_rows(&mut self, frame: &[u8], first: usize, last: usize) {
         let row = self.geometry.row_bytes();
         if self.shown.len() != frame.len() {
-            self.shown.clear();
+            self.shown.zeroize();
             self.shown.resize(frame.len(), 0);
             self.stale = true;
         }
@@ -469,6 +471,20 @@ impl<S: Sink> Panel<S> {
         if let Some(at) = self.arrow {
             cursor::draw_rows(out, self.geometry, self.turn, at, first);
         }
+    }
+
+    /// Whether a copy of the picture is kept (for the wipe's test).
+    #[cfg(test)]
+    pub fn holds_a_picture(&self) -> bool {
+        !self.shown.is_empty() || !self.band.is_empty()
+    }
+
+    /// Wipes the kept copies of the picture (02 P13): what the panel showed and the band being
+    /// written. The next frame is written whole.
+    pub fn wipe(&mut self) {
+        self.shown.zeroize();
+        self.band.zeroize();
+        self.stale = true;
     }
 
     /// Paints the panel black: what was on it is gone before the power

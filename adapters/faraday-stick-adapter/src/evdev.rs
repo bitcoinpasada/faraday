@@ -296,7 +296,7 @@ pub struct Device {
     pub sys: PathBuf,
     /// What the device calls itself, for `--verbose`.
     pub name: String,
-    /// It sends [`Event::Key`](faraday_shell_api::Event::Key).
+    /// It sends [`Event::Key`](faraday_port::event::Input::Key).
     pub keyboard: bool,
     /// It moves the cursor with relative motion.
     pub mouse: bool,
@@ -662,8 +662,8 @@ pub fn read_loop(
         held.drain(..whole);
         // A keyboard's events are what was typed, a passphrase among it:
         // the bytes read are written over once decoded.
-        zeroize::Zeroize::zeroize(&mut buf[..n]);
-        zeroize::Zeroize::zeroize(held.spare_capacity_mut());
+        faraday_crypto::Zeroize::zeroize(&mut buf[..n]);
+        faraday_crypto::Zeroize::zeroize(held.spare_capacity_mut());
         // A device not yet believed is named on every event, so the main
         // loop can hold it back; once a person says it is theirs, its
         // input goes straight through.
