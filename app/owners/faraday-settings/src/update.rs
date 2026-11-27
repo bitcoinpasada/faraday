@@ -14,24 +14,31 @@ impl Feature for Settings {
     type Refusal = Refusal;
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
-        todo!()
+        (State::new(Default::default()), Effects::none())
     }
 
-    fn update(_state: &mut State, _msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
-        todo!()
+    fn update(_state: &mut State, msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
+        match msg {
+            Msg::Press(press) => match press {},
+            // No change is sent to this owner yet.
+            Msg::Given(..) => Effects::none(),
+        }
     }
 
     fn notice(_state: &mut State, _notice: &Notice<'_>, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
-        todo!()
+        Effects::none()
     }
 
-    fn refuses(_state: &State, _msg: &Msg, _view: &View<'_>) -> Option<Refusal> {
-        todo!()
+    fn refuses(_state: &State, msg: &Msg, _view: &View<'_>) -> Option<Refusal> {
+        match msg {
+            Msg::Press(press) => match *press {},
+            Msg::Given(..) => None,
+        }
     }
 }
 
 impl Owner for Settings {
-    fn given(_id: ChangeId, _change: AnyChange) -> Msg {
-        todo!()
+    fn given(id: ChangeId, change: AnyChange) -> Msg {
+        Msg::Given(id, change)
     }
 }

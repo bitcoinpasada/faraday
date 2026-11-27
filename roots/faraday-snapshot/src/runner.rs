@@ -7,6 +7,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use faraday_device_product::Device;
+use faraday_atoms::Pressed as _;
 use faraday_draw::canvas::InkKind;
 use faraday_fixture_adapters::{Fixtures, Scripted};
 use faraday_port::{Adapters, Waker};
@@ -132,6 +133,22 @@ impl Tour {
         self.play.input(script);
     }
 
+    /// Queues a touch on the control whose press has this kind, in the frame last taken: the
+    /// first one drawn (07 §5.1 names a press by its message's kind, never by a position).
+    pub fn press(&mut self, kind: &str) -> Result<(), String> {
+        let hit = self
+            .last
+            .as_ref()
+            .and_then(|look| look.hits.iter().find(|h| h.message == kind))
+            .ok_or_else(|| format!("no control with the press {kind} in the frame"))?;
+        let at = faraday_port::values::Point {
+            x: hit.rect.x + hit.rect.w / 2,
+            y: hit.rect.y + hit.rect.h / 2,
+        };
+        self.play.input(&[Scripted::Touch(at)]);
+        Ok(())
+    }
+
     /// Moves the scripted clock on.
     pub fn advance(&mut self, ms: u64) {
         self.play.advance(ms);
@@ -245,9 +262,7 @@ impl<R: Root> Play for Played<R> {
                     w: h.target.w,
                     h: h.target.h,
                 },
-                // `Pressed` has no `kind()` yet (07 §5.1 names a press by its message's kind), so
-                // every press of a screen is one kind until the kit gives one.
-                message: String::from("Press"),
+                message: String::from(h.press.kind()),
             })
             .collect();
         let seen = self.runtime.seen();

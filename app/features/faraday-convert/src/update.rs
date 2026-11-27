@@ -56,7 +56,7 @@ impl StepFlow for Convert {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Convert, FlowFx<Convert>) {
-        todo!()
+        (Convert::new(), FlowFx::<Convert>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<Convert>, Refusal> {

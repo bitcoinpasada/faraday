@@ -306,7 +306,7 @@ impl<R: Root> Runtime<R> {
         frame.number += 1;
         frame.fresh = true;
         let display = &facts.facts.display;
-        frame.paint(display.width, display.height);
+        frame.paint(display.width, display.height, canvas.pixels().rgba);
         self.memo_frame_end();
         if send { pending } else { Vec::new() }
     }
@@ -428,7 +428,7 @@ impl<R: Root> Painted<R> {
     /// The canvas replays its call list into the buffer, recording the changed rectangles. The
     /// replay is the kit's; the buffer is made the display's size and the whole of it is
     /// recorded as changed.
-    fn paint(&mut self, width: u16, height: u16) {
+    fn paint(&mut self, width: u16, height: u16, drawn: &[u8]) {
         let len = usize::from(width) * usize::from(height) * 4;
         if self.size != (width, height) {
             let buffer = self.buffer.expose_mut();
@@ -436,6 +436,10 @@ impl<R: Root> Painted<R> {
             buffer.clear();
             buffer.resize(len, 0);
             self.size = (width, height);
+        }
+        // The canvas paints as it is drawn on: its pixels are the frame, premultiplied.
+        if drawn.len() == len {
+            self.buffer.expose_mut().copy_from_slice(drawn);
         }
         self.changed.clear();
         self.changed.push(port::frame::Rect {

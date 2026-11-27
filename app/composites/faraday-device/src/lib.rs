@@ -21,7 +21,7 @@ use faraday_port::values::Anchor;
 pub use frame::FailedModel;
 pub use model::{Body, Over};
 pub use msg::{Msg, Out, Press};
-pub use present::{body, over};
+pub use present::{anchor, body, over};
 pub use state::State;
 pub use update::Refusal;
 
@@ -38,6 +38,17 @@ pub enum Page {
     Checks(faraday_checks_area::Page),
     Tools(faraday_tools_area::Page),
     Files(faraday_files_area::Page),
+}
+
+impl Page {
+    /// The page the Check destination opens.
+    pub const CHECK: Page = Page::Checks(faraday_checks_area::Page::Check);
+    /// The page the Wallets destination opens.
+    pub const WALLETS: Page = Page::Wallets(faraday_wallets_area::Page::WalletsStart);
+    /// The page the Files destination opens.
+    pub const FILES: Page = Page::Files(faraday_files_area::Page::Files);
+    /// The page the Tools destination opens.
+    pub const TOOLS: Page = Page::Tools(faraday_tools_area::Page::Catalog);
 }
 
 pub const JOBS: &[JobKind] = &[];

@@ -56,7 +56,7 @@ impl StepFlow for KeyGen {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (KeyGen, FlowFx<KeyGen>) {
-        todo!()
+        (KeyGen::new(), FlowFx::<KeyGen>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<KeyGen>, Refusal> {

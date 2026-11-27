@@ -57,4 +57,39 @@ pub use ui::{Glyph, Pointer, Ui, W};
 pub trait Pressed: Clone + PartialEq + Send + 'static {
     /// Given by `#[derive(Pressed)]` from the `#[hides]` marks (04 §11.1).
     fn hides(&self) -> bool;
+    /// The variant's name with its crate, such as "faraday-power.Away", where a variant holds
+    /// another press the one it holds (07 §5.1). Given by `#[derive(Pressed)]`.
+    fn kind(&self) -> &'static str {
+        "Press"
+    }
+}
+
+/// What `#[derive(Pressed)]` writes to name a press by the variant that holds it: a variant
+/// holding one value that is itself a press names that press's kind, any other names itself.
+pub mod kind_probe {
+    use super::Pressed;
+
+    pub struct Probe<'a, T>(pub &'a T);
+
+    /// Chosen for a value that is a press.
+    pub trait Deeper {
+        fn kind_of(&self, own: &'static str) -> &'static str;
+    }
+
+    impl<T: Pressed> Deeper for Probe<'_, T> {
+        fn kind_of(&self, _own: &'static str) -> &'static str {
+            self.0.kind()
+        }
+    }
+
+    /// Chosen for any other value, by one more step of auto-reference.
+    pub trait Leaf {
+        fn kind_of(&self, own: &'static str) -> &'static str;
+    }
+
+    impl<T> Leaf for &Probe<'_, T> {
+        fn kind_of(&self, own: &'static str) -> &'static str {
+            own
+        }
+    }
 }

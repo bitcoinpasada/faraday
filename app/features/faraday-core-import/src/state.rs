@@ -9,3 +9,9 @@ pub struct CoreImport {
 
 /// The state of the flow: the kernel's part and the flow's own.
 pub type State = Flow<CoreImport>;
+
+impl CoreImport {
+    pub(crate) fn new() -> CoreImport {
+        CoreImport { skeleton: () }
+    }
+}

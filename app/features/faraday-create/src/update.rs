@@ -85,7 +85,7 @@ impl StepFlow for MakeWallet {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (MakeWallet, FlowFx<MakeWallet>) {
-        todo!()
+        (MakeWallet::new(), FlowFx::<MakeWallet>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<MakeWallet>, Refusal> {

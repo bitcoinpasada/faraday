@@ -35,11 +35,13 @@ impl State {
         self.find.as_str()
     }
 
-    pub(crate) fn find(&self) -> &Text {
+    /// The words typed, as the bar's search field shows them.
+    pub fn find(&self) -> &Text {
         &self.find
     }
 
-    pub(crate) fn focused(&self) -> bool {
+    /// The typing goes to the search field.
+    pub fn focused(&self) -> bool {
         self.focused
     }
 

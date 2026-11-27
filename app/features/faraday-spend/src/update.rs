@@ -56,7 +56,7 @@ impl StepFlow for Spend {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Spend, FlowFx<Spend>) {
-        todo!()
+        (Spend::new(), FlowFx::<Spend>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<Spend>, Refusal> {

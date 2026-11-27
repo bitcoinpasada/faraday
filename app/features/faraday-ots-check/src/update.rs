@@ -56,7 +56,7 @@ impl StepFlow for OtsCheck {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (OtsCheck, FlowFx<OtsCheck>) {
-        todo!()
+        (OtsCheck::new(), FlowFx::<OtsCheck>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<OtsCheck>, Refusal> {

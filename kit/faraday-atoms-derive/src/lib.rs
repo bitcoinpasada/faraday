@@ -20,6 +20,17 @@ struct Item {
     /// The names of the variants marked `#[hides]`, each with the pattern that matches it
     /// whatever it holds.
     hiding: Vec<String>,
+    /// Every variant of an enum: its name and what it holds.
+    variants: Vec<(String, Holds)>,
+}
+
+/// What a variant holds, as far as the kind of a press needs.
+enum Holds {
+    Nothing,
+    /// One value in parentheses: it may itself be a press.
+    One,
+    /// Anything else.
+    Other,
 }
 
 impl Item {
@@ -132,6 +143,7 @@ fn parse(input: TokenStream) -> Item {
     let mut wher = String::new();
     let mut in_where = false;
     let mut hiding = Vec::new();
+    let mut variants = Vec::new();
     for t in it {
         match &t {
             TokenTree::Ident(i) if i.to_string() == "where" => {
@@ -141,6 +153,7 @@ fn parse(input: TokenStream) -> Item {
             TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => {
                 if is_enum {
                     hiding = hiding_variants(g.stream());
+                    variants = all_variants(g.stream());
                 }
                 break;
             }
@@ -158,6 +171,7 @@ fn parse(input: TokenStream) -> Item {
         args: args.join(", "),
         wher: wher.trim().trim_end_matches(',').to_string(),
         hiding,
+        variants,
     }
 }
 
@@ -205,6 +219,71 @@ fn hiding_variants(body: TokenStream) -> Vec<String> {
     out
 }
 
+/// Every variant of an enum's body, with what it holds.
+fn all_variants(body: TokenStream) -> Vec<(String, Holds)> {
+    let mut out = Vec::new();
+    let mut name: Option<String> = None;
+    let mut holds = Holds::Nothing;
+    let mut it = body.into_iter().peekable();
+    while let Some(t) = it.next() {
+        match &t {
+            TokenTree::Punct(p) if p.as_char() == '#' && name.is_none() => {
+                if matches!(it.peek(), Some(TokenTree::Group(g)) if g.delimiter() == Delimiter::Bracket)
+                {
+                    it.next();
+                }
+            }
+            TokenTree::Punct(p) if p.as_char() == ',' => {
+                if let Some(n) = name.take() {
+                    out.push((n, core::mem::replace(&mut holds, Holds::Nothing)));
+                }
+            }
+            TokenTree::Ident(i) if name.is_none() => name = Some(i.to_string()),
+            TokenTree::Group(g) if name.is_some() => {
+                holds = match g.delimiter() {
+                    Delimiter::Parenthesis if one_field(g.stream()) => Holds::One,
+                    Delimiter::Parenthesis | Delimiter::Brace => Holds::Other,
+                    _ => Holds::Nothing,
+                };
+            }
+            _ => {}
+        }
+    }
+    if let Some(n) = name {
+        out.push((n, holds));
+    }
+    out
+}
+
+/// Whether a parenthesised field list holds exactly one field: no comma outside angle brackets
+/// but a trailing one.
+fn one_field(fields: TokenStream) -> bool {
+    let mut depth = 0i32;
+    let mut after_dash = false;
+    let mut seen = false;
+    let mut commas = 0;
+    let mut tail = false;
+    for t in fields {
+        tail = false;
+        if let TokenTree::Punct(p) = &t {
+            match p.as_char() {
+                '<' => depth += 1,
+                '>' if !after_dash => depth -= 1,
+                ',' if depth == 0 => {
+                    commas += 1;
+                    tail = true;
+                }
+                _ => {}
+            }
+            after_dash = p.as_char() == '-';
+        } else {
+            after_dash = false;
+        }
+        seen = true;
+    }
+    seen && (commas == 0 || (commas == 1 && tail))
+}
+
 /// `#[derive(Pressed)]`: `faraday_atoms::Pressed` for a press type. A variant marked `#[hides]`
 /// is one that hides a secret (04 §11.1).
 #[proc_macro_derive(Pressed, attributes(hides))]
@@ -221,6 +300,28 @@ pub fn pressed(input: TokenStream) -> TokenStream {
     } else {
         format!("matches!(self, {})", item.hiding.join(" | "))
     };
-    let code = format!("{header} {{ fn hides(&self) -> bool {{ {body} }} }}");
+    let kind = if item.variants.is_empty() {
+        String::new()
+    } else {
+        let arms: Vec<String> = item
+            .variants
+            .iter()
+            .map(|(name, holds)| {
+                let own = format!("concat!(env!(\"CARGO_PKG_NAME\"), \".{name}\")");
+                match holds {
+                    Holds::Nothing => format!("Self::{name} => {own}"),
+                    Holds::Other => format!("Self::{name} {{ .. }} => {own}"),
+                    Holds::One => format!(
+                        "Self::{name}(inner) => {{ use ::faraday_organisms::kind_probe::{{Deeper as _, Leaf as _}}; (&::faraday_organisms::kind_probe::Probe(inner)).kind_of({own}) }}"
+                    ),
+                }
+            })
+            .collect();
+        format!(
+            "fn kind(&self) -> &'static str {{ match self {{ {} }} }}",
+            arms.join(", ")
+        )
+    };
+    let code = format!("{header} {{ fn hides(&self) -> bool {{ {body} }} {kind} }}");
     code.parse().unwrap_or_default()
 }

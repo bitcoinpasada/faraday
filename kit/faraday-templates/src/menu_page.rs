@@ -517,6 +517,7 @@ mod tests {
                 in_sheet: false,
                 under: None,
                 right: 640.0,
+                power: None,
             },
             busy: None,
             search: None,

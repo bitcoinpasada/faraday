@@ -56,7 +56,7 @@ impl StepFlow for Restore {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Restore, FlowFx<Restore>) {
-        todo!()
+        (Restore::new(), FlowFx::<Restore>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<Restore>, Refusal> {

@@ -9,3 +9,9 @@ pub struct Bip85 {
 
 /// The state of the flow: the kernel's part and the flow's own.
 pub type State = Flow<Bip85>;
+
+impl Bip85 {
+    pub(crate) fn new() -> Bip85 {
+        Bip85 { skeleton: () }
+    }
+}

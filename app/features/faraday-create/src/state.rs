@@ -9,3 +9,9 @@ pub struct MakeWallet {
 
 /// The state of the flow: the kernel's part and the flow's own.
 pub type State = Flow<MakeWallet>;
+
+impl MakeWallet {
+    pub(crate) fn new() -> MakeWallet {
+        MakeWallet { skeleton: () }
+    }
+}

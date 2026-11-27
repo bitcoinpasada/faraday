@@ -12,8 +12,8 @@ impl Feature for Checks {
     type Out = Out;
     type Refusal = Refusal;
 
-    fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
-        todo!()
+    fn start(carried: &mut Carried, cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
+        (State::start(carried, cx), Effects::none())
     }
 
     fn update(_state: &mut State, _msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Out> {

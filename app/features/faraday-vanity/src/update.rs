@@ -56,7 +56,7 @@ impl StepFlow for Vanity {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Vanity, FlowFx<Vanity>) {
-        todo!()
+        (Vanity::new(), FlowFx::<Vanity>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<Vanity>, Refusal> {

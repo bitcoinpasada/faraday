@@ -56,7 +56,7 @@ impl StepFlow for Silent {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Silent, FlowFx<Silent>) {
-        todo!()
+        (Silent::new(), FlowFx::<Silent>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<Silent>, Refusal> {

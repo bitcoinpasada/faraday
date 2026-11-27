@@ -20,8 +20,20 @@ pub enum Msg {
 }
 
 impl From<Press> for Msg {
-    fn from(_press: Press) -> Msg {
-        todo!()
+    fn from(press: Press) -> Msg {
+        match press {
+            Press::Home(p) => Msg::Home(p.into()),
+            Press::Power(p) => Msg::Power(p.into()),
+            Press::Devices(p) => Msg::Devices(p.into()),
+            Press::Scan(p) => Msg::Scan(p.into()),
+            Press::Guide(p) => Msg::Guide(p.into()),
+            Press::Keys(p) => Msg::Keys(p.into()),
+            Press::Wallets(p) => Msg::Wallets(p.into()),
+            Press::Signing(p) => Msg::Signing(p.into()),
+            Press::Checks(p) => Msg::Checks(p.into()),
+            Press::Tools(p) => Msg::Tools(p.into()),
+            Press::Files(p) => Msg::Files(p.into()),
+        }
     }
 }
 

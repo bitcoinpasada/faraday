@@ -56,7 +56,7 @@ impl StepFlow for BackupFlow {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (BackupFlow, FlowFx<BackupFlow>) {
-        todo!()
+        (BackupFlow::new(), FlowFx::<BackupFlow>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<BackupFlow>, Refusal> {

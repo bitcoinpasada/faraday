@@ -56,7 +56,7 @@ impl StepFlow for CoreImport {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (CoreImport, FlowFx<CoreImport>) {
-        todo!()
+        (CoreImport::new(), FlowFx::<CoreImport>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<CoreImport>, Refusal> {

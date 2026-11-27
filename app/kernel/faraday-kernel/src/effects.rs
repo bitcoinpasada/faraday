@@ -40,6 +40,12 @@ impl<M: Message, O: Message> Effects<M, O> {
         Effects(Vec::new())
     }
 
+    /// These effects, then `more`.
+    pub fn and(mut self, more: Self) -> Self {
+        self.0.extend(more.0);
+        self
+    }
+
     /// The runtime's only: the effects, in the order they were made (05 §3).
     pub fn into_list(self) -> Vec<Fx<M, O>> {
         self.0

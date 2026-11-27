@@ -13,8 +13,8 @@ pub enum Msg {
 }
 
 impl From<Press> for Msg {
-    fn from(_press: Press) -> Msg {
-        todo!()
+    fn from(press: Press) -> Msg {
+        Msg::Press(press)
     }
 }
 

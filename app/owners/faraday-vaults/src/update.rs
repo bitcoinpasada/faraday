@@ -13,25 +13,35 @@ impl Feature for Vaults {
     type Out = Out;
     type Refusal = Refusal;
 
-    fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
-        todo!()
+    fn start(carried: &mut Carried, cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
+        (State::start(carried, cx), Effects::none())
     }
 
-    fn update(_state: &mut State, _msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
-        todo!()
+    fn update(_state: &mut State, msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
+        match msg {
+            // No change is sent to this owner yet.
+            Msg::Given(..) => Effects::none(),
+            Msg::Press(_)
+            | Msg::List(_)
+            | Msg::Unlock(_)
+            | Msg::Contents(_)
+            | Msg::Seal(_)
+            | Msg::Totp(_)
+            | Msg::Gpg(_) => todo!(),
+        }
     }
 
     fn notice(_state: &mut State, _notice: &Notice<'_>, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
-        todo!()
+        Effects::none()
     }
 
     fn refuses(_state: &State, _msg: &Msg, _view: &View<'_>) -> Option<Refusal> {
-        todo!()
+        None
     }
 }
 
 impl Owner for Vaults {
-    fn given(_id: ChangeId, _change: AnyChange) -> Msg {
-        todo!()
+    fn given(id: ChangeId, change: AnyChange) -> Msg {
+        Msg::Given(id, change)
     }
 }

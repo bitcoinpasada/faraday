@@ -56,7 +56,7 @@ impl StepFlow for Bip85 {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Bip85, FlowFx<Bip85>) {
-        todo!()
+        (Bip85::new(), FlowFx::<Bip85>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<Bip85>, Refusal> {

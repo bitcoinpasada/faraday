@@ -86,6 +86,8 @@ pub struct TopBarModel<'s, A> {
     pub under: Option<Anchor>,
     /// Where the actions drawn after the bar begin: the title is kept left of it.
     pub right: f32,
+    /// The power button at the bar's right end: what it presses and its tooltip.
+    pub power: Option<(A, Shown<'s>)>,
 }
 
 /// A large badge's count as it is written.
@@ -386,7 +388,17 @@ pub fn draw_top<A: Pressed>(m: &TopBarModel<'_, A>, ui: &mut Ui<'_, A>, w: f32) 
     fill_behind(m, ui, (0.0, w, APP_BAR_H));
     let title = m.title.as_str();
     let mut x = MARGIN_COMPACT;
-    let room = |x: f32| (m.right - x).max(0.0);
+    let limit = match &m.power {
+        Some((action, tip)) => icon_action(
+            ui,
+            (w - GAP_SMALL, APP_BAR_H / 2.0),
+            Icon::Power,
+            (action.clone(), false, *tip),
+        ),
+        None => w,
+    }
+    .min(m.right);
+    let room = |x: f32| (limit - x).max(0.0);
     let Some(back) = &m.back else {
         let first = (room(x) - m.pill_w).max(0.0);
         return match bar_name(ui, title, m.item_name, first, room(x)) {
@@ -775,6 +787,7 @@ mod tests {
                 in_sheet: false,
                 under: Some(PAGE),
                 right: 640.0,
+                power: None,
             };
             let mut ui = Ui::new(&mut c, Theme::default(), 1.0, &mut store, &pointer, true);
             draw_top(&m, &mut ui, 640.0);

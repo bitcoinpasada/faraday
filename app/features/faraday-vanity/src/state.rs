@@ -9,3 +9,9 @@ pub struct Vanity {
 
 /// The state of the flow: the kernel's part and the flow's own.
 pub type State = Flow<Vanity>;
+
+impl Vanity {
+    pub(crate) fn new() -> Vanity {
+        Vanity { skeleton: () }
+    }
+}

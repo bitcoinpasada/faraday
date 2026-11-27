@@ -15,6 +15,18 @@ pub enum Which {
 }
 
 impl Which {
+    /// The sheet's anchor (`ANCHORS`, 06 §4.2).
+    #[must_use]
+    pub fn anchor(self) -> faraday_port::values::Anchor {
+        let at = match self {
+            Which::LockAsk => 1,
+            Which::Locked => 2,
+            Which::Power => 3,
+            Which::IdleWarn => 4,
+        };
+        crate::ANCHORS[at]
+    }
+
     /// The frame's stack slot of the sheet (06 §4.4).
     #[must_use]
     pub fn frame(self) -> FrameSheet {

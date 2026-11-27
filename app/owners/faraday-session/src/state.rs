@@ -1,47 +1,60 @@
 use faraday_kernel::session::{self, FileView, KeyView, WaitingItem, WalletView};
 use faraday_kernel::{AtLock, Edits, KeyId, WalletId};
 use faraday_keys::Keys;
+use faraday_bip::keys::Network;
 
+/// What the session holds: the keys, and nothing else yet.
 #[derive(AtLock)]
 pub struct State {
+    /// The key store. Nothing puts a key in it yet, so a lock has nothing to wipe: it takes the
+    /// `kept` mark once the store is an `AtLock`.
     #[lock(public)]
-    skeleton: (),
+    keys: Keys,
+}
+
+impl State {
+    /// An empty session on `network`.
+    pub(crate) fn new(network: Network) -> State {
+        State {
+            keys: Keys::on(network),
+        }
+    }
 }
 
 impl session::Read for State {
     fn keys(&self) -> &Keys {
-        todo!()
+        &self.keys
     }
 
     fn key(&self, _id: KeyId) -> Option<KeyView<'_>> {
-        todo!()
+        None
     }
 
     fn wallets(&self) -> &[WalletView] {
-        todo!()
+        &[]
     }
 
     fn wallet(&self, _id: WalletId) -> Option<&WalletView> {
-        todo!()
+        None
     }
 
     fn waiting(&self) -> &[WaitingItem] {
-        todo!()
+        &[]
     }
 
     fn inbox(&self) -> &[FileView] {
-        todo!()
+        &[]
     }
 
     fn outbox(&self) -> &[FileView] {
-        todo!()
+        &[]
     }
 
     fn seeded(&self) -> bool {
-        todo!()
+        false
     }
 
     fn edits(&self) -> Edits {
-        todo!()
+        Edits::NONE
     }
 }

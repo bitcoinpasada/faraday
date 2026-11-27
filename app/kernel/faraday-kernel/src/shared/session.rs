@@ -123,12 +123,14 @@ pub enum Changed {
 
 /// A wallet of several keys comes in only through the sheet that shows its keys (F254): the
 /// wallet the person is shown. The session checks it again at `ConfirmWallet`.
+#[derive(Clone, Debug)]
 pub struct Confirm {
     pub policy: WalletPolicy,
     pub name: Option<Text>,
     pub source: WalletSource,
 }
 
+#[derive(Clone, Debug)]
 #[expect(
     clippy::large_enum_variant,
     reason = "the kernel's enums carry the domain's real types, which differ in size; a value is moved once"

@@ -81,33 +81,33 @@ pub struct Flow<F: StepFlow> {
 
 impl<F: StepFlow> Flow<F> {
     pub fn inner(&self) -> &F {
-        todo!()
+        &self.inner
     }
 
     pub fn asking(&self) -> Option<Loss> {
-        todo!()
+        self.asking
     }
 
     pub fn refused(&self) -> Option<&F::Refusal> {
-        todo!()
+        self.refused.as_ref()
     }
 
     pub fn again(&self) -> Option<F::Step> {
-        todo!()
+        self.again
     }
 }
 
 impl<F: StepFlow> AtLock for Flow<F> {
     fn holds(&self) -> Holds {
-        todo!()
+        self.inner.holds()
     }
 
     fn hide(&mut self) {
-        todo!()
+        self.inner.hide();
     }
 
     fn at_lock(&mut self) {
-        todo!()
+        self.inner.at_lock();
     }
 }
 
@@ -142,11 +142,15 @@ impl<F: StepFlow> Feature for F {
     type Out = F::Out;
     type Refusal = FlowRefusal<F::Refusal>;
 
-    fn start(
-        _carried: &mut Carried,
-        _cx: &Ctx<'_>,
-    ) -> (Self::State, Effects<Self::Msg, Self::Out>) {
-        todo!()
+    fn start(carried: &mut Carried, cx: &Ctx<'_>) -> (Self::State, Effects<Self::Msg, Self::Out>) {
+        let (inner, effects) = <F as StepFlow>::start(carried, cx);
+        let flow = Flow {
+            inner,
+            asking: None,
+            refused: None,
+            again: None,
+        };
+        (flow, effects)
     }
 
     fn update(

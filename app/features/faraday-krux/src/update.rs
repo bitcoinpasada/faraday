@@ -56,7 +56,7 @@ impl StepFlow for Krux {
     }
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Krux, FlowFx<Krux>) {
-        todo!()
+        (Krux::new(), FlowFx::<Krux>::none())
     }
 
     fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<Krux>, Refusal> {

@@ -9,3 +9,9 @@ pub struct BackUp {
 
 /// The state of the flow: the kernel's part and the flow's own.
 pub type State = Flow<BackUp>;
+
+impl BackUp {
+    pub(crate) fn new() -> BackUp {
+        BackUp { skeleton: () }
+    }
+}

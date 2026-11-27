@@ -9,3 +9,9 @@ pub struct Krux {
 
 /// The state of the flow: the kernel's part and the flow's own.
 pub type State = Flow<Krux>;
+
+impl Krux {
+    pub(crate) fn new() -> Krux {
+        Krux { skeleton: () }
+    }
+}

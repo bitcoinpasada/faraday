@@ -27,9 +27,14 @@ pub trait Drawn<R: Pressed> {
 }
 
 /// What a root's `frame` calls once it has the model.
-pub fn draw<B: Drawn<R>, O: Drawn<R>, R: Pressed>(
-    _m: &ScreenModel<'_, B, O, R>,
-    _ui: &mut Ui<'_, R>,
-) {
-    todo!()
+pub fn draw<B: Drawn<R>, O: Drawn<R>, R: Pressed>(m: &ScreenModel<'_, B, O, R>, ui: &mut Ui<'_, R>) {
+    faraday_templates::screen::draw(
+        m.page,
+        &m.frame,
+        ui,
+        |ui| m.body.draw(ui),
+        &m.over,
+        |sheet, ui| sheet.draw(ui),
+        m.note.as_ref(),
+    );
 }
