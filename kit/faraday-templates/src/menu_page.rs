@@ -823,4 +823,99 @@ mod tests {
         assert_eq!(balanced_split(&[100.0, 100.0]), 1);
         assert_eq!(balanced_split(&[100.0, 100.0, 100.0, 100.0]), 2);
     }
+
+    fn key_row<'s>(n: u8) -> SessionRow<'s, P> {
+        SessionRow {
+            icon: faraday_atoms::Icon::SEARCH.into(),
+            head: Shown::plain("Key"),
+            sub: Shown::plain("line"),
+            trailing: Shown::plain(""),
+            accent: false,
+            press: P(n),
+            button: None,
+            wrap: false,
+            selected: false,
+            open: None,
+        }
+    }
+
+    fn key_presses(height: u16) -> usize {
+        let mut m = page(vec![Section {
+            label: None,
+            body: Body::Box(RowsBox {
+                heading: Shown::plain("Loaded"),
+                lead: None,
+                rows: Vec::new(),
+                keys: (10..20).map(key_row).collect(),
+                fit: true,
+                scroll: Anchor { scope: "box", n: 0 },
+            }),
+        }]);
+        m.row = None;
+        let mut c = faraday_atoms::ui::testing::canvas_sized(160, (480, height));
+        let f = frame_for();
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            ui.compact = true;
+            draw_screen(
+                Anchor { scope: "t", n: 1 },
+                &f,
+                ui,
+                |ui| draw(&m, ui),
+                &[] as &[(Anchor, ())],
+                |_, _| {},
+                None,
+            );
+        });
+        out.hits.iter().filter(|h| h.press.0 >= 10).count()
+    }
+
+    /// Invariant: The box of what is loaded shows more key rows in a tall window than in a short one, and never every key it was given.
+    /// Regression: The Pi's box of what is loaded running past the foot of the panel, or showing every key.
+    /// Owner: kit
+    #[test]
+    fn the_box_shows_only_the_key_rows_the_room_holds() {
+        let (tall, short) = (key_presses(1600), key_presses(250));
+        assert!(tall > short, "{tall} {short}");
+        assert!(tall < 10);
+    }
+
+    /// Invariant: The search row stands still above the scrolling sections in a tall window and scrolls with them in a short one: the scrolling region starts lower when it stands still.
+    /// Regression: Home's search bar pinned on a window with no room left for results, or scrolling away on a tall one.
+    /// Owner: kit
+    #[test]
+    fn the_search_row_pins_only_where_three_rows_fit_under_it() {
+        let region_top = |height: u16| {
+            let mut m = page(vec![Section {
+                label: None,
+                body: Body::Tiles(vec![face("One", 1)]),
+            }]);
+            m.row = Some(crate::screen::BarSearch {
+                field: faraday_organisms::nav::SearchBarModel {
+                    typed: Shown::plain(""),
+                    hint: Shown::plain("Search"),
+                    focused: false,
+                    here: P(50),
+                    clear: (P(51), Shown::plain("Clear")),
+                    raise: None,
+                },
+                ways: None,
+            });
+            let mut c = faraday_atoms::ui::testing::canvas_sized(160, (480, height));
+            let f = frame_for();
+            let out = frame(&mut c, &at_rest(None), |ui| {
+                ui.compact = true;
+                draw_screen(
+                    Anchor { scope: "t", n: 1 },
+                    &f,
+                    ui,
+                    |ui| draw(&m, ui),
+                    &[] as &[(Anchor, ())],
+                    |_, _| {},
+                    None,
+                );
+            });
+            out.regions[0].view.y
+        };
+        assert!(region_top(1600) > region_top(300));
+    }
 }
