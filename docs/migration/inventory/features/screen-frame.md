@@ -47,6 +47,7 @@ What every screen shares: the frame that picks the layout (compact, held, or wid
 
 - Owns no state. It reads `View` and `Faraday`.
 - What a lock wipes is decided by each owning area (`faraday/faraday-core/src/at_lock.rs:145-153`), and every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
+- `pin_h` (the pin bar's height as the last frame had it) and `Camera.pane_seen` (the page the last frame stood the session pane beside; cleared at the start of each frame that is not frosted) are `Cell` memos of the last frame's layout, written by drawing through a shared reference (`faraday/faraday-core/src/lib.rs:979`, `faraday/faraday-core/src/screens/mod.rs:345`, `832`, `879`, `faraday/faraday-core/src/scan_key.rs:60-81`). A change of the pin bar draws the page again within the same frame (`faraday/faraday-core/src/screens/mod.rs:876-883`).
 
 ## Reach
 
@@ -123,6 +124,5 @@ None.
 
 ## Doubts
 
-- Draw-time writes (`pin_h`, `camera.pane_forget`) contradict "drawing reads and does not work things out" in spirit; whether each is real state is undecided.
 - Many rows above are polish more than breakage; c4c1eb2dc is a decision change.
 - Rows left out as not about the frame: 80609811b (backup end card title), 6b09697b7 (chart place lines), 06ab70678 (backup board stick head), 9448d5702 (backup board descriptor chip), 6238eae9a (wallet card backup line).

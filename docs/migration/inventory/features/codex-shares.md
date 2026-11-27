@@ -71,6 +71,7 @@ Suggest corrections (`Press`, `faraday/faraday-core/src/codex32_correct/mod.rs:~
 - `KeyMarks` (`faraday/faraday-core/src/codex32_correct/mod.rs:~697`): per fingerprint, for the session, "Share entry corrected" or "Share repairs unchecked"; never weakened (`~703`). Not secret.
 - `Codex32Make.inputs` (`faraday/faraday-core/src/codex32/mod.rs:544`) is a `Vec<Codex32>`. `Codex32` derives `ZeroizeOnDrop` (`core/faraday-bip/src/codex32/mod.rs:370-374`), so each string typed in wipes as it drops.
 - `KeyMarks` is reset only by a new `Session` (`faraday/faraday-core/src/storage_api.rs:1198`) or a restart; `Session::wipe`, which a lock runs, leaves it (`faraday/faraday-core/src/wallet.rs:1539-1549`). It holds fingerprints and marks, no secret.
+- The dice sheet's body height, the dice column's whole height, the worksheet's room beside the column and its short flag are memos of the last frame, `Cell`s on the codex32 state written by drawing through a shared reference and read by the next frame (`faraday/faraday-core/src/codex32/mod.rs:509-512`, `1228-1260`; written at `faraday/faraday-core/src/codex32/dice_screen.rs:253,266`, `faraday/faraday-core/src/codex32/pane_screen.rs:68`, `faraday/faraday-core/src/codex32/worksheet_screen.rs:749`, `faraday/faraday-core/src/codex32/screen.rs:787`).
 
 ## Reach
 
@@ -166,6 +167,5 @@ None. Practice's sample is BIP 93 test vector 2, handed in by the shell (`farada
 ## Doubts
 
 - Rows left out as not about this feature: e20186b1f (a plan record's codex32 string), 54332b693 (a codex32 secret read at a flow's scanner), 363c80dbf (a vault's share-set identity), 591ae4a10 (codex32 offered as a backup of a key of words).
-- Drawing writes flow state: `note_dice_body_h` (`faraday/faraday-core/src/codex32/dice_screen.rs:~253`, `~266`) and `note_sheet_room` (`faraday/faraday-core/src/codex32/screen.rs:~749`, `~787`); whether this is interior mutability or a real write is unclear.
 - `column_scale` returns `Option` but never `None` (`faraday/faraday-core/src/codex32/dice_screen.rs:~284`); `die_line` could read "higher . 0" for an equal pair (`~420-431`); `kw` can go negative at tiny widths (`~184`).
 - 7285b52a3 and 51b51666c name files (`codex32/tracker.rs`, `tools/costs-lint/src/walk.rs`, `walk_screen.rs`, `tracker_screen.rs`) that no longer exist at this commit.

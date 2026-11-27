@@ -94,6 +94,7 @@ Other
 - Secret material:
   - The scan key and the descriptor are `Zeroizing` on their way to the secret sheet.
   - The vault NOTE holding the scan key is built as `Text` (`faraday/faraday-core/src/silent/mod.rs:~1300`), which wipes on drop.
+- What the page shows of its key (`SilentShown`: key here, address, record check) is work (two key derivations and an address) kept in `SilentState.shown`, a `RefCell` keyed by key, label, wallet, record, loaded key ids and network; the first caller derives it, a frame included, and a lookup serves after (`faraday/faraday-core/src/silent/mod.rs:73`, `609-644`, `faraday/faraday-core/src/drawing/kept.rs:1126-1130`).
 
 ## Reach
 
@@ -207,4 +208,3 @@ Used by `faraday/faraday-core/tests/all/silent.rs`, `faraday/faraday-core/tests/
 
 - 3035d5ec5 names `core/osk-bip/src/silent.rs` and `osk_codec`, earlier names of `core/faraday-bip` and `core/faraday-codec`.
 - Line numbers in `faraday/faraday-core/src/silent/mod.rs`, other than those written plainly, are unconfirmed.
-- The receiver cache in `SilentState.shown` is written from drawing paths. That is work done while drawing.

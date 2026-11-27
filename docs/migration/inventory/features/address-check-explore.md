@@ -138,6 +138,7 @@ Explore
   - when going to Convert or Lightning and returning here;
   - while a made wallet's card is open.
 - The secrets this feature shows are the seed words, the xprv and the WIF keys, as `Held` values in `Shown`. They go on prune, on a key change, at the idle warning, on leaving and at lock.
+- Explore's reading (xpub, public key, script, address of the chosen key at the path) and its address list are work, each derived once with the view's token the first time anyone asks, a frame included, and kept on Explore's state by its inputs: the reading by (key, path, script, network, key loaded), the list by the account and the addresses already derived (`faraday/faraday-core/src/explore/mod.rs:225-260`, `faraday/faraday-core/src/explore/addresses.rs:625-627`, `faraday/faraday-core/src/drawing/kept.rs:718-728`). A press on the Addresses page derives the list in the event (`faraday/faraday-core/src/explore/addresses.rs:658-662`), so a frame normally only reads.
 
 ## Reach
 
@@ -305,4 +306,3 @@ None. Explore's sample comes from `crate::samples::put`.
   - def14f1d9 and 09a325d4b (Decode and Check a signer);
   - e1063a469 (Your choices, Sign a message and Spend);
   - 893a358af (Spend review rows).
-- `explore_reading` and `explore_list` can run a first derivation during a frame. That is work done while drawing.

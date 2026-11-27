@@ -112,6 +112,7 @@ The overview is drawn by `Screen::SpendBackup` (not `Screen::Spend`): `loaded_co
   memory_free_mib, unlock_error), `app.stick`, `app.online`, `app.medium`,
   Inbox and Outbox.
 - `SpendBackupState` (`faraday/faraday-core/src/spend_backup/mod.rs:245`) derives `Debug` but holds no seed. Seeds are named by fingerprint in `SeedsState.keys` and `ticked` (`faraday/faraday-core/src/seeds/mod.rs:100-104`). Typed boxes are `Text`, whose `Debug` prints only a length (`core/faraday-text/src/text.rs:383-387`).
+- The drawing recomputes each frame, uncached and with no token: the merge of the Inbox's share files, the lossy text of each Inbox file, `create::read_key` of each key file (with the BIP 129 signature check) and each wallet's keys held toward its quorum (`faraday/faraday-core/src/spend_backup/screen.rs:419-455`, `848-854`, `970-991`). Receive addresses are kept: `receive_line` goes through the frame's held keys and the wallet's kept address (`faraday/faraday-core/src/drawing/memo.rs:96-101`, `faraday/faraday-core/src/drawing/kept.rs:674-676`). `spend_backup_guess()` is a lookup of the state's guess (`faraday/faraday-core/src/spend_backup/mod.rs:1445-1451`).
 
 ## Reach
 
@@ -241,10 +242,5 @@ Drawn rules:
   (`faraday/faraday-core/src/spend_backup/mod.rs:~1008`).
 - `STEP_AT = 16` and `LATER_AT = 32` card numbering assumes fewer than 16
   steps.
-- The drawing does work on every frame (`restore::merge`,
-  `create::read_key`, `from_utf8_lossy`, `receive_line` for up to 3 plus
-  the address rows per side, `spend_backup_guess()` several times,
-  `wallet_rows` quorum counts); whether these are cached elsewhere is
-  unclear.
 - `faraday/faraday-core/src/samples/put.rs:417-442` was read from the code
   at `d89dde5de`.

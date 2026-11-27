@@ -90,6 +90,7 @@ Steps
 - A description's keys are cleared from the seeds; typed seeds keep them.
 - With a stick put in during Restore, the screen says what holds a secret and offers Lock (fix 66737c616).
 - `restore::Pool` (`faraday/faraday-core/src/restore.rs:132-140`) holds multisig config share texts and what they merge to: fingerprints, paths and xpubs, nothing secret. They are `Text`, which wipes on drop.
+- The pool of shares and its merge (`Pool.merged`) are kept on the state by a hash of the chosen shares, the Inbox's and the open vaults' edit counts and the open vault ids (`faraday/faraday-core/src/restore.rs:143-148`, `1630-1666`, `faraday/faraday-core/src/drawing/kept.rs:174-208`); the screen reads the kept pool (`faraday/faraday-core/src/screens/restore.rs:254`), so drawing does not merge again while the inputs stand. A first frame after they change builds it with the view's token; the add-share events warm it. It is dropped with no restore state and at a lock (`faraday/faraday-core/src/drawing/kept.rs:1274`).
 
 ## Reach
 
@@ -246,4 +247,3 @@ None of its own. The multisig configs and wallet files of `faraday/faraday-core/
   - `readable` has no caller found;
   - `hide_shown` is a no-op;
   - `still_fits` is always true.
-- Drawing calls `restore::merge` while it draws. Whether the result is cached was not checked.

@@ -20,6 +20,7 @@ None of its own. The panes' own presses belong to their features.
 ## State and lock
 
 - Holds no state and no secrets. Every lock ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
+- `app.stood_apart()` called by a page that draws its panes side by side (`faraday/faraday-core/src/screens/hub_layout/page.rs:176`) notes it in the pass's `After`; the pass's end stores the screen in the trail as `drawn_apart` (`faraday/faraday-core/src/drawing.rs:252-254`, `520`; `faraday/faraday-core/src/trail.rs:98-113`), and a frame that does not call it clears it. It is a memo of the last frame: the trail reads it for Tools and Check only, where Home, Settings and Wallets start never stand apart and every other screen always does.
 
 ## Reach
 
@@ -56,6 +57,5 @@ None.
 
 ## Doubts
 
-- `app.stood_apart()` (`faraday/faraday-core/src/screens/hub_layout/page.rs:~176`) writes during drawing; its body was not read.
 - The tests in `faraday/faraday-core/src/screens/hub_layout/pair.rs` (`:~153-224`) were not read.
 - 1628a33c7 names a hub crate that is not in the tree today (`faraday/faraday-hub`); the rule it restored is kept as stated.

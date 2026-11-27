@@ -47,6 +47,7 @@ Entry (`entry_act`, `faraday/faraday-core/src/word_entry.rs:~913-1037`):
 - Leaving the screen resets the entry (`faraday/faraday-core/src/state.rs:~2234-2239`). Passphrase fields are emptied when their screen goes and when a stick arrives (`faraday/faraday-core/src/pass_field/mod.rs:623-644`).
 - Word list: `WordListArea` holds `find: String` (a search, which can hold a seed word) and a mark; `holds` = find non-empty or a mark set; `lock` = `clear()` (`faraday/faraday-core/src/wordlist/mod.rs:325-335`).
 - `Parts` and `Clash` (`faraday/faraday-core/src/forms.rs:18`, `160`) have no `Drop` of their own; each element wipes itself. `slip39::Share` has `Drop` and `ZeroizeOnDrop` (`core/faraday-bip/src/slip39.rs:574-580`). `Codex32` and `Codex32Ascii` derive `ZeroizeOnDrop` (`core/faraday-bip/src/codex32/mod.rs:370-381`). `SeedXor` has `Drop` (`core/faraday-entropy/src/xor.rs:40`). None of them has `Debug`. `Clash.differ` holds box positions only.
+- The word list sheet's scroll extent and clamped offset are a memo of the last frame: the draw computes `max` and the clamped scroll from the found list, the view height and the follow flag (`faraday/faraday-core/src/wordlist/screen.rs:121-133`), notes them in the pass's `After` (`faraday/faraday-core/src/drawing.rs:263-265`), and the pass's end stores them with `follow = false` (`faraday/faraday-core/src/drawing.rs:605-607`, `faraday/faraday-core/src/wordlist/mod.rs:195-201`). The follow flag, set when the sheet opens at a mark, is real state consumed by the first frame.
 
 ## Reach
 
@@ -131,5 +132,4 @@ None.
 
 - `EntryList::Slip39` is never built by `WordEntry::list()` (`faraday/faraday-core/src/word_entry.rs:~473-475`).
 - `reading_keys` loops over 2048 indices per keystroke.
-- The word list's draw calls `app.wordlist_scroll(max, scroll)`, which writes the clamped scroll to state during drawing (`faraday/faraday-core/src/wordlist/screen.rs:~133`); a memo or a breach of "drawing reads", unclear.
 - The inventory gave no line numbers for the Add a key rules in `faraday/faraday-core/src/state.rs` or for the word keyboard and candidate rules in `faraday/faraday-core/src/word_entry.rs`; only the files are named.

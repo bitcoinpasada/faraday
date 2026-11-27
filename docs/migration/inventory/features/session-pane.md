@@ -27,6 +27,7 @@ The pane that shows what the session holds: keys, wallets, files held, flows in 
 - Owns no state. It reads the session (`Session` keys and wallets), the Inbox and Outbox, the vaults, `in_progress` and `row_open`.
 - The session's keys and wallets are wiped at a lock by `Session::wipe` (`faraday/faraday-core/src/wallet.rs:1539-1549`). The Wallets area's lock clears the spend and `row_open` (`faraday/faraday-core/src/wallet/state.rs:1264-1274`). Every lock then ends in a fresh process (`faraday/faraday-core/src/vault/seal.rs:933-946`).
 - Per-frame values only: `SessionRow`, `Decl`, `PickRow`, `Take`, `Group`, `band::Layout`.
+- `Camera.pane_seen` is a memo of the last frame's layout: the page the pane stood beside, set by `pane_stands` as the pane draws (stacked card, page-mode card, wide Home block) and cleared at the start of a frame that is not frosted; Scan reads it to decide whether the viewfinder has a place (`faraday/faraday-core/src/scan_key.rs:60-81`, `700`, `faraday/faraday-core/src/screens/session_pane/mod.rs:55`, `507`, `faraday/faraday-core/src/screens/session_pane/page_mode.rs:261`, `faraday/faraday-core/src/screens/session_pane/scan.rs:26`).
 
 ## Reach
 
@@ -94,6 +95,5 @@ None. (eb0be84dd, a split sheet's row in this pane with no button, sits under th
 
 - `KeyWallet(fp, 1)` uses a literal 1 (`faraday/faraday-core/src/screens/session_pane/rows.rs:~180, ~330`); its meaning is not stated.
 - `faraday/faraday-core/src/screens/session_pane/scan.rs:~26-27` checks the same fact twice (`camera.pane_seen` and `scan().pane`).
-- `camera.pane_stands` writes during drawing, against "drawing reads"; whether it is real state is undecided.
 - The ranking comment at `faraday/faraday-core/src/screens/session_pane/page_mode.rs:~88-92` is stale.
 - The tests in `faraday/faraday-core/src/screens/session_pane/pick.rs` (`:~506-726`) were not read.
