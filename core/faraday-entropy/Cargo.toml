@@ -1,13 +1,22 @@
 [package]
 name = "faraday-entropy"
-version = "0.0.0"
+version = "0.1.0"
+description = "User-supplied entropy: dice, coin flips and raw hex, with sanity checks; no_std, no alloc"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }
 faraday-crypto = { path = "../faraday-crypto" }
+
+[dev-dependencies]
+# Another implementation of BIP-39, for the Seed XOR vectors.
+bip39.workspace = true
+# The known answers of the cards, the camera and a mix (`tools/vectors/`).
+serde_json = { workspace = true, features = ["std"] }
 
 [lints]
 workspace = true
