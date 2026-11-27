@@ -1,0 +1,42 @@
+//! What wipes (02 §6): the wiping payload types of an event or an effect.
+
+use alloc::vec::Vec;
+use core::fmt;
+
+/// Bytes that may hold a secret: a file, a picture, a PDF, a code's payload, a camera frame.
+/// Wipes on drop and is not `Clone` (P14).
+pub type Bytes = faraday_crypto::Secret<Vec<u8>>;
+
+/// Randomness. Wipes on drop and is not `Clone` (02 §6).
+pub struct EntropyBytes(
+    #[expect(dead_code, reason = "read once the methods have bodies")] [u8; 32],
+);
+
+impl EntropyBytes {
+    pub fn new(_bytes: [u8; 32]) -> Self {
+        todo!()
+    }
+
+    pub fn into_bytes(self) -> [u8; 32] {
+        todo!()
+    }
+}
+
+impl fmt::Debug for EntropyBytes {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
+/// What `Ask::Entropy` is answered with (02 §4.7).
+pub struct Entropy {
+    pub bytes: EntropyBytes,
+    pub source: EntropySource,
+}
+
+/// Which source gave the randomness, which New key words.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum EntropySource {
+    DevRandom,
+    Os,
+}

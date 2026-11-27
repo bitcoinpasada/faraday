@@ -2,3 +2,6 @@
 //! Everything a crate of the domain may do is in `docs/spec/01-layers.md` section 2.
 
 #![no_std]
+
+// Placeholder until the domain copy: `main`'s `core/faraday-crypto/src/secret.rs`.
+pub struct Secret<T>(T);
