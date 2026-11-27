@@ -371,6 +371,8 @@ impl<A: Pressed> Ui<'_, A> {
         self.hits.clear();
         self.tab.clear();
         self.tips.clear();
+        self.keeps.holds.clear();
+        self.keeps.held.clear();
     }
 
     /// Keeps where the hit at `at`, just offered (pixels, clipped), is taken: grown to the touch

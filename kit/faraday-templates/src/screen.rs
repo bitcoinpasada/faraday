@@ -105,7 +105,7 @@ pub fn draw<'s, R: Pressed, O>(
     // The sheets, the lowest first: each frosts what is under it and takes the presses alone.
     for (id, sheet) in over {
         ui.clear_hits();
-        ui.backdrop();
+        ui.backdrop(*id);
         ui.add_sheet(*id);
         ui.layer += 1;
         draw_over(sheet, ui);

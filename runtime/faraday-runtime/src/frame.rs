@@ -3,7 +3,7 @@
 use core::borrow::Borrow;
 use std::collections::VecDeque;
 
-use faraday_atoms::{Anchor, FrameOut, Laid, Pointer, Theme, Ui};
+use faraday_atoms::{Anchor, ComponentId, FrameOut, KeptFrost, Laid, Pointer, Theme, Ui};
 use faraday_crypto::Secret;
 use faraday_draw::canvas::{Calls, Canvas};
 use faraday_draw::geom::Rect as Target;
@@ -20,6 +20,30 @@ use crate::seen::Mark;
 
 /// How long a note stays up before the next one comes up, by the runtime's clock (04 §10).
 const TOAST_SHOW_MS: u64 = 4000;
+
+/// How far a wheel notch scrolls, in design units, and how many pixels the adapters send a notch
+/// (`Input::Wheel`): a notch covers the same part of the page on every screen.
+const WHEEL_NOTCH_UNITS: f32 = 56.0;
+const WHEEL_NOTCH_PX: f32 = 48.0;
+
+/// A frosted page kept under a sheet (04 K16), in a wiping buffer (02 P13).
+pub(crate) struct KeptCopy {
+    pub(crate) sheet: Anchor,
+    pub(crate) page: Anchor,
+    pub(crate) taken_at: u64,
+    /// The `secret` flag of the frame it was copied from: V19 refuses a frame that is set, so it
+    /// is clear in every copy kept.
+    pub(crate) secret: bool,
+    pub(crate) pixels: Secret<Vec<u8>>,
+}
+
+impl KeptCopy {
+    fn wipe(&mut self) {
+        let pixels = self.pixels.expose_mut();
+        pixels.fill(0);
+        pixels.clear();
+    }
+}
 
 /// What the last frame keeps until the next (§2.5): the buffer, the output, the waiting orders.
 pub(crate) struct Painted<R: Root> {
@@ -42,6 +66,13 @@ pub(crate) struct Painted<R: Root> {
     down: Option<R::Press>,
     /// A frame is wanted by something other than a dispatch: a tick, a note.
     pub(crate) wanted: bool,
+    /// The frosted pages kept under the sheets drawn (K16); none outlives its sheet, a lock, a
+    /// hide or the page.
+    pub(crate) frosts: Vec<KeptCopy>,
+    /// A hold was held to its end this event and its press is not yet sent.
+    pub(crate) hold_ready: Option<R::Press>,
+    /// The press of the hold sent for the contact now down: a contact sends it once.
+    hold_sent: bool,
     /// A frame was drawn that `Runtime::frame` has not handed out.
     fresh: bool,
     /// The ink record is on (04 V21).
@@ -71,6 +102,9 @@ impl<R: Root> Painted<R> {
             },
             down: None,
             wanted: false,
+            frosts: Vec::new(),
+            hold_ready: None,
+            hold_sent: false,
             fresh: false,
             ink: false,
             #[cfg(test)]
@@ -98,6 +132,86 @@ impl<R: Root> Painted<R> {
     /// What the last frame said about the next tick.
     pub(crate) fn pace(&self) -> Pace {
         self.out.as_ref().map_or(Pace::Rest, |out| out.pace)
+    }
+
+    /// Wipes and drops every kept frost (V19: a lock, a hide, a page left, a sheet closed).
+    pub(crate) fn drop_frosts(&mut self) {
+        for kept in &mut self.frosts {
+            kept.wipe();
+        }
+        self.frosts.clear();
+    }
+
+    /// After a frame: the copies whose sheet is no longer drawn, whose page was left or whose
+    /// size is not the display's are wiped; the frosts the frame made are kept unless the frame
+    /// showed a secret (V19) or the scope is going (`keeping` clear). `len` is the buffer's size.
+    fn keep_frosts(
+        &mut self,
+        out: &mut FrameOut<R::Press>,
+        now_ms: u64,
+        keeping: bool,
+        len: usize,
+    ) {
+        let mut i = 0;
+        while i < self.frosts.len() {
+            let k = &self.frosts[i];
+            let stays = keeping
+                && k.page == out.page
+                && k.pixels.expose().len() == len
+                && out.sheets.contains(&k.sheet);
+            if stays {
+                i += 1;
+            } else {
+                let mut gone = self.frosts.swap_remove(i);
+                gone.wipe();
+            }
+        }
+        for made in out.frosts.drain(..) {
+            let mut pixels = made.pixels;
+            let new = keeping
+                && !out.secret
+                && pixels.len() == len
+                && made.page == out.page
+                && out.sheets.contains(&made.sheet)
+                && !self.frosts.iter().any(|k| k.sheet == made.sheet);
+            if new {
+                self.frosts.push(KeptCopy {
+                    sheet: made.sheet,
+                    page: made.page,
+                    taken_at: now_ms,
+                    secret: false,
+                    pixels: Secret::new(pixels),
+                });
+            } else {
+                pixels.fill(0);
+            }
+        }
+    }
+
+    /// The press of a hold that is full under the contact now down, once per contact.
+    fn finish_hold(&mut self) {
+        let Some(down) = self.down.as_ref() else {
+            return;
+        };
+        let Some(out) = self.out.as_ref() else {
+            return;
+        };
+        let top = out.hits.iter().map(|hit| hit.layer).max();
+        let on_top = out
+            .hits
+            .iter()
+            .any(|hit| Some(hit.layer) == top && hit.press == *down);
+        if !self.hold_sent && on_top && out.held.contains(down) {
+            self.hold_sent = true;
+            self.hold_ready = Some(down.clone());
+        }
+    }
+
+    /// Whether `press` is a hold's: one presses it by holding, never by a lift or a key.
+    fn is_hold(&self, press: &R::Press) -> bool {
+        self.out
+            .as_ref()
+            .is_some_and(|out| out.holds.contains(press))
     }
 
     /// The page the last frame drew, the sheets over it and the ink record, for `Seen`.
@@ -208,11 +322,16 @@ impl<R: Root> Runtime<R> {
             return;
         }
         let laid = self.draw(true);
-        if laid.is_empty() {
+        // A hold held to its end sends its press as any press is sent (V24's mark included).
+        let held = self.frame.hold_ready.take();
+        if laid.is_empty() && held.is_none() {
             return;
         }
         for press in laid {
             self.queue.push(Item::Msg(R::press(press)));
+        }
+        if let Some(press) = held {
+            self.pressed(press);
         }
         let before = self.queue.dispatched;
         self.drain();
@@ -236,6 +355,7 @@ impl<R: Root> Runtime<R> {
             return Vec::new();
         };
         let started = self.started;
+        let keeping = !matches!(self.phase, Phase::Locking | Phase::Ending);
         let Runtime {
             root,
             tops,
@@ -282,6 +402,18 @@ impl<R: Root> Runtime<R> {
         let under = frame.pointer.at.and_then(|at| frame.hit_at(at));
         frame.pointer.pressed = frame.down.clone();
         frame.pointer.hovered = if frame.pointer.down { None } else { under };
+        let size =
+            usize::from(facts.facts.display.width) * usize::from(facts.facts.display.height) * 4;
+        let lent_frosts: Vec<KeptFrost<'_>> = frame
+            .frosts
+            .iter()
+            .filter(|k| k.pixels.expose().len() == size)
+            .map(|k| KeptFrost {
+                sheet: k.sheet,
+                page: k.page,
+                pixels: k.pixels.expose().as_slice(),
+            })
+            .collect();
         let mut ui = Ui::new(
             &mut canvas,
             Theme::default(),
@@ -290,10 +422,13 @@ impl<R: Root> Runtime<R> {
             &frame.pointer,
             frame.ink,
         );
+        ui.set_kept(&lent_frosts);
         ui.set_now_ms(clock.now_ms);
         ui.size_class();
         root.frame(&lent_tops, &view, &show, &mut ui);
-        let out = ui.finish();
+        let mut out = ui.finish();
+        drop(lent_frosts);
+        frame.keep_frosts(&mut out, clock.now_ms, keeping, size);
 
         let mut pending = Vec::new();
         for (anchor, laid, press) in &out.laid {
@@ -311,6 +446,7 @@ impl<R: Root> Runtime<R> {
         }
         debug_assert!(send || pending.is_empty(), "layout settles in one frame");
         frame.out = Some(out);
+        frame.finish_hold();
         frame.wanted = false;
         frame.number += 1;
         frame.fresh = true;
@@ -337,13 +473,20 @@ impl<R: Root> Runtime<R> {
             TouchPhase::Down => {
                 self.frame.pointer.down = true;
                 self.frame.down = self.frame.hit_at(at);
+                self.frame.hold_sent = false;
+                // A frame shows the press down: a hold begins to fill.
+                self.frame.wanted = true;
             }
             TouchPhase::Move => {}
             TouchPhase::Up => {
                 self.frame.pointer.down = false;
+                self.frame.hold_sent = false;
+                self.frame.hold_ready = None;
+                self.frame.wanted = true;
                 let down = self.frame.down.take();
                 if let (Some(down), Some(up)) = (down, self.frame.hit_at(at))
                     && down == up
+                    && !self.frame.is_hold(&up)
                 {
                     self.pressed(up);
                 }
@@ -357,6 +500,8 @@ impl<R: Root> Runtime<R> {
         match key {
             Key::Tab | Key::BackTab => self.move_focus(key == Key::BackTab),
             Key::Enter => match self.frame.pointer.focused.clone() {
+                // A hold is pressed by holding it (F136): Enter does not press it.
+                Some(press) if self.frame.is_hold(&press) => {}
                 Some(press) => self.pressed(press),
                 None => self.root_input(&Input::Key(key)),
             },
@@ -413,15 +558,63 @@ impl<R: Root> Runtime<R> {
             Input::Touch { at, phase } => self.touch(at, phase),
             Input::Hover(at) => self.frame.pointer.at = at,
             // The motion store moves against the last frame's regions (04 §8.1): no message.
-            Input::Scroll { .. } | Input::Wheel { .. } | Input::ScrollEnd { .. } => {}
+            Input::Scroll { at, dy } => self.scroll(at, f32::from(dy)),
+            Input::Wheel { at, dy } => {
+                self.scroll(
+                    at,
+                    f32::from(dy) / WHEEL_NOTCH_PX * WHEEL_NOTCH_UNITS * self.scale(),
+                );
+            }
+            Input::ScrollEnd { .. } => {}
             Input::Key(key) => self.key(key),
             other => self.root_input(&other),
+        }
+    }
+
+    /// Pixels per design unit, as the person's setting has it.
+    fn scale(&self) -> f32 {
+        let pct = self
+            .tops
+            .settings
+            .as_ref()
+            .map_or(100, |s| Borrow::<shared::Settings>::borrow(s).scale_pct);
+        f32::from(pct) / 100.0
+    }
+
+    /// Moves the region of the top layer under `at` by `dy` pixels (down is positive): the motion
+    /// store's offset and the time its scrollbar shows from are set from the frame's clock when
+    /// the offset changes (04 §8.1).
+    fn scroll(&mut self, at: Point, dy: f32) {
+        let f = self.scale().max(0.1);
+        let Some(out) = self.frame.out.as_ref() else {
+            return;
+        };
+        let top = out.hits.iter().map(|hit| hit.layer).max().unwrap_or(0);
+        let page = out.page;
+        let Some(region) = out
+            .regions
+            .iter()
+            .rev()
+            .find(|region| region.layer == top && region.view.contains(at.x, at.y))
+        else {
+            return;
+        };
+        let max = (region.extent.h - region.view.h).max(0) as f32 / f;
+        let id = ComponentId(page, region.id);
+        if self
+            .motion
+            .scroll_region(id, dy / f, max, self.clock.now_ms)
+        {
+            self.frame.wanted = true;
         }
     }
 
     /// §7.2 step 7: the buffer zeroed, the call list and the frame's output dropped.
     pub(crate) fn wipe_frame(&mut self) {
         self.frame.buffer.expose_mut().fill(0);
+        self.frame.drop_frosts();
+        self.frame.hold_ready = None;
+        self.frame.hold_sent = false;
         self.frame.calls = None;
         self.frame.out = None;
         self.frame.changed.clear();

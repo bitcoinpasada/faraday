@@ -824,7 +824,7 @@ impl<R: Root> Runtime<R> {
 }
 pub struct Seen<'a> {
     pub ink: Option<&'a Ink>,        // the last frame's `FrameOut::ink`; None unless the record is on
-    pub kept: &'a [KeptImage<'a>],   // every image the runtime keeps: a sheet's frost, a fade's frame
+    pub kept: Vec<KeptImage<'a>>,   // every image the runtime keeps: a sheet's frost, a fade's frame
     pub page: Anchor,                // `FrameOut::page`, set by the screen template
     pub sheets: &'a [Anchor],        // `FrameOut::sheets`, the lowest first
     pub marks: &'a [Mark],           // for the last event

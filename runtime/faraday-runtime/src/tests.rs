@@ -24,8 +24,12 @@ use crate::facts::Kept;
 use crate::root::{Addr, NoRefusal, Nothing, Root, Stream, Tops};
 use crate::runtime::{Phase, Runtime, Workers};
 
+/// What a test root draws as its frame (none: nothing).
+type Draw = fn(&View<'_>, &mut Ui<'_, Press>);
+
 thread_local! {
     static LOG: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    static DRAW: core::cell::Cell<Option<Draw>> = const { core::cell::Cell::new(None) };
 }
 
 fn log(line: String) {
@@ -458,10 +462,13 @@ macro_rules! test_root {
             fn frame(
                 &self,
                 _tops: &Tops<'_, Self>,
-                _view: &View<'_>,
+                view: &View<'_>,
                 _show: &Show<'_>,
-                _ui: &mut Ui<'_, Press>,
+                ui: &mut Ui<'_, Press>,
             ) {
+                if let Some(draw) = DRAW.get() {
+                    draw(view, ui);
+                }
             }
         }
     };
@@ -1260,4 +1267,208 @@ fn the_memo_is_empty_after_a_lock_and_an_end_and_the_log_holds_only_public_messa
     send(&mut runtime, Addr::App(Msg::End(End::PowerOff)));
     assert_eq!(runtime.log_lines().count(), 0);
     assert_eq!(get(&runtime, 9), 10);
+}
+
+// What a person sees of the frame: a scrolled region's bar, a hold, a sheet's frost. The root
+// draws what the test sets (`DRAW`) on a display of 320 by 480.
+
+const PAGE: faraday_atoms::Anchor = faraday_atoms::Anchor {
+    scope: "test",
+    n: 1,
+};
+const SHEET: faraday_atoms::Anchor = faraday_atoms::Anchor {
+    scope: "test",
+    n: 2,
+};
+const REGION: faraday_atoms::Anchor = faraday_atoms::Anchor {
+    scope: "test",
+    n: 3,
+};
+const HOLD: faraday_atoms::Anchor = faraday_atoms::Anchor {
+    scope: "test",
+    n: 4,
+};
+
+fn draw_region(_view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    ui.set_page(PAGE);
+    let view = faraday_draw::geom::Rect::new(0, 0, 200, 200);
+    ui.region(faraday_atoms::region::Region::new(REGION, view), |_| {
+        400.0_f32
+    });
+}
+
+fn draw_hold(_view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    ui.set_page(PAGE);
+    let model = faraday_atoms::hold::HoldModel {
+        label: faraday_atoms::Shown::plain("Erase"),
+        tone: faraday_atoms::hold::HoldTone::Error,
+        id: HOLD,
+        offered: faraday_atoms::Offered::Yes(Press(false)),
+    };
+    faraday_atoms::hold::draw(&model, ui, (10.0, 10.0, 200.0));
+}
+
+/// A sheet over a page, in the scope as it was built at power on only.
+fn draw_sheet(view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    ui.set_page(PAGE);
+    if view.started == faraday_kernel::Started::Power {
+        ui.backdrop(SHEET);
+        ui.add_sheet(SHEET);
+        ui.layer += 1;
+    }
+}
+
+/// The same over a page that shows a secret.
+fn draw_sheet_over_secret(view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    ui.showing(&faraday_atoms::Shown::secret("abandon"), |_| {});
+    draw_sheet(view, ui);
+}
+
+fn drawing(draw: Draw) -> Runtime<Device> {
+    DRAW.set(Some(draw));
+    let mut runtime = Runtime::new(Device::new(), Arc::new(NoWake), Workers::Inline);
+    let Event::Start(mut start) = start_event() else {
+        panic!("a start");
+    };
+    start.display.width = 320;
+    start.display.height = 480;
+    runtime.event(Event::Start(start));
+    take_log();
+    runtime
+}
+
+/// The clock at `now_ms`, and a frame drawn at it.
+fn at(runtime: &mut Runtime<Device>, now_ms: u64) {
+    runtime.frame.wanted = true;
+    runtime.event(Event::Time(Time {
+        now_ms,
+        unix_secs: now_ms / 1000,
+    }));
+}
+
+fn touch(runtime: &mut Runtime<Device>, at: port::values::Point, phase: port::event::TouchPhase) {
+    runtime.event(Event::Input(port::event::Input::Touch { at, phase }));
+}
+
+fn pixels(runtime: &mut Runtime<Device>) -> Vec<u8> {
+    runtime
+        .frame()
+        .map(|frame| frame.rgba.to_vec())
+        .unwrap_or_default()
+}
+
+fn presses() -> usize {
+    take_log().iter().filter(|line| *line == "app:Fan").count()
+}
+
+/// Invariant: A scrolled region shows its scrollbar once its content has moved, keeps asking frames while it shows, and draws it no more after it has faded.
+/// Regression: Nothing writes the region's offset and the time it moved, so the overlay bar never shows; or the bar is drawn for ever and the screen never rests.
+/// Owner: runtime
+#[test]
+fn a_scrolled_region_shows_its_bar_after_a_scroll_and_it_fades() {
+    use port::values::Pace;
+    let mut runtime = drawing(draw_region);
+    at(&mut runtime, 1_000);
+    let before = pixels(&mut runtime);
+    assert_eq!(runtime.frame.pace(), Pace::Rest);
+    runtime.event(Event::Input(port::event::Input::Scroll {
+        at: port::values::Point { x: 50, y: 50 },
+        dy: 40,
+    }));
+    let shown = pixels(&mut runtime);
+    assert_ne!(before, shown, "the scroll draws");
+    assert_eq!(runtime.frame.pace(), Pace::Moving);
+    at(&mut runtime, 11_000);
+    let gone = pixels(&mut runtime);
+    assert_ne!(shown, gone, "the bar is gone");
+    assert_eq!(runtime.frame.pace(), Pace::Rest);
+    at(&mut runtime, 12_000);
+    assert_eq!(
+        pixels(&mut runtime),
+        gone,
+        "the page at rest does not change"
+    );
+}
+
+/// Invariant: A hold sends its press once when it is held to its end, sends nothing when the contact lifts before, and sends nothing more when it lifts after.
+/// Regression: A hold that sends on lift fires when let go early; one sent at its end and again at the lift fires twice.
+/// Owner: runtime
+#[test]
+fn a_hold_sends_its_press_once_when_held_to_its_end_and_never_when_let_go_early() {
+    use port::event::TouchPhase::{Down, Up};
+    let mut runtime = drawing(draw_hold);
+    at(&mut runtime, 1_000);
+    let rect = runtime.hits()[0].rect;
+    let on = port::values::Point {
+        x: rect.x + rect.w / 2,
+        y: rect.y + rect.h / 2,
+    };
+    take_log();
+    touch(&mut runtime, on, Down);
+    at(&mut runtime, 1_050);
+    touch(&mut runtime, on, Up);
+    at(&mut runtime, 20_000);
+    assert_eq!(presses(), 0, "let go early");
+
+    touch(&mut runtime, on, Down);
+    at(&mut runtime, 20_050);
+    assert_eq!(presses(), 0, "not yet");
+    at(&mut runtime, 30_000);
+    assert_eq!(presses(), 1, "held to its end");
+    at(&mut runtime, 40_000);
+    touch(&mut runtime, on, Up);
+    assert_eq!(presses(), 0, "once for the contact");
+
+    // Enter does not press a hold either.
+    runtime.frame.pointer.focused = Some(Press(false));
+    runtime.event(Event::Input(port::event::Input::Key(
+        port::event::Key::Enter,
+    )));
+    assert_eq!(presses(), 0);
+}
+
+/// Invariant: The frost under a sheet is made once when the sheet opens, kept while it stays over the same page, and gone when the sheet closes.
+/// Regression: The page is blurred again at every frame the sheet is up; or a frost outlives its sheet in the runtime's memory.
+/// Owner: runtime
+#[test]
+fn the_frost_under_a_sheet_is_made_once_and_gone_when_the_sheet_closes() {
+    let mut runtime = drawing(draw_sheet);
+    at(&mut runtime, 1_000);
+    assert_eq!(runtime.seen().kept.len(), 1);
+    at(&mut runtime, 2_000);
+    let seen = runtime.seen();
+    assert_eq!(seen.kept.len(), 1);
+    assert_eq!(seen.kept[0].taken_at, 1_000, "not made again");
+    assert!(!seen.kept[0].secret);
+    assert!(seen.kept[0].pixels.iter().any(|&b| b != 0));
+    DRAW.set(Some(|_, ui| ui.set_page(PAGE)));
+    at(&mut runtime, 3_000);
+    assert!(runtime.seen().kept.is_empty());
+}
+
+/// Invariant: No frost is kept of a page that shows a secret, and none outlives a lock.
+/// Regression: A kept copy of a frame that showed a secret is on the heap after the secret left the screen.
+/// Owner: runtime
+#[test]
+fn no_frost_of_a_secret_is_kept_and_none_outlives_a_lock() {
+    let mut runtime = drawing(draw_sheet_over_secret);
+    at(&mut runtime, 1_000);
+    assert!(runtime.seen().kept.is_empty(), "a secret page");
+
+    let mut runtime = drawing(draw_sheet);
+    at(&mut runtime, 1_000);
+    assert_eq!(runtime.seen().kept.len(), 1);
+    send(
+        &mut runtime,
+        Addr::App(Msg::Lock(Lock {
+            seal: false,
+            idle: true,
+        })),
+    );
+    assert!(runtime.seen().kept.is_empty());
+    at(&mut runtime, 2_000);
+    assert!(
+        runtime.seen().kept.is_empty(),
+        "the scope built after the lock draws no sheet"
+    );
 }

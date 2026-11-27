@@ -549,6 +549,9 @@ pub enum Motion {
 pub enum Turn { Page, Step }
 ```
 
+Built: a wheel or a finger over a region writes its offset and `bar_shown_ms` from the frame's
+clock (`MotionStore::scroll_region`), and a hold held to its end sends its press once.
+
 - **Rule K9.** The motion store holds numbers, rectangles and times only: no text, no press, no
   model value. Held by the `Motion` enum (its fields are the kit's geometry and `u64` times). So
   it holds no secret and needs no wipe; a lock drops it with the model.
@@ -725,7 +728,8 @@ no text of a planted secret is drawn and no kept image of a frame that showed on
   flag of the frame it was copied from, in wiping buffers (02 P13), so the check reads them with
   no hook in the kit (01 R4, 07 TS15). By V19 only a step fade's source may have the flag set,
   and none is left at the frame after its fade out, a lock, a hide or a page left; the check holds
-  V19.
+  V19. Built: the frost under a sheet is made once when it opens and kept in the runtime
+  (`Seen::kept`).
 
 ## 12. The UI kit by atomic level
 
