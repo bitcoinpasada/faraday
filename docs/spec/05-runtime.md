@@ -172,9 +172,10 @@ Handling one event:
   handled in the order it was returned; a frame is drawn only after. This is A15, made exact.
   Held by the runtime and a test of the runtime with a cascade across two features and an owner.
 - **Rule R8.** One event's cascade is bounded (10 000 dispatches). Past the bound the runtime
-  drops what is queued, notes a fault for diagnostics and draws. Each change whose `given` was
-  dropped is answered with its fault (`Change::fault`) in the next event, so no change waits for
-  an answer that cannot come (A22, R12). A lock that reaches the bound goes on, and a vault whose
+  drops the queued `Then`s and notices, notes a fault for diagnostics and draws. Every queued
+  message that answers something (a change's `given`, the asker's message of a `Done` or of an
+  answer) is carried into the next event, so no change or ask waits for an answer that cannot come
+  (A22, R12); at a lock, a `Close` whose `given` was carried over is given in that event. A lock that reaches the bound goes on, and a vault whose
   Outbox put was dropped is named failed in the vault summaries (§7.4). Reason: a feature that
   sends itself `Then` forever must not stop the screen. Held by a test of the runtime.
 
@@ -439,8 +440,8 @@ running one has its stop flag set, and its answer, when it returns, is handled a
 
 - **Rule R16.** No job's input outlives the scope that made it (A28). When the scope ends, by a
   lock that ends the process or one that does not, by an end or by the Starter's Close, the
-  runtime drops every queued job of it, sets the stop flag of every running one (at a lock, but a
-  seal's), and waits until each has returned. While the scope is `Locking` or `Ending`, one rule
+  runtime drops every queued job of it (at a lock, but a seal), sets the stop flag of every running
+  one (at a lock, but a seal's), and waits until each has returned. While the scope is `Locking` or `Ending`, one rule
   says what is delivered: what serves `Close` (the vault owner's asks, changes and seal jobs,
   their answers and `Done`s, and `Close`'s own `Done`, which the runtime reads), and every answer
   of generation 0. Every other answer and job answer of the scope is dropped unread and wipes as it
@@ -608,7 +609,8 @@ A feature not in this table carries nothing: what it holds goes with the scope. 
 carries has its row here.
 
 The session sets `only_copy` in its `carry` whenever a key is held for its backup or the Outbox
-holds a vault sealed at this lock. Held by an update test of the session's `carry`.
+holds a sealed vault, whether sealed at this lock or carried from an earlier one. Held by an
+update test of the session's `carry`, with both cases.
 
 In the Starter the settings owner stands outside the scope and is not built again: its mode entry
 is read by `Root::mode`, and its other entries are taken by no start and dropped (R22).
@@ -647,8 +649,8 @@ device) says which.
 **Decision: when the keep fails, the process ends unless the carry holds an only copy; then the
 scope is rebuilt in the same process.** A failed Keep has removed every file it wrote before it
 answers (02 §4.2). `Answer::Kept(Err((failure, carry)))` hands the carry back. If `only_copy` is
-set (a key waiting for its backup, or a vault sealed at this lock whose only copy is in the
-Outbox), the runtime builds the next scope in process with that carry, marked `Rebuilt` and not
+set (a key waiting for its backup, or a sealed vault, sealed at this lock or carried from an
+earlier one, whose only copy is in the Outbox), the runtime builds the next scope in process with that carry, marked `Rebuilt` and not
 clean (R14); otherwise it drops the carry and sends `Exit::Lock`. Reason: the restart at every
 lock, with the kernel zeroing the process's pages, is what the device relies on, so it is given up
 only where it would lose a key or a sealed vault; a rebuilt scope gives no stick out until a lock
@@ -704,7 +706,8 @@ that has an `Outside` closes the scope instead (§7.9). Otherwise:
    `features/lock.md`);
 3. `at_lock` on every top state; the states, the memo, the log and the frame's output dropped as
    §7.2 step 7;
-4. `Ask::Forget`, which removes every carried file in the adapter's keeping, awaited;
+4. where `lock_ends_process` (the device), `Ask::Forget`, which removes every carried file in the
+   adapter's keeping, awaited; elsewhere no carry left the runtime, and none is asked;
 5. `Order::Exit(Exit::End)` for `PowerOff` and `Quit`, `Order::Exit(Exit::RestartComputer)` for
    `RestartComputer`.
 
