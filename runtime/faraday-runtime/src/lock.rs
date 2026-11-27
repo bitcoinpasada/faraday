@@ -10,7 +10,7 @@ use faraday_kernel::{
 };
 use faraday_port as port;
 
-use crate::facts::{Lent, build_view, default_settings};
+use crate::facts::{Lent, build_view};
 use crate::queue::{Item, PARTS, Part, Pending, in_scope};
 use crate::root::{Addr, OwnerState, Root, has_outside};
 use crate::runtime::{Built, Phase, Runtime};
@@ -423,7 +423,7 @@ impl<R: Root> Runtime<R> {
         let mode = self.root.mode(&mut carried, &self.facts.facts);
         self.mode = Some(mode);
         self.started = started;
-        let defaults = default_settings();
+        let defaults = shared::Settings::default();
         let fallback = &defaults;
 
         if !has_outside::<R>() {
@@ -538,7 +538,7 @@ impl<R: Root> Runtime<R> {
         let mode = self.root.mode(&mut carried, &self.facts.facts);
         self.mode = Some(mode);
         self.started = Started::Power;
-        let defaults = default_settings();
+        let defaults = shared::Settings::default();
         let fallback = &defaults;
 
         let (state, effects) = {

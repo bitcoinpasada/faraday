@@ -1,6 +1,5 @@
 //! `Facts` kept from port facts, `View` and `Show` built (05 §4).
 
-use faraday_kernel::settings::{Appearance, Contrast, MotionSpeed, TextSize, ThemeId};
 use faraday_kernel::{
     AtLock, Clock, Downloads, Facts, FactsChanged, Memo, Mode, NoteUp, Running, SelfTest, Show,
     Started, Sticks, SystemFacts, View, session, shared, vaults,
@@ -24,6 +23,8 @@ pub(crate) struct Kept {
     pub(crate) tainted: bool,
     /// The last value of the marker worked out (and sent as `Order::Clean`).
     pub(crate) clean: bool,
+    /// Whether the marker was sent once yet: at `Start`, after the model is built (R14).
+    pub(crate) clean_sent: bool,
     /// The wall second the last `Notice::Facts(Time)` was sent for.
     pub(crate) last_second: Option<u64>,
 }
@@ -93,6 +94,7 @@ impl Kept {
             },
             tainted: false,
             clean: true,
+            clean_sent: false,
             last_second: None,
         }
     }
@@ -152,31 +154,6 @@ pub(crate) fn as_was(settings: &shared::Settings) -> shared::Settings {
     }
 }
 
-/// What a feature reads as the settings before the settings owner is built (§7.5): the owner's
-/// own `start` gives the real ones.
-pub(crate) fn default_settings() -> shared::Settings {
-    shared::Settings {
-        idle_lock_min: 30,
-        idle_off_min: 60,
-        qr_frame_ms: 500,
-        zone_min: None,
-        offset_secs: 0,
-        checked: false,
-        appearance: Appearance {
-            theme: ThemeId(0),
-            dark: false,
-            contrast: Contrast::Standard,
-            text: TextSize::Standard,
-            motion: None,
-            speed: MotionSpeed::Relaxed,
-        },
-        scale_pct: 100,
-        rotation: Orientation::Landscape,
-        seal_amounts: false,
-        nonce_history: false,
-    }
-}
-
 /// `Show` for a frame, with the memo and the note up (§4.1): the wording is the runtime's and
 /// goes to `present` alone.
 pub(crate) fn show_of<'a>(memo: &'a Memo, note: Option<NoteUp<'a>>) -> Show<'a> {
@@ -222,22 +199,26 @@ impl<R: Root> Runtime<R> {
             }
             Event::Host(HostFact::Downloads { dir, files }) => {
                 facts.downloads = Some(Downloads { dir, files });
+                self.notify(Pending::Facts(FactsChanged::Downloads));
             }
             Event::System(fact @ SystemFact::WriteProgress { .. }) => {
                 self.stream(Stream::System(fact));
             }
-            Event::System(fact) => match fact {
-                SystemFact::Computer(computer) => facts.system.computer = Some(computer),
-                SystemFact::Disks(disks) => facts.system.disks = disks,
-                SystemFact::NoWriter => facts.system.no_writer = true,
-                SystemFact::Installed(installed) => facts.system.installed = installed,
-                SystemFact::DevImage(image) => facts.system.dev_image = Some(image),
-                SystemFact::ImagesWanted(images) => facts.system.images_wanted = images,
-                SystemFact::Concerns(concerns) => facts.system.concerns = concerns,
-                SystemFact::OtherEncryption(other) => facts.system.other_encryption = other,
-                SystemFact::BootEntry(entry) => facts.system.boot_entry = Some(entry),
-                SystemFact::WriteProgress { .. } => {}
-            },
+            Event::System(fact) => {
+                match fact {
+                    SystemFact::Computer(computer) => facts.system.computer = Some(computer),
+                    SystemFact::Disks(disks) => facts.system.disks = disks,
+                    SystemFact::NoWriter => facts.system.no_writer = true,
+                    SystemFact::Installed(installed) => facts.system.installed = installed,
+                    SystemFact::DevImage(image) => facts.system.dev_image = Some(image),
+                    SystemFact::ImagesWanted(images) => facts.system.images_wanted = images,
+                    SystemFact::Concerns(concerns) => facts.system.concerns = concerns,
+                    SystemFact::OtherEncryption(other) => facts.system.other_encryption = other,
+                    SystemFact::BootEntry(entry) => facts.system.boot_entry = Some(entry),
+                    SystemFact::WriteProgress { .. } => {}
+                }
+                self.notify(Pending::Facts(FactsChanged::System));
+            }
             Event::Devices(fact) => self.stream(Stream::Devices(fact)),
             Event::Camera(fact) => {
                 if self.stream_check(&fact) {
@@ -278,8 +259,12 @@ impl<R: Root> Runtime<R> {
         }
     }
 
-    /// R14: `holds()` of every top state read; `Order::Clean` when the value changed.
+    /// R14: `holds()` of every top state read; `Order::Clean` once at `Start`, after the model is
+    /// built, then when the value changed.
     pub(crate) fn clean_marker(&mut self) -> Option<port::Effect> {
+        if self.phase == crate::runtime::Phase::Starting {
+            return None;
+        }
         let tops = &self.tops;
         let holds = [
             tops.settings.as_ref().map(AtLock::holds),
@@ -293,9 +278,10 @@ impl<R: Root> Runtime<R> {
             self.facts.tainted = true;
         }
         let clean = !self.facts.tainted && self.scope.stream.is_none() && !busy;
-        if clean == self.facts.clean {
+        if self.facts.clean_sent && clean == self.facts.clean {
             return None;
         }
+        self.facts.clean_sent = true;
         self.facts.clean = clean;
         self.facts.facts.clean = clean;
         Some(port::Effect::Order(port::Order::Clean(clean)))

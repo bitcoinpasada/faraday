@@ -688,6 +688,11 @@ def _wherever_rules(c, sf, crates, r, port, values_mod):
                     r.add("R6", f"{sf.where}:{line}", "only an owner's crate names `Top::Shared`")
                 for line in sf.hits("faraday_kernel", ("Fx", "Done")):
                     r.add("A24", f"{sf.where}:{line}", "only a crate with `owner = true` names `Fx::Done`")
+                for line in sf.hits("faraday_kernel", ("Effects", "done")):
+                    r.add("A24", f"{sf.where}:{line}", "only a crate with `owner = true` names `Effects::done`")
+                for i, t in enumerate(sf.toks[:-2]):
+                    if t.kind == "p" and t.text == "." and sf.toks[i + 1].text == "done" and sf.toks[i + 2].text == "(":
+                        r.add("A24", f"{sf.where}:{sf.toks[i + 1].line}", "only a crate with `owner = true` calls `Effects::done`")
             if c.name != "faraday-vaults":
                 for line in sf.hits("faraday_kernel", ("vaults", "Close")):
                     r.add("A22", f"{sf.where}:{line}", "no application crate but the vault owner's names `vaults::Close`")

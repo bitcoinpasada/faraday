@@ -37,6 +37,33 @@ pub struct Settings {
     pub nonce_history: bool,
 }
 
+/// 05 §4.1: the values of a first start, which the settings owner starts from and the runtime
+/// lends where that owner is not yet built.
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            idle_lock_min: 30,
+            idle_off_min: 60,
+            qr_frame_ms: 500,
+            zone_min: None,
+            offset_secs: 0,
+            checked: false,
+            appearance: Appearance {
+                theme: ThemeId(0),
+                dark: false,
+                contrast: Contrast::Standard,
+                text: TextSize::Standard,
+                motion: None,
+                speed: MotionSpeed::Relaxed,
+            },
+            scale_pct: 100,
+            rotation: Orientation::Landscape,
+            seal_amounts: false,
+            nonce_history: false,
+        }
+    }
+}
+
 impl Settings {
     pub fn edits(&self) -> Edits {
         todo!()

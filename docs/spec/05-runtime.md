@@ -38,6 +38,9 @@ pub trait Root: Sized + 'static {
     /// One variant per top state's press (kit atoms, 04 §2.1).
     type Press: Pressed;
     type Options: Public;
+    /// Whether the root has a part outside the lock scope: true for the Starter, false where
+    /// `Outside` is `Nothing`. The runtime reads this and never compares types.
+    const OUTSIDE: bool;
 
     /// The mode the scope is built in: the carried one, or the root's own (§7.5).
     fn mode(&self, carried: &mut Carried, facts: &Facts) -> Mode;
@@ -160,7 +163,8 @@ Handling one event:
    and walks the effects it returns in order (§3). What they cause is pushed at the back.
 3. Step 2 repeats until the queue is empty.
 4. The orders and asks collected in steps 2 and 3 are returned to the root, in the order made.
-5. The clean marker is worked out (§4.3); if it changed, `Order::Clean` is appended.
+5. The clean marker is worked out (§4.3); at `Start`, and when it changed, `Order::Clean` is
+   appended.
 6. A frame is drawn if anything was dispatched (§2.5).
 
 - **Rule R7.** An event and every message it causes (a `Then`, a routed `Out`, a change and its
@@ -180,7 +184,7 @@ Handling one event:
 | Event | Becomes |
 |---|---|
 | `Start` | the model (§7.5); once per process, in `Starting`; a later one is dropped and noted (P17) |
-| `Display`, `Sticks(SticksFact::*)`, `Host(HostFact::Downloads)`, `Camera(CameraFact::Listed)`, `System(SystemFact)` but `WriteProgress` | the field of `Facts` replaced (`Facts::system` for the Starter's system facts), then `Notice::Facts` to every top state |
+| `Display`, `Sticks(SticksFact::*)`, `Host(HostFact::Downloads)`, `Camera(CameraFact::Listed)`, `System(SystemFact)` but `WriteProgress` | the field of `Facts` replaced (`Facts::system` for the Starter's system facts), then `Notice::Facts` (`Downloads`, `System` for those two) to every top state |
 | `Time` | `View::clock` set; `Notice::Facts` with `time` once each wall second; a frame each tick while the last frame said `Pace::Moving` (§2.5) |
 | `Input::Touch` | the press of the last frame's hit target under it (R9), through `Root::press` |
 | `Input::Key` | the focused control along the last frame's `reach` order (04 §7.1), then `Root::input` |
@@ -341,7 +345,8 @@ readers for the part outside the scope, R26), the `Facts` it keeps, the list of 
 `View` and `&self.compute` (R10).
 
 Until the settings owner is built, the runtime lends the default settings in its slot: to the
-settings owner's own `start` (R13, §7.5) and to a frame drawn before it is built. They are
+settings owner's own `start` (R13, §7.5) and to a frame drawn before it is built. They are the
+kernel's one `Settings::default()`, which the settings owner's first start uses too, and are
 `main`'s defaults: idle lock 30 minutes, idle off 60 minutes, a QR frame every 500 ms, no time
 zone, no offset, the clock not checked, `ThemeId(0)`, light, Standard contrast and text, motion
 not chosen, Relaxed speed, scale 100 %, Landscape, neither Remembered choice on.
@@ -368,7 +373,8 @@ handles `Start` and before the first state is built, so no press precedes it; it
 - **Rule R14.** This process is clean while it has never held or typed a secret and the camera is
   off: after each event the runtime reads `holds()` of every top state, sets a latch (`tainted`)
   once `kept` or `typed` is true, and works out `clean = !tainted && no stream runs && !(kept ||
-  typed)`. It sends `Order::Clean` when the value changes, and gives it to features as
+  typed)`. It sends `Order::Clean` with its value once at `Start`, after the model is built, then
+when the value changes, and gives it to features as
   `Facts::clean`. The latch is the process's: it stays set across an in-process rebuild, so a
   rebuilt scope is never clean. Held by a test of the runtime (typed text, then `at_lock`, stays
   not clean) and the stick adapter's hold on sticks (section 02, §8).
@@ -410,8 +416,10 @@ pub struct JobParts<M> {
 - `Workers::Inline` (the tour root, runtime tests) runs each job on the root's thread after the
   cascade that started it, with the root's token, its answer handled as the next event, so a tour
   renders the same every time.
-- A job that panics ends the process (release builds abort: `[profile.release]`'s
-  `panic = "abort"`, section 09 §1.3); no answer stands in for it.
+- A job that panics ends the process, in every build: release builds abort (`[profile.release]`'s
+  `panic = "abort"`, section 09 §1.3), and a lane in a debug build catches the unwind and aborts
+  the process itself, so a lock never waits for an answer that cannot come. No answer stands in
+  for it.
 
 ### 5.2 Compute on a worker
 
@@ -438,7 +446,7 @@ Argon2id pass is one piece and runs to its end.
 
 A job's answer comes back on a channel with its `JobId { generation, n }`, and the lane calls the
 waker. `woken` takes every answer that came and handles each as one event (§2.1). Progress is read
-from the signals into `View::running` at each frame; the lane wakes the root at most ten times a
+from the signals into `View::running` before each frame, so a job that reports none still shows; the lane wakes the root at most ten times a
 second while a job's progress changes.
 
 - **Rule R15.** A job's answer whose generation is neither 0 nor the built scope's is dropped, and

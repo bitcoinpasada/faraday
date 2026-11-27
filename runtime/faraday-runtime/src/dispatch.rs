@@ -12,7 +12,7 @@ use faraday_kernel::{
 };
 use faraday_port as port;
 
-use crate::facts::{Lent, as_was, build_view, default_settings};
+use crate::facts::{Lent, as_was, build_view};
 use crate::pool::{Answered, JobId, Lane, Queued};
 use crate::queue::{Item, Part, Pending};
 use crate::root::{Addr, Root, has_outside};
@@ -385,7 +385,7 @@ impl<R: Root> Runtime<R> {
         let readers: &shared::Empty = readers;
         let compute: &Compute = compute;
         let running: &[Running] = running;
-        let fallback = default_settings();
+        let fallback = shared::Settings::default();
         match part {
             Part::Settings => {
                 let Some(state) = tops.settings.as_mut() else {

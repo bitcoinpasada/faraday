@@ -120,6 +120,8 @@ pub enum FactsChanged {
     Display,
     Cameras,
     Time,
+    Downloads,
+    System,
 }
 
 pub struct Clock {

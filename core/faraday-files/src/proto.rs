@@ -426,6 +426,45 @@ impl Problem {
     }
 }
 
+/// The kind of a failure the disk process reports (02 §8, P24): the storage adapter maps each to
+/// the port's `Failure` of the same name, one to one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    /// The stick, the file or the device went, or nothing more is known.
+    Gone,
+    /// The file or picture is too large for the request.
+    TooLarge,
+    /// The stick has no room.
+    NoRoom,
+    /// The stick is read-only.
+    ReadOnly,
+    /// The stick has no FAT filesystem Faraday reads.
+    NotFat,
+}
+
+impl Kind {
+    fn code(self) -> u8 {
+        match self {
+            Kind::Gone => 0,
+            Kind::TooLarge => 1,
+            Kind::NoRoom => 2,
+            Kind::ReadOnly => 3,
+            Kind::NotFat => 4,
+        }
+    }
+
+    fn of(code: u8) -> Result<Kind, Malformed> {
+        match code {
+            0 => Ok(Kind::Gone),
+            1 => Ok(Kind::TooLarge),
+            2 => Ok(Kind::NoRoom),
+            3 => Ok(Kind::ReadOnly),
+            4 => Ok(Kind::NotFat),
+            _ => Err(Malformed),
+        }
+    }
+}
+
 /// What the disk process answers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Response {
@@ -490,8 +529,13 @@ pub enum Response {
     },
     /// The conversation is open: the number the request carried.
     Opened(u64),
-    /// Why the request failed.
-    Failed(Text),
+    /// Why the request failed: the kind, and the words that say it.
+    Failed {
+        /// The failure's kind, which the storage adapter maps to the port's.
+        kind: Kind,
+        /// The words, for the disk process's own log.
+        why: Text,
+    },
 }
 
 /// A malformed frame.
@@ -970,8 +1014,9 @@ impl Response {
                 o.0.push(u8::from(*same_vault));
                 o
             }
-            Response::Failed(why) => {
+            Response::Failed { kind, why } => {
                 let mut o = Out::tag(0xFF);
+                o.0.push(kind.code());
                 o.str(why);
                 o
             }
@@ -1071,7 +1116,10 @@ impl Response {
                     _ => return Err(Malformed),
                 },
             },
-            0xFF => Response::Failed(i.str()?),
+            0xFF => Response::Failed {
+                kind: Kind::of(i.u8()?)?,
+                why: i.str()?,
+            },
             _ => return Err(Malformed),
         };
         // A file or codes read in full are wiped when bytes follow them.
@@ -1283,7 +1331,10 @@ mod tests {
             Response::Opened(0x0123_4567_89AB_CDEF),
             Response::NameTaken { same_vault: true },
             Response::NameTaken { same_vault: false },
-            Response::Failed(Text::of("the stick is full")),
+            Response::Failed {
+                kind: Kind::NoRoom,
+                why: Text::of("the stick is full"),
+            },
         ];
         for r in responses {
             assert_eq!(Response::decode(&r.encode()), Ok(r));

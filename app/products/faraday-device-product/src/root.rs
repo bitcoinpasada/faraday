@@ -45,6 +45,7 @@ impl Root for Device {
     type Outside = Nothing;
     type Press = Press;
     type Options = NoOptions;
+    const OUTSIDE: bool = false;
 
     fn mode(&self, _carried: &mut Carried, _facts: &Facts) -> Mode {
         todo!()

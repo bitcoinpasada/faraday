@@ -52,6 +52,7 @@ impl Root for Starter {
     type Outside = Outside;
     type Press = Press;
     type Options = StarterOptions;
+    const OUTSIDE: bool = true;
 
     fn mode(&self, _carried: &mut Carried, _facts: &Facts) -> Mode {
         todo!()
