@@ -1,0 +1,269 @@
+//! Entries from text (`docs/VAULT.md`): an Inbox text file of
+//! `otpauth://` URIs and `field: value` lines, or a TOTP setup code read
+//! by the camera. CSV and KeePass are not read.
+//!
+//! A blank line ends an entry. Within one, `title`, `username`, `password`,
+//! `url`, `notes` and `totp` lines (with a few common other names for
+//! each) fill those fields; an `otpauth://` line is the TOTP secret, and
+//! names the entry from its label when no title line does. Any other
+//! `field: value` line is kept in the notes, so nothing typed is lost.
+
+use alloc::vec::Vec;
+
+use crate::records::{Record, field, kind};
+use faraday_text::Text;
+use zeroize::Zeroizing;
+
+use crate::totp;
+
+/// The field a `name:` line fills.
+fn field_of(name: &str) -> Option<u8> {
+    // Compared in place, ignoring ASCII case, so the name is never copied.
+    const NAMES: &[(&str, u8)] = &[
+        ("title", field::TITLE),
+        ("name", field::TITLE),
+        ("username", field::USERNAME),
+        ("user", field::USERNAME),
+        ("login", field::USERNAME),
+        ("email", field::USERNAME),
+        ("password", field::PASSWORD),
+        ("pass", field::PASSWORD),
+        ("url", field::URL),
+        ("website", field::URL),
+        ("site", field::URL),
+        ("notes", field::NOTES),
+        ("note", field::NOTES),
+        ("totp", field::TOTP),
+        ("otp", field::TOTP),
+        ("otpauth", field::TOTP),
+    ];
+    let name = name.trim();
+    NAMES
+        .iter()
+        .find(|(n, _)| name.eq_ignore_ascii_case(n))
+        .map(|&(_, f)| f)
+}
+
+/// `%XX` escapes undone, as an `otpauth://` label carries them.
+fn percent_decoded(s: &str) -> Text {
+    let b = s.as_bytes();
+    let mut out = Zeroizing::new(Vec::with_capacity(b.len()));
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%'
+            && i + 2 < b.len()
+            && let Ok(v) =
+                u8::from_str_radix(core::str::from_utf8(&b[i + 1..i + 3]).unwrap_or("zz"), 16)
+        {
+            out.push(v);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    Text::from_utf8_lossy(&out)
+}
+
+/// What an `otpauth://` URI names: the issuer, or the label before its
+/// colon, and the account after it.
+pub fn otpauth_names(uri: &str) -> Option<(Text, Text)> {
+    let uri = uri.trim();
+    if !faraday_codec::otpauth::is_otpauth(uri) || uri.contains(['\n', '\r']) {
+        return None;
+    }
+    let (_, rest) = uri["otpauth://".len()..].split_once('/')?;
+    let (label, query) = rest.split_once('?').unwrap_or((rest, ""));
+    let label = percent_decoded(label);
+    let (from_label, account) = match label.split_once(':') {
+        Some((i, a)) => (Text::of(i.trim()), Text::of(a.trim())),
+        None => (Text::new(), Text::of(label.trim())),
+    };
+    let issuer = query
+        .split('&')
+        .find_map(|p| p.strip_prefix("issuer="))
+        .map(percent_decoded)
+        .unwrap_or_default();
+    let title = if !issuer.is_empty() {
+        issuer
+    } else if !from_label.is_empty() {
+        from_label
+    } else {
+        account.duplicate()
+    };
+    Some((title, account))
+}
+
+/// `s` in wiping text sized to it, so it never grows and leaves a block
+/// behind.
+fn wiped(s: &str) -> Text {
+    Text::of(s)
+}
+
+/// The entries in text, as records. A block with nothing to call it by is
+/// left out. Passwords, notes and secrets are held in wiping text while
+/// they are read.
+pub fn parse(text: &str) -> Vec<Record> {
+    let mut out = Vec::new();
+    let mut fields: Vec<(u8, Text)> = Vec::new();
+    let mut extra: Vec<Text> = Vec::new();
+    let finish = |fields: &mut Vec<(u8, Text)>, extra: &mut Vec<Text>, out: &mut Vec<Record>| {
+        if fields.is_empty() && extra.is_empty() {
+            return;
+        }
+        fn get(f: &[(u8, Text)], n: u8) -> Option<&str> {
+            f.iter().find(|(k, _)| *k == n).map(|(_, v)| v.as_str())
+        }
+        // An empty title calls the block by nothing.
+        let mut title = get(fields, field::TITLE)
+            .filter(|t| !t.trim().is_empty())
+            .map(Text::of);
+        let mut user = get(fields, field::USERNAME).map(Text::of);
+        if let Some(t) = get(fields, field::TOTP)
+            && let Some((name, account)) = otpauth_names(t)
+        {
+            if title.is_none() && !name.is_empty() {
+                title = Some(name);
+            }
+            if user.is_none() && !account.is_empty() {
+                user = Some(account);
+            }
+        }
+        if let Some(title) = title {
+            // A bare key is stored as a URI (`docs/TOTP.md` §4.3); one
+            // that reads as neither goes to the notes, as other unknown
+            // lines already do.
+            let account = user.as_deref().unwrap_or_default();
+            let totp_value = get(fields, field::TOTP).and_then(|t| {
+                let normalised = totp::normalise(t, &title, account);
+                if normalised.is_none() {
+                    let mut line = Text::with_room("totp: ".len() + t.len());
+                    line.push_str("totp: ");
+                    line.push_str(t);
+                    extra.push(line);
+                }
+                normalised
+            });
+            let mut r = Record::new(kind::ENTRY).with(field::TITLE, title.as_bytes());
+            if let Some(u) = &user {
+                r.push(field::USERNAME, u.as_bytes());
+            }
+            for n in [field::PASSWORD, field::URL] {
+                if let Some(v) = get(fields, n) {
+                    r.push(n, v.as_bytes());
+                }
+            }
+            let mut notes: Vec<&str> = get(fields, field::NOTES).into_iter().collect();
+            notes.extend(extra.iter().map(|e| e.as_str()));
+            if !notes.is_empty() {
+                let size = notes.iter().map(|n| n.len()).sum::<usize>() + notes.len();
+                let mut joined = Text::with_room(size);
+                for (i, n) in notes.iter().enumerate() {
+                    if i > 0 {
+                        joined.push('\n');
+                    }
+                    joined.push_str(n);
+                }
+                r.push(field::NOTES, joined.as_bytes());
+            }
+            if let Some(t) = totp_value {
+                r.push(field::TOTP, t.as_bytes());
+            }
+            out.push(r);
+        }
+        fields.clear();
+        extra.clear();
+    };
+    for line in text.lines() {
+        let l = line.trim();
+        if l.is_empty() {
+            finish(&mut fields, &mut extra, &mut out);
+            continue;
+        }
+        if faraday_codec::otpauth::is_otpauth(l) {
+            // A second code in one block starts a new entry.
+            if fields.iter().any(|(k, _)| *k == field::TOTP) {
+                finish(&mut fields, &mut extra, &mut out);
+            }
+            fields.push((field::TOTP, wiped(l)));
+            continue;
+        }
+        match l.split_once(':') {
+            Some((name, value)) if field_of(name).is_some() => {
+                let n = field_of(name).expect("checked");
+                let value = wiped(value.trim());
+                if n == field::TITLE && fields.iter().any(|(k, _)| *k == field::TITLE) {
+                    finish(&mut fields, &mut extra, &mut out);
+                }
+                fields.retain(|(k, _)| *k != n);
+                fields.push((n, value));
+            }
+            _ => extra.push(wiped(l)),
+        }
+    }
+    finish(&mut fields, &mut extra, &mut out);
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use faraday_text::text;
+
+    /// The two forms §6.4 names, mixed, with a line no field takes.
+    #[test]
+    fn a_text_file_of_entries_reads() {
+        let text = "otpauth://totp/Example%20Mail:you%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example\n\
+                    \n\
+                    title: Bank\n\
+                    username: me\n\
+                    password: hunter2\n\
+                    PIN: 1234\n\
+                    \n\
+                    otpauth://totp/GitHub:octo?secret=ABC\n";
+        let e = parse(text);
+        assert_eq!(e.len(), 3);
+        assert_eq!(e[0].text(field::TITLE), Some("Example"));
+        assert_eq!(e[0].text(field::USERNAME), Some("you@example.com"));
+        assert_eq!(e[1].text(field::PASSWORD), Some("hunter2"));
+        assert_eq!(e[1].text(field::NOTES), Some("PIN: 1234"));
+        assert_eq!(e[2].text(field::TITLE), Some("GitHub"));
+        assert!(e.iter().all(|r| r.check().is_ok()));
+    }
+
+    /// Text that goes on past its first line is entries, not one code: no
+    /// name is read from it, so nothing after the URI lands in a title.
+    #[test]
+    fn a_uri_with_lines_after_it_names_no_one_code() {
+        for scheme in ["otpauth", "OTPAUTH"] {
+            let text = text!("{scheme}://totp/Git:octo?secret=ABC\n\ntitle: Router\npassword: x");
+            assert_eq!(otpauth_names(&text), None);
+            let e = parse(&text);
+            assert_eq!(e.len(), 2);
+            assert_eq!(e[0].text(field::TITLE), Some("Git"));
+            assert_eq!(e[1].text(field::TITLE), Some("Router"));
+        }
+    }
+
+    /// A scheme in upper case is the same code, as the TOTP reader takes it.
+    #[test]
+    fn an_upper_case_scheme_reads_as_the_same_entry() {
+        let e = parse("OTPAUTH://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP\n");
+        assert_eq!(e.len(), 1);
+        assert_eq!(e[0].text(field::TITLE), Some("GitHub"));
+        assert_eq!(e[0].text(field::USERNAME), Some("octo"));
+        assert!(e[0].text(field::TOTP).is_some());
+        assert_eq!(e[0].text(field::NOTES), None);
+    }
+
+    /// A block whose title is empty is called by nothing and left out,
+    /// unless its code names it.
+    #[test]
+    fn a_block_with_an_empty_title_is_left_out() {
+        assert!(parse("title:\n").is_empty());
+        assert!(parse("title:   \npassword: x\n").is_empty());
+        let e = parse("title:\notpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP\n");
+        assert_eq!(e.len(), 1);
+        assert_eq!(e[0].text(field::TITLE), Some("GitHub"));
+    }
+}

@@ -1,0 +1,52 @@
+{
+ "application_id": 4206867930,
+ "records": [
+  [
+   "05666c616773",
+   "0400000006000000"
+  ],
+  [
+   "0776657273696f6e",
+   "54bb0400"
+  ],
+  [
+   "0962657374626c6f636b",
+   "8011010000"
+  ],
+  [
+   "1262657374626c6f636b5f6e6f6d65726b6c65",
+   "8011010002245e420c8629526289dd197125d32d6cc80d51aaf319f8687740f0cccaadea4206226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f"
+  ]
+ ],
+ "listdescriptors": {
+  "wallet_name": "blank",
+  "descriptors": []
+ },
+ "listdescriptors_public": {
+  "wallet_name": "blank",
+  "descriptors": []
+ },
+ "getwalletinfo": {
+  "walletname": "blank",
+  "walletversion": 169900,
+  "format": "sqlite",
+  "txcount": 0,
+  "keypoolsize": 0,
+  "keypoolsize_hd_internal": 0,
+  "private_keys_enabled": true,
+  "avoid_reuse": false,
+  "scanning": false,
+  "descriptors": true,
+  "external_signer": false,
+  "blank": true,
+  "flags": [
+   "last_hardened_xpub_cached",
+   "blank",
+   "descriptor_wallet"
+  ],
+  "lastprocessedblock": {
+   "hash": "42eaadcaccf0407768f819f3aa510dc86c2dd3257119dd89625229860c425e24",
+   "height": 1
+  }
+ }
+}

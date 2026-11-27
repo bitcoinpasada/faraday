@@ -1,0 +1,2007 @@
+//! Faraday's items in a KDBX document (`faraday_vault::kdbx::items`,
+//! `docs/VAULT.md` §7): a vault holding one item of each kind is written
+//! and read back to the same records; each damaged item opens Unreadable,
+//! naming its field and fault, with the others read and its entry written
+//! back as it was; pykeepass's file opens with its entry; a person's
+//! entry keeps the fields Faraday does not read; an item moved to another
+//! group keeps its kind.
+#![allow(clippy::disallowed_methods)]
+
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use faraday_crypto::work::{Compute, Work};
+use faraday_vault::child::ChildOf;
+use faraday_vault::codex32::{SetFacts, State, set_payload};
+use faraday_vault::kdbx::items::{
+    self, Body, Damage, Extra, Fault, Format, GpgKey, Place, Read, Related, Unwritable,
+};
+use faraday_vault::kdbx::open;
+use faraday_vault::kdbx::xml::{Document, Entry, Group};
+use faraday_vault::records::{BACKUP_PENDING, NO_LOAD_AT_UNLOCK, field, kind};
+use faraday_vault::totp::NotTotp;
+use faraday_vault::{Record, layouts};
+use zeroize::Zeroizing;
+
+const KEY: &[u8] = &[9; 64];
+const XPUB: &str = "[73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V";
+const WORDS: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+const SHARE_A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
+const SHARE_C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
+const FP: [u8; 4] = [0x73, 0xc5, 0xda, 0x0a];
+const DER: &[u8] = &[0x30, 0x03, 0x02, 0x01, 0x01];
+/// An armor's kind, built so that no whole armor line of a secret key is
+/// written in the source.
+const SECRET: &str = "PRIVATE";
+
+fn gpg_key() -> String {
+    format!(
+        "-----BEGIN PGP {SECRET} KEY BLOCK-----\n\nxVgEZ0\n-----END PGP {SECRET} KEY BLOCK-----\n"
+    )
+}
+const GPG_PUBLIC: &str =
+    "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nxjME\n-----END PGP PUBLIC KEY BLOCK-----\n";
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: faraday-vault's tests, which cannot reach faraday-core's testkit"
+)]
+fn compute() -> Compute {
+    Compute::new(faraday_crypto::work::Hooks {
+        count: |_: Work| {},
+        stop: || false,
+        progress: |_, _| {},
+    })
+}
+
+fn repo(path: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(path)
+}
+
+fn uuid(n: u8) -> [u8; 16] {
+    [n; 16]
+}
+
+fn fields(r: &Record) -> Vec<(u8, Vec<u8>)> {
+    let mut v: Vec<(u8, Vec<u8>)> = r
+        .fields
+        .iter()
+        .map(|f| (f.number, f.bytes.to_vec()))
+        .collect();
+    v.sort();
+    v
+}
+
+fn words_payload() -> Zeroizing<Vec<u8>> {
+    let m = faraday_bip::bip39::Mnemonic::parse(
+        &compute(),
+        faraday_bip::bip39::Language::English,
+        WORDS,
+    )
+    .unwrap();
+    layouts::words_payload(&m)
+}
+
+fn seed_record() -> Record {
+    let facts = SetFacts {
+        threshold: 2,
+        identifier: *b"name",
+        length: 48,
+        unknown: 1,
+        strings: vec![(b'a', State::Placed), (b'c', State::Made)],
+    };
+    let child = ChildOf {
+        parent: [1, 2, 3, 4],
+        language: 0,
+        words: 12,
+        index: 7,
+    };
+    let split = faraday_vault::xor::XorFacts {
+        parts: vec![[0x0a, 0x0b, 0x0c, 0x0d], [0x1a, 0x1b, 0x1c, 0x1d]],
+    };
+    let shares = faraday_vault::slip39::Slip39Facts {
+        identifier: 0x1234,
+        exponent: 1,
+        threshold: 1,
+        groups: vec![faraday_vault::slip39::Group {
+            threshold: 2,
+            count: 3,
+            made: 0b011,
+        }],
+    };
+    Record::new(kind::KEY)
+        .with(field::KEY, &words_payload())
+        .with(field::KEY_LABEL, b"Savings")
+        .with(field::KEY_FLAGS, &[NO_LOAD_AT_UNLOCK | BACKUP_PENDING])
+        .with(field::KEY_PASSPHRASE, b"extra words")
+        .with(field::KEY_CODEX32, &set_payload(&facts).unwrap())
+        .with(
+            field::KEY_CHILD,
+            &faraday_vault::child::payload(&child).unwrap(),
+        )
+        .with(
+            field::KEY_XOR,
+            &faraday_vault::xor::payload(&split).unwrap(),
+        )
+        .with(
+            field::KEY_SLIP39,
+            &faraday_vault::slip39::payload(&shares).unwrap(),
+        )
+}
+
+fn records() -> Vec<(Record, &'static str, &'static str)> {
+    let policy = format!("wpkh(@0/**)\n{XPUB}");
+    let descriptor = format!("wpkh({XPUB}/<0;1>/*)");
+    let seed_hex =
+        Record::new(kind::KEY).with(field::KEY, &layouts::seed_payload(&[0x5a; 32]).unwrap());
+    let sheet = layouts::sheet_payload(descriptor.as_bytes(), b"Spending", b"in the safe").unwrap();
+    let mut sb = Record::new(kind::SECURE_BOOT).with(1, &[0x11; 16]);
+    for n in 2..=7 {
+        sb.push(n, DER);
+    }
+    vec![
+        (seed_record(), "Bitcoin keys", "Key 73c5da0a"),
+        (seed_hex, "Bitcoin keys", "Key 01020304"),
+        (
+            Record::new(kind::WALLET)
+                .with(field::WALLET, policy.as_bytes())
+                .with(field::WALLET_NAME, b"Spending")
+                .with(field::WALLET_FLAGS, &[NO_LOAD_AT_UNLOCK]),
+            "Wallets",
+            "",
+        ),
+        (
+            Record::new(kind::WALLET).with(field::WALLET, descriptor.as_bytes()),
+            "Wallets",
+            "",
+        ),
+        (
+            Record::new(kind::NOTE).with(field::NOTE, b"the safe's code is in the drawer"),
+            "Notes",
+            "Note",
+        ),
+        (
+            Record::new(kind::SHEET).with(field::SHEET, &sheet),
+            "Recovery sheets",
+            "",
+        ),
+        (sb, "Secure Boot", "Secure Boot keys"),
+        (
+            Record::new(kind::WALLET_SHARE)
+                .with(field::SHARE, b"share text")
+                .with(field::SHARE_WALLET_NAME, b"Family")
+                .with(field::SHARE_NUMBER, &[1])
+                .with(field::SHARE_OF, &[3])
+                .with(field::SHARE_WALLET, descriptor.as_bytes()),
+            "Wallet shares",
+            "",
+        ),
+        (
+            Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &FP)
+                .with(field::PASSPHRASE, b"correct horse"),
+            "Passphrases",
+            "Passphrase for 73c5da0a",
+        ),
+        (
+            Record::new(kind::CODEX32_SHARE)
+                .with(field::CODEX32_STRING, SHARE_A.as_bytes())
+                .with(field::CODEX32_KEY, &FP),
+            "Codex32 shares",
+            "Codex32 share for 73c5da0a",
+        ),
+        (
+            Record::new(kind::ENTRY)
+                .with(field::TITLE, b"Mail")
+                .with(field::USERNAME, b"alice")
+                .with(field::PASSWORD, b"hunter2")
+                .with(field::URL, b"https://mail.example/")
+                .with(field::NOTES, b"two lines\nof notes")
+                .with(
+                    field::TOTP,
+                    b"otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example",
+                ),
+            "",
+            "",
+        ),
+        (
+            Record::new(kind::WALLET)
+                .with(field::WALLET, policy.as_bytes())
+                .with(field::WALLET_CHECKED, b"2,3"),
+            "Wallets",
+            "",
+        ),
+    ]
+}
+
+fn gpg() -> GpgKey {
+    GpgKey {
+        title: faraday_text::Text::of("Alice <alice@example.org>"),
+        key: faraday_text::Text::of(&gpg_key()),
+        public: Some(faraday_text::Text::of(GPG_PUBLIC)),
+        revocation: Some(faraday_text::Text::of(GPG_PUBLIC)),
+        revoked: Some(faraday_text::Text::of("2026-10-28T14:02:00Z")),
+    }
+}
+
+fn place<'a>(n: u8, group: &'a str, title: &'a str) -> Place<'a> {
+    Place {
+        uuid: uuid(n),
+        group,
+        group_uuid: [n.wrapping_add(100); 16],
+        title,
+        now: Some(1_800_000_000),
+    }
+}
+
+/// A Faraday vault holding one item of each kind (and a plan and signed
+/// amounts), the UUIDs from 1.
+fn full() -> Document {
+    let c = compute();
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 3, Some("2026-10-28T14:02:00Z")).unwrap();
+    for (i, (r, group, title)) in records().into_iter().enumerate() {
+        items::put(
+            &c,
+            &mut doc,
+            &place(i as u8 + 1, group, title),
+            &Body::Record(r),
+        )
+        .unwrap();
+    }
+    items::put(&c, &mut doc, &place(50, "GPG keys", ""), &Body::Gpg(gpg())).unwrap();
+    items::put_plan(&mut doc, 1, &plan()).unwrap();
+    items::put_signed(&mut doc, &signed()).unwrap();
+    doc
+}
+
+fn plan() -> Record {
+    Record::new(kind::PLAN)
+        .with(
+            field::PLAN_WALLET,
+            format!("wpkh({XPUB}/<0;1>/*)").as_bytes(),
+        )
+        .with(field::PLAN_ANSWERS, b"seeds 1\nplaces 2")
+        .with(field::PLAN_PLACE, b"Home")
+}
+
+fn signed() -> Record {
+    Record::new(kind::AMOUNTS)
+        .with(field::AMOUNTS_TX, &[0xab; 32])
+        .with(field::AMOUNTS_INPUT, &5000u64.to_le_bytes())
+        .with(field::AMOUNTS_INPUT, &0u64.to_le_bytes())
+}
+
+fn again(doc: &Document) -> Document {
+    Document::read(&doc.write(KEY), KEY).expect("reads")
+}
+
+fn read(doc: &Document) -> Read {
+    items::read(&compute(), &again(doc))
+}
+
+fn record_of(read: &Read, n: u8) -> &Record {
+    match &read
+        .items
+        .iter()
+        .find(|i| i.uuid == uuid(n))
+        .expect("the item")
+        .body
+    {
+        Body::Record(r) => r,
+        Body::Gpg(_) => panic!("a GPG key"),
+    }
+}
+
+#[test]
+fn a_vault_of_every_kind_reads_back_to_the_same_records() {
+    let read = read(&full());
+    assert_eq!(read.format, Format::Faraday);
+    assert_eq!((read.seals, read.next_seal()), (3, 4));
+    assert_eq!(read.sealed.as_deref(), Some("2026-10-28T14:02:00Z"));
+    assert_eq!(read.label, "Vault");
+    assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+    assert!(!read.read_only());
+    for (i, (r, group, _)) in records().into_iter().enumerate() {
+        let n = i as u8 + 1;
+        assert_eq!(fields(record_of(&read, n)), fields(&r), "item {n}");
+        let item = read.items.iter().find(|i| i.uuid == uuid(n)).unwrap();
+        let path: Vec<&str> = item.path.iter().map(|n| n.as_str()).collect();
+        let want: Vec<&str> = if group.is_empty() {
+            vec![]
+        } else {
+            vec![group]
+        };
+        assert_eq!(path, want, "item {n}");
+    }
+    let g = read.items.iter().find(|i| i.uuid == uuid(50)).unwrap();
+    let Body::Gpg(k) = &g.body else { panic!() };
+    let want = gpg();
+    assert_eq!(
+        (
+            &k.title,
+            k.key.as_str(),
+            &k.public,
+            k.revocation.as_deref(),
+            &k.revoked
+        ),
+        (
+            &want.title,
+            want.key.as_str(),
+            &want.public,
+            want.revocation.as_deref(),
+            &want.revoked
+        )
+    );
+    let keys: Vec<String> = read.custom.iter().map(|c| String::from(&*c.key)).collect();
+    assert_eq!(
+        keys,
+        [
+            "faraday.plan.1".to_string(),
+            format!("faraday.signed.{}", "ab".repeat(32))
+        ]
+    );
+    assert_eq!(fields(&read.custom[0].record), fields(&plan()));
+    assert_eq!(fields(&read.custom[1].record), fields(&signed()));
+}
+
+#[test]
+fn an_item_is_written_in_its_published_form() {
+    let doc = again(&full());
+    let seed = doc
+        .root()
+        .groups()
+        .find(|g| g.name() == "Bitcoin keys")
+        .unwrap()
+        .entries()
+        .next()
+        .unwrap();
+    assert_eq!(seed.field("Title").unwrap().value(), "Savings");
+    let words = seed.field("Password").unwrap();
+    assert_eq!((words.value(), words.protected()), (WORDS, true));
+    assert_eq!(seed.custom().get("faraday.kind"), Some("seed"));
+    assert_eq!(seed.custom().get("faraday.load"), Some("false"));
+    assert_eq!(seed.custom().get("faraday.held"), Some("true"));
+    assert_eq!(
+        seed.custom().get("faraday.child"),
+        Some("{parent = \"01020304\", application = 39, language = 0, words = 12, index = 7}")
+    );
+    let sb = doc
+        .root()
+        .groups()
+        .find(|g| g.name() == "Secure Boot")
+        .unwrap()
+        .entries()
+        .next()
+        .unwrap();
+    assert_eq!(
+        sb.field("owner").unwrap().value(),
+        "11111111-1111-1111-1111-111111111111"
+    );
+    assert!(
+        sb.field("pk_key")
+            .unwrap()
+            .value()
+            .starts_with(&format!("-----BEGIN {SECRET} KEY-----\n"))
+    );
+    assert!(sb.field("pk_key").unwrap().protected());
+    assert!(
+        sb.field("pk_cert")
+            .unwrap()
+            .value()
+            .starts_with("-----BEGIN CERTIFICATE-----\n")
+    );
+    let wallets = doc.root().groups().find(|g| g.name() == "Wallets").unwrap();
+    let names: Vec<bool> = wallets
+        .entries()
+        .map(|e| e.field("policy").is_some())
+        .collect();
+    assert_eq!(names, [true, false, true]);
+}
+
+// --- Damage ---------------------------------------------------------------
+
+fn bad(n: u8, kind_name: Option<&str>, f: &[(&str, &str, bool)], cd: &[(&str, &str)]) -> Entry {
+    let mut e = Entry::new(uuid(n));
+    e.set_field("Title", &format!("bad {n}"), false).unwrap();
+    for (k, v, p) in f {
+        e.set_field(k, v, *p).unwrap();
+    }
+    if let Some(k) = kind_name {
+        e.custom_mut().set("faraday.kind", k).unwrap();
+    }
+    for (k, v) in cd {
+        e.custom_mut().set(k, v).unwrap();
+    }
+    e
+}
+
+fn damaged() -> Vec<(Entry, &'static str, Fault)> {
+    let policy = "wpkh(@0/**)\nnot a key";
+    vec![
+        (
+            bad(60, Some("rocket"), &[], &[]),
+            "faraday.kind",
+            Fault::UnknownKind,
+        ),
+        (
+            bad(
+                61,
+                Some("note"),
+                &[("Notes", "n", false), ("Password", "x", true)],
+                &[],
+            ),
+            "Password",
+            Fault::UnknownField,
+        ),
+        (
+            bad(
+                62,
+                Some("note"),
+                &[("Notes", "n", false)],
+                &[("faraday.load", "false")],
+            ),
+            "faraday.load",
+            Fault::UnknownField,
+        ),
+        (
+            bad(63, Some("passphrase"), &[("Password", "p", true)], &[]),
+            "for",
+            Fault::Missing,
+        ),
+        (
+            bad(
+                64,
+                Some("seed"),
+                &[("Password", "abandon abandon", true)],
+                &[],
+            ),
+            "Password",
+            Fault::Value,
+        ),
+        (
+            bad(
+                65,
+                Some("seed"),
+                &[("Password", WORDS, true), ("hex", "00", true)],
+                &[],
+            ),
+            "hex",
+            Fault::Twice,
+        ),
+        (
+            bad(
+                66,
+                Some("seed"),
+                &[("Password", WORDS, true)],
+                &[("faraday.codex32", "{k = 1}")],
+            ),
+            "faraday.codex32",
+            Fault::Value,
+        ),
+        (
+            bad(
+                90,
+                Some("seed"),
+                &[("Password", WORDS, true)],
+                &[("faraday.online", "maybe")],
+            ),
+            "faraday.online",
+            Fault::Value,
+        ),
+        (
+            bad(
+                91,
+                Some("share"),
+                &[("Password", SHARE_A, true), ("for", "73c5da0a", false)],
+                &[("faraday.online", "1")],
+            ),
+            "faraday.online",
+            Fault::Value,
+        ),
+        (
+            bad(
+                67,
+                Some("seed"),
+                &[("Password", WORDS, true)],
+                &[("faraday.child", "nonsense")],
+            ),
+            "faraday.child",
+            Fault::Value,
+        ),
+        (
+            bad(68, Some("wallet"), &[("policy", policy, false)], &[]),
+            "policy",
+            Fault::Value,
+        ),
+        (
+            bad(
+                69,
+                Some("secure_boot"),
+                &[
+                    ("owner", "11111111-1111-1111-1111-111111111111", false),
+                    (
+                        "pk_key",
+                        "-----BEGIN CERTIFICATE-----\nMAMCAQE=\n-----END CERTIFICATE-----\n",
+                        true,
+                    ),
+                ],
+                &[],
+            ),
+            "pk_key",
+            Fault::Value,
+        ),
+        (
+            bad(
+                71,
+                Some("share"),
+                &[
+                    ("Password", "ms12nameaxxxx", true),
+                    ("for", "73c5da0a", false),
+                ],
+                &[],
+            ),
+            "Password",
+            Fault::Value,
+        ),
+        (
+            bad(72, Some("gpg"), &[("key", GPG_PUBLIC, true)], &[]),
+            "key",
+            Fault::Value,
+        ),
+        (
+            bad(
+                77,
+                Some("wallet_share"),
+                &[("Password", "s", true), ("index", "01", false)],
+                &[],
+            ),
+            "index",
+            Fault::Value,
+        ),
+    ]
+}
+
+/// A vault whose damaged entries come first in a group of their own, then
+/// the items of `full`.
+fn with_damage() -> (Document, Vec<(u8, &'static str, Fault)>) {
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    let mut g = Group::new([0xdd; 16], "Damaged");
+    let mut want = Vec::new();
+    for (e, at, fault) in damaged() {
+        want.push((e.uuid()[0], at, fault));
+        g.push_entry(e).unwrap();
+    }
+    doc.root_mut().push_group(g).unwrap();
+    let c = compute();
+    for (i, (r, group, title)) in records().into_iter().enumerate() {
+        items::put(
+            &c,
+            &mut doc,
+            &place(i as u8 + 1, group, title),
+            &Body::Record(r),
+        )
+        .unwrap();
+    }
+    (doc, want)
+}
+
+/// The written bytes of the entry with this UUID: from its `<Entry>` to
+/// its `</Entry>`.
+fn entry_bytes(written: &[u8], n: u8) -> Vec<u8> {
+    let tag = format!("<UUID>{}</UUID>", base64(&uuid(n)));
+    let at = written
+        .windows(tag.len())
+        .position(|w| w == tag.as_bytes())
+        .expect("the entry");
+    let start = written[..at]
+        .windows(7)
+        .rposition(|w| w == b"<Entry>")
+        .unwrap();
+    let end = at
+        + written[at..]
+            .windows(8)
+            .position(|w| w == b"</Entry>")
+            .unwrap()
+        + 8;
+    written[start..end].to_vec()
+}
+
+fn base64(b: &[u8]) -> String {
+    const A: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut s = String::new();
+    for ch in b.chunks(3) {
+        let n = (u32::from(ch[0]) << 16)
+            | (u32::from(*ch.get(1).unwrap_or(&0)) << 8)
+            | u32::from(*ch.get(2).unwrap_or(&0));
+        for i in 0..4 {
+            if i <= ch.len() {
+                s.push(A[(n >> (18 - 6 * i) & 63) as usize] as char);
+            } else {
+                s.push('=');
+            }
+        }
+    }
+    s
+}
+
+#[test]
+fn a_damaged_item_is_unreadable_and_the_others_read() {
+    let (doc, want) = with_damage();
+    let read = read(&doc);
+    assert_eq!(read.items.len(), records().len());
+    let mut got: Vec<(u8, String, Fault)> = read
+        .unreadable
+        .iter()
+        .map(|u| (u.uuid.unwrap()[0], String::from(&*u.what.at), u.what.fault))
+        .collect();
+    got.sort_by(|a, b| (a.0, &a.1).cmp(&(b.0, &b.1)));
+    let mut want: Vec<(u8, String, Fault)> =
+        want.into_iter().map(|(n, a, f)| (n, a.into(), f)).collect();
+    want.sort_by(|a, b| (a.0, &a.1).cmp(&(b.0, &b.1)));
+    assert_eq!(got, want);
+    let u = read
+        .unreadable
+        .iter()
+        .find(|u| u.uuid == Some(uuid(60)))
+        .unwrap();
+    assert_eq!(u.title, "bad 60");
+}
+
+#[test]
+fn a_damaged_entry_is_written_back_as_it_was() {
+    let (doc, want) = with_damage();
+    let doc = again(&doc);
+    let before = doc.write(KEY);
+    let mut changed = again(&doc);
+    let mut r = record_of(&items::read(&compute(), &changed), 11).duplicate();
+    r.set(field::PASSWORD, b"a new password");
+    items::put(
+        &compute(),
+        &mut changed,
+        &place(11, "", ""),
+        &Body::Record(r),
+    )
+    .unwrap();
+    let after = changed.write(KEY);
+    assert_ne!(&before[..], &after[..]);
+    for (n, _, _) in want {
+        assert_eq!(entry_bytes(&before, n), entry_bytes(&after, n), "entry {n}");
+    }
+}
+
+#[test]
+fn a_wallet_that_repeats_a_key_is_not_loaded_and_its_row_gives_the_reason() {
+    let k = "[b3118e52/48h/0h/0h/2h]xpub6Du5Jn6eYZE96ccmAc1ZTFPzdnzrvqfG4mpamDun2qZYKywoiQJMCbS3kWWMr6U3XW6s125RLsaPABWgv2yA749ieaMe67FxkTjMsbcxCch";
+    let a = "[793cc70b/48h/0h/0h/2h]xpub6ErVmcYYHmavsMgxEcTZyzN5sqth1ZyRpFNJC26ij1wYGC2SBKYrgt9yariSbn7HLRoZUvhUhmPfsRTPrdhhGFscpPZzmch6UTdmRP1aZUj";
+    let policy = format!("wsh(sortedmulti(2,@0/**,@1/**,@2/**))\n{a}\n{k}\n{k}");
+    let mut doc = full();
+    doc.root_mut()
+        .push_entry(bad(90, Some("wallet"), &[("policy", &policy, false)], &[]))
+        .unwrap();
+    let read = read(&doc);
+    let u = read
+        .unreadable
+        .iter()
+        .find(|u| u.uuid == Some(uuid(90)))
+        .expect("the wallet is unreadable");
+    assert_eq!(u.what.at, "policy");
+    assert_eq!(
+        u.what.fault,
+        Fault::Wallet(faraday_bip::policy::Error::RepeatedKey)
+    );
+    assert!(read.items.iter().all(|i| i.uuid != uuid(90)));
+}
+
+#[test]
+fn a_wallet_field_is_a_refused_wallet_only_when_it_reads_as_one() {
+    use faraday_bip::policy::Error;
+    let a = "[793cc70b/48h/0h/0h/2h]xpub6ErVmcYYHmavsMgxEcTZyzN5sqth1ZyRpFNJC26ij1wYGC2SBKYrgt9yariSbn7HLRoZUvhUhmPfsRTPrdhhGFscpPZzmch6UTdmRP1aZUj";
+    let k = "[b3118e52/48h/0h/0h/2h]xpub6Du5Jn6eYZE96ccmAc1ZTFPzdnzrvqfG4mpamDun2qZYKywoiQJMCbS3kWWMr6U3XW6s125RLsaPABWgv2yA749ieaMe67FxkTjMsbcxCch";
+    let tpub = "[b3118e52/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
+    let template = "wsh(sortedmulti(2,@0/**,@1/**))";
+    let bad_origin = k.replace("[b3118e52/48h", "[b3118e52/m/48h");
+    let cases: Vec<(&str, String, Fault)> = vec![
+        (
+            "policy",
+            format!("{template}\n{a}\n{tpub}"),
+            Fault::Wallet(Error::MixedNetwork),
+        ),
+        (
+            "policy",
+            format!("# a comment\n{template}\n# keys\n{a}\n{a}"),
+            Fault::Wallet(Error::RepeatedKey),
+        ),
+        (
+            "policy",
+            format!("{template}\n{a}\n{bad_origin}"),
+            Fault::Wallet(Error::Key),
+        ),
+        (
+            "policy",
+            format!("{template}\n{a}\n{}", k.replace("/48h/0h/0h/2h]", "/]")),
+            Fault::Wallet(Error::Key),
+        ),
+        (
+            "descriptor",
+            format!("wsh(sortedmulti(2,{a}/<0;1>/*,{}/<0;1>/*))", bad_origin),
+            Fault::Wallet(Error::Key),
+        ),
+        (
+            "policy",
+            format!("{template}\n{a}\n{}", k.replace("/48h/0h/0h/2h]", "/zz]")),
+            Fault::Value,
+        ),
+        (
+            "policy",
+            format!(
+                "{template}\n{a}\n{}",
+                k.replace("[b3118e52/48h", "[b3118e52/m48h")
+            ),
+            Fault::Value,
+        ),
+        (
+            "policy",
+            format!(
+                "{template}\n{a}\n{}",
+                k.replace("[b3118e52/48h", "[b3118e52/m//48h")
+            ),
+            Fault::Value,
+        ),
+        (
+            "descriptor",
+            format!(
+                "wsh(sortedmulti(2,{a}/<0;1>/*,{}0/<0;1>/*))",
+                &k[..k.len() - 1]
+            ),
+            Fault::Value,
+        ),
+        (
+            "descriptor",
+            format!("wsh(sortedmulti(2,{a}/<0;1>/*,{k}/<0;1>/*))#aaaaaaaa"),
+            Fault::Value,
+        ),
+    ];
+    let mut doc = full();
+    for (n, (which, text, _)) in cases.iter().enumerate() {
+        doc.root_mut()
+            .push_entry(bad(
+                100 + n as u8,
+                Some("wallet"),
+                &[(which, text, false)],
+                &[],
+            ))
+            .unwrap();
+    }
+    let read = read(&doc);
+    for (n, (which, _, want)) in cases.iter().enumerate() {
+        let u = read
+            .unreadable
+            .iter()
+            .find(|u| u.uuid == Some(uuid(100 + n as u8)))
+            .unwrap_or_else(|| panic!("case {n} reads"));
+        assert_eq!(
+            (u.what.at.as_str(), u.what.fault),
+            (*which, *want),
+            "case {n}"
+        );
+    }
+}
+
+#[test]
+fn entries_sharing_a_uuid_are_unreadable() {
+    let mut doc = full();
+    doc.root_mut().push_entry(bad(80, None, &[], &[])).unwrap();
+    doc.root_mut().push_entry(bad(80, None, &[], &[])).unwrap();
+    let read = read(&doc);
+    let same: Vec<&Damage> = read.unreadable.iter().map(|u| &u.what).collect();
+    assert_eq!(same.len(), 2);
+    assert!(same.iter().all(|d| d.fault == Fault::SameUuid));
+    let mut doc = again(&doc);
+    let r = Record::new(kind::NOTE).with(field::NOTE, b"x");
+    assert_eq!(
+        items::put(
+            &compute(),
+            &mut doc,
+            &place(80, "Notes", "Note"),
+            &Body::Record(r)
+        ),
+        Err(Unwritable::Unreadable)
+    );
+}
+
+// --- The vault's own values ------------------------------------------------
+
+#[test]
+fn a_newer_format_is_read_only_and_its_items_unreadable() {
+    let mut doc = full();
+    doc.custom_mut().set("faraday.format", "2").unwrap();
+    let read = read(&doc);
+    assert_eq!(read.format, Format::Newer(faraday_text::Text::of("2")));
+    assert!(read.read_only());
+    assert_eq!(read.items.len(), 1, "the person's entry reads");
+    assert!(
+        read.unreadable
+            .iter()
+            .all(|u| u.what.fault == Fault::Format)
+    );
+    let mut doc = again(&doc);
+    assert_eq!(items::stamp(&mut doc, 4, None), Err(Unwritable::ReadOnly));
+}
+
+#[test]
+fn custom_data_that_does_not_read_is_named_and_kept() {
+    let mut doc = full();
+    let c = doc.custom_mut();
+    c.set("faraday.seals", "three").unwrap();
+    c.set("faraday.plan.2", "wallet = 3").unwrap();
+    c.set("faraday.signed.00", "1").unwrap();
+    c.set("faraday.colour", "blue").unwrap();
+    let read = read(&doc);
+    assert_eq!((read.seals, read.next_seal()), (0, 1));
+    let mut named: Vec<(&str, Fault)> = read
+        .unreadable
+        .iter()
+        .map(|u| (u.what.at.as_str(), u.what.fault))
+        .collect();
+    named.sort_by_key(|n| n.0);
+    assert_eq!(
+        named,
+        [
+            ("faraday.colour", Fault::UnknownField),
+            ("faraday.plan.2", Fault::Value),
+            ("faraday.seals", Fault::Value),
+            ("faraday.signed.00", Fault::Value),
+        ]
+    );
+    assert!(read.unreadable.iter().all(|u| u.uuid.is_none()));
+    let written = again(&doc);
+    assert_eq!(written.custom().get("faraday.plan.2"), Some("wallet = 3"));
+    assert_eq!(written.custom().get("faraday.colour"), Some("blue"));
+}
+
+fn nonces(tx: u8, n: u8) -> Record {
+    let mut r = Record::new(kind::NONCES).with(field::NONCES_TX, &[tx; 32]);
+    for i in 0..n {
+        let mut entry = [0u8; 96];
+        for (j, part) in entry.chunks_mut(32).enumerate() {
+            part.fill(tx.wrapping_add(i * 3 + j as u8));
+        }
+        r.push(field::NONCES_ENTRY, &entry);
+    }
+    r
+}
+
+#[test]
+fn nonce_records_of_two_transactions_read_back_as_written() {
+    let mut doc = full();
+    items::put_nonces(&mut doc, &nonces(0x11, 3)).unwrap();
+    items::put_nonces(&mut doc, &nonces(0x22, 1)).unwrap();
+    let doc = again(&doc);
+    let key = format!("faraday.nonces.{}", "11".repeat(32));
+    let value = doc.custom().get(&key).expect("written");
+    let entries: Vec<&str> = value.split(',').collect();
+    assert_eq!(entries.len(), 3);
+    assert!(entries.iter().all(|e| e.len() == 64 * 3 + 2));
+    assert!(entries[0].starts_with(&format!("{}:{}:", "11".repeat(32), "12".repeat(32))));
+    let read = items::read(&compute(), &doc);
+    assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+    for (tx, n) in [(0x11u8, 3u8), (0x22, 1)] {
+        let key = format!("faraday.nonces.{}", format!("{tx:02x}").repeat(32));
+        let c = read
+            .custom
+            .iter()
+            .find(|c| c.key.as_str() == key)
+            .expect("read");
+        assert_eq!(fields(&c.record), fields(&nonces(tx, n)));
+    }
+    assert_eq!(read.custom.len(), 4);
+    // Written again, the value is the same.
+    let mut second = again(&doc);
+    items::put_nonces(&mut second, &nonces(0x11, 3)).unwrap();
+    assert_eq!(second.custom().get(&key), Some(value));
+}
+
+#[test]
+fn a_nonce_value_that_does_not_read_is_named_and_kept_as_written() {
+    let good = format!(
+        "{}:{}:{}",
+        "aa".repeat(32),
+        "bb".repeat(32),
+        "cc".repeat(32)
+    );
+    let upper = good.to_uppercase();
+    let short = format!(
+        "{}:{}:{}",
+        "aa".repeat(32),
+        "bb".repeat(32),
+        "cc".repeat(31)
+    );
+    let two = format!("{}:{}", "aa".repeat(32), "bb".repeat(32));
+    let mut doc = full();
+    let cases = [
+        ("1", upper),
+        ("2", String::new()),
+        ("3", short),
+        ("4", two),
+        ("5", format!("{good},")),
+        ("6", format!("{good},,{good}")),
+    ];
+    for (n, value) in &cases {
+        doc.custom_mut()
+            .set(&format!("faraday.nonces.{}", n.repeat(64)), value)
+            .unwrap();
+    }
+    // A key whose transaction is not 64 lower-case hex digits.
+    let bad_tx = format!("faraday.nonces.{}", "AB".repeat(32));
+    doc.custom_mut().set(&bad_tx, &good).unwrap();
+    doc.custom_mut()
+        .set(&format!("faraday.nonces.{}", "7".repeat(64)), &good)
+        .unwrap();
+    let read = read(&doc);
+    assert_eq!(read.unreadable.len(), cases.len() + 1);
+    assert!(read.unreadable.iter().all(|u| u.what.fault == Fault::Value));
+    assert!(
+        read.unreadable
+            .iter()
+            .any(|u| bad_tx.starts_with(&*u.title))
+    );
+    assert!(read.items.len() > 1, "the vault itself reads");
+    assert!(!read.read_only());
+    assert!(
+        read.custom
+            .iter()
+            .any(|c| c.key.as_str() == format!("faraday.nonces.{}", "7".repeat(64)))
+    );
+    let written = again(&doc);
+    for (n, value) in &cases {
+        let key = format!("faraday.nonces.{}", n.repeat(64));
+        assert_eq!(written.custom().get(&key), Some(value.as_str()));
+    }
+    // A value that does not read is neither replaced nor removed.
+    let mut doc = written;
+    let key = format!("faraday.nonces.{}", "1".repeat(64));
+    assert_eq!(
+        items::put_nonces(&mut doc, &nonces(0x11, 1)),
+        Err(Unwritable::Unreadable)
+    );
+    assert_eq!(
+        items::remove_custom(&mut doc, &key),
+        Err(Unwritable::Unreadable)
+    );
+}
+
+#[test]
+fn a_vault_with_no_nonce_record_reads_as_before() {
+    let read = read(&full());
+    assert!(read.unreadable.is_empty());
+    assert_eq!(read.custom.len(), 2);
+    assert!(
+        read.custom
+            .iter()
+            .all(|c| !c.key.starts_with("faraday.nonces."))
+    );
+}
+
+// --- KeePass apps ------------------------------------------------------------
+
+#[test]
+fn a_file_pykeepass_wrote_opens_with_its_entry() {
+    let bytes = std::fs::read(repo(
+        "tools/vectors/kdbx/pykeepass-chacha20-argon2id-plain.kdbx",
+    ))
+    .unwrap();
+    let o = open(&compute(), &bytes, "kdbx vector passphrase").expect("opens");
+    let doc = Document::read(&o.document, &o.inner_key).unwrap();
+    let read = items::read(&compute(), &doc);
+    assert_eq!(read.format, Format::Foreign);
+    assert_eq!((read.seals, read.next_seal()), (0, 1));
+    assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+    assert_eq!(read.items.len(), 1);
+    let Body::Record(r) = &read.items[0].body else {
+        panic!()
+    };
+    assert_eq!(r.kind, kind::ENTRY);
+    assert_eq!(r.text(field::TITLE), Some("Example"));
+    assert_eq!(r.text(field::USERNAME), Some("alice"));
+    assert_eq!(r.text(field::PASSWORD), Some("hunter2"));
+    assert_eq!(r.text(field::URL), Some("https://example.org/"));
+    assert!(read.items[0].path.is_empty());
+}
+
+#[test]
+fn a_persons_entry_keeps_its_other_fields_across_a_change() {
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    let e = bad(
+        90,
+        None,
+        &[
+            ("Password", "old", true),
+            ("PIN", "1234", true),
+            ("Floor", "3", false),
+        ],
+        &[],
+    );
+    doc.root_mut().push_entry(e).unwrap();
+    let first = read(&doc);
+    assert_eq!(
+        first.items[0].extra,
+        [
+            Extra {
+                name: faraday_text::Text::of("PIN"),
+                protected: true
+            },
+            Extra {
+                name: faraday_text::Text::of("Floor"),
+                protected: false
+            },
+        ]
+    );
+    let mut doc = again(&doc);
+    let mut r = record_of(&first, 90).duplicate();
+    r.set(field::PASSWORD, b"new");
+    items::put(&compute(), &mut doc, &place(90, "", ""), &Body::Record(r)).unwrap();
+    let doc = again(&doc);
+    let e = doc.root().entries().next().unwrap();
+    assert_eq!(e.field("Password").unwrap().value(), "new");
+    let pin = e.field("PIN").unwrap();
+    assert_eq!((pin.value(), pin.protected()), ("1234", true));
+    assert_eq!(e.field("Floor").unwrap().value(), "3");
+    assert_eq!(read(&doc).items[0].extra.len(), 2);
+}
+
+#[test]
+fn a_persons_password_is_protected_only_when_a_write_back_changes_it() {
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    let e = bad(90, None, &[("Password", "hunter2", false)], &[]);
+    doc.root_mut().push_entry(e).unwrap();
+    let first = read(&doc);
+    for (new, protected) in [("hunter2", false), ("hunter3", true), ("Hunter2", true)] {
+        let mut doc = again(&doc);
+        let mut r = record_of(&first, 90).duplicate();
+        r.set(field::PASSWORD, new.as_bytes());
+        items::put(&compute(), &mut doc, &place(90, "", ""), &Body::Record(r)).unwrap();
+        let doc = again(&doc);
+        let e = doc.root().entries().next().unwrap();
+        let f = e.field("Password").unwrap();
+        assert_eq!((f.value(), f.protected()), (new, protected));
+    }
+}
+
+#[test]
+fn an_item_moved_or_renamed_in_a_keepass_app_keeps_its_kind() {
+    let c = compute();
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    items::put(
+        &c,
+        &mut doc,
+        &place(1, "Bitcoin keys", "Key 73c5da0a"),
+        &Body::Record(seed_record()),
+    )
+    .unwrap();
+    // What a KeePass app writes when the entry is dragged into a group of
+    // the person's under a renamed group: the XML moved by hand, with
+    // KeePassXC's own custom data beside Faraday's.
+    let text = String::from_utf8(doc.write(KEY).to_vec()).unwrap();
+    let start = text.find("<Entry>").unwrap();
+    let end = text.find("</Entry>").unwrap() + "</Entry>".len();
+    let entry = &text[start..end];
+    let mut moved = text[..start].to_string() + &text[end..];
+    moved = moved.replace("<Name>Bitcoin keys</Name>", "<Name>Clés</Name>");
+    let inner = format!(
+        "<Group><UUID>{}</UUID><Name>Cold</Name><CustomData><Item><Key>KPXC_RANDOM_SLUG</Key><Value>x</Value></Item></CustomData>{entry}</Group>",
+        base64(&[0x44; 16])
+    );
+    let at = moved.find("<Name>Clés</Name>").unwrap();
+    let close = at + moved[at..].find("</Group>").unwrap();
+    moved.insert_str(close, &inner);
+    let doc = Document::read(moved.as_bytes(), KEY).expect("reads");
+    let read = items::read(&c, &doc);
+    assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+    assert_eq!(
+        &*read.items[0].path,
+        ["Clés", "Cold"].map(|n| Arc::new(faraday_text::Text::of(n)))
+    );
+    assert_eq!(fields(record_of(&read, 1)), fields(&seed_record()));
+}
+
+#[test]
+fn an_entry_with_two_fields_of_one_key_or_in_a_group_sharing_a_uuid_is_unreadable() {
+    let plain = Record::new(kind::ENTRY).with(field::TITLE, b"plain");
+    let mut doc = full();
+    items::put(
+        &compute(),
+        &mut doc,
+        &place(92, "", ""),
+        &Body::Record(plain),
+    )
+    .unwrap();
+    let field = |k: &str, v: &str| format!("<String><Key>{k}</Key><Value>{v}</Value></String>");
+    let twice = format!(
+        "<Entry><UUID>{}</UUID>{}{}</Entry>",
+        base64(&uuid(90)),
+        field("Title", "first"),
+        field("Title", "second")
+    );
+    let in_group = format!(
+        "<Entry><UUID>{}</UUID>{}</Entry>",
+        base64(&uuid(91)),
+        field("Title", "grouped")
+    );
+    let g = base64(&[0x55; 16]);
+    let groups = format!(
+        "<Group><UUID>{g}</UUID><Name>A</Name>{in_group}</Group><Group><UUID>{g}</UUID><Name>B</Name></Group>"
+    );
+    let mut text = String::from_utf8(doc.write(KEY).to_vec()).unwrap();
+    let at = text.rfind("</Group></Root>").unwrap();
+    text.insert_str(at, &format!("{twice}{groups}"));
+    let mut doc = Document::read(text.as_bytes(), KEY).expect("reads");
+    let read = items::read(&compute(), &doc);
+    let mut got: Vec<(u8, Fault)> = read
+        .unreadable
+        .iter()
+        .map(|u| (u.uuid.unwrap()[0], u.what.fault))
+        .collect();
+    got.sort_by_key(|g| g.0);
+    assert_eq!(got, [(90, Fault::SameField), (91, Fault::SameUuid)]);
+    // A change elsewhere leaves both as they were read.
+    let r = Record::new(kind::ENTRY).with(field::TITLE, b"plain, changed");
+    items::put(&compute(), &mut doc, &place(92, "", ""), &Body::Record(r)).unwrap();
+    let after = doc.write(KEY);
+    for n in [90, 91] {
+        assert_eq!(
+            entry_bytes(text.as_bytes(), n),
+            entry_bytes(&after, n),
+            "entry {n}"
+        );
+    }
+    let r = Record::new(kind::ENTRY).with(field::TITLE, b"x");
+    assert_eq!(
+        items::put(&compute(), &mut doc, &place(90, "", ""), &Body::Record(r)),
+        Err(Unwritable::Unreadable)
+    );
+    // Neither is put or removed, and an entry in a group sharing a UUID
+    // (91) is the same.
+    let r = Record::new(kind::ENTRY).with(field::TITLE, b"x");
+    assert_eq!(
+        items::put(&compute(), &mut doc, &place(91, "", ""), &Body::Record(r)),
+        Err(Unwritable::Unreadable)
+    );
+    for n in [90, 91] {
+        assert_eq!(
+            items::remove(&compute(), &mut doc, &uuid(n)),
+            Err(Unwritable::Unreadable)
+        );
+    }
+    assert_eq!(doc.write(KEY).len(), after.len());
+}
+
+#[test]
+fn an_ambiguous_entry_is_unreadable_and_is_not_changed() {
+    let doc = full();
+    let one = format!(
+        "<Entry><UUID>{}</UUID><UUID>{}</UUID><String><Key>Title</Key><Value>t</Value></String></Entry>",
+        base64(&uuid(95)),
+        base64(&uuid(96))
+    );
+    let mut text = String::from_utf8(doc.write(KEY).to_vec()).unwrap();
+    let at = text.rfind("</Group></Root>").unwrap();
+    text.insert_str(at, &one);
+    let mut doc = Document::read(text.as_bytes(), KEY).expect("reads");
+    let read = items::read(&compute(), &doc);
+    let got: Vec<&Damage> = read
+        .unreadable
+        .iter()
+        .filter(|u| u.title == "t")
+        .map(|u| &u.what)
+        .collect();
+    assert_eq!(got.len(), 1);
+    assert_eq!(got[0].fault, Fault::Ambiguous);
+    assert!(!got[0].at.is_empty());
+    assert!(!read.read_only());
+    let r = Record::new(kind::ENTRY).with(field::TITLE, b"x");
+    assert_eq!(
+        items::put(&compute(), &mut doc, &place(95, "", ""), &Body::Record(r)),
+        Err(Unwritable::Unreadable)
+    );
+}
+
+#[test]
+fn an_ambiguous_database_keeps_its_values_and_is_read_only() {
+    let doc = full();
+    let mut text = String::from_utf8(doc.write(KEY).to_vec()).unwrap();
+    let at = text.find("</DatabaseName>").unwrap() + "</DatabaseName>".len();
+    text.insert_str(at, "<DatabaseName>second</DatabaseName>");
+    let mut doc = Document::read(text.as_bytes(), KEY).expect("reads");
+    let read = items::read(&compute(), &doc);
+    assert!(read.read_only());
+    assert!(matches!(read.format, Format::Newer(_)));
+    assert!(read.custom.is_empty());
+    assert!(
+        read.unreadable
+            .iter()
+            .any(|u| u.uuid.is_none() && u.what.fault == Fault::Ambiguous)
+    );
+    assert_eq!(items::stamp(&mut doc, 2, None), Err(Unwritable::ReadOnly));
+    assert_eq!(
+        items::put_plan(&mut doc, 1, &plan()),
+        Err(Unwritable::ReadOnly)
+    );
+    assert_eq!(
+        items::put_signed(&mut doc, &signed()),
+        Err(Unwritable::ReadOnly)
+    );
+}
+
+#[test]
+fn a_new_plan_takes_a_number_past_every_plan_readable_or_not() {
+    let mut doc = Document::new([0xee; 16], "Vault");
+    assert_eq!(items::next_plan(&doc), Ok(1));
+    items::put_plan(&mut doc, 2, &plan()).unwrap();
+    assert_eq!(items::next_plan(&doc), Ok(3));
+    doc.custom_mut()
+        .set("faraday.plan.3", "not a plan")
+        .unwrap();
+    assert_eq!(items::next_plan(&doc), Ok(4));
+    // No number is left past the largest one.
+    doc.custom_mut()
+        .set("faraday.plan.4294967295", "not a plan")
+        .unwrap();
+    assert_eq!(items::next_plan(&doc), Err(Unwritable::Plan));
+}
+
+/// An entry written into a document's text, before the last group's end.
+fn with_text(doc: &Document, inserted: &str) -> Document {
+    let mut text = String::from_utf8(doc.write(KEY).to_vec()).unwrap();
+    let at = text.rfind("</Group></Root>").unwrap();
+    text.insert_str(at, inserted);
+    Document::read(text.as_bytes(), KEY).expect("reads")
+}
+
+#[test]
+fn an_entry_in_an_ambiguous_group_is_not_put_or_removed() {
+    let field = |k: &str, v: &str| format!("<String><Key>{k}</Key><Value>{v}</Value></String>");
+    let group = format!(
+        "<Group><UUID>{}</UUID><Name>A</Name><Name>B</Name><Entry><UUID>{}</UUID>{}</Entry></Group>",
+        base64(&[0x66; 16]),
+        base64(&uuid(97)),
+        field("Title", "inside")
+    );
+    let mut doc = with_text(&full(), &group);
+    let read = items::read(&compute(), &doc);
+    assert!(
+        read.unreadable
+            .iter()
+            .any(|u| u.uuid == Some(uuid(97)) && u.what.fault == Fault::Ambiguous)
+    );
+    let r = Record::new(kind::ENTRY).with(field::TITLE, b"x");
+    assert_eq!(
+        items::put(&compute(), &mut doc, &place(97, "", ""), &Body::Record(r)),
+        Err(Unwritable::Unreadable)
+    );
+    assert_eq!(
+        items::remove(&compute(), &mut doc, &uuid(97)),
+        Err(Unwritable::Unreadable)
+    );
+}
+
+#[test]
+fn a_damaged_item_and_a_duplicate_are_not_removed_a_good_one_is_and_a_newer_vault_refuses() {
+    let (mut doc, _) = with_damage();
+    let c = compute();
+    assert_eq!(
+        items::remove(&c, &mut doc, &uuid(66)),
+        Err(Unwritable::Unreadable)
+    );
+    assert_eq!(items::remove(&c, &mut doc, &uuid(1)), Ok(true));
+    assert_eq!(items::remove(&c, &mut doc, &uuid(1)), Ok(false));
+    let mut newer = Document::read(
+        String::from_utf8(doc.write(KEY).to_vec())
+            .unwrap()
+            .replace(
+                "<Key>faraday.format</Key><Value>1</Value>",
+                "<Key>faraday.format</Key><Value>2</Value>",
+            )
+            .as_bytes(),
+        KEY,
+    )
+    .expect("reads");
+    assert_eq!(
+        items::remove(&c, &mut newer, &uuid(2)),
+        Err(Unwritable::ReadOnly)
+    );
+}
+
+#[test]
+fn two_format_items_make_every_item_unreadable_and_nothing_changes() {
+    let doc = full();
+    let mut text = String::from_utf8(doc.write(KEY).to_vec()).unwrap();
+    let at = text.find("<Key>faraday.format</Key>").expect("format item");
+    let end = text[at..].find("</Item>").unwrap() + at + "</Item>".len();
+    let item_start = text[..at].rfind("<Item>").unwrap();
+    let item = text[item_start..end].to_string();
+    text.insert_str(end, &item);
+    let mut doc = Document::read(text.as_bytes(), KEY).expect("reads");
+    let read = items::read(&compute(), &doc);
+    assert!(read.read_only());
+    assert!(read.items.iter().all(|i| i.body.kind() == kind::ENTRY));
+    assert!(read.unreadable.iter().any(|u| u.uuid.is_some()));
+    let r = Record::new(kind::ENTRY).with(field::TITLE, b"x");
+    assert_eq!(
+        items::put(&compute(), &mut doc, &place(99, "", ""), &Body::Record(r)),
+        Err(Unwritable::ReadOnly)
+    );
+    assert_eq!(
+        items::remove_custom(&mut doc, "faraday.plan.1"),
+        Err(Unwritable::ReadOnly)
+    );
+    assert_eq!(
+        items::remove(&compute(), &mut doc, &uuid(1)),
+        Err(Unwritable::ReadOnly)
+    );
+}
+
+#[test]
+fn a_persons_entry_reads_with_the_totp_it_holds() {
+    let field = |k: &str, v: &str| format!("<String><Key>{k}</Key><Value>{v}</Value></String>");
+    let entry = |n: u8, fields: &[(&str, &str)]| {
+        let f: String = fields.iter().map(|(k, v)| field(k, v)).collect();
+        format!("<Entry><UUID>{}</UUID>{f}</Entry>", base64(&uuid(n)))
+    };
+    let b32 = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+    let xml = [
+        entry(
+            80,
+            &[
+                ("Title", "hotp"),
+                ("otp", "otpauth://hotp/x?secret=JBSWY3DPEHPK3PXP"),
+            ],
+        ),
+        entry(81, &[("Title", "junk"), ("otp", "not a key")]),
+        entry(82, &[("Title", "kp2"), ("TimeOtp-Secret-Base32", b32)]),
+        entry(
+            83,
+            &[
+                ("Title", "kpxc"),
+                ("TOTP Seed", b32),
+                ("TOTP Settings", "30;8"),
+            ],
+        ),
+        entry(84, &[("Title", "none")]),
+    ]
+    .concat();
+    let doc = with_text(&full(), &xml);
+    let read = items::read(&compute(), &doc);
+    assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+    let totp = |n: u8| &read.items.iter().find(|i| i.uuid == uuid(n)).unwrap().totp;
+    assert_eq!(
+        totp(80).as_ref().unwrap().as_ref().unwrap_err(),
+        &NotTotp::Hotp
+    );
+    assert_eq!(
+        totp(81).as_ref().unwrap().as_ref().unwrap_err(),
+        &NotTotp::Unreadable
+    );
+    // RFC 6238's SHA-1 vector at 59 s, 8 digits.
+    assert_eq!(
+        totp(83).as_ref().unwrap().as_ref().unwrap().code(59),
+        "94287082"
+    );
+    assert_eq!(
+        totp(82).as_ref().unwrap().as_ref().unwrap().code(59),
+        "287082"
+    );
+    assert!(totp(84).is_none());
+    // The other fields are listed by name.
+    let kp2 = read.items.iter().find(|i| i.uuid == uuid(82)).unwrap();
+    assert_eq!(kp2.extra[0].name, "TimeOtp-Secret-Base32");
+}
+
+fn uuid_of_kind(doc: &Document, k: u8) -> [u8; 16] {
+    read(doc)
+        .items
+        .iter()
+        .find(|i| matches!(&i.body, Body::Record(r) if r.kind == k))
+        .expect("the item")
+        .uuid
+}
+
+fn passphrase_for(fp: [u8; 4]) -> Body {
+    Body::Record(
+        Record::new(kind::PASSPHRASE)
+            .with(field::PASSPHRASE_KEY, &fp)
+            .with(field::PASSPHRASE, b"x"),
+    )
+}
+
+fn share_of(string: &str) -> Body {
+    Body::Record(
+        Record::new(kind::CODEX32_SHARE)
+            .with(field::CODEX32_STRING, string.as_bytes())
+            .with(field::CODEX32_KEY, &FP),
+    )
+}
+
+fn related_of(read: &Read, n: u8) -> Option<Related> {
+    read.items
+        .iter()
+        .find(|i| i.uuid == uuid(n))
+        .unwrap()
+        .related
+}
+
+#[test]
+fn another_passphrase_of_a_key_is_kept_unlabelled_and_a_second_share_is_labelled() {
+    let c = compute();
+    let mut doc = full();
+    let at = |n: u8| place(n, "Passphrases", "");
+    let before = read(&doc);
+    let own = uuid_of_kind(&doc, kind::PASSPHRASE);
+    assert!(before.items.iter().all(|i| i.related.is_none()));
+    assert_eq!(
+        items::put(&c, &mut doc, &at(80), &passphrase_for(FP)),
+        Ok(())
+    );
+    assert_eq!(
+        items::put(&c, &mut doc, &at(81), &share_of(SHARE_A)),
+        Ok(())
+    );
+    // Another key and another index are alone.
+    assert_eq!(
+        items::put(&c, &mut doc, &at(82), &passphrase_for([1, 2, 3, 4])),
+        Ok(())
+    );
+    assert_eq!(
+        items::put(&c, &mut doc, &at(83), &share_of(SHARE_C)),
+        Ok(())
+    );
+    let r = read(&doc);
+    assert!(r.unreadable.is_empty());
+    let label = |u: [u8; 16]| r.items.iter().find(|i| i.uuid == u).unwrap().related;
+    let places = |a: Option<Related>, b: Option<Related>| {
+        let mut v = [a.unwrap().place, b.unwrap().place];
+        v.sort();
+        v
+    };
+    // Two passphrases for one key are each kept, none labelled.
+    assert_eq!(label(own), None);
+    assert_eq!(related_of(&r, 80), None);
+    assert_eq!(related_of(&r, 82), None);
+    let held = r
+        .items
+        .iter()
+        .find(|i| i.uuid != uuid(81) && matches!(&i.body, Body::Record(x) if x.kind == kind::CODEX32_SHARE && i.related.is_some()))
+        .unwrap()
+        .related;
+    assert_eq!(places(held, related_of(&r, 81)), [1, 2]);
+    assert_eq!(related_of(&r, 83), None);
+    // The item itself again is taken, and stays what it was.
+    let again_own = Place { uuid: own, ..at(0) };
+    assert_eq!(
+        items::put(&c, &mut doc, &again_own, &passphrase_for(FP)),
+        Ok(())
+    );
+    assert_eq!(label_in(&doc, own), None);
+}
+
+fn label_in(doc: &Document, u: [u8; 16]) -> Option<Related> {
+    read(doc)
+        .items
+        .iter()
+        .find(|i| i.uuid == u)
+        .unwrap()
+        .related
+}
+
+#[test]
+fn entries_of_one_key_read_unlabelled_and_of_one_share_index_are_labelled() {
+    let c = compute();
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    let pass = |n: u8, fp: &str| {
+        bad(
+            n,
+            Some("passphrase"),
+            &[("Password", "a", true), ("for", fp, false)],
+            &[],
+        )
+    };
+    let share = |n: u8, s: &str| {
+        bad(
+            n,
+            Some("share"),
+            &[("Password", s, true), ("for", "0badf00d", false)],
+            &[],
+        )
+    };
+    for e in [
+        pass(91, "73c5da0a"),
+        pass(92, "73c5da0a"),
+        share(93, SHARE_C),
+        share(94, SHARE_C),
+    ] {
+        doc.root_mut().push_entry(e).unwrap();
+    }
+    doc.root_mut().push_entry(pass(95, "zz")).unwrap();
+    let r = read(&doc);
+    assert_eq!(r.items.len(), 4);
+    assert_eq!(r.unreadable.len(), 1);
+    let want = |place| Some(Related { place, of: 2 });
+    assert_eq!(related_of(&r, 91), None);
+    assert_eq!(related_of(&r, 92), None);
+    assert_eq!(related_of(&r, 93), want(1));
+    assert_eq!(related_of(&r, 94), want(2));
+    // Each is changed and removed on its own, and a third is taken.
+    assert_eq!(
+        items::put(
+            &c,
+            &mut doc,
+            &place(91, "Passphrases", ""),
+            &passphrase_for(FP)
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        items::put(
+            &c,
+            &mut doc,
+            &place(96, "Passphrases", ""),
+            &passphrase_for(FP)
+        ),
+        Ok(())
+    );
+    // Any damage is still refused.
+    assert_eq!(
+        items::remove(&c, &mut doc, &uuid(95)),
+        Err(Unwritable::Unreadable)
+    );
+    assert_eq!(items::remove(&c, &mut doc, &uuid(93)), Ok(true));
+    let r = read(&doc);
+    assert_eq!(related_of(&r, 94), None);
+    // A third passphrase for the key counts none of them.
+    assert_eq!(related_of(&r, 91), None);
+    assert_eq!(related_of(&r, 96), None);
+}
+
+#[test]
+fn a_persons_entry_with_a_field_of_any_length_reads_and_keeps_it() {
+    let c = compute();
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    let big = "x".repeat(65_536);
+    doc.root_mut()
+        .push_entry(bad(
+            90,
+            None,
+            &[("Notes", &big, false), ("Password", "old", true)],
+            &[],
+        ))
+        .unwrap();
+    let first = read(&doc);
+    assert!(first.unreadable.is_empty());
+    assert_eq!(
+        first.items[0].extra,
+        [Extra {
+            name: faraday_text::Text::of("Notes"),
+            protected: false
+        }]
+    );
+    assert!(record_of(&first, 90).field(field::NOTES).is_none());
+    let mut doc = again(&doc);
+    let mut r = record_of(&first, 90).duplicate();
+    r.set(field::PASSWORD, b"new");
+    items::put(
+        &c,
+        &mut doc,
+        &place(90, "", ""),
+        &Body::Record(r.duplicate()),
+    )
+    .unwrap();
+    let doc = again(&doc);
+    let e = doc.root().entries().next().unwrap();
+    assert_eq!(e.field("Password").unwrap().value(), "new");
+    assert_eq!(e.field("Notes").unwrap().value().len(), 65_536);
+    // Given a value, the field is replaced.
+    let mut doc = doc;
+    r.set(field::NOTES, b"short");
+    items::put(&c, &mut doc, &place(90, "", ""), &Body::Record(r)).unwrap();
+    let e = doc.root().entries().next().unwrap();
+    assert_eq!(e.field("Notes").unwrap().value(), "short");
+}
+
+#[test]
+fn a_plan_or_signed_amount_that_does_not_read_is_neither_replaced_nor_removed() {
+    let mut doc = full();
+    let tx = "cd".repeat(32);
+    let signed_key = format!("faraday.signed.{tx}");
+    doc.custom_mut()
+        .set("faraday.plan.2", "not a plan")
+        .unwrap();
+    doc.custom_mut().set(&signed_key, "x").unwrap();
+    assert_eq!(
+        items::put_plan(&mut doc, 2, &plan()),
+        Err(Unwritable::Unreadable)
+    );
+    assert_eq!(
+        items::remove_custom(&mut doc, "faraday.plan.2"),
+        Err(Unwritable::Unreadable)
+    );
+    let amounts = Record::new(kind::AMOUNTS)
+        .with(field::AMOUNTS_TX, &[0xcd; 32])
+        .with(field::AMOUNTS_INPUT, &1u64.to_le_bytes());
+    assert_eq!(
+        items::put_signed(&mut doc, &amounts),
+        Err(Unwritable::Unreadable)
+    );
+    assert_eq!(
+        items::remove_custom(&mut doc, &signed_key),
+        Err(Unwritable::Unreadable)
+    );
+    // A new number and a plan that reads are written and removed as before.
+    assert_eq!(items::put_plan(&mut doc, 3, &plan()), Ok(()));
+    assert_eq!(items::remove_custom(&mut doc, "faraday.plan.1"), Ok(true));
+    assert_eq!(read(&doc).unreadable.len(), 2);
+}
+
+#[test]
+fn entries_of_one_group_share_its_path_and_groups_below_share_its_names() {
+    // A group name is stored once however many entries are in the group
+    // (a large name beside many entries must not be copied per entry).
+    let c = compute();
+    let mut doc = Document::new([0xee; 16], "Vault");
+    let mut outer = Group::new([0x10; 16], "Outer");
+    let mut inner = Group::new([0x11; 16], "Inner");
+    for n in 0..3u8 {
+        outer.push_entry(Entry::new([0x20 + n; 16])).unwrap();
+        inner.push_entry(Entry::new([0x30 + n; 16])).unwrap();
+    }
+    outer.push_group(inner).unwrap();
+    doc.root_mut().push_group(outer).unwrap();
+    let read = items::read(&c, &doc);
+    assert_eq!(read.items.len(), 6, "{:?}", read.unreadable);
+    let (outer, inner): (Vec<_>, Vec<_>) = read.items.iter().partition(|i| i.path.len() == 1);
+    assert_eq!((outer.len(), inner.len()), (3, 3));
+    for group in [&outer, &inner] {
+        for it in group.iter() {
+            assert!(Arc::ptr_eq(&it.path, &group[0].path));
+        }
+    }
+    assert!(Arc::ptr_eq(&outer[0].path[0], &inner[0].path[0]));
+    assert_eq!(inner[0].path[1].as_str(), "Inner");
+}
+
+#[test]
+fn a_faraday_key_twice_in_the_meta_makes_every_item_of_it_unreadable() {
+    let item = |k: &str| format!("<Item><Key>{k}</Key><Value>v</Value></Item>");
+    let meta: String = [item("faraday.seals"), item("faraday.seals")].concat();
+    let xml = format!(
+        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n<KeePassFile><Meta><CustomData>{meta}</CustomData></Meta><Root><Group><UUID>{}</UUID><Name>V</Name></Group></Root></KeePassFile>\n\n",
+        base64(&[0x44; 16])
+    );
+    let doc = Document::read(xml.as_bytes(), KEY).expect("reads");
+    let read = items::read(&compute(), &doc);
+    assert!(read.meta_ambiguous.is_some());
+    assert_eq!(read.unreadable.len(), 2, "{:?}", read.unreadable);
+    assert!(
+        read.unreadable
+            .iter()
+            .all(|u| u.what.fault == Fault::Ambiguous)
+    );
+}
+
+#[test]
+fn a_codex32_share_written_online_reads_back_marked() {
+    let c = compute();
+    let share = || {
+        Record::new(kind::CODEX32_SHARE)
+            .with(field::CODEX32_STRING, SHARE_A.as_bytes())
+            .with(field::CODEX32_KEY, &FP)
+    };
+    let mut marked = share();
+    faraday_vault::records::mark_made_online(&mut marked);
+    let mut doc = Document::new([0xee; 16], "Vault");
+    let put = |doc: &mut Document, n: u8, r: Record| {
+        items::put(&c, doc, &place(n, "Codex32", "Share A"), &Body::Record(r)).unwrap();
+    };
+    put(&mut doc, 1, share());
+    put(&mut doc, 2, marked);
+    let read = read(&doc);
+    assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+    assert!(!faraday_vault::records::is_made_online(record_of(&read, 1)));
+    assert!(faraday_vault::records::is_made_online(record_of(&read, 2)));
+}
+
+#[test]
+fn a_wallets_ticked_keys_are_one_custom_data_entry_and_none_is_no_entry() {
+    let read = read(&full());
+    let ticked = records().len() as u8;
+    assert_eq!(
+        faraday_vault::records::keys_checked(record_of(&read, ticked)),
+        [1, 2]
+    );
+    assert!(faraday_vault::records::keys_checked(record_of(&read, 4)).is_empty());
+    let doc = full();
+    let entry = |n: u8| {
+        doc.root()
+            .groups()
+            .flat_map(|g| g.entries())
+            .find(|e| e.uuid() == uuid(n))
+            .unwrap()
+    };
+    assert_eq!(entry(ticked).custom().get("faraday.checked"), Some("2,3"));
+    assert_eq!(entry(4).custom().get("faraday.checked"), None);
+}
+
+#[test]
+fn a_ticked_value_that_does_not_read_is_no_tick_and_the_wallet_still_opens() {
+    let policy = format!("wpkh(@0/**)\n{XPUB}");
+    for (i, v) in [
+        "",
+        "0",
+        "1,1",
+        "3,2",
+        "a",
+        "1,",
+        ",1",
+        "2;3",
+        " 2",
+        "-1",
+        "65",
+        "99999999999999999999",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut doc = full();
+        let n = 150 + i as u8;
+        doc.root_mut()
+            .push_entry(bad(
+                n,
+                Some("wallet"),
+                &[("policy", &policy, false)],
+                &[("faraday.checked", v)],
+            ))
+            .unwrap();
+        let read = read(&doc);
+        assert!(read.unreadable.is_empty(), "{v:?}: {:?}", read.unreadable);
+        assert!(
+            faraday_vault::records::keys_checked(record_of(&read, n)).is_empty(),
+            "{v:?}"
+        );
+        assert!(record_of(&read, n).field(field::WALLET_CHECKED).is_none());
+    }
+}
+
+#[test]
+fn a_record_with_a_ticked_value_that_does_not_read_reads_as_none_ticked() {
+    for v in ["0", "1,1", "3,2", "a", "65"] {
+        let r = Record::new(kind::WALLET)
+            .with(field::WALLET, b"wpkh(@0/**)")
+            .with(field::WALLET_CHECKED, v.as_bytes());
+        assert!(faraday_vault::records::keys_checked(&r).is_empty(), "{v}");
+    }
+    let mut r = Record::new(kind::WALLET).with(field::WALLET, b"wpkh(@0/**)");
+    faraday_vault::records::set_keys_checked(&mut r, &[2, 1, 2]);
+    assert_eq!(r.field(field::WALLET_CHECKED), Some(&b"2,3"[..]));
+    assert_eq!(faraday_vault::records::keys_checked(&r), [1, 2]);
+    faraday_vault::records::set_keys_checked(&mut r, &[]);
+    assert!(r.field(field::WALLET_CHECKED).is_none());
+}
+// ---- A silent payments wallet's record ----
+
+fn silent_wallet(labels: u32) -> faraday_bip::silent_wallet::SilentWallet {
+    use faraday_bip::bitcoin::secp256k1::{Secp256k1, SecretKey};
+    let secp = Secp256k1::new();
+    let key = |b: u8| SecretKey::from_slice(&[b; 32]).unwrap().public_key(&secp);
+    faraday_bip::silent_wallet::SilentWallet {
+        network: faraday_bip::keys::Network::Mainnet,
+        fingerprint: faraday_bip::keys::Fingerprint(FP),
+        account: 0,
+        scan: key(0x11),
+        spend: key(0x22),
+        labels,
+    }
+}
+
+fn silent_record(text: &str) -> Record {
+    Record::new(kind::WALLET)
+        .with(field::WALLET, text.as_bytes())
+        .with(field::WALLET_NAME, b"Silent")
+}
+
+#[test]
+fn a_silent_payments_record_is_kept_in_its_own_field_and_reads_back_after_a_reopen() {
+    let c = compute();
+    for labels in [0, 1, 3] {
+        let text = silent_wallet(labels).to_text();
+        let mut doc = Document::new([0xee; 16], "Vault");
+        items::stamp(&mut doc, 1, None).unwrap();
+        items::put(
+            &c,
+            &mut doc,
+            &place(1, "Wallets", "Silent"),
+            &Body::Record(silent_record(&text)),
+        )
+        .unwrap();
+        let written = doc.write(KEY);
+        let xml = String::from_utf8_lossy(&written);
+        assert!(!xml.contains("<Key>descriptor</Key>"));
+        let doc = Document::read(&written, KEY).unwrap();
+        let entry = doc
+            .root()
+            .groups()
+            .next()
+            .unwrap()
+            .entries()
+            .next()
+            .unwrap();
+        assert_eq!(entry.field("silent").unwrap().value(), text.as_str());
+        assert!(entry.field("descriptor").is_none());
+        assert!(entry.field("policy").is_none());
+        assert!(!entry.field("silent").unwrap().protected());
+        let read = items::read(&c, &doc);
+        assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+        let r = record_of(&read, 1);
+        assert_eq!(r.text(field::WALLET), Some(text.as_str()));
+        assert_eq!(r.text(field::WALLET_NAME), Some("Silent"));
+    }
+}
+
+/// A document holding `entries` as wallet entries numbered from 1, each
+/// with the fields given.
+fn silent_doc(entries: &[Vec<(&str, &str)>]) -> Document {
+    let mut doc = Document::new([0xee; 16], "Vault");
+    items::stamp(&mut doc, 1, None).unwrap();
+    for (n, fields) in entries.iter().enumerate() {
+        let f: Vec<(&str, &str, bool)> = fields.iter().map(|(k, v)| (*k, *v, false)).collect();
+        doc.root_mut()
+            .push_entry(bad(n as u8 + 1, Some("wallet"), &f, &[]))
+            .unwrap();
+    }
+    doc
+}
+
+#[test]
+fn a_silent_field_that_is_not_the_one_exact_record_is_damaged_with_a_bad_value() {
+    let good = silent_wallet(2).to_text();
+    let address = silent_wallet(2).address();
+    let mut wrong_sum = address.clone();
+    wrong_sum.pop();
+    wrong_sum.push('q');
+    let cases: Vec<(&str, String)> = vec![
+        ("crlf", good.replace('\n', "\r\n")),
+        ("trailing newline", format!("{good}\n")),
+        ("leading newline", format!("\n{good}")),
+        ("extra spaces", good.replace("labels 2", "labels  2")),
+        ("padded line", good.replace("\nlabels", " \nlabels")),
+        ("a comment line", format!("# kept\n{good}")),
+        ("extra line", format!("{good}\n{address}")),
+        (
+            "more labels than a wallet has",
+            good.replace("labels 2", "labels 21"),
+        ),
+        (
+            "other network",
+            good.replace("network mainnet", "network testnet"),
+        ),
+        (
+            "an address that does not read",
+            good.replace(&address, &wrong_sum),
+        ),
+    ];
+    let entries: Vec<Vec<(&str, &str)>> = cases
+        .iter()
+        .map(|(_, t)| vec![("silent", t.as_str())])
+        .collect();
+    let read = read(&silent_doc(&entries));
+    assert!(read.items.is_empty());
+    for (n, (what, _)) in cases.iter().enumerate() {
+        let u = read
+            .unreadable
+            .iter()
+            .find(|u| u.uuid == Some(uuid(n as u8 + 1)))
+            .unwrap_or_else(|| panic!("{what} reads"));
+        assert_eq!(
+            (u.what.at.as_str(), u.what.fault),
+            ("silent", Fault::Value),
+            "{what}"
+        );
+    }
+}
+
+#[test]
+fn a_silent_record_of_another_address_than_a_key_names_reads_as_that_wallet() {
+    // The record's key line holds a fingerprint and an account, not the
+    // address's keys: whether they are one key's is checked when a key is
+    // loaded, not by the file.
+    let mut other = silent_wallet(0);
+    other.account = 5;
+    let text = other.to_text();
+    let read = read(&silent_doc(&[vec![("silent", text.as_str())]]));
+    assert!(read.unreadable.is_empty());
+    assert_eq!(record_of(&read, 1).text(field::WALLET), Some(text.as_str()));
+}
+
+#[test]
+fn a_wallet_entry_has_exactly_one_of_policy_descriptor_and_silent() {
+    let silent = silent_wallet(0).to_text();
+    let policy = format!("wpkh(@0/**)\n{XPUB}");
+    let descriptor = format!("wpkh({XPUB}/<0;1>/*)");
+    type Case<'a> = (Vec<(&'a str, &'a str)>, &'a str, Fault);
+    let cases: Vec<Case> = vec![
+        (vec![], "policy", Fault::Missing),
+        (
+            vec![("silent", &silent), ("descriptor", &descriptor)],
+            "silent",
+            Fault::Twice,
+        ),
+        (
+            vec![("silent", &silent), ("policy", &policy)],
+            "silent",
+            Fault::Twice,
+        ),
+        (
+            vec![("policy", &policy), ("descriptor", &descriptor)],
+            "descriptor",
+            Fault::Twice,
+        ),
+        (vec![("descriptor", &silent)], "descriptor", Fault::Value),
+        (vec![("policy", &silent)], "policy", Fault::Value),
+    ];
+    let entries: Vec<_> = cases.iter().map(|(f, _, _)| f.clone()).collect();
+    let read = read(&silent_doc(&entries));
+    assert!(read.items.is_empty());
+    for (n, (_, at, fault)) in cases.iter().enumerate() {
+        let u = read
+            .unreadable
+            .iter()
+            .find(|u| u.uuid == Some(uuid(n as u8 + 1)))
+            .unwrap_or_else(|| panic!("case {n} reads"));
+        assert_eq!(
+            (u.what.at.as_str(), u.what.fault),
+            (*at, *fault),
+            "case {n}"
+        );
+    }
+}
+
+#[test]
+fn a_policy_and_a_descriptor_wallet_are_written_in_their_own_field_as_before() {
+    let c = compute();
+    let policy = format!("wpkh(@0/**)\n{XPUB}");
+    let descriptor = format!("wpkh({XPUB}/<0;1>/*)");
+    for (text, name, other) in [
+        (&policy, "policy", "descriptor"),
+        (&descriptor, "descriptor", "policy"),
+    ] {
+        let mut doc = Document::new([0xee; 16], "Vault");
+        items::stamp(&mut doc, 1, None).unwrap();
+        items::put(
+            &c,
+            &mut doc,
+            &place(1, "Wallets", "W"),
+            &Body::Record(silent_record(text)),
+        )
+        .unwrap();
+        let doc = Document::read(&doc.write(KEY), KEY).unwrap();
+        let entry = doc
+            .root()
+            .groups()
+            .next()
+            .unwrap()
+            .entries()
+            .next()
+            .unwrap();
+        assert_eq!(entry.field(name).unwrap().value(), text.as_str());
+        assert!(entry.field(other).is_none());
+        assert!(entry.field("silent").is_none());
+        assert!(!entry.field(name).unwrap().protected());
+    }
+}

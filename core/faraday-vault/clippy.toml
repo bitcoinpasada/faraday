@@ -1,0 +1,40 @@
+# One clippy.toml cannot serve a whole tree, so this file is one of three
+# byte-identical copies: faraday-keys, faraday-vault and faraday-pgp, the
+# crates that make key material, so none has the key boundary entries of
+# faraday/clippy.toml (tools/clippy.py fails when they differ, or lack one of
+# its other entries). Clippy reads the nearest clippy.toml, and
+# `disallowed_methods` is on or off per source file, not per config: the
+# Compute mint entries must stay on in every crate under faraday/, while the
+# secret refusal below (docs/SECRET-LEAKS.md section 6) is turned on only in
+# the files that hold a secret, with
+# `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`. Put in
+# faraday/clippy.toml it would warn on every `clone` in every crate, and a
+# crate-wide allow to silence that would also silence the mint refusal. A
+# legitimate use carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+# The first group repeats faraday/clippy.toml (see it for why each entry is
+# there); the second is the secret refusal that core/faraday-bip/clippy.toml
+# explains.
+disallowed-methods = [
+    { path = "faraday_crypto::work::Compute::new", reason = "a mint: only at docs/COMPUTE.md §3's sites, under #[expect]" },
+    { path = "faraday_crypto::work::Compute::unchecked", reason = "counts nothing: core's tests and the fuzz targets only (docs/COMPUTE.md §3)", allow-invalid = true },
+    { path = "bitcoin::bip32::Xpriv::new_master", reason = "a master key: faraday_bip::keys::MasterKey::from_seed, which takes the token" },
+    { path = "bitcoin::bip32::Xpriv::derive_priv", reason = "a key derivation: faraday_bip::keys::MasterKey::derive, which takes the token" },
+    { path = "bitcoin::bip32::Xpriv::fingerprint", reason = "an elliptic-curve multiplication: MasterKey::fingerprint keeps it" },
+    { path = "bitcoin::bip32::Xpub::from_priv", reason = "an elliptic-curve multiplication: MasterKey::xpub or DerivedKey::to_xpub, which take the token" },
+    { path = "bitcoin::bip32::Xpub::derive_pub", reason = "a key derivation: a wallet's addresses through faraday_bip::policy::WalletPolicy, which takes the token" },
+    { path = "secp256k1::PublicKey::from_secret_key", reason = "an elliptic-curve multiplication: DerivedKey::to_xpub, which takes the token" },
+    { path = "bitcoin::psbt::Psbt::deserialize", reason = "a PSBT parse: faraday_psbt::Psbt::parse_bytes, which takes the token" },
+    { path = "core::clone::Clone::clone", reason = "a copy of a secret is a function of its type (`duplicate`), under #[expect] where it is needed" },
+    { path = "alloc::string::ToString::to_string", reason = "a secret made into text is a second buffer nothing wipes" },
+    { path = "alloc::borrow::ToOwned::to_owned", reason = "a secret made into a second buffer nothing wipes" },
+    { path = "slice::to_vec", reason = "a secret copied into a second buffer nothing wipes (`[T]::to_vec`; Zeroizing or a borrow)" },
+]
+
+disallowed-types = [
+    { path = "miniscript::Descriptor", reason = "a descriptor parse: faraday_bip::policy::WalletPolicy, which takes the token" },
+]
+
+# A function over this cognitive complexity carries an expect with its reason
+# (docs/STRUCTURE-PASS.md section 7.2); the same number is in core/clippy.toml
+# and faraday/clippy.toml, which this file shadows for its crate.
+cognitive-complexity-threshold = 35

@@ -240,6 +240,9 @@ libc = { version = "0.2", default-features = false }
 
 # Dev-dependencies (test-only; never in a release binary).
 bip39 = { version = "2.2", default-features = false, features = ["all-languages", "zeroize"] }
+# Property tests of the backup forms (docs/deps/proptest.md): no `fork`, no
+# `timeout`; each test sets its own cases, a fixed seed and no persistence.
+proptest = { version = "1.9", default-features = false, features = ["std"] }
 
 # JSON, behind faraday-bip's reader (docs/deps/serde_json.md); a member that
 # needs `std` asks for it.
@@ -250,6 +253,9 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc", "
 # The KDBX 4 stream cipher (docs/deps/chacha20.md): KDBX encrypts its
 # body and its inner random stream with plain ChaCha20 (RFC 8439).
 chacha20 = { version = "0.10", default-features = false, features = ["cipher", "zeroize"] }
+# Poly1305 (RFC 8439) for the one message of Core Lightning's encrypted
+# hsm_secret, libsodium's secretstream (docs/deps/poly1305.md).
+poly1305 = { version = "0.9", default-features = false, features = ["zeroize"] }
 
 # KEF (docs/KEF.md §11): AES-256 in CTR and GCM over the `aes` above.
 # `hazmat` is the feature that allows GCM's 4-byte tag (docs/deps/aes-gcm.md).

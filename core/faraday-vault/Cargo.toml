@@ -1,19 +1,71 @@
 [package]
 name = "faraday-vault"
-version = "0.0.0"
+version = "0.2.0"
+description = "The Faraday vault file: a KDBX 4 file under one passphrase, Argon2id and ChaCha20 (docs/VAULT.md)"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }
-faraday-codec = { path = "../faraday-codec" }
 faraday-crypto = { path = "../faraday-crypto" }
+# The Seed XOR part limit (`MAX_XOR_PARTS`), one limit for every layer.
 faraday-entropy = { path = "../faraday-entropy" }
+zeroize = { workspace = true, features = ["alloc"] }
+# Heap text that wipes itself, for an entry's text.
 faraday-text = { path = "../faraday-text" }
+# Every passphrase in Unicode NFC before Argon2id (docs/VAULT.md §3); the
+# version faraday-bip already takes for BIP-39's NFKD.
+unicode-normalization.workspace = true
+# Argon2id over the passphrase.
+argon2 = { workspace = true }
+# The KDBX inner stream's cipher (ChaCha20).
+chacha20 = { workspace = true }
+# KDBX's key hashes and its HMAC per block, and the TOTP code's HMAC
+# (`docs/TOTP.md` §4): SHA-1, SHA-256 or SHA-512.
+sha2 = { workspace = true, features = ["zeroize"] }
+hmac = { workspace = true, features = ["zeroize"] }
+# A TOTP code's HMAC may be SHA-1 (RFC 6238's default); the version
+# `faraday-pgp` already uses, so no new crate enters the tree.
+sha1 = { version = "0.11", default-features = false, features = ["zeroize"] }
+# The 4-byte hash check of a key file compares in constant time.
+subtle.workspace = true
+
+# The TOML inside a vault (docs/VAULT.md §7): the parser alone, by the
+# publisher F71 trusts, without std; the tree is `contents/tree.rs`.
+toml_parser = { version = "1.1", default-features = false, features = ["alloc"] }
+
+# A KDBX database saved by KeePass in AES-256 (docs/VAULT.md §7.1):
+# CBC over the `aes` the tree already holds (docs/deps/cbc.md), read only.
+aes = { workspace = true }
+cbc = { version = "0.2", default-features = false }
+# A KDBX database saved with gzip is inflated, never deflated, with the
+# output bounded by the vault's largest size (docs/deps/miniz_oxide.md).
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
+
+# The XML document inside a KDBX file (docs/VAULT.md §7.1): the tokenizer
+# alone (docs/deps/quick-xml.md).
+quick-xml = { version = "0.41", default-features = false }
+# The Base64 of UUIDs, times and protected values, strict about padding and
+# trailing bits (docs/deps/base64ct.md).
+base64ct.workspace = true
+# The PEM blocks of a Secure Boot item (docs/VAULT.md §7), read and
+# written into wiping buffers (docs/deps/pem-rfc7468.md).
+pem-rfc7468 = { version = "1.0", default-features = false }
+
+# The vault file's sizes, which the codec holds once (docs/VAULT.md §2).
+faraday-codec = { path = "../faraday-codec", default-features = false }
 
 [dev-dependencies]
+# The memory a read holds, against the reader's charge (tests/reader_memory.rs).
 faraday-alloc-count = { path = "../../tools/faraday-alloc-count" }
+
+[features]
+# The entry the fuzz target kdbx_body feeds (`kdbx::fuzz_body`). Off by
+# default; only the fuzz crate (fuzz/Cargo.toml) turns it on, no app does.
+fuzzing = []
 
 [lints]
 workspace = true
