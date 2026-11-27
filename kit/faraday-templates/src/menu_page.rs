@@ -3,27 +3,28 @@
 //! or a tool from. A page declares its sections; this draws the rest. The page's name and, on
 //! the wide layout, its search are the screen template's (`FrameModel`).
 //!
-//! Built: tiles as section cards, a block across the page, the grid and its column split, the
-//! page's panes through the pane container, the scroll. Not built: the cards body (Settings'
-//! cards of different heights), what a typed search shows in place of the sections, the search
-//! bar's scroll with the page on a short window, and the page's row of Home's lead above the
-//! search bar.
+//! Built: tiles as section cards, a block across the page, cards of different heights, the box
+//! of rows, the grid and its column split, the page's panes through the pane container (the tile
+//! raised and padded), a typed search's results in place of the sections, Home's lead above the
+//! search bar, the search bar's scroll with the page on a short window, the scroll.
 
 use faraday_atoms::hits::Shape;
 use faraday_atoms::region::Region;
 use faraday_atoms::{Anchor, Glyph, Offered, Pressed, Shown, Ui};
 use faraday_organisms::content::{self, Content};
 use faraday_organisms::nav;
+use faraday_organisms::row_details::RowDetailsModel;
+use faraday_organisms::session_pane::{self, SessionRow};
 use faraday_tokens::dims::{
     BODY_L, BODY_M, CATALOG_TILE_MIN, CHEVRON, DISABLED_CONTAINER, DISABLED_CONTENT, GAP, GRID,
-    HOME_TILE_GLYPH, LABEL_S, LEAD_MAX, LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, MARGIN_COMPACT,
-    MARGIN_WIDE, MENU_CARD_COLUMNS, MENU_GAP, MENU_PAGE_W, MENU_ROW_DIVIDERS, MENU_ROW_ICON,
-    MENU_TAG_GAP, MENU_TAG_H, MENU_TAG_PAD, PAGE_INSET, PANE_TOP_BAR, SEARCH_BAR_H, SHAPE_M,
-    TITLE_S, shape_full,
+    HOME_BOX_KEYS, HOME_BOX_MIN_ROWS, HOME_RESULTS_ROWS, HOME_TILE_GLYPH, LABEL_S, LEAD_MAX,
+    LIST_1, LIST_2, LIST_PAD, LIST_PAD_V, MARGIN_COMPACT, MARGIN_WIDE, MENU_CARD_COLUMNS, MENU_GAP,
+    MENU_PAGE_W, MENU_ROW_DIVIDERS, MENU_ROW_ICON, MENU_TAG_GAP, MENU_TAG_H, MENU_TAG_PAD, PAD,
+    PAGE_INSET, PANE_TOP_BAR, SEARCH_BAR_H, SHAPE_M, TILE_H, TITLE_S, shape_full,
 };
 use faraday_tokens::palette::Role;
 
-use crate::panes::Panes;
+use crate::panes::{OnPlaced, Panes, Parts, tile_surface};
 use crate::screen::{BarSearch, page_room};
 
 /// What a tile's icon does for the layout.
@@ -53,6 +54,27 @@ pub enum Body<'s, A> {
     Tiles(Vec<Face<'s, A>>),
     /// Something drawn across the page's width.
     Block(Content<'s, A>),
+    /// Cards of different heights (Settings): in one column, or two where two fit, each card
+    /// under the one before it, divided where the columns come out closest in height.
+    Cards(Vec<Content<'s, A>>),
+    /// One tinted box of rows (the Pi's and the phone's Home): its heading, the lead, then the
+    /// rows.
+    Box(RowsBox<'s, A>),
+}
+
+/// The box of what is loaded: a heading, the lead card, the rows, then as many key rows as the
+/// room holds.
+pub struct RowsBox<'s, A> {
+    pub heading: Shown<'s>,
+    pub lead: Option<Content<'s, A>>,
+    pub rows: Vec<SessionRow<'s, A>>,
+    /// Key rows, shown after the rows up to `HOME_BOX_KEYS` and as many as the room holds.
+    pub keys: Vec<SessionRow<'s, A>>,
+    /// The box takes the page's room under the fixed part and scrolls within itself (the rail's
+    /// windows); otherwise the page scrolls as one.
+    pub fit: bool,
+    /// The box's own scroll.
+    pub scroll: Anchor,
 }
 
 /// An optional label over one body.
@@ -78,6 +100,32 @@ pub struct MenuPageModel<'s, A> {
     /// has no pane.
     pub panes: Option<Panes<'s, A>>,
     pub sections: Vec<Section<'s, A>>,
+    /// What stands above the search bar (Home's lead), across the page's width.
+    pub above: Option<Content<'s, A>>,
+    /// What a typed search shows in place of the sections.
+    pub results: Option<Results<'s, A>>,
+    /// The open row's details, which stand in the tile's place beside or under This session.
+    pub details: Option<RowDetailsModel<'s, A>>,
+    /// Where the page stood, reported as `Laid::Placed`.
+    pub on_placed: Option<OnPlaced<A>>,
+    /// The session pane glides to its new place when the pair moves, keyed by this anchor.
+    pub glide: Option<Anchor>,
+    /// The scroll of the tile in a pair, within the window's height.
+    pub tile_scroll: Option<Anchor>,
+}
+
+/// A typed search's results: sections in the place of the page's own, placed as the page is, or
+/// as `panes` where the page has none of its own.
+pub struct Results<'s, A> {
+    pub sections: Vec<Section<'s, A>>,
+    pub panes: Option<Panes<'s, A>>,
+}
+
+/// Whether the page down to the search bar stays still while a search is typed, only the results
+/// under it scrolling: where `above` and the bar leave `window` room for `HOME_RESULTS_ROWS` rows.
+/// Where they do not, the whole page scrolls as one.
+pub fn home_pinned(above: f32, window: f32) -> bool {
+    above + SEARCH_BAR_H + HOME_RESULTS_ROWS * TILE_H <= window
 }
 
 /// Where a page starts and how wide it is in an area `cw` wide from `x0`.
@@ -167,7 +215,7 @@ fn card_head<A: Pressed>(ui: &Ui<'_, A>, label: Option<&Shown<'_>>) -> f32 {
 fn faces<'a, 's, A>(s: &'a Section<'s, A>) -> &'a [Face<'s, A>] {
     match &s.body {
         Body::Tiles(f) => f,
-        Body::Block(_) => &[],
+        _ => &[],
     }
 }
 
@@ -365,15 +413,120 @@ fn section_cards<A: Pressed>(
     used.into_iter().fold(0.0, f32::max)
 }
 
-/// The sections from `at`, `width` wide, one after the other. A run of sections of tiles is a
-/// set of section cards. Returns their height.
+/// The index the second column starts at so the two columns, cards of `heights` with `MENU_GAP`
+/// between, come out closest in height (the shorter taller column on a tie), at least one card in
+/// each.
+fn balanced_split(heights: &[f32]) -> usize {
+    let column = |h: &[f32]| h.iter().sum::<f32>() + MENU_GAP * h.len().saturating_sub(1) as f32;
+    let mut best = (f32::MAX, f32::MAX, heights.len());
+    for k in 1..heights.len() {
+        let (a, b) = (column(&heights[..k]), column(&heights[k..]));
+        let score = ((a - b).abs(), a.max(b));
+        if score < (best.0, best.1) {
+            best = (score.0, score.1, k);
+        }
+    }
+    best.2
+}
+
+/// `cards` from `(x, y)`, `width` wide, in `columns` columns (one or two) with `MENU_GAP` between
+/// cards and between the columns; on two, divided where the columns' heights come out closest.
+/// Returns the height of the taller column.
+fn draw_cards<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    (x, y, width): (f32, f32, f32),
+    cards: &[Content<'_, A>],
+    columns: usize,
+) -> f32 {
+    let col_w = (width - (columns as f32 - 1.0) * MENU_GAP) / columns as f32;
+    let heights: Vec<f32> = cards
+        .iter()
+        .map(|c| content::height(c, ui, col_w))
+        .collect();
+    let second = if columns > 1 {
+        balanced_split(&heights)
+    } else {
+        cards.len()
+    };
+    let mut used = [0.0_f32; 2];
+    for (i, card) in cards.iter().enumerate() {
+        let c = usize::from(columns > 1 && i >= second);
+        let gap = if used[c] > 0.0 { MENU_GAP } else { 0.0 };
+        let cx = x + c as f32 * (col_w + MENU_GAP);
+        content::draw(card, ui, (cx, y + used[c] + gap, col_w));
+        used[c] += gap + heights[i];
+    }
+    used[0].max(used[1])
+}
+
+/// How many of `keys` key rows (two lines each) the box shows: up to `cap`, and only as many as
+/// `avail` holds besides the other rows' `rest_h`.
+fn keys_fitting(avail: f32, rest_h: f32, keys: usize, cap: usize) -> usize {
+    let room = ((avail - rest_h) / LIST_2).floor().max(0.0) as usize;
+    keys.min(cap).min(room)
+}
+
+/// The surface of a box of what is loaded: a tinted, outlined, rounded container.
+fn loaded_surface<A: Pressed>(ui: &mut Ui<'_, A>, (x, y, w, h): (f32, f32, f32, f32)) {
+    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant);
+}
+
+/// The box of rows from `(bx, y)`, `bw` wide: its heading, the lead, then the rows and as many
+/// key rows as the room holds, scrolling within itself where it holds fewer than two rows' worth.
+/// `window` is the page's height where the box takes the room under the fixed part. Returns the
+/// height it takes.
+fn draw_box<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    (bx, y, bw): (f32, f32, f32),
+    b: &RowsBox<'_, A>,
+    window: Option<f32>,
+) -> f32 {
+    section_label(ui, bx, y, &b.heading);
+    let head = ui.line_as(TITLE_S) + GRID;
+    let by = y + head;
+    let lead_h = b
+        .lead
+        .as_ref()
+        .map_or(0.0, |l| content::draw(l, ui, (bx, by, bw)) + GRID);
+    let (by, head) = (by + lead_h, head + lead_h);
+    let rest_h = session_pane::rows_h(ui, bw, &b.rows);
+    // Without a window height the page scrolls as a whole: up to the most keys. With one, the
+    // box's room runs to a margin above the foot.
+    let avail = window
+        .filter(|_| b.fit)
+        .map_or(f32::INFINITY, |h| (h - by - MARGIN_WIDE).floor());
+    let n = keys_fitting(avail, rest_h, b.keys.len(), HOME_BOX_KEYS);
+    let all_h = rest_h + n as f32 * LIST_2;
+    let rows: Vec<&SessionRow<'_, A>> = b.rows.iter().chain(b.keys.iter().take(n)).collect();
+    if all_h <= avail || avail < HOME_BOX_MIN_ROWS * LIST_2 {
+        let h = session_pane::rows_h(ui, bw, rows.iter().copied());
+        loaded_surface(ui, (bx, by, bw, h));
+        session_pane::list_rows(ui, (bx, by), bw, rows.iter().copied());
+        return head + h;
+    }
+    // Scrolls within itself: the surface stays, the rows move.
+    loaded_surface(ui, (bx, by, bw, avail));
+    let clip = ui.rect(bx, by, bw, avail);
+    let mark = ui.presses_mark();
+    let open = ui.region_open(Region::new(b.scroll, clip).moves());
+    session_pane::list_rows(ui, (bx, by), bw, rows.iter().copied());
+    ui.clip_presses_since(mark, clip);
+    ui.region_close(open, (all_h - avail).max(0.0));
+    head + avail
+}
+
+/// The sections `all` from `at`, `width` wide, one after the other. A run of sections of tiles is
+/// a set of section cards. `window` is the page's height where the page stands on its own.
+/// Returns their height.
 fn sections<A: Pressed>(
     m: &MenuPageModel<'_, A>,
+    all: &[Section<'_, A>],
     ui: &mut Ui<'_, A>,
     (x, y): (f32, f32),
     width: f32,
+    window: Option<f32>,
 ) -> f32 {
-    let all = &m.sections;
     let (mut used, mut i) = (0.0, 0);
     while i < all.len() {
         if i > 0 {
@@ -392,8 +545,14 @@ fn sections<A: Pressed>(
             section_label(ui, x, y + used, label);
             used += ui.line_as(TITLE_S) + GRID;
         }
-        if let Body::Block(content) = &all[i].body {
-            used += content::draw(content, ui, (x, y + used, width));
+        match &all[i].body {
+            Body::Tiles(_) => {}
+            Body::Block(content) => used += content::draw(content, ui, (x, y + used, width)),
+            Body::Cards(cards) => {
+                let columns = grid(width, m.most_columns).columns().clamp(1, 2);
+                used += draw_cards(ui, (x, y + used, width), cards, columns);
+            }
+            Body::Box(b) => used += draw_box(ui, (x, y + used, width), b, window),
         }
         i += 1;
     }
@@ -417,35 +576,74 @@ fn search_row<A: Pressed>(
     SEARCH_BAR_H + GAP
 }
 
-/// Draws the page in the room the screen template left it: the search row of the small panel
-/// (standing still above the sections where the page says so), then the sections, scrolling;
-/// on the wide layout the page's panes through the pane container.
+/// Draws the page in the room the screen template left it: Home's lead and the search row of the
+/// small panel (standing still above the sections where the page says so or the window has room
+/// for about three rows under it, else scrolling with them), then the sections or a typed
+/// search's results, scrolling; on the wide layout the page's panes through the pane container,
+/// the tile raised and padded.
 pub fn draw<A: Pressed>(m: &MenuPageModel<'_, A>, ui: &mut Ui<'_, A>) {
     let (cw, h) = page_room(ui);
     let compact = ui.compact;
     let (x, width) = page_span(compact, 0.0, cw);
-    let mut y = if m.row.as_ref().is_some_and(|r| r.ways.is_some()) && compact {
+    let row = m.row.as_ref().filter(|_| compact);
+    let panes = m
+        .results
+        .as_ref()
+        .and_then(|r| r.panes.as_ref())
+        .or(m.panes.as_ref())
+        .filter(|_| !compact);
+    let all: &[Section<'_, A>] = m.results.as_ref().map_or(&m.sections, |r| &r.sections);
+    let above_h = match (&m.above, panes) {
+        (Some(a), None) => content::height(a, ui, width),
+        _ => 0.0,
+    };
+    let mut y = if row.is_some_and(|r| r.ways.is_some()) {
         0.0
     } else {
         PANE_TOP_BAR
     };
+    let pinned = row.is_some() && (m.bar_still || home_pinned(PANE_TOP_BAR + above_h, h));
     let mut top = 0.0;
-    let row = m.row.as_ref().filter(|_| compact);
-    let pinned = row.is_some() && m.bar_still;
+    let lead = |ui: &mut Ui<'_, A>, y: f32| {
+        m.above
+            .as_ref()
+            .filter(|_| panes.is_none())
+            .map_or(0.0, |a| content::draw(a, ui, (x, y, width)))
+    };
     if let (true, Some(row)) = (pinned, row) {
+        y += lead(ui, y);
         y += search_row(row, ui, (x, y, width));
         top = y;
     }
     let clip = ui.rect(0.0, top, cw, (h - top).max(0.0));
     let open = ui.region_open(Region::new(m.scroll, clip).moves());
     if let (false, Some(row)) = (pinned, row) {
+        y += lead(ui, y);
         y += search_row(row, ui, (x, y, width));
+    } else if !pinned {
+        y += lead(ui, y);
     }
-    y += match (&m.panes, compact) {
-        (Some(panes), false) => crate::panes::draw(panes, ui, (0.0, cw), y, |ui, (tx, ty, tw)| {
-            sections(m, ui, (tx, ty), tw)
-        }),
-        _ => sections(m, ui, (x, y), width),
+    y += match panes {
+        Some(panes) => {
+            let tile = |ui: &mut Ui<'_, A>, (tx, ty, tw): (f32, f32, f32)| {
+                let inner = |ui: &mut Ui<'_, A>, x: f32, y: f32| {
+                    sections(m, all, ui, (x + PAD, y + PAD), tw - 2.0 * PAD, None) + 2.0 * PAD
+                };
+                let th = ui.measured(|ui| inner(ui, 0.0, 0.0));
+                tile_surface(ui, (tx, ty, tw, th));
+                inner(ui, tx, ty)
+            };
+            let parts = Parts {
+                own: None,
+                details: m.details.as_ref(),
+                guide: None,
+                on_placed: m.on_placed,
+                scroll: m.tile_scroll,
+                glide: m.glide,
+            };
+            crate::panes::draw_with(panes, ui, (0.0, cw), y, parts, tile)
+        }
+        None => sections(m, all, ui, (x, y), width, Some(h)),
     };
     let content = y - top + MARGIN_WIDE;
     ui.region_close(open, content - (h - top));
@@ -481,6 +679,12 @@ mod tests {
             bar_still: false,
             panes: None,
             sections,
+            above: None,
+            results: None,
+            details: None,
+            on_placed: None,
+            glide: None,
+            tile_scroll: None,
         }
     }
 
@@ -523,6 +727,10 @@ mod tests {
             },
             busy: None,
             search: None,
+            side: crate::screen::Side::None,
+            keyboard: None,
+            pills: None,
+            tip: None,
         };
         let out = frame(&mut c, &at_rest(None), |ui| {
             ui.compact = true;
@@ -540,5 +748,79 @@ mod tests {
         assert!(presses.contains(&1) && presses.contains(&2));
         assert!(!presses.contains(&3));
         assert_eq!(out.regions.len(), 1);
+    }
+
+    fn frame_for<'s>() -> crate::screen::FrameModel<'s, P> {
+        crate::screen::FrameModel {
+            nav: NavModel {
+                dests: Vec::new(),
+                many: Shown::plain("999+"),
+            },
+            top: TopBarModel {
+                back: None,
+                title: Shown::plain("Home"),
+                pill_w: 0.0,
+                item_name: false,
+                in_sheet: false,
+                under: None,
+                right: 640.0,
+                power: None,
+            },
+            busy: None,
+            search: None,
+            side: crate::screen::Side::None,
+            keyboard: None,
+            pills: None,
+            tip: None,
+        }
+    }
+
+    fn presses_of(m: &MenuPageModel<'_, P>) -> Vec<u8> {
+        let mut c = canvas(160);
+        let f = frame_for();
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            ui.compact = true;
+            draw_screen(
+                Anchor { scope: "t", n: 1 },
+                &f,
+                ui,
+                |ui| draw(m, ui),
+                &[] as &[(Anchor, ())],
+                |_, _| {},
+                None,
+            );
+        });
+        out.hits.iter().map(|h| h.press.0).collect()
+    }
+
+    /// Invariant: A typed search's results stand in place of the page's sections: only the results take presses.
+    /// Regression: The sections drawn under the results, or the results never shown.
+    /// Owner: kit
+    #[test]
+    fn a_typed_search_shows_its_results_in_place_of_the_sections() {
+        let mut m = page(vec![Section {
+            label: None,
+            body: Body::Tiles(vec![face("Section", 1)]),
+        }]);
+        m.results = Some(Results {
+            sections: vec![Section {
+                label: None,
+                body: Body::Tiles(vec![face("Result", 2)]),
+            }],
+            panes: None,
+        });
+        let presses = presses_of(&m);
+        assert!(presses.contains(&2));
+        assert!(!presses.contains(&1));
+    }
+
+    /// Invariant: Cards of different heights divide into two columns where the columns come out closest in height, in reading order, and at least one stands in each.
+    /// Regression: Settings' cards left in one tall column beside a short one.
+    /// Owner: kit
+    #[test]
+    fn cards_of_different_heights_divide_where_the_columns_come_out_closest() {
+        assert_eq!(balanced_split(&[300.0, 100.0, 100.0, 100.0]), 1);
+        assert_eq!(balanced_split(&[100.0, 100.0]), 1);
+        assert_eq!(balanced_split(&[100.0, 100.0, 100.0, 100.0]), 2);
     }
 }

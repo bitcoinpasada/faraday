@@ -63,6 +63,12 @@ impl Present for Home {
                     narrow: Narrow::OneColumn,
                 }),
                 sections,
+                above: None,
+                results: None,
+                details: None,
+                on_placed: None,
+                glide: None,
+                tile_scroll: None,
             },
         }
     }

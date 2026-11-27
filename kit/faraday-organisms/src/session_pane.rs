@@ -180,7 +180,8 @@ fn row_h<A: Pressed>(ui: &Ui<'_, A>, w: f32, r: &SessionRow<'_, A>) -> f32 {
     base + r.button.as_ref().map_or(0.0, |_| GRID + BUTTON_H)
 }
 
-fn rows_h<'a, 's: 'a, A: Pressed + 'a>(
+/// The height of `rows` in a list `w` wide, the padding over and under them counted.
+pub fn rows_h<'a, 's: 'a, A: Pressed + 'a>(
     ui: &Ui<'_, A>,
     w: f32,
     rows: impl IntoIterator<Item = &'a SessionRow<'s, A>>,
@@ -189,7 +190,7 @@ fn rows_h<'a, 's: 'a, A: Pressed + 'a>(
 }
 
 /// `rows` from the top of a list at `(x, y)`, `w` wide: the rows alone.
-fn list_rows<'a, 's: 'a, A: Pressed + 'a>(
+pub fn list_rows<'a, 's: 'a, A: Pressed + 'a>(
     ui: &mut Ui<'_, A>,
     (x, y): (f32, f32),
     w: f32,

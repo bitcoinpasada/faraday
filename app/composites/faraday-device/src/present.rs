@@ -16,7 +16,7 @@ impl Refused for Refusal {}
 /// What `present` works out for the page the frame's navigation shows.
 pub fn body<'s>(state: &'s State, page: Page, view: &View<'s>, show: &Show<'s>) -> Body<'s> {
     match page {
-        Page::Home => Body::Home(Home::present(&state.home, view, show)),
+        Page::Home => Body::Home(Box::new(Home::present(&state.home, view, show))),
         // The areas' pages are not built.
         Page::Keys(_)
         | Page::Wallets(_)

@@ -1,6 +1,6 @@
 /// The page under the sheets: one variant per child's page.
 pub enum Body<'s> {
-    Home(faraday_home::Model<'s>),
+    Home(Box<faraday_home::Model<'s>>),
     Keys(faraday_keys_area::Body<'s>),
     Wallets(faraday_wallets_area::Body<'s>),
     Signing(faraday_signing_area::Body<'s>),

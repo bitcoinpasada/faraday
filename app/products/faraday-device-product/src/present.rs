@@ -177,5 +177,9 @@ fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> Fram
         },
         busy: None,
         search,
+        side: faraday_templates::screen::Side::None,
+        keyboard: None,
+        pills: None,
+        tip: None,
     }
 }
