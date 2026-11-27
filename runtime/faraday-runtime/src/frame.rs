@@ -269,7 +269,7 @@ impl<R: Root> Runtime<R> {
         let scale = f32::from(settings.scale_pct) / 100.0;
         let view = build_view(lent, &facts.facts, mode, clock, running, started);
         let show = show_of(memo, notes.up());
-        let mut canvas = Canvas(());
+        let mut canvas = Canvas::new(&facts.facts.display);
         // The kit's `Theme` is mapped from `Settings::appearance` (04 §12.2) once the kit holds
         // the scheme table; until then every frame is drawn in its default.
         let mut ui = Ui::new(
