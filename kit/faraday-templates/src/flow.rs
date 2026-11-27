@@ -2,22 +2,22 @@
 //! stands under it, the foot (the refusal, the busy line, Back and Cancel) and the asking
 //! dialog. The small panel's page per step and its pin bar are `compact`.
 //!
-//! Left: the open step's pick, the last step's take-away and the lead row of Your choices
-//! (`FlowModel` has no fields for them), Your choices as the top bar's button and sheet on the
-//! small panel, the card's raised look at High contrast, and the fade through itself (the
-//! runtime's: the template only names the place, `Ui::anchor`).
+//! Left: Your choices as the top bar's button and sheet on the small panel, and the fade through
+//! itself (the runtime's: the template only names the place, `Ui::anchor`). Back and Cancel at
+//! the card's foot and the asking dialog over the page room are the screen frame's to take over.
 
 use faraday_atoms::button::{ButtonModel, Style};
 use faraday_atoms::hits::Shape;
 use faraday_atoms::region::Region;
 use faraday_atoms::{Anchor, Offered, Pressed, Shown, Ui};
-use faraday_molecules::buttons::draw_items;
+use faraday_molecules::buttons::{ButtonsModel, draw_items};
+use faraday_molecules::row::{self, RowModel};
 use faraday_molecules::status::{self, BusyModel};
 use faraday_organisms::content::{self, Content};
 use faraday_organisms::sheet::{self, DialogModel};
 use faraday_tokens::dims::{
     BODY_S, CHOICES_INSET, CHOICES_ROW, COLUMN_MAX, FLOW_END_PAD, GAP, GRID, LABEL_L, MARGIN_WIDE,
-    PAD, PAGE_TOP_BAR, SHAPE_L, TITLE_M,
+    PAD, PAGE_TOP_BAR, SHAPE_L, SHAPE_S, TAG_H, TITLE_M,
 };
 use faraday_tokens::palette::Role;
 
@@ -41,6 +41,37 @@ pub struct ChoiceRow<'s, A> {
     pub answer: Shown<'s>,
     /// A press opens the step.
     pub offered: Offered<A>,
+    /// The row stands for the step now open: drawn in the secondary container.
+    pub current: bool,
+    /// The answer is data: set in the mono face.
+    pub mono: bool,
+}
+
+/// The chip at the head of the card: where the flow goes next.
+pub struct Chip<'s, A> {
+    pub label: Shown<'s>,
+    /// What a press on it does; none for a chip that only says.
+    pub offered: Option<Offered<A>>,
+}
+
+/// A step's pick as the pane holds it in place of Your choices: the question, then groups of
+/// rows each under a heading.
+pub struct Pick<'s, A> {
+    pub question: Shown<'s>,
+    pub groups: Vec<(Shown<'s>, Vec<RowModel<'s, A>>)>,
+}
+
+/// The last step's take-away as the pane holds it in place of Your choices: a heading over
+/// content (rows, and the button that writes them).
+pub struct Take<'s, A> {
+    pub head: Shown<'s>,
+    pub body: Content<'s, A>,
+}
+
+/// What stands in the pane in place of Your choices.
+enum Instead<'s, A> {
+    Pick(Pick<'s, A>),
+    Take(Take<'s, A>),
 }
 
 /// The words the template draws itself: the template names no strings crate, so the fill gives
@@ -72,6 +103,11 @@ pub struct FlowModel<'s, A> {
     /// The anchor of the fade through.
     step: Anchor,
     words: FlowWords<'s>,
+    lead: Option<ChoiceRow<'s, A>>,
+    chip: Option<Chip<'s, A>>,
+    note: Option<Shown<'s>>,
+    forward: Option<ButtonsModel<'s, A>>,
+    instead: Option<Instead<'s, A>>,
 }
 
 impl<'s, A> FlowModel<'s, A> {
@@ -100,12 +136,54 @@ impl<'s, A> FlowModel<'s, A> {
             width,
             step,
             words,
+            lead: None,
+            chip: None,
+            note: None,
+            forward: None,
+            instead: None,
         }
     }
 
     /// Your choices: one row for each step answered or still to answer.
     pub fn with_choices(mut self, choices: Vec<ChoiceRow<'s, A>>) -> Self {
         self.choices = choices;
+        self
+    }
+
+    /// The wallet or key the flow is on: the first row of Your choices.
+    pub fn with_lead(mut self, lead: ChoiceRow<'s, A>) -> Self {
+        self.lead = Some(lead);
+        self
+    }
+
+    /// The chip at the head of the card.
+    pub fn with_chip(mut self, chip: Chip<'s, A>) -> Self {
+        self.chip = Some(chip);
+        self
+    }
+
+    /// The line under the chip, with a primary bar at its left.
+    pub fn with_note(mut self, note: Shown<'s>) -> Self {
+        self.note = Some(note);
+        self
+    }
+
+    /// The forward action: at the card's end on the wide layout, pinned at the small panel's
+    /// foot in the pin bar.
+    pub fn with_forward(mut self, forward: ButtonsModel<'s, A>) -> Self {
+        self.forward = Some(forward);
+        self
+    }
+
+    /// The open step's pick, which takes the pane's place where the pair stands.
+    pub fn with_pick(mut self, pick: Pick<'s, A>) -> Self {
+        self.instead = Some(Instead::Pick(pick));
+        self
+    }
+
+    /// The last step's take-away, which takes the pane's place where the pair stands.
+    pub fn with_take(mut self, take: Take<'s, A>) -> Self {
+        self.instead = Some(Instead::Take(take));
         self
     }
 
@@ -224,9 +302,56 @@ fn foot<A: Pressed>(m: &FlowModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f
     cy - y
 }
 
-/// The step: its heading and title, the card (all its blocks, or those before `pinned` ones the
-/// small panel keeps at its foot), what is under it where no pane holds that, and the foot.
-/// Returns the height.
+/// The chip at the head of the card and the line under it. Returns the height.
+fn chip_and_note<A: Pressed>(
+    m: &FlowModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    let mut cy = y;
+    if let Some(chip) = &m.chip {
+        let press = match &chip.offered {
+            Some(Offered::Yes(a) | Offered::Refused(a, _)) => Some(a.clone()),
+            _ => None,
+        };
+        ui.showing(&chip.label, |ui| {
+            let label = ui.fit_as(BODY_S, chip.label.as_str(), w - 34.0);
+            ui.chip_press(
+                x,
+                cy,
+                label.as_str(),
+                (
+                    Role::OnSecondaryContainer.paint(),
+                    Role::SecondaryContainer.paint(),
+                ),
+                press,
+            );
+        });
+        cy += if ui.compact { 36.0 } else { TAG_H + PAD };
+    }
+    if let Some(note) = &m.note {
+        let (inset, gap) = if ui.compact {
+            (12.0, 14.0)
+        } else {
+            (14.0, 20.0)
+        };
+        let nh = ui.showing(note, |ui| {
+            ui.wrap_as(
+                (x + inset, cy, w - inset),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                note.as_str(),
+            )
+        });
+        ui.fill(x, cy, 3.0, nh, 1.5, Role::Primary);
+        cy += nh + gap;
+    }
+    cy - y
+}
+
+/// The step: its chip and note, heading and title, the card, the forward action at the card's
+/// end (unless `pinned` in the small panel's bar), what is under the card where no pane holds
+/// that, and the foot. Returns the height.
 pub(crate) fn column<A: Pressed>(
     m: &FlowModel<'_, A>,
     ui: &mut Ui<'_, A>,
@@ -234,12 +359,12 @@ pub(crate) fn column<A: Pressed>(
     (pinned, under): (bool, bool),
 ) -> f32 {
     let mut cy = y;
+    cy += chip_and_note(m, ui, (x, cy, w));
     cy += heading(m, ui, (x, cy, w));
-    let blocks = match (pinned, m.card.0.split_last()) {
-        (true, Some((_, rest))) => rest,
-        _ => &m.card.0[..],
-    };
-    cy += content::draw_blocks(blocks, ui, (x, cy, w)) + GAP;
+    cy += content::draw(&m.card, ui, (x, cy, w)) + GAP;
+    if let (false, Some(forward)) = (pinned, &m.forward) {
+        cy += draw_items(&forward.items, &forward.rule, !ui.compact, ui, (x, cy, w)) + GAP;
+    }
     if let (true, Some(under)) = (under, &m.under) {
         cy += content::draw(under, ui, (x, cy, w)) + GAP;
     }
@@ -263,45 +388,71 @@ fn choice_row<A: Pressed>(
         }
         let lh = ui.line_as(BODY_S);
         let top = y + (CHOICES_ROW - 2.0 * lh) / 2.0;
-        let (label, value) = if dimmed {
-            (Role::OnSurfaceVariant, Role::OnSurfaceVariant)
-        } else {
-            (Role::OnSurfaceVariant, Role::OnSurface)
+        if row.current {
+            ui.fill(
+                x - GAP,
+                y,
+                w + 2.0 * GAP,
+                CHOICES_ROW,
+                SHAPE_S,
+                Role::SecondaryContainer,
+            );
+        }
+        let (label, value) = match (row.current, dimmed) {
+            (true, _) => (Role::OnSecondaryContainer, Role::OnSecondaryContainer),
+            (false, true) => (Role::OnSurfaceVariant, Role::OnSurfaceVariant),
+            (false, false) => (Role::OnSurfaceVariant, Role::OnSurface),
         };
+        let answer_role = if row.mono { BODY_S.mono() } else { BODY_S };
         ui.showing(&row.title, |ui| {
             let t = ui.fit_as(BODY_S, row.title.as_str(), w);
             ui.text_as(x, top, BODY_S, label, &t);
         });
         ui.showing(&row.answer, |ui| {
-            let a = ui.fit_as(BODY_S, row.answer.as_str(), w);
-            ui.text_as(x, top + lh, BODY_S, value, &a);
+            let a = ui.fit_as(answer_role, row.answer.as_str(), w);
+            ui.text_as(x, top + lh, answer_role, value, &a);
         });
     });
     CHOICES_ROW
 }
 
-/// Your choices: its heading and a row for each step, then, where `with_under`, what the flow
-/// keeps under them.
-/// Returns the height.
+/// The pane: Your choices (the lead row, then a row for each step) or, where the flow has one,
+/// the open step's pick or the take-away in their place (`instead`); then, where `with_under`,
+/// what the flow keeps under them. Returns the height.
 fn choices<A: Pressed>(
     m: &FlowModel<'_, A>,
     ui: &mut Ui<'_, A>,
     (x, y, w): (f32, f32, f32),
-    with_under: bool,
+    (with_under, instead): (bool, bool),
 ) -> f32 {
     let mut cy = y;
-    if !m.choices.is_empty() {
-        ui.text_as(
-            x,
-            cy,
-            LABEL_L,
-            Role::OnSurfaceVariant,
-            m.words.your_choices.as_str(),
-        );
-        cy += ui.line_as(LABEL_L) + GRID;
-        for row in &m.choices {
-            cy += choice_row(row, ui, (x, cy, w));
+    let label = |ui: &mut Ui<'_, A>, y: f32, s: &Shown<'_>| {
+        ui.showing(s, |ui| {
+            ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, s.as_str());
+        });
+        ui.line_as(LABEL_L) + GRID
+    };
+    match (&m.instead, instead) {
+        (Some(Instead::Pick(pick)), true) => {
+            cy += label(ui, cy, &pick.question);
+            for (head, rows) in &pick.groups {
+                cy += label(ui, cy, head);
+                for r in rows {
+                    cy += row::draw(r, ui, (x, cy, w));
+                }
+            }
         }
+        (Some(Instead::Take(take)), true) => {
+            cy += label(ui, cy, &take.head);
+            cy += content::draw(&take.body, ui, (x, cy, w));
+        }
+        _ if m.lead.is_some() || !m.choices.is_empty() => {
+            cy += label(ui, cy, &m.words.your_choices);
+            for row in m.lead.iter().chain(&m.choices) {
+                cy += choice_row(row, ui, (x, cy, w));
+            }
+        }
+        _ => {}
     }
     if let (true, Some(under)) = (with_under, &m.under) {
         cy += GAP + content::draw(under, ui, (x, cy + GAP, w));
@@ -339,7 +490,8 @@ pub fn draw<A: Pressed>(m: &FlowModel<'_, A>, ui: &mut Ui<'_, A>) {
 /// The wide layout: the card at its place and Your choices in a pane beside it.
 fn wide<A: Pressed>(m: &FlowModel<'_, A>, ui: &mut Ui<'_, A>, (cw, h): (f32, f32)) {
     let full = m.width == Width::Full;
-    let wants_pane = !m.choices.is_empty() || m.under.is_some();
+    let wants_pane =
+        !m.choices.is_empty() || m.lead.is_some() || m.instead.is_some() || m.under.is_some();
     let pair = if full || !wants_pane {
         None
     } else {
@@ -364,14 +516,18 @@ fn wide<A: Pressed>(m: &FlowModel<'_, A>, ui: &mut Ui<'_, A>, (cw, h): (f32, f32
         let inner = ui.measured(|ui| column(m, ui, (x, 0.0, w), (false, under)));
         let bh = (inner + 2.0 * PAD).min(view.3 - GAP);
         ui.fill(view.0, top, view.2, bh, SHAPE_L, Role::SurfaceContainerLow);
+        // The raised card is outlined at High contrast alone.
+        if ui.theme.is_high_contrast() {
+            ui.stroke(view.0, top, view.2, bh, SHAPE_L, Role::Outline);
+        }
     }
     ui.anchor(m.step);
     let clip = ui.rect(view.0, view.1, view.2, view.3);
     let open = ui.region_open(Region::new(card_scroll(m.step), clip));
     let mut used = column(m, ui, (x, cy, w), (false, under));
     // The room holds no pair: Your choices stand under the card.
-    if pair.is_none() && !m.choices.is_empty() {
-        used += GAP + choices(m, ui, (x, cy + used + GAP, w), false);
+    if pair.is_none() && (m.lead.is_some() || !m.choices.is_empty()) {
+        used += GAP + choices(m, ui, (x, cy + used + GAP, w), (false, false));
     }
     ui.region_close(open, cy + used + FLOW_END_PAD - (view.1 + view.3));
     if let Some(p) = pair {
@@ -382,7 +538,7 @@ fn wide<A: Pressed>(m: &FlowModel<'_, A>, ui: &mut Ui<'_, A>, (cw, h): (f32, f32
             n: m.step.n,
         };
         let open = ui.region_open(Region::new(id, clip));
-        let used = choices(m, ui, (px, cy, pw), true);
+        let used = choices(m, ui, (px, cy, pw), (true, true));
         ui.region_close(open, cy + used + CHOICES_INSET - h);
         ui.fill(
             p.pane_x + p.pane_w + p.gap / 2.0,
@@ -404,7 +560,7 @@ mod compact;
 )]
 mod tests {
     use super::*;
-    use faraday_atoms::ui::testing::{P, at_rest, canvas, frame};
+    use faraday_atoms::ui::testing::{P, at_rest, canvas, canvas_sized, frame};
     use faraday_molecules::buttons::ButtonsModel;
     use faraday_organisms::content::Block;
     use faraday_organisms::sheet::{Head, SheetModel};
@@ -424,13 +580,12 @@ mod tests {
         }
     }
 
-    /// A flow of a card of `lines` headings ending in its forward button (press 1), one row of Your choices
+    /// A flow of a card of `lines` headings and a forward button (press 1), one row of Your choices
     /// (press 2), Back (3) and Cancel (4).
     fn flow(lines: usize) -> FlowModel<'static, P> {
-        let mut blocks: Vec<Block<'static, P>> = (0..lines)
+        let blocks: Vec<Block<'static, P>> = (0..lines)
             .map(|_| Block::Heading(Shown::plain("A line of what the step says")))
             .collect();
-        blocks.push(Block::Buttons(vec![button("Next", Style::Filled, 1)]));
         FlowModel::new(
             Shown::plain("Step 2 of 4"),
             Shown::plain("Choose"),
@@ -448,11 +603,14 @@ mod tests {
             title: Shown::plain("Kind"),
             answer: Shown::plain("Single"),
             offered: Offered::Yes(P(2)),
+            current: false,
+            mono: false,
         }])
         .with_cancel(Offered::Yes(P(4)))
+        .with_forward(ButtonsModel::row(vec![button("Next", Style::Filled, 1)]))
     }
 
-    /// Invariant: On the small panel the card's last row of buttons stands in the pin bar at the panel's foot however long the card is, and the card scrolls above it.
+    /// Invariant: On the small panel the forward action stands in the pin bar at the panel's foot however long the card is, and the card scrolls above it.
     /// Regression: The forward action drawn at the card's end, scrolled out of reach on a long step.
     /// Owner: kit
     #[test]
@@ -550,5 +708,114 @@ mod tests {
         };
         assert!(at(2) > at(3));
         assert!(out.hits.iter().any(|h| h.press == P(4)));
+    }
+
+    type Seen = (Vec<u8>, Vec<(P, i32, i32, i32, i32)>);
+
+    /// A wide frame 1000 by 700 (the pair fits): its pixels and each hit's press and box.
+    fn wide_frame(m: &FlowModel<'static, P>, high: bool) -> Seen {
+        let mut c = canvas_sized(160, (1000, 700));
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            ui.compact = false;
+            if high {
+                ui.theme = faraday_atoms::Theme::all()
+                    .find(|t| t.is_high_contrast())
+                    .expect("a high contrast theme");
+            }
+            draw(m, ui);
+        });
+        let hits = out
+            .hits
+            .iter()
+            .map(|h| (h.press, h.rect.x, h.rect.y, h.rect.w, h.rect.h))
+            .collect();
+        (c.pixels().rgba.to_vec(), hits)
+    }
+
+    fn pixel_at(rgba: &[u8], (x, y): (i32, i32)) -> [u8; 4] {
+        let i = ((y * 1000 + x) * 4) as usize;
+        [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]]
+    }
+
+    /// Invariant: Where the room holds the pair the card is raised: its edge is drawn at High contrast alone, so a pixel on its top edge equals the card's fill in the standard theme and differs from it at High contrast.
+    /// Regression: The raised card outlined in every theme, or its outline lost at High contrast.
+    /// Owner: kit
+    #[test]
+    fn the_raised_card_is_outlined_at_high_contrast_alone() {
+        let m = flow(2);
+        let place = panes::pair(1000.0).expect("the pair fits");
+        let x = (place.card_x + 100.0) as i32;
+        let edge = 16; // the card's top: the page's top margin
+        let (std, _) = wide_frame(&m, false);
+        let (hc, _) = wide_frame(&m, true);
+        let on_edge = |px: &[u8]| {
+            (edge - 1..=edge + 1)
+                .map(|y| pixel_at(px, (x, y)))
+                .collect::<Vec<_>>()
+        };
+        let inside = |px: &[u8]| pixel_at(px, (x, edge + 6));
+        assert!(on_edge(&std).iter().skip(1).all(|p| *p == inside(&std)));
+        assert!(on_edge(&hc).iter().any(|p| *p != inside(&hc)));
+    }
+
+    /// Invariant: The row of the open step is drawn in the secondary container, a row of another step is not.
+    /// Regression: Your choices marks no row as the step now open.
+    /// Owner: kit
+    #[test]
+    fn the_current_choice_row_is_tinted() {
+        let tint = |current: bool| {
+            let mut m = flow(2);
+            m.choices[0].current = current;
+            let (px, hits) = wide_frame(&m, false);
+            let row = hits.iter().find(|h| h.0 == P(2)).expect("a row");
+            pixel_at(&px, (row.1 + row.3 - 2, row.2 + 3))
+        };
+        assert_ne!(tint(true), tint(false));
+    }
+
+    /// Invariant: Where the pair stands a take-away takes the pane's place: its press is taken and Your choices' rows are not drawn; the lead row stands first in Your choices where there is no take-away.
+    /// Regression: The pane draws Your choices over a take-away, or drops the lead row.
+    /// Owner: kit
+    #[test]
+    fn a_take_away_or_the_lead_row_stands_in_the_pane() {
+        let row = |press| ChoiceRow {
+            title: Shown::plain("Wallet"),
+            answer: Shown::plain("A wallet"),
+            offered: Offered::Yes(P(press)),
+            current: false,
+            mono: false,
+        };
+        let (_, led) = wide_frame(&flow(2).with_lead(row(5)), false);
+        let y = |hits: &[(P, i32, i32, i32, i32)], n: u8| {
+            hits.iter().find(|h| h.0 == P(n)).map(|h| h.2)
+        };
+        assert!(y(&led, 5) < y(&led, 2));
+        let take = Take {
+            head: Shown::plain("Take away"),
+            body: Content(vec![Block::Buttons(vec![button(
+                "Write",
+                Style::Filled,
+                7,
+            )])]),
+        };
+        let (_, taken) = wide_frame(&flow(2).with_lead(row(5)).with_take(take), false);
+        assert!(y(&taken, 7).is_some());
+        assert!(y(&taken, 2).is_none() && y(&taken, 5).is_none());
+    }
+
+    /// Invariant: The chip at the head of the card takes its press and stands above the title's card; the note draws without taking one.
+    /// Regression: The chip left out of the card, or drawn under it.
+    /// Owner: kit
+    #[test]
+    fn the_chip_stands_above_the_card() {
+        let m = flow(2)
+            .with_chip(Chip {
+                label: Shown::plain("Next: Receive"),
+                offered: Some(Offered::Yes(P(6))),
+            })
+            .with_note(Shown::plain("Part of a backup"));
+        let (_, hits) = wide_frame(&m, false);
+        let y = |n: u8| hits.iter().find(|h| h.0 == P(n)).expect("a control").2;
+        assert!(y(6) < y(1));
     }
 }

@@ -110,6 +110,12 @@ disallowed-methods = [
     { path = "faraday_templates::flow::FlowModel::with_asking", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
     { path = "faraday_templates::flow::FlowModel::with_refused", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
     { path = "faraday_templates::flow::FlowModel::with_busy", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_forward", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_lead", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_pick", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_take", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_chip", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_note", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
 ]
 
 disallowed-types = [

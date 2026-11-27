@@ -1463,6 +1463,8 @@ pub const INPUT_ROLLS_STRUCK: usize = 1;
 pub const CODEX32_COLUMN_FIXED_H: f32 = 158.0;
 /// The room a flow's page keeps under its last row before it scrolls.
 pub const FLOW_END_PAD: f32 = 24.0;
+/// The height of the pin bar a step flow keeps at the small panel's foot for its forward action.
+pub const FLOW_PIN_H: f32 = 64.0;
 /// The least unit the tracks are drawn at to fit a window's height, for
 /// dice of six faces or fewer (the full unit is `CODEX32_TRACK_UNIT`);
 /// at it the ring's name "Free space" still fits its room.
