@@ -615,9 +615,8 @@ each takes in `next`.
 - **Rule U2.** The list, carried from `main`: `faraday-crypto` (`pinned.rs`: page-aligned memory
   and `mlock`), the storage adapter (on Windows, the free memory for a vault's Argon2id), the
   grant helper, the V4L2 and Media Foundation camera adapters, the desktop window adapter
-  (clipboard and the system library loading), the Starter's operating-system adapter, the stick adapter (`main`'s stick shell: the ioctls of its input,
-  touch and file code), and the two
-  test allocators. No crate of the application, the kit, the port or the runtime is on it.
+  (clipboard and the system library loading), the Starter's operating-system adapter, and the two
+  test allocators. The stick adapter holds no `unsafe`: its two ioctls are `faraday-v4l2`'s. No crate of the application, the kit, the port or the runtime is on it.
 - **Rule U3.** A new entry is a security trade-off and needs a recorded decision.
 
 ## 11. What holds each rule

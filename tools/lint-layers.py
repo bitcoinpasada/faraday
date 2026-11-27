@@ -76,7 +76,7 @@ BOUNDARY_CRATES = ("faraday-keys", "faraday-vault")
 # U2 (01 §10): the closed list of crates that set `unsafe_code = "deny"` and allow it on one item.
 UNSAFE_CRATES = (
     "faraday-crypto", "faraday-storage", "faraday-grant", "faraday-v4l2", "faraday-mediafoundation",
-    "faraday-window", "faraday-os-adapter", "faraday-stick-adapter", "faraday-alloc-count",
+    "faraday-window", "faraday-os-adapter", "faraday-alloc-count",
     "faraday-leak-scan",
 )  # fmt: skip
 

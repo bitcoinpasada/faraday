@@ -20,8 +20,8 @@ faraday-tokens = { path = "../../kit/faraday-tokens" }
 [dev-dependencies]
 faraday-leak-scan = { path = "../../tools/faraday-leak-scan" }
 
-[lints.rust]
-unsafe_code = "deny"
+[lints]
+workspace = true
 
 [package.metadata.faraday]
 layer = "adapter"

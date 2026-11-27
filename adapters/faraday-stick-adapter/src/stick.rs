@@ -88,6 +88,11 @@ pub struct Stick {
     files: Files,
     boot_params: Vec<u8>,
     drm_edid: Vec<u8>,
+    /// Frames drawn, and how many end the run.
+    drawn: u64,
+    frame_limit: Option<u64>,
+    /// `--no-camera`: the camera is said to be unavailable.
+    no_camera: bool,
 }
 
 impl Stick {
@@ -130,8 +135,8 @@ impl Stick {
             "270" => Some(Turn::R270),
             _ => None,
         };
-        let setup = if o.native {
-            orient::Setup::stated(true, mount)
+        let setup = if let Some(native) = o.native {
+            orient::Setup::stated(native == Orientation::Portrait, mount)
         } else if off_device {
             orient::Setup::stated(fb_size.1 > fb_size.0, mount)
         } else {
@@ -161,16 +166,24 @@ impl Stick {
         window.set_laptop(machine::chassis_laptop(
             &std::fs::read_to_string(machine::CHASSIS_TYPE).unwrap_or_default(),
         ));
-        let mut watch = (!off_device).then(|| {
+        // Files of recorded input are the devices, and nothing is plugged in later.
+        let mut watch = (!off_device && o.input.is_empty()).then(|| {
             evdev::Watch::new(
                 Path::new("/sys/class/input"),
                 Path::new("/dev/input"),
-                touch::DEFAULT_TOUCH_NAME,
+                o.touch_name
+                    .as_ref()
+                    .map_or(touch::DEFAULT_TOUCH_NAME, faraday_text::Text::as_str),
             )
         });
         let found: Vec<(u32, evdev::Device)> = match watch.as_mut() {
             Some(watch) => watch.rescan(&mut |sys| window.admit(sys)),
-            None => Vec::new(),
+            None => o
+                .input
+                .iter()
+                .zip(0..)
+                .map(|(v, i)| (i, evdev::Device::from_input_flag(v.as_str())))
+                .collect(),
         };
         let pointing = found.iter().any(|(_, d)| d.mouse || d.touchpad);
         let turn = orient::Shared::new(setup.at_start());
@@ -198,8 +211,8 @@ impl Stick {
         let touch_panel = evdev::TouchPanel {
             width: geometry.width,
             height: geometry.height,
-            grid: touch::DEFAULT_TOUCH_GRID,
-            calibration: touch::Calibration::default(),
+            grid: o.touch_grid.unwrap_or(touch::DEFAULT_TOUCH_GRID),
+            calibration: o.calibration,
             turn: turn.clone(),
             window: inset.map(|(_, at)| evdev::Window {
                 screen: (screen.width, screen.height),
@@ -267,6 +280,9 @@ impl Stick {
             files: Files::new(PathBuf::from(o.files.as_str()), !off_device),
             boot_params,
             drm_edid,
+            drawn: 0,
+            frame_limit: o.frames,
+            no_camera: o.no_camera,
         })
     }
 
@@ -320,6 +336,10 @@ impl Stick {
             frame.pace == Pace::Moving || self.contact,
             Ordering::Relaxed,
         );
+        self.drawn += 1;
+        if self.frame_limit.is_some_and(|n| self.drawn >= n) {
+            self.end(0);
+        }
     }
 
     fn say(&self, message: &str) {
@@ -825,7 +845,12 @@ impl Adapters for Stick {
                 }
                 Ask::Settings(_) => self.answer(id, Answer::Settings(Err(Failure::Unsupported))),
                 Ask::Camera(_) => {
-                    self.answer(id, Answer::Camera(Err(camera::Failure::Unsupported)));
+                    let why = if self.no_camera {
+                        camera::Failure::Unavailable
+                    } else {
+                        camera::Failure::Unsupported
+                    };
+                    self.answer(id, Answer::Camera(Err(why)));
                 }
                 Ask::System(ask) => {
                     if let Some(answer) = system_unsupported(&ask) {
@@ -916,27 +941,36 @@ mod tests {
 
     /// A stick adapter drawing into a file of the test's own, off the device: 480 by 640, 16 bits.
     fn open(name: &str) -> (Stick, PathBuf) {
+        open_with(name, |_| {})
+    }
+
+    /// The same, with the options changed by `set` first.
+    fn open_with(name: &str, set: impl FnOnce(&mut StickOptions)) -> (Stick, PathBuf) {
         let path =
             std::env::temp_dir().join(format!("faraday-stick-{}-{name}", std::process::id()));
         let dir = std::env::temp_dir();
-        let stick = Stick::open(
-            StickOptions {
-                fb: Text::of(path.to_str().unwrap_or_default()),
-                size: Some((480, 640)),
-                depth: 16,
-                dpi: 160,
-                native: false,
-                mount: Text::of(""),
-                pointer_speed: 0,
-                touch_grid: false,
-                files: Text::of(dir.to_str().unwrap_or_default()),
-                verbose: false,
-                timings: false,
-                boot_report: false,
-            },
-            Arc::new(Woken(AtomicUsize::new(0))),
-        )
-        .expect("opens");
+        let mut options = StickOptions {
+            fb: Text::of(path.to_str().unwrap_or_default()),
+            size: Some((480, 640)),
+            depth: 16,
+            dpi: 160,
+            native: None,
+            mount: Text::of(""),
+            pointer_speed: 0,
+            touch_grid: None,
+            touch_name: None,
+            calibration: crate::Calibration::default(),
+            files: Text::of(dir.to_str().unwrap_or_default()),
+            verbose: false,
+            timings: false,
+            boot_report: false,
+            input: Vec::new(),
+            frames: None,
+            camera: None,
+            no_camera: false,
+        };
+        set(&mut options);
+        let stick = Stick::open(options, Arc::new(Woken(AtomicUsize::new(0)))).expect("opens");
         (stick, path)
     }
 
@@ -1116,6 +1150,99 @@ mod tests {
             <faraday_port::ask::Clipboard as Request>::take(answer),
             Ok(Err(Failure::Unsupported))
         ));
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// One touch packet as a file of `struct input_event`s, the way `--input` is fed.
+    fn touch_file(name: &str, x: i32, y: i32) -> PathBuf {
+        let path =
+            std::env::temp_dir().join(format!("faraday-touch-{}-{name}", std::process::id()));
+        let mut bytes = Vec::new();
+        for (kind, code, value) in [
+            (evdev::EV_ABS, evdev::ABS_MT_POSITION_X, x),
+            (evdev::EV_ABS, evdev::ABS_MT_POSITION_Y, y),
+            (evdev::EV_ABS, evdev::ABS_MT_TRACKING_ID, 1),
+            (evdev::EV_SYN, evdev::SYN_REPORT, 0),
+        ] {
+            bytes.extend_from_slice(&[0u8; evdev::EVENT_SIZE - 8]);
+            bytes.extend_from_slice(&kind.to_le_bytes());
+            bytes.extend_from_slice(&code.to_le_bytes());
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+        std::fs::write(&path, bytes).expect("written");
+        path
+    }
+
+    /// The first touch a stick opened with `set` reads from a recorded touch at `(x, y)`.
+    fn first_touch(name: &str, x: i32, y: i32, set: impl FnOnce(&mut StickOptions)) -> Point {
+        let input = touch_file(name, x, y);
+        let flag = Text::of(input.to_str().unwrap_or_default());
+        let (mut stick, path) = open_with(name, |o| {
+            o.input = vec![flag];
+            set(o);
+        });
+        let at = until(&mut stick, |e| match e {
+            Event::Input(Input::Touch {
+                at,
+                phase: TouchPhase::Down,
+            }) => Some(*at),
+            _ => None,
+        });
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(input);
+        at
+    }
+
+    /// Invariant: the touch grid and calibration given place a recorded touch on the panel.
+    /// Regression: `--touch-grid`, `--touch-swap` or `--touch-invert-x` parsed and then not applied.
+    /// Owner: adapter
+    #[test]
+    fn the_touch_grid_and_calibration_place_a_scripted_touch() {
+        // The grid is 960 by 1280: half of it is the panel's middle.
+        let grid = |o: &mut StickOptions| o.touch_grid = Some((960, 1280));
+        assert_eq!(
+            first_touch("grid", 240, 320, grid),
+            Point { x: 120, y: 160 }
+        );
+        assert_eq!(
+            first_touch("inv", 239, 320, |o| {
+                grid(o);
+                o.calibration.invert_x = true;
+            }),
+            Point { x: 360, y: 160 }
+        );
+        // Swapped, the controller's x runs along the panel's height.
+        assert_eq!(
+            first_touch("swap", 240, 640, |o| {
+                o.touch_grid = Some((960, 1280));
+                o.calibration.swap = true;
+            }),
+            Point { x: 240, y: 160 }
+        );
+    }
+
+    /// Invariant: a stick given a frame limit ends once that many frames are drawn, and not before.
+    /// Regression: `--frames` parsed and not honoured, so a scripted run never ends.
+    /// Owner: adapter
+    #[test]
+    fn the_frame_limit_ends_the_run() {
+        let (mut stick, path) = open_with("limit", |o| o.frames = Some(2));
+        let rgba = frame(0x40, Pace::Rest);
+        let draw = |stick: &mut Stick| {
+            stick.present(&Frame {
+                width: 480,
+                height: 640,
+                rgba: &rgba,
+                changed: &[],
+                moved: None,
+                regions: &[],
+                pace: Pace::Rest,
+            });
+        };
+        draw(&mut stick);
+        assert_eq!(stick.ended(), None);
+        draw(&mut stick);
+        assert_eq!(stick.ended(), Some(0));
         let _ = std::fs::remove_file(path);
     }
 }

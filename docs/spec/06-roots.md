@@ -421,8 +421,10 @@ sheet but a lock's own; the sheets under it come back when it is put away.
 - **A failed keep:** as section 05, §7.6: the runtime builds the scope again in process from the
   carry handed back when it holds an only copy, and ends the process otherwise.
 - **Options:** none reach the model. The command line (`--fb`, `--size`, `--depth`, `--dpi`,
-  `--native`, `--mount`, `--pointer-speed`, `--touch-grid`, `--files`, `--verbose`, `--timings`,
-  `--boot-report`) configures the adapters and the dev reports. The disk process's two FIFO paths
+  `--native portrait|landscape` (detected when absent), `--mount`, `--pointer-speed`,
+  `--touch-grid WxH`, `--touch-name`, `--touch-swap`, `--touch-invert-x`, `--touch-invert-y`,
+  `--input [KIND:]PATH`, `--frames`, `--camera`, `--no-camera`, `--files`, `--verbose`,
+  `--timings`, `--boot-report`) configures the adapters and the dev reports. The disk process's two FIFO paths
   and its RAM directory are fixed paths that the startup script makes, not flags; the root's
   `Options` holds them as strings.
 
