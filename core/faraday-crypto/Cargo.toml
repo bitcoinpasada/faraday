@@ -1,15 +1,62 @@
 [package]
 name = "faraday-crypto"
-version = "0.0.0"
+version = "0.1.0"
+description = "Secret wrapper types and thin wrappers over vetted hash primitives"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
+[features]
+# The pages that hold long-lived secrets are pinned into RAM, so that a
+# seed cannot be written to swap in the clear Off by
+# default: this crate is `no_std` and also builds for the browser and for
+# Android, neither of which may link `libc`. The desktop and Pi shells
+# turn it on through their dependency on this crate.
+pin-pages = ["dep:libc"]
+# `work::Compute::unchecked`, a token that counts nothing, for code with
+# no drawing guarantee to keep: core's tests, fuzz
+# targets and tools (docs/COMPUTE.md §3). Faraday mints with
+# `Compute::new` at its entry points; `faraday/clippy.toml` refuses
+# `unchecked` there.
+unchecked = []
+
 [dependencies]
+zeroize = { workspace = true, features = ["alloc"] }
+argon2 = { workspace = true }
+base16ct.workspace = true
 faraday-text = { path = "../faraday-text" }
+subtle.workspace = true
+sha2 = { workspace = true, features = ["zeroize"] }
+hmac = { workspace = true, features = ["zeroize"] }
+pbkdf2 = { workspace = true, features = ["hmac"] }
+# BLAKE2b's block core, for the one caller (AEZ's Extract); its Drop wipes the state.
+blake2 = { version = "0.11", default-features = false, features = ["zeroize"] }
+
+[dev-dependencies]
+# A token that counts nothing, for the tests (docs/COMPUTE.md §3).
+faraday-crypto = { path = ".", features = ["unchecked"] }
+
+# `mlock`/`munlock` for the `pin-pages` feature, and nothing else. Unix
+# only, so a Windows or wasm build with the feature on still compiles and
+# simply does not pin.
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true, optional = true }
 
 [lints.rust]
+# Audited unsafe is allowed here for mlock and zeroize.
+# `deny` rather than `forbid` so that `pinned.rs` — the page-aligned
+# allocation, its release, the two dereferences of the pointer to it and
+# the `mlock`/`munlock` pair — and nothing else in the workspace core, can
+# allow it for themselves.
 unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+# The workspace's: a function over the complexity threshold carries an expect.
+cognitive_complexity = "warn"
 
 [package.metadata.faraday]
 layer = "domain"

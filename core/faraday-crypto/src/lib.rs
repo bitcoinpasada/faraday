@@ -1,41 +1,66 @@
-//! The domain crate `faraday-crypto`: Faraday's own code, copied from `main` in a later step.
-//! Everything a crate of the domain may do is in `docs/spec/01-layers.md` section 2.
+//! Secret wrapper types and thin wrappers over vetted hash primitives.
+//!
+//! This is the bottom crate of Faraday's core. It has three jobs:
+//!
+//! - [`Secret`]: hold a value that must be wiped from memory when it is no
+//!   longer needed, and make accidental leaks (formatting, cloning,
+//!   serialising) impossible by construction.
+//! - [`Pinned`]: hold a long-lived secret on pages of its own that the
+//!   kernel is asked not to write to swap. Its five small
+//!   `unsafe` blocks — the page-aligned allocation, its release, the two
+//!   dereferences and the `mlock`/`munlock` pair — are
+//!   the crate's audited `unsafe` and the only `unsafe` in the core. The syscalls
+//!   themselves are behind the `pin-pages` feature, which the desktop
+//!   and Pi shells turn on and the browser and Android builds leave off.
+//! - Hashes and KDFs: [`sha256`], [`sha512`], [`hmac_sha256`], [`hmac_sha512`],
+//!   [`pbkdf2_hmac_sha256`], [`pbkdf2_hmac_sha512`], [`blake2b`] and
+//!   [`scrypt`] are the only entry points the rest of the core uses, so
+//!   the choice of implementation (RustCrypto today, for the first
+//!   six) is confined to this crate. scrypt is written here: it has one
+//!   caller, LND's aezeed, and is small enough that a crate would cost
+//!   more than it saves.
+//! - [`date`]: civil dates against day counts since 1970-01-01.
+//! - [`work`]: [`work::Compute`], the token a costly function takes,
+//!   which carries the counter the application notes that work with
+//!   (`docs/COMPUTE.md` §2), and the kinds of work ([`work::Work`]).
+//!
+//! The crate is `no_std` and allocates for one reason
+//! only: to give a long-lived secret whole pages of its own, so that
+//! they can be pinned. Nothing else here takes an allocation. It has no random number
+//! generator: entropy is handed in by the shell.
+//! Signing and curve operations are deliberately absent for now; they
+//! arrive with the `secp256k1` decision.
 
 #![no_std]
+// Test code copies freely: the refusal in clippy.toml is for what ships.
+#![cfg_attr(test, allow(clippy::disallowed_methods))]
 
-// Placeholder until the domain copy: `main`'s `core/faraday-crypto/src/secret.rs`.
-pub struct Secret<T>(T);
+extern crate alloc;
 
-pub mod work {
-    use core::marker::PhantomData;
+mod argon2;
+mod blake2b;
+mod crc32;
+pub mod date;
+mod hash;
+pub mod hex;
+mod pinned;
+mod scrypt;
+mod secret;
+pub mod work;
 
-    // Placeholder until the domain copy: `main`'s `core/faraday-crypto/src/work.rs`. The token is
-    // not `Send`, as on `main`.
-    pub struct Compute(PhantomData<*const ()>);
-
-    // Placeholder until the domain copy: `main`'s `Work` (`work.rs`).
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-    pub struct Work(());
-
-    // Spec: 05 §5.2 gives `Hooks`; `main`'s `Compute::new` takes `count` alone.
-    pub struct Hooks {
-        pub count: fn(Work),
-        pub stop: fn() -> bool,
-        pub progress: fn(u32, u32),
-    }
-
-    impl Compute {
-        pub fn new(_hooks: Hooks) -> Compute {
-            todo!()
-        }
-
-        /// The job was asked to stop.
-        pub fn stop_asked(&self) -> bool {
-            todo!()
-        }
-
-        pub fn progress(&self, _done: u32, _of: u32) {
-            todo!()
-        }
-    }
-}
+pub use argon2::{
+    Cost as Argon2Cost, DEVICE_PARAMS as ARGON2_DEVICE_PARAMS, Error as Argon2Error,
+    FileCost as Argon2FileCost, MIN_PARAMS as ARGON2_MIN_PARAMS,
+    StretchError as Argon2StretchError, argon2, argon2id,
+};
+pub use blake2b::{MAX_OUT as BLAKE2B_MAX_OUT, blake2b};
+pub use crc32::crc32;
+pub use hash::{
+    HKDF_SHA256_MAX, PBKDF2_STEP, hkdf_sha256, hkdf_sha256_expand, hmac_sha256, hmac_sha512,
+    pbkdf2_hmac_sha256, pbkdf2_hmac_sha256_block, pbkdf2_hmac_sha512, sha256, sha256_whole, sha512,
+    sha512_again, sha512_into,
+};
+pub use pinned::{Pinned, Plain, Pod, pin_failure_to_report};
+pub use scrypt::{Error as ScryptError, scrypt};
+pub use secret::{MAX_MNEMONIC_WORDS, MAX_SEED_LEN, MnemonicBytes, Secret, SeedBytes};
+pub use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
