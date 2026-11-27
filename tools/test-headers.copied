@@ -237,3 +237,7 @@ core/faraday-plan/tests/text.rs
 core/faraday-samples/tests/all/keys.rs
 core/faraday-samples/tests/all/published.rs
 core/faraday-samples/tests/all/vectors.rs
+kit/faraday-draw/src/ease.rs
+kit/faraday-draw/src/shapes.rs
+kit/faraday-draw/src/text.rs
+kit/faraday-tokens/src/theme.rs

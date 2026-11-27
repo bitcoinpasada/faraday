@@ -148,4 +148,3 @@ pub const fn type_scale_pct(class: SizeClass) -> u16 {
 pub const fn narrow_text(class: SizeClass) -> bool {
     matches!(class, SizeClass::Small)
 }
-

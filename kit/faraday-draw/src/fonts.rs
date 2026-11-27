@@ -579,3 +579,111 @@ fn rasterise(face: &SizedFace, resolved: &Resolved) -> Entry {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn text_faces() -> impl Iterator<Item = &'static Face> {
+        FACES
+            .iter()
+            .filter(|f| !matches!(f.family, Family::Icon | Family::Cjk))
+    }
+
+    fn text_set() -> Vec<char> {
+        let mut set: Vec<char> = (0x20u32..=0x7E)
+            .chain(0xA0..=0xFF)
+            .filter(|&c| c != 0xAD)
+            .filter_map(char::from_u32)
+            .collect();
+        set.extend_from_slice(&[
+            '•', '▾', '▸', '←', '→', '↑', '↓', '✓', '✗', '×', '…', '°', '₿',
+        ]);
+        set
+    }
+
+    /// Invariant: Every baked face parses and holds the glyphs of its set.
+    /// Regression: A regenerated font file is truncated or lacks a glyph the screens use.
+    /// Owner: kit
+    #[test]
+    fn every_face_parses_and_has_its_glyph_set() {
+        for face in text_faces() {
+            let o = Outlines::parse(face.family, face.data).expect("parse");
+            assert!(o.ascent > 0 && o.descent < 0);
+            for c in text_set() {
+                let g = o.glyph(c).unwrap_or_else(|| panic!("no glyph for {c:?}"));
+                assert!(g.outline.advance > 0, "{c:?} has no advance");
+                assert!(
+                    c == ' ' || c == '\u{a0}' || !g.outline.commands.is_empty(),
+                    "{c:?} has no outline"
+                );
+            }
+            assert!(o.glyph('?').is_some());
+            // A hanzi is not in a text face's own file; it is drawn from
+            // the CJK face, in that file's font units.
+            assert!(o.glyph_in_file('\u{4e2d}').is_none());
+            let hanzi = o.glyph('\u{4e2d}').expect("hanzi from the CJK face");
+            assert_eq!(hanzi.code_point, '\u{4e2d}');
+            assert!(!hanzi.outline.commands.is_empty());
+            // A code point no face carries still falls back to `?`.
+            let snowman = o.glyph_or_fallback('\u{2603}').expect("? fallback");
+            assert_eq!(snowman.code_point, '?');
+        }
+        let icons = Outlines::parse(
+            Family::Icon,
+            FACES
+                .iter()
+                .find(|f| f.family == Family::Icon)
+                .unwrap()
+                .data,
+        )
+        .expect("parse");
+        assert_eq!(icons.ascent, i32::from(icons.units_per_em));
+        let scan = icons.glyph('\u{e900}').expect("scan icon");
+        assert!(scan.outline.advance > 0 && !scan.outline.commands.is_empty());
+    }
+
+    /// Invariant: A filled glyph has ink where the letter has strokes and none outside its box.
+    /// Regression: A filled glyph is blank or offset from its box.
+    /// Owner: kit
+    #[test]
+    fn filled_glyphs_have_ink_where_expected() {
+        // A capital I in a sans face is a vertical bar: every row of the
+        // bitmap has coverage.
+        let face = SizedFace::new(Family::Regular, 48);
+        let mut cache = GlyphCache::new();
+        let g = cache.glyph(&face, 'I').unwrap();
+        assert!(g.height > g.width);
+        for row in 0..g.height {
+            assert!(
+                (0..g.width).any(|x| g.bitmap.get(row * g.width + x) > 0),
+                "row {row} of I is blank"
+            );
+        }
+        assert!(g.bearing_y > 0 && g.bearing_y <= face.ascent);
+        // A descender: `g` reaches below the baseline.
+        let lower_g = cache.glyph(&face, 'g').unwrap();
+        assert!(lower_g.bearing_y < lower_g.height as i32);
+    }
+
+    /// Invariant: A glyph is filled at every whole pixel size asked for, each one pixel taller than the last.
+    /// Regression: A size between the common ones draws no glyph or the next size up.
+    /// Owner: kit
+    ///
+    /// Every whole pixel size draws, not a chosen few: a run of sizes
+    /// each gives a glyph one pixel taller than the last, with ink in it.
+    #[test]
+    fn a_glyph_is_filled_at_whatever_size_is_asked_for() {
+        let mut cache = GlyphCache::new();
+        let mut last = 0usize;
+        for px in 11u16..40 {
+            let face = SizedFace::new(Family::Mono, px);
+            let g = cache.glyph(&face, '8').unwrap();
+            assert!(g.height >= last, "{px} px is shorter than {} px", px - 1);
+            assert!(
+                (0..g.bitmap.len()).any(|i| g.bitmap.get(i) > 0),
+                "{px} px of '8' is blank"
+            );
+            last = g.height;
+        }
+    }
+}

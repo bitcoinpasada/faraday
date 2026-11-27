@@ -20,10 +20,10 @@ use crate::canvas::{
 };
 use faraday_tokens::palette::Color;
 
-use crate::skia::ToSkia;
 use crate::fonts::{GlyphCache, SizedFace};
 use crate::geom::{Rect, Scale};
 use crate::shapes::{self, Shapes};
+use crate::skia::ToSkia;
 use crate::text::Font;
 
 /// What a band keeps between frames, so it allocates nothing once it has
@@ -112,6 +112,15 @@ impl Default for Room {
 }
 
 impl Canvas {
+    /// Whether every band's scratch holds only zeros.
+    #[cfg(test)]
+    pub(super) fn scratch_is_clear(&self) -> bool {
+        self.list
+            .rooms
+            .iter()
+            .all(|r| r.scratch.iter().all(|&b| b == 0))
+    }
+
     /// How many of the calls waiting are barriers when the list is
     /// painted in any number of bands: the blurs and stretches. A lookup.
     pub fn barriers_in(&self, _bands: usize) -> usize {

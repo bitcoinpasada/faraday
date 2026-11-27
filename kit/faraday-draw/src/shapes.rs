@@ -16,8 +16,8 @@ use tiny_skia::{FillRule, Mask, PathBuilder, Transform};
 use crate::canvas::Surface;
 use faraday_tokens::palette::Color;
 
-use crate::skia::ToSkia;
 use crate::geom::Rect;
+use crate::skia::ToSkia;
 
 /// Everything a kept shape's outlines are worked out from: which shape,
 /// where its origin falls in pixels, and its scale, pixels to the unit
@@ -250,3 +250,206 @@ fn div255(v: u16) -> u16 {
     (v + 255) >> 8
 }
 
+#[cfg(test)]
+mod tests {
+    use alloc::vec;
+    use alloc::vec::Vec;
+
+    use faraday_port::values::{Display, Orientation};
+
+    use super::ShapeKey;
+    use crate::{Canvas, Color, Rect};
+
+    const W: u16 = 120;
+    const H: u16 = 60;
+
+    fn canvas() -> Canvas {
+        let mut c = Canvas::new(&Display {
+            width: W,
+            height: H,
+            dpi: 160,
+            orientation: Orientation::Portrait,
+            rotation_offered: None,
+            external: false,
+            preview: None,
+        });
+        backdrop(&mut c);
+        c
+    }
+
+    /// Bands of colour under where the shapes go, some of them laid
+    /// translucent, so a blend shows against more than one colour; the
+    /// same pixels each time.
+    fn backdrop(c: &mut Canvas) {
+        c.clear(Color::rgb(250, 248, 240));
+        for i in 0..10u8 {
+            let band = Rect::new(i32::from(i) * 12, 0, 7, i32::from(H));
+            c.fill_rect(
+                band,
+                Color::rgba(30 + i * 20, 200 - i * 15, 90, 120 + i * 13),
+            );
+        }
+    }
+
+    /// A ring with a star cut through it, at (x, y), `s` pixels to the
+    /// unit: curves in straight pieces and a hole, as the name's letters
+    /// and the mark are.
+    fn shape(x: f32, y: f32, s: f32) -> Vec<Vec<(f32, f32)>> {
+        let at = |a: f32, r: f32| (x + (20.0 + r * cos(a)) * s, y + (20.0 + r * sin(a)) * s);
+        let tau = core::f32::consts::TAU;
+        let outer = (0..48).map(|k| at(tau * k as f32 / 48.0, 18.3)).collect();
+        let star = (0..10)
+            .rev()
+            .map(|k| at(tau * k as f32 / 10.0, if k % 2 == 0 { 11.7 } else { 4.4 }))
+            .collect();
+        vec![outer, star]
+    }
+
+    /// Cosine by its series: the crate has no float library.
+    fn cos(a: f32) -> f32 {
+        sin(a + core::f32::consts::FRAC_PI_2)
+    }
+
+    /// Sine by its series, `a` brought into -π..π first.
+    fn sin(a: f32) -> f32 {
+        let tau = core::f32::consts::TAU;
+        let mut x = a % tau;
+        if x > core::f32::consts::PI {
+            x -= tau;
+        }
+        let (mut term, mut sum) = (x, x);
+        for n in 1..12 {
+            term *= -x * x / ((2 * n) as f32 * (2 * n + 1) as f32);
+            sum += term;
+        }
+        sum
+    }
+
+    /// The pixels `colour` fills the shape at `at` with, from its
+    /// outlines, under `clip`.
+    fn filled(at: (f32, f32, f32), clip: Rect, colour: Color) -> Vec<u8> {
+        let mut c = canvas();
+        c.push_clip(clip);
+        let outlines = shape(at.0, at.1, at.2);
+        let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
+        c.fill_contours(&contours, colour);
+        c.pixels().rgba.to_vec()
+    }
+
+    /// Draws the shape at `at` from what `c` keeps, over the backdrop.
+    fn kept(c: &mut Canvas, at: (f32, f32, f32), clip: Rect, colour: Color) -> Vec<u8> {
+        backdrop(c);
+        c.push_clip(clip);
+        let key = ShapeKey::new(7, at.0, at.1, at.2);
+        c.fill_kept(key, || shape(at.0, at.1, at.2), colour);
+        c.pop_clip();
+        c.pixels().rgba.to_vec()
+    }
+
+    /// The name and the mark are drawn from what the canvas kept as they
+    /// are from their outlines: at whole and part pixels, at several
+    /// sizes, opaque and translucent, cut by a clip or not, the first time
+    /// and every time after, in a new colour too, and filled once.
+    #[test]
+    fn a_kept_shape_is_drawn_as_its_outlines_are_filled() {
+        let colours = [
+            Color::rgb(20, 30, 40),
+            Color::rgba(200, 40, 90, 140),
+            Color::rgb(250, 250, 250),
+            Color::rgba(0, 0, 0, 31),
+            Color::rgb(103, 80, 164),
+        ];
+        let clips = [
+            Rect::new(0, 0, i32::from(W), i32::from(H)),
+            Rect::new(23, 9, 41, 30),
+        ];
+        let places = [
+            (5.0, 3.0, 1.0),
+            (17.37, 9.81, 0.6),
+            (40.5, 2.25, 1.37),
+            (71.06, 1.5, 1.21),
+        ];
+        for at in places {
+            for clip in clips {
+                let mut c = canvas();
+                for (i, &colour) in colours.iter().enumerate() {
+                    assert!(
+                        kept(&mut c, at, clip, colour) == filled(at, clip, colour),
+                        "{at:?} {clip:?} colour {i}: kept and filled differ"
+                    );
+                }
+                assert_eq!(c.outlines_filled(), 1, "{at:?} {clip:?}: filled once");
+            }
+        }
+    }
+
+    /// What is kept follows what it is drawn from: a shape moved by part
+    /// of a pixel, or drawn at another size, is filled anew and drawn as
+    /// its outlines are; the same place and size again fills nothing.
+    #[test]
+    fn a_kept_shape_moved_or_resized_is_filled_again() {
+        let colour = Color::rgb(60, 70, 200);
+        let clip = Rect::new(0, 0, i32::from(W), i32::from(H));
+        let mut c = canvas();
+        let draws = [
+            ((10.0, 5.0, 1.0), 1),
+            ((10.25, 5.0, 1.0), 2),
+            ((10.25, 5.0, 1.1), 3),
+            ((10.0, 5.0, 1.0), 3),
+            ((10.25, 5.0, 1.1), 3),
+        ];
+        for (n, (at, fills)) in draws.into_iter().enumerate() {
+            assert!(
+                kept(&mut c, at, clip, colour) == filled(at, clip, colour),
+                "draw {n}: {at:?}"
+            );
+            assert_eq!(c.outlines_filled(), fills, "draw {n}: {at:?}");
+        }
+    }
+
+    /// A QR code's rows of modules written straight into the canvas are
+    /// the pixels of a rectangle filled for each run of dark modules,
+    /// cut by a clip or not.
+    #[test]
+    fn cells_written_straight_are_the_runs_filled() {
+        let n = 21;
+        let dark = |col: usize, row: usize| (col * 7 + row * 3 + col * row) % 5 < 2;
+        let clips = [
+            Rect::new(0, 0, i32::from(W), i32::from(H)),
+            Rect::new(13, 7, 50, 31),
+        ];
+        for clip in clips {
+            for colour in [Color::BLACK, Color::rgba(10, 20, 30, 100)] {
+                let mut by_rows = canvas();
+                by_rows.push_clip(clip);
+                by_rows.fill_cells((9, 4), (n, 2), dark, colour);
+                let mut by_runs = canvas();
+                by_runs.push_clip(clip);
+                for row in 0..n {
+                    let mut col = 0;
+                    while col < n {
+                        if !dark(col, row) {
+                            col += 1;
+                            continue;
+                        }
+                        let start = col;
+                        while col < n && dark(col, row) {
+                            col += 1;
+                        }
+                        let r = Rect::new(
+                            9 + 2 * start as i32,
+                            4 + 2 * row as i32,
+                            2 * (col - start) as i32,
+                            2,
+                        );
+                        by_runs.fill_rect(r, colour);
+                    }
+                }
+                assert!(
+                    by_rows.pixels().rgba == by_runs.pixels().rgba,
+                    "{clip:?} {colour:?}"
+                );
+            }
+        }
+    }
+}

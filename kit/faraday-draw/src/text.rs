@@ -280,3 +280,68 @@ pub fn wrapped_height(face: &SizedFace, text: &str, max_width: i32) -> i32 {
     wrap(face, text, max_width).len() as i32 * face.line_height()
 }
 
+#[cfg(test)]
+mod tests {
+    use alloc::vec;
+
+    use super::*;
+
+    fn face() -> SizedFace {
+        Font::regular(16.0).sized(Scale::IDENTITY)
+    }
+
+    fn lines(text: &str, max: i32) -> Vec<&str> {
+        wrap(&face(), text, max)
+            .into_iter()
+            .map(|(s, e)| &text[s..e])
+            .collect()
+    }
+
+    #[test]
+    fn wrap_breaks_at_spaces() {
+        let a = face();
+        let w = width(&a, "hello world");
+        let ls = lines("hello world foo", w);
+        assert_eq!(ls, vec!["hello world", "foo"]);
+        let ls = lines("hello world foo", w - 1);
+        assert_eq!(ls, vec!["hello", "world foo"]);
+    }
+
+    #[test]
+    fn wrap_breaks_long_words_between_characters() {
+        let a = face();
+        let w = width(&a, "abcde");
+        let ls = lines("abcdefghij", w);
+        assert_eq!(ls.len(), 2);
+        assert_eq!(ls.concat(), "abcdefghij");
+        for l in &ls {
+            assert!(width(&a, l) <= w);
+        }
+    }
+
+    #[test]
+    fn wrap_breaks_a_long_word_after_its_hyphen() {
+        let a = face();
+        let w = width(&a, "XChaCha20-Poly");
+        assert_eq!(
+            lines("XChaCha20-Poly1305", w),
+            vec!["XChaCha20-", "Poly1305"]
+        );
+    }
+
+    #[test]
+    fn a_line_with_two_spaces_between_words_stays_inside_its_width() {
+        let a = face();
+        let w = width(&a, "1:25 1  2:52 0");
+        let ls = lines("1:25 1  2:52 0  3:52 0", w - 1);
+        assert!(ls.len() > 1);
+        for l in &ls {
+            assert!(width(&a, l) < w, "{l:?}");
+        }
+    }
+
+    #[test]
+    fn wrap_honours_newlines() {
+        assert_eq!(lines("a\nb\n\nc", 10_000), vec!["a", "b", "", "c"]);
+    }
+}

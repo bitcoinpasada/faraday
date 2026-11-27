@@ -1,6 +1,5 @@
 //! Material 3's elevation shadows (09 §3.2).
 
-
 /// One layer of a Material 3 elevation shadow, in dp: how far it falls
 /// below what floats, its blur radius and how far it grows past it.
 #[derive(Clone, Copy)]

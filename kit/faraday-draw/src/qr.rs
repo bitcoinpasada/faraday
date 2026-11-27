@@ -20,5 +20,10 @@ pub fn modules(canvas: &mut Canvas, code: &QrMatrix, at: Rect) {
     let used = module_px * n as i32;
     let ox = at.x + (at.w - used) / 2;
     let oy = at.y + (at.h - used) / 2;
-    canvas.fill_cells((ox, oy), (n, module_px), |col, row| code.module(col, row), Color::BLACK);
+    canvas.fill_cells(
+        (ox, oy),
+        (n, module_px),
+        |col, row| code.module(col, row),
+        Color::BLACK,
+    );
 }

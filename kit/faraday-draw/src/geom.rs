@@ -5,8 +5,8 @@
 //! produces and the canvas draws is in whole pixels. One [`Scale`] per
 //! session converts between them.
 
-pub use faraday_port::values::Point;
 use faraday_port::values::Display;
+pub use faraday_port::values::Point;
 pub use faraday_tokens::dims::{SizeClass, Window, WindowClass};
 
 /// A length in density-independent pixels: 1 dp is 1/160 inch.
@@ -101,7 +101,6 @@ fn round(v: f32) -> i32 {
         (v - 0.5) as i32
     }
 }
-
 
 /// A size in whole pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

@@ -15,7 +15,6 @@
 //! `gallery.rs` or a file under `components/` writes a layout number of
 //! its own instead of naming one here.
 
-
 pub use crate::elevation::*;
 pub use crate::motion::*;
 pub use crate::type_roles::*;
@@ -2169,7 +2168,6 @@ pub const EDGE_FADE_ALPHA: f32 = 230.0;
 pub const PROGRESS_H: f32 = 4.0;
 /// The indeterminate indicator's bar, as a share of its track.
 pub const PROGRESS_SPAN: f32 = 0.3;
-
 
 /// A file the Keys card lists but cannot use: the reason's top below the row's top.
 pub const REFUSED_FILE_REASON_Y: f32 = 26.0;

@@ -54,9 +54,8 @@ pub fn draw(code: &QrMatrix, title: &str, lines: &[&str]) -> Canvas {
     let line_font = Font::regular(dims::BODY);
 
     // The label's height, measured as it will be drawn.
-    let height_of = |font: Font, s: &str| {
-        crate::text::wrapped_height(&font.sized(scale), s, text_w).max(0)
-    };
+    let height_of =
+        |font: Font, s: &str| crate::text::wrapped_height(&font.sized(scale), s, text_w).max(0);
     let mut h = side + height_of(title_font, title);
     for l in lines {
         h += gap + height_of(line_font, l);

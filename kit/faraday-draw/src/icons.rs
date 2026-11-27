@@ -405,3 +405,40 @@ impl Icon {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fonts::Family;
+
+    /// Invariant: Every icon has an outline in the baked icon file.
+    /// Regression: An icon is added to the list without its outline and draws blank.
+    /// Owner: kit
+    #[test]
+    fn every_icon_has_an_outline() {
+        let icons = crate::fonts::outlines(Family::Icon);
+        for icon in Icon::ALL {
+            let g = icons
+                .glyph(icon.code_point())
+                .unwrap_or_else(|| panic!("{} is missing from the icon face", icon.name()));
+            assert!(
+                !g.outline.commands.is_empty(),
+                "{} has no outline to fill",
+                icon.name()
+            );
+        }
+    }
+
+    /// Invariant: No two icons share a code point.
+    /// Regression: Two icons share a code point and one draws as the other.
+    /// Owner: kit
+    #[test]
+    fn code_points_are_unique() {
+        for (i, a) in Icon::ALL.iter().enumerate() {
+            for b in &Icon::ALL[i + 1..] {
+                if a.code_point() == b.code_point() {
+                    assert_ne!(a.flipped(), b.flipped(), "{a:?} and {b:?}");
+                }
+            }
+        }
+    }
+}

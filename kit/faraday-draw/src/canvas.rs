@@ -14,11 +14,11 @@ use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 use faraday_tokens::palette::Color;
 
-use crate::skia::ToSkia;
 use crate::fonts::{Coverage, GlyphCache, SizedFace};
 use crate::geom::{Dp, Rect, Scale};
 pub use crate::shapes::ShapeKey;
 use crate::shapes::{self, Shapes};
+use crate::skia::ToSkia;
 use crate::text::{self, Font, TextAlign, TextMetrics};
 
 #[path = "blend.rs"]
@@ -1822,3 +1822,633 @@ fn place(pool: &mut Vec<PathBuilder>, path: &tiny_skia::Path, at: (i32, i32)) ->
     pb.finish()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Color;
+    use faraday_port::values::Orientation;
+
+    fn canvas() -> Canvas {
+        Canvas::new(&Display {
+            width: 64,
+            height: 32,
+            dpi: 160,
+            orientation: Orientation::Portrait,
+            rotation_offered: None,
+            external: false,
+            preview: None,
+        })
+    }
+
+    /// Invariant: A rounded card on a tall canvas is its whole outline, filled or stroked, whether or not a clip cuts it.
+    /// Regression: The fast fill between a tall card's corners leaves a gap or overdraws at a clip's edge.
+    /// Owner: kit
+    ///
+    /// A tall card's fill, drawn fast between its corners, and its edge are
+    /// the pixels of its whole outline filled or stroked, cut by a clip
+    /// or not.
+    #[test]
+    fn a_tall_rounded_rect_is_its_whole_outline() {
+        let tall = || {
+            Canvas::new(&Display {
+                width: 64,
+                height: 128,
+                dpi: 160,
+                orientation: Orientation::Portrait,
+                rotation_offered: None,
+                external: false,
+                preview: None,
+            })
+        };
+        let colors = [
+            Color::rgb(90, 160, 220),
+            Color::rgb(240, 200, 120),
+            Color::rgb(140, 210, 180),
+        ];
+        let rects = [
+            (Rect::new(3, 1, 40, 120), 6.5),
+            (Rect::new(10, 0, 20, 128), 3.0),
+            (Rect::new(2, 4, 58, 100), 14.25),
+        ];
+        // Across the sides and through the third's bottom corners.
+        let regions = [Rect::new(8, 6, 48, 100), Rect::new(8, 10, 48, 90)];
+        for (k, &(rect, radius)) in rects.iter().enumerate() {
+            for width in [0.0, 1.0, 2.0, 1.5] {
+                let draw = |fast: bool, clip: Option<Rect>| {
+                    let mut c = tall();
+                    c.clear(Color::BLACK);
+                    if let Some(r) = clip {
+                        c.push_clip(r);
+                    }
+                    let color = colors[k];
+                    if fast && width == 0.0 {
+                        c.fill_rounded_rect(rect, radius, color);
+                    } else if fast {
+                        c.stroke_rounded_rect(rect, radius, width, color);
+                    } else if width == 0.0 {
+                        let path = rounded_rect_path(&mut Vec::new(), rect, radius, None);
+                        c.draw_path(&path, &Canvas::paint(color), None);
+                    } else {
+                        let stroke = Stroke {
+                            width,
+                            ..Stroke::default()
+                        };
+                        let path = rounded_rect_path(&mut Vec::new(), rect, radius, Some(&stroke));
+                        c.draw_path(&path, &Canvas::paint(color), None);
+                    }
+                    c
+                };
+                let whole = draw(false, None);
+                for (name, c, region) in [
+                    ("fast", draw(true, None), None),
+                    ("fast cut", draw(true, Some(regions[0])), Some(regions[0])),
+                    ("fast cut", draw(true, Some(regions[1])), Some(regions[1])),
+                    ("path cut", draw(false, Some(regions[1])), Some(regions[1])),
+                ] {
+                    for y in 0..128 {
+                        for x in 0..64 {
+                            let want = if region.is_none_or(|r| r.contains(x, y)) {
+                                pixel(&whole, x, y)
+                            } else {
+                                [0, 0, 0, 255]
+                            };
+                            assert_eq!(pixel(&c, x, y), want, "{name} {k} {width} at ({x}, {y})");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn pixel(c: &Canvas, x: i32, y: i32) -> [u8; 4] {
+        let f = c.pixels();
+        let i = (y as usize * usize::from(f.width) + x as usize) * 4;
+        [f.rgba[i], f.rgba[i + 1], f.rgba[i + 2], f.rgba[i + 3]]
+    }
+
+    /// Invariant: A line of text blends its ink over what is under it and leaves the pixels outside the clip as they were.
+    /// Regression: Text paints over the clip, or replaces the background instead of blending with it.
+    /// Owner: kit
+    #[test]
+    fn text_blends_ink_and_respects_clip() {
+        let mut c = canvas();
+        c.clear(Color::BLACK);
+        let w = c.text(2, 2, "III", Font::regular(16.0), Color::WHITE);
+        assert!(w > 0);
+        let f = c.pixels();
+        let lit = f.rgba.chunks(4).filter(|p| p[0] > 0).count();
+        assert!(lit > 10, "text left ink");
+        // Every pixel stays premultiplied-valid: colour <= alpha.
+        for p in f.rgba.chunks(4) {
+            assert!(p[0] <= p[3] && p[1] <= p[3] && p[2] <= p[3]);
+        }
+        let mut c2 = canvas();
+        c2.clear(Color::BLACK);
+        c2.push_clip(Rect::new(0, 0, 1, 1));
+        c2.text(2, 2, "III", Font::regular(16.0), Color::WHITE);
+        let lit = c2.pixels().rgba.chunks(4).filter(|p| p[0] > 0).count();
+        assert_eq!(lit, 0);
+    }
+
+    /// Invariant: A string measures the same width whether or not its glyphs have been drawn.
+    /// Regression: Measurement reads the glyph cache, so a first line is laid out differently from the same line drawn again.
+    /// Owner: kit
+    ///
+    /// Measurement reads the advances in the outline file, so a string
+    /// is the same width whether or not its glyphs have been drawn.
+    #[test]
+    fn text_measures_the_same_before_and_after_it_is_drawn() {
+        let mut c = canvas();
+        let font = Font::regular(16.0);
+        let before = c.measure_text("Fingerprint 0f056943", font);
+        c.clear(Color::BLACK);
+        c.text(2, 2, "Fingerprint 0f056943", font, Color::WHITE);
+        assert_eq!(c.measure_text("Fingerprint 0f056943", font), before);
+    }
+
+    /// Invariant: A line of text drawn a second time, with every glyph already filled, has the pixels of the first draw.
+    /// Regression: The glyph cache changes what a reader sees on the second draw.
+    /// Owner: kit
+    ///
+    /// The glyph cache changes nothing a reader sees: the second draw of
+    /// a line, with every glyph already filled, is the first draw's
+    /// pixels.
+    #[test]
+    fn a_line_of_text_draws_the_same_pixels_twice() {
+        let mut c = canvas();
+        c.clear(Color::BLACK);
+        c.text(2, 2, "abc 123", Font::regular(16.0), Color::WHITE);
+        let first = c.pixels().rgba.to_vec();
+        c.clear(Color::BLACK);
+        c.text(2, 2, "abc 123", Font::regular(16.0), Color::WHITE);
+        assert_eq!(c.pixels().rgba, &first[..]);
+    }
+
+    /// Invariant: After the glyphs are forgotten the cache holds none.
+    /// Regression: Forgetting the glyphs leaves drawn text in the cache.
+    /// Owner: kit
+    ///
+    /// What was drawn is not kept in the glyph cache once it is dropped.
+    #[test]
+    fn forgetting_the_glyphs_empties_the_cache() {
+        let mut c = canvas();
+        c.clear(Color::BLACK);
+        c.text(2, 2, "abc", Font::regular(16.0), Color::WHITE);
+        assert!(c.cached_glyphs() > 0);
+        c.forget_glyphs();
+        assert_eq!(c.cached_glyphs(), 0);
+    }
+
+    /// Invariant: A grey image wider than its box fills the box and is cropped at the sides.
+    /// Regression: A wide image is squeezed to fit or leaves part of the box empty.
+    /// Owner: kit
+    #[test]
+    fn luma_covers_and_crops_a_wider_image() {
+        // 4 x 2 source, left half black and right half white, into a
+        // 32 x 32 square: cover scales by 16, so the middle two columns
+        // fill the square and the outer ones are cropped away.
+        let mut c = canvas();
+        c.clear(Color::WHITE);
+        let src = [0, 0, 255, 255, 0, 0, 255, 255];
+        c.luma(Rect::new(0, 0, 32, 32), 4, 2, &src, None);
+        assert_eq!(pixel(&c, 0, 0), [0, 0, 0, 255], "source column 1");
+        assert_eq!(pixel(&c, 31, 31), [255, 255, 255, 255], "source column 2");
+        // Nothing outside the rectangle was touched.
+        assert_eq!(pixel(&c, 40, 10), [255, 255, 255, 255]);
+    }
+
+    /// Invariant: A grey image taller than its box fills the box and is cropped at the top and bottom.
+    /// Regression: A tall image is squeezed to fit or leaves part of the box empty.
+    /// Owner: kit
+    #[test]
+    fn luma_covers_and_crops_a_taller_image() {
+        // 2 x 4 source, top half black and bottom half white, into a
+        // 16 x 16 square: the middle two rows fill it.
+        let mut c = canvas();
+        c.clear(Color::WHITE);
+        let src = [0, 0, 0, 0, 255, 255, 255, 255];
+        c.luma(Rect::new(0, 0, 16, 16), 2, 4, &src, None);
+        assert_eq!(pixel(&c, 8, 0), [0, 0, 0, 255], "source row 2");
+        assert_eq!(pixel(&c, 8, 15), [255, 255, 255, 255], "source row 3");
+    }
+
+    /// Invariant: A frame that carries chroma draws in colour and the same luma without chroma draws grey.
+    /// Regression: A preview of a colour frame draws grey, or a grey frame draws tinted.
+    /// Owner: kit
+    ///
+    /// The preview is in colour when a frame carries chroma and grey
+    /// when it does not: a red 2 x 2 frame draws red, and the same luma
+    /// without the chroma draws grey.
+    #[test]
+    fn a_frame_with_chroma_draws_in_colour() {
+        // BT.601 limited-range red: Y 81, Cb 90, Cr 240.
+        let luma = [81u8; 4];
+        let mut c = canvas();
+        c.luma(Rect::new(0, 0, 16, 16), 2, 2, &luma, Some(&[90, 240]));
+        let [r, g, b, _] = pixel(&c, 8, 8);
+        assert!(r > 200 && g < 60 && b < 60, "red, not grey: {r},{g},{b}");
+        let mut c = canvas();
+        c.luma(Rect::new(0, 0, 16, 16), 2, 2, &luma, None);
+        let [r, g, b, _] = pixel(&c, 8, 8);
+        assert_eq!((r, g, b), (81, 81, 81), "grey without chroma");
+        // A chroma plane too short for the luma is ignored rather than
+        // half-applied.
+        let mut c = canvas();
+        c.luma(Rect::new(0, 0, 16, 16), 2, 2, &luma, Some(&[90]));
+        assert_eq!(pixel(&c, 8, 8), [81, 81, 81, 255]);
+    }
+
+    /// Invariant: A grey image draws only inside the clip, and a buffer shorter than its size draws nothing.
+    /// Regression: A grey image paints outside the clip or reads past the end of a short buffer.
+    /// Owner: kit
+    #[test]
+    fn luma_honours_the_clip_and_refuses_a_short_buffer() {
+        let mut c = canvas();
+        c.clear(Color::BLACK);
+        c.push_clip(Rect::new(0, 0, 4, 4));
+        c.luma(Rect::new(0, 0, 16, 16), 2, 2, &[255, 255, 255, 255], None);
+        c.pop_clip();
+        assert_eq!(pixel(&c, 2, 2), [255, 255, 255, 255], "inside the clip");
+        assert_eq!(pixel(&c, 8, 8), [0, 0, 0, 255], "outside it");
+        c.luma(Rect::new(0, 0, 16, 16), 4, 4, &[255; 3], None);
+        assert_eq!(
+            pixel(&c, 8, 8),
+            [0, 0, 0, 255],
+            "a short buffer draws nothing"
+        );
+    }
+
+    /// Invariant: Text placed wholly or partly off the canvas draws what is inside and does not stop the program.
+    /// Regression: A line placed beyond an edge of the canvas panics on an index out of range.
+    /// Owner: kit
+    #[test]
+    fn text_off_canvas_does_not_panic() {
+        let mut c = canvas();
+        c.text(-500, -500, "hello", Font::regular(16.0), Color::WHITE);
+        c.text(500, 500, "hello", Font::regular(16.0), Color::WHITE);
+        c.text_wrapped(
+            Rect::new(60, 0, 10, 100),
+            "a long text that wraps",
+            Font::regular(16.0),
+            Color::WHITE,
+            TextAlign::Start,
+        );
+    }
+
+    /// Invariant: A kept page put back is the page as it was wherever a sheet drew over it.
+    /// Regression: A sheet's drawing outside its box is left on the page after the page is put back.
+    /// Owner: kit
+    ///
+    /// A card scrolled half out of its region looks like the whole card
+    /// with the part outside the region cut away: the same pixels inside,
+    /// nothing outside. Whether the shape crosses the region's top and
+    /// bottom or its side, and for fills, strokes and circles alike. A
+    /// card scrolled
+    /// wholly out of the region leaves it as it was.
+    #[test]
+    fn a_page_put_back_again_is_the_page_wherever_a_sheet_drew() {
+        // A sheet's frames: the kept page put back, then the sheet drawn
+        // over it, a different sheet each frame.
+        let mut c = canvas();
+        c.clear(Color::rgb(30, 40, 50));
+        c.fill_rounded_rect(Rect::new(4, 4, 40, 20), 5.0, Color::rgb(200, 90, 60));
+        let page = c.snapshot();
+        let frames: [&dyn Fn(&mut Canvas); 4] = [
+            &|c| c.fill_rounded_rect(Rect::new(10, 6, 30, 18), 4.0, Color::WHITE),
+            &|c| {
+                c.shadow(
+                    Rect::new(20, 8, 20, 12),
+                    4.0,
+                    6.0,
+                    0.0,
+                    2,
+                    Color::BLACK.with_alpha(140),
+                )
+            },
+            &|c| {
+                c.text(2, 2, "Wg", Font::regular(14.0), Color::WHITE);
+            },
+            &|c| c.fill_rect(Rect::new(50, 0, 14, 32), Color::WHITE.with_alpha(90)),
+        ];
+        for (i, draw) in frames.iter().enumerate() {
+            c.restore(&page);
+            assert_eq!(c.pixels().rgba, &page[..], "frame {i}: the page put back");
+            draw(&mut c);
+        }
+        c.restore(&page);
+        assert_eq!(
+            c.pixels().rgba,
+            &page[..],
+            "the last frame's sheet taken off"
+        );
+    }
+
+    /// Invariant: A fade part of the way shows each pixel part of the way from the old frame to the new one.
+    /// Regression: A fade step jumps to the new frame or rounds each pixel to the old one.
+    /// Owner: kit
+    #[test]
+    fn a_fade_part_of_the_way_is_each_pixel_part_of_the_way() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        let before = c.snapshot();
+        c.fill_rect(Rect::new(20, 0, 10, 32), Color::rgb(210, 220, 230));
+        let mut after = Vec::new();
+        c.swap_pixels(&mut after);
+        c.blend_between(&before, &after, 0.25);
+        // Unchanged where the frames agree; a quarter of the way where
+        // they do not.
+        assert_eq!(pixel(&c, 5, 5), [10, 20, 30, 255]);
+        assert_eq!(pixel(&c, 25, 5), [60, 70, 80, 255]);
+    }
+
+    /// Invariant: A pane partly above the window, at the same place on both pages, does not move while the pages fade.
+    /// Regression: A pane that is the same on both pages shimmers during the fade.
+    /// Owner: kit
+    #[test]
+    fn a_pane_partly_above_the_window_at_one_place_on_both_pages_does_not_move() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        for y in 0..32 {
+            c.fill_rect(Rect::new(0, y, 64, 1), Color::rgb(y as u8 * 7, 40, 90));
+        }
+        let page = c.snapshot();
+        let pane = Rect::new(8, -10, 40, 30);
+        c.clear(Color::rgb(0, 0, 0));
+        c.blend_shifted((&page, &page), (pane, pane), pane, 0.5, [0, 0, 0, 255]);
+        assert_eq!(pixel(&c, 20, 3), [21, 40, 90, 255]);
+        assert_eq!(pixel(&c, 20, 15), [105, 40, 90, 255]);
+    }
+
+    /// Invariant: A fade's later steps over only the bands that differ show what a blend of the whole frame shows.
+    /// Regression: A later step skips a band that changed and leaves the old frame showing.
+    /// Owner: kit
+    #[test]
+    fn a_fades_later_steps_over_the_bands_that_differ_show_what_a_whole_blend_shows() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        c.fill_rect(Rect::new(0, 0, 64, 2), Color::rgb(1, 2, 3));
+        let before = c.snapshot();
+        c.clear(Color::rgb(10, 20, 30));
+        // The new screen differs in two places; the ring two pixels wide
+        // round the edge differs too, and is drawn over by its holder.
+        c.fill_rect(Rect::new(20, 4, 10, 6), Color::rgb(210, 220, 230));
+        c.fill_rect(Rect::new(40, 20, 6, 8), Color::rgb(90, 0, 200));
+        let mut after = Vec::new();
+        c.swap_pixels(&mut after);
+        let mut bands = Vec::new();
+        c.blend_noting(&before, &after, 0.25, 2, &mut bands);
+        assert!(!bands.is_empty());
+        for b in &bands {
+            assert!(b.y >= 2 && b.bottom() <= 30, "the ring is left out: {b:?}");
+        }
+        let within = |x, y| bands.iter().any(|b| b.contains(x, y));
+        assert!(
+            within(25, 6) && within(42, 24),
+            "each difference is in a band"
+        );
+        assert!(!within(5, 15) && !within(60, 15), "where they agree is not");
+        for t in [0.5, 0.75, 1.0] {
+            c.blend_within(&before, &after, t, &bands);
+            let mut whole = canvas();
+            whole.swap_pixels(&mut before.clone());
+            whole.blend_between(&before, &after, t);
+            for (y, x) in (2..30).flat_map(|y| (2..62).map(move |x| (y, x))) {
+                assert_eq!(pixel(&c, x, y), pixel(&whole, x, y), "at {x}, {y}, t {t}");
+            }
+        }
+    }
+
+    /// Invariant: A fade blended in bands of rows shows what one blend of the frame shows and notes the same rows as changed.
+    /// Regression: Blending in bands leaves a seam between bands or misses a row it changed.
+    /// Owner: kit
+    #[test]
+    fn a_fades_blend_in_bands_of_rows_shows_and_notes_what_one_blend_does() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        c.fill_rect(Rect::new(0, 0, 64, 2), Color::rgb(1, 2, 3));
+        let before = c.snapshot();
+        c.clear(Color::rgb(10, 20, 30));
+        c.fill_rect(Rect::new(20, 4, 10, 6), Color::rgb(210, 220, 230));
+        c.fill_rect(Rect::new(40, 20, 6, 8), Color::rgb(90, 0, 200));
+        let mut after = Vec::new();
+        c.swap_pixels(&mut after);
+        let blank = |before: &[u8]| {
+            let mut k = canvas();
+            k.swap_pixels(&mut before.to_vec());
+            k
+        };
+        let mut one = blank(&before);
+        let mut want = Vec::new();
+        one.blend_noting(&before, &after, 0.25, 2, &mut want);
+        assert!(!want.is_empty());
+        fn in_bands(bands: &mut [BlendBand<'_>]) {
+            for b in bands.iter_mut().rev() {
+                b.blend();
+            }
+        }
+        for n in [1, 2, 3, 7] {
+            let mut k = blank(&before);
+            let mut noted = Vec::new();
+            k.blend_noting_banded(&before, &after, (0.25, 2), &mut noted, n, &mut in_bands);
+            assert_eq!(noted, want, "noted in {n} bands");
+            assert_eq!(k.snapshot(), one.snapshot(), "blended in {n} bands");
+            for t in [0.5, 1.0] {
+                one.blend_within(&before, &after, t, &want);
+                k.blend_within_banded(&before, &after, t, &noted, n, &mut in_bands);
+                assert_eq!(k.snapshot(), one.snapshot(), "step {t} in {n} bands");
+            }
+            one = blank(&before);
+            one.blend_noting(&before, &after, 0.25, 2, &mut Vec::new());
+        }
+    }
+
+    /// Invariant: A menu fading in is part of the way over what it stands on and changes no pixel outside its box.
+    /// Regression: A menu's fade tints the page around it.
+    /// Owner: kit
+    #[test]
+    fn a_menu_fading_in_is_part_of_the_way_over_what_it_stands_on_and_nowhere_else() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        let menu = Rect::new(16, 4, 24, 20);
+        let mut before = Vec::new();
+        c.copy_region(menu, &mut before);
+        c.fill_rect(Rect::new(0, 0, 64, 32), Color::rgb(210, 220, 230));
+        c.fade_region(menu, &before, 0.25);
+        assert_eq!(pixel(&c, 20, 10), [60, 70, 80, 255], "a quarter of the way");
+        assert_eq!(pixel(&c, 2, 2), [210, 220, 230, 255], "outside, as drawn");
+        c.copy_region(menu, &mut before);
+        c.fade_region(menu, &before, 0.6);
+        assert_eq!(pixel(&c, 20, 10), [60, 70, 80, 255], "faded from itself");
+    }
+
+    /// Invariant: A fade starts on the old frame and ends on the new frame exactly as drawn.
+    /// Regression: The last step of a fade differs from the frame it was fading to.
+    /// Owner: kit
+    #[test]
+    fn a_fade_starts_on_the_old_frame_and_ends_on_the_new_one_as_drawn() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        c.text(2, 2, "Ab", Font::regular(14.0), Color::WHITE);
+        let before = c.snapshot();
+        c.clear(Color::rgb(240, 240, 235));
+        c.fill_rounded_rect(Rect::new(20, 4, 30, 20), 6.0, Color::rgb(90, 160, 220));
+        c.text(2, 2, "Wg", Font::regular(14.0), Color::BLACK);
+        let drawn = c.snapshot();
+        let mut after = Vec::new();
+        c.swap_pixels(&mut after);
+        assert_eq!(after, drawn, "the drawn frame is kept aside as it was");
+        c.blend_between(&before, &after, 0.0);
+        assert_eq!(c.pixels().rgba, &before[..]);
+        c.blend_between(&before, &after, 1.0);
+        assert_eq!(c.pixels().rgba, &drawn[..]);
+    }
+
+    /// Invariant: A rounded shape drawn at another whole-pixel place is the same pixels moved, wherever on a long page it stands.
+    /// Regression: A scroll step that moves the rows already drawn leaves a shape's edge different from drawing it again.
+    /// Owner: kit
+    ///
+    /// A rounded shape drawn at another whole-pixel place is the same
+    /// pixels moved, wherever on a long page it stands, so a scroll step
+    /// can move the rows already drawn (`docs/FRAMES.md` §3.2).
+    #[test]
+    fn a_rounded_shape_moved_by_whole_pixels_is_the_same_pixels() {
+        let big = || {
+            Canvas::new(&Display {
+                width: 200,
+                height: 1200,
+                dpi: 160,
+                orientation: Orientation::Portrait,
+                rotation_offered: None,
+                external: false,
+                preview: None,
+            })
+        };
+        let draw = |c: &mut Canvas, y: i32| {
+            c.stroke_rounded_rect(Rect::new(20, y, 120, 44), 22.0, 2.0, Color::rgb(20, 40, 80));
+            c.fill_rounded_rect(
+                Rect::new(30, y + 100, 120, 70),
+                17.5,
+                Color::rgb(90, 160, 220),
+            );
+        };
+        let mut base = big();
+        base.clear(Color::WHITE);
+        draw(&mut base, 100);
+        let mut bad = Vec::new();
+        for y in 101..1000 {
+            let mut c = big();
+            c.clear(Color::WHITE);
+            draw(&mut c, y);
+            let d = y - 100;
+            let mut n = 0;
+            for yy in 90..300 {
+                for x in 0..200 {
+                    if yy + d < 1200 && pixel(&base, x, yy) != pixel(&c, x, yy + d) {
+                        n += 1;
+                    }
+                }
+            }
+            if n > 0 {
+                bad.push((y, n));
+            }
+        }
+        assert!(bad.is_empty(), "places where the pixels differ: {bad:?}");
+    }
+
+    /// Invariant: A shape cut by a clip is the whole shape with the part outside the clip cut away.
+    /// Regression: A card scrolled half out of its region is drawn with a different edge inside the region.
+    /// Owner: kit
+    #[test]
+    fn a_shape_cut_by_a_clip_is_the_whole_shape_cut() {
+        let region = Rect::new(8, 6, 48, 20);
+        let shapes: [&dyn Fn(&mut Canvas); 7] = [
+            // Wholly above, below and beside the region.
+            &|c| c.fill_rounded_rect(Rect::new(12, 0, 30, 4), 2.0, Color::rgb(90, 160, 220)),
+            &|c| c.fill_rounded_rect(Rect::new(12, 29, 40, 3), 1.0, Color::rgb(90, 160, 220)),
+            &|c| c.stroke_rounded_rect(Rect::new(0, 10, 5, 10), 1.0, 1.0, Color::WHITE),
+            // Across the top and bottom.
+            &|c| c.fill_rounded_rect(Rect::new(12, 2, 30, 28), 6.5, Color::rgb(90, 160, 220)),
+            &|c| {
+                c.stroke_rounded_rect(
+                    Rect::new(14, 1, 26, 12),
+                    4.0,
+                    1.5,
+                    Color::rgb(240, 200, 120),
+                )
+            },
+            // Across a side.
+            &|c| c.fill_circle(54.3, 15.7, 7.2, Color::rgb(140, 210, 180)),
+            // Inside.
+            &|c| c.fill_circle(30.0, 16.0, 4.0, Color::WHITE),
+        ];
+        for (i, shape) in shapes.iter().enumerate() {
+            let mut whole = canvas();
+            whole.clear(Color::BLACK);
+            shape(&mut whole);
+            let mut cut = canvas();
+            cut.clear(Color::BLACK);
+            cut.push_clip(region);
+            shape(&mut cut);
+            cut.pop_clip();
+            for y in 0..32 {
+                for x in 0..64 {
+                    let want = if region.contains(x, y) {
+                        pixel(&whole, x, y)
+                    } else {
+                        [0, 0, 0, 255]
+                    };
+                    assert_eq!(pixel(&cut, x, y), want, "shape {i} at ({x}, {y})");
+                }
+            }
+        }
+    }
+
+    /// Invariant: A frame drawn in bands, each through a clip one band deep, is the frame drawn whole.
+    /// Regression: A shape, glyph or shadow that crosses a band edge is drawn differently from the whole frame.
+    /// Owner: kit
+    ///
+    /// A frame drawn in bands, each through a clip one band deep, is the
+    /// frame drawn whole, whatever band cuts a shape, a glyph or a shadow
+    /// (`docs/FRAMES.md` §3.2).
+    #[test]
+    fn bands_cut_through_a_shape_a_glyph_and_a_shadow_make_the_whole_frame() {
+        let scene = |c: &mut Canvas| {
+            c.shadow(
+                Rect::new(6, 5, 30, 18),
+                5.0,
+                8.0,
+                0.0,
+                2,
+                Color::rgba(0, 0, 0, 90),
+            );
+            c.fill_rounded_rect(Rect::new(6, 5, 30, 18), 5.0, Color::rgb(90, 160, 220));
+            c.stroke_rounded_rect(Rect::new(8, 7, 26, 14), 3.0, 1.5, Color::WHITE);
+            c.fill_circle(48.3, 14.7, 7.2, Color::rgb(140, 210, 180));
+            c.text(10, 8, "Wg", Font::regular(14.0), Color::BLACK);
+        };
+        let mut whole = canvas();
+        whole.clear(Color::rgb(236, 238, 242));
+        scene(&mut whole);
+        for band in [1, 3, 7, 11, 16] {
+            let mut banded = canvas();
+            banded.clear(Color::rgb(236, 238, 242));
+            let mut top = 0;
+            while top < 32 {
+                let rows = band.min(32 - top);
+                banded.push_clip(Rect::new(0, top, 64, rows));
+                scene(&mut banded);
+                banded.pop_clip();
+                top += rows;
+            }
+            for y in 0..32 {
+                for x in 0..64 {
+                    assert_eq!(
+                        pixel(&banded, x, y),
+                        pixel(&whole, x, y),
+                        "bands {band} rows deep at ({x}, {y})"
+                    );
+                }
+            }
+        }
+    }
+}

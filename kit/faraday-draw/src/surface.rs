@@ -9,9 +9,9 @@ use tiny_skia::{FillRule, Paint, PixmapMut, PremultipliedColorU8, Stroke, Transf
 use super::{div255, outside, skia_rect, yuv_to_rgb};
 use faraday_tokens::palette::Color;
 
-use crate::skia::ToSkia;
 use crate::fonts::Coverage;
 use crate::geom::Rect;
+use crate::skia::ToSkia;
 
 /// A run of whole rows of the canvas, `y0` the canvas row of the first.
 /// Coordinates a call is given are the canvas's; a surface turns them

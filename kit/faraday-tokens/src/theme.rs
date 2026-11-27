@@ -116,7 +116,6 @@ impl Theme {
 }
 
 impl ThemeName {
-
     /// The theme a settings file's `theme=` word names.
     pub fn from_id(id: &str) -> Option<ThemeName> {
         ThemeName::ALL.into_iter().find(|t| t.id() == id)
@@ -124,7 +123,6 @@ impl ThemeName {
 }
 
 impl Mode {
-
     /// The word a settings file writes it as (`mode=`).
     pub fn id(self) -> &'static str {
         match self {
@@ -140,7 +138,6 @@ impl Mode {
 }
 
 impl Contrast {
-
     /// The word a settings file writes it as (`contrast=`).
     pub fn id(self) -> &'static str {
         match self {
@@ -257,5 +254,47 @@ impl Theme {
             self.mode.id(),
             self.contrast.id()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A stored theme id opens in the scheme THEMES §13 maps it to.
+    #[test]
+    fn each_old_theme_opens_in_its_new_scheme() {
+        use Contrast::{High, Standard};
+        use Mode::{Dark, Light};
+        let cases = [
+            ("dark", ThemeName::Cobalt, Dark, Standard),
+            ("light", ThemeName::Cobalt, Light, Standard),
+            ("cobalt", ThemeName::Cobalt, Light, Standard),
+            ("nord", ThemeName::Frost, Dark, Standard),
+            ("catppuccin", ThemeName::Lavender, Dark, Standard),
+            ("tokyo-night", ThemeName::Dusk, Dark, Standard),
+            ("gruvbox", ThemeName::Lamplight, Dark, Standard),
+            ("rose-pine", ThemeName::Rose, Light, Standard),
+            ("bitcoin-orange", ThemeName::BitcoinOrange, Dark, Standard),
+            (
+                "bitcoin-orange-light",
+                ThemeName::BitcoinOrange,
+                Light,
+                Standard,
+            ),
+            ("lamplight", ThemeName::Lamplight, Light, Standard),
+            ("mars", ThemeName::Mars, Dark, Standard),
+            ("high-contrast-dark", ThemeName::Monochrome, Dark, High),
+            ("high-contrast-light", ThemeName::Cobalt, Light, High),
+            ("forest", ThemeName::Forest, Light, Standard),
+        ];
+        for (id, name, mode, contrast) in cases {
+            assert_eq!(
+                Theme::from_stored(id),
+                Some(Theme::new(name, mode, contrast)),
+                "{id}"
+            );
+        }
+        assert_eq!(Theme::from_stored("solarized"), None);
     }
 }

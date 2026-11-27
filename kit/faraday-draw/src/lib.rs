@@ -16,6 +16,9 @@ mod skia;
 pub mod text;
 
 pub use canvas::{BlendBand, Canvas};
+#[cfg(test)]
+pub(crate) use faraday_tokens::dims as tokens;
+pub use faraday_tokens::motion::{Easing, EasingPath};
 pub use faraday_tokens::palette::Color;
 pub use geom::{Dp, Edges, Point, Rect, Scale, Size, SizeClass};
 pub use text::{Font, TextAlign};

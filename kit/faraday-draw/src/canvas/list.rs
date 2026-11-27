@@ -488,3 +488,414 @@ impl Canvas {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Color;
+    use crate::icons::Icon;
+    use crate::text::Font;
+    use faraday_port::values::{Display, Orientation};
+
+    fn canvas() -> Canvas {
+        Canvas::new(&Display {
+            width: 200,
+            height: 160,
+            dpi: 160,
+            orientation: Orientation::Portrait,
+            rotation_offered: None,
+            external: false,
+            preview: None,
+        })
+    }
+
+    /// Every painting call, under several clips, drawn twice over.
+    fn scene(c: &mut Canvas) -> i32 {
+        let ink = Color::rgb(30, 90, 200);
+        let glass = Color::rgb(250, 250, 250).with_alpha(120);
+        c.clear(Color::rgb(240, 236, 230));
+        c.fill_rect(Rect::new(4, 4, 90, 40), ink);
+        c.fill_rect(Rect::new(10, 10, 300, 30), glass);
+        c.fill_rounded_rect(Rect::new(20, 50, 100, 60), 14.0, ink);
+        c.fill_rounded_rect(Rect::new(30, 60, 80, 40), 10.0, glass);
+        c.fill_rounded_rect(Rect::new(0, 0, 60, 300), 20.0, ink);
+        c.stroke_rounded_rect(Rect::new(130, 20, 60, 50), 12.0, 2.0, ink);
+        c.line(5.0, 150.0, 190.0, 120.0, 3.0, ink);
+        c.stroke_closed(&[(120.0, 90.0), (180.0, 100.0), (150.0, 140.0)], 2.5, ink);
+        c.fill_circle(160.0, 120.0, 12.0, glass);
+        c.fill_circle(40.0, 130.0, 9.5, ink);
+        let tri: &[(f32, f32)] = &[(100.0, 100.0), (118.0, 100.0), (109.0, 118.0)];
+        let sq: &[(f32, f32)] = &[
+            (104.0, 104.0),
+            (104.0, 108.0),
+            (108.0, 108.0),
+            (108.0, 104.0),
+        ];
+        c.fill_contours(&[tri, sq], ink);
+        let key = ShapeKey::new(7, 50.0, 20.0, 1.0);
+        let mark = || alloc::vec![alloc::vec![(50.0, 20.0), (80.0, 24.0), (60.0, 40.5)]];
+        c.fill_kept(key, mark, ink);
+        c.fill_kept(key, mark, glass);
+        c.fill_cells((140, 80), (9, 3), |x, y| (x * 3 + y * 5) % 4 == 0, ink);
+        c.shadow(
+            Rect::new(60, 60, 50, 30),
+            8.0,
+            10.0,
+            1.0,
+            4,
+            Color::BLACK.with_alpha(80),
+        );
+        c.elevation(Rect::new(20, 20, 40, 20), 6.0, 3, 1.0);
+        let luma: alloc::vec::Vec<u8> = (0..24 * 16).map(|i| (i % 251) as u8).collect();
+        let chroma: alloc::vec::Vec<u8> = (0..12 * 8 * 2).map(|i| (i * 7 % 256) as u8).collect();
+        c.luma(Rect::new(110, 5, 60, 40), 24, 16, &luma, Some(&chroma));
+        c.luma(Rect::new(110, 50, 30, 20), 24, 16, &luma, None);
+        c.push_clip(Rect::new(15, 35, 120, 70));
+        c.fill_rounded_rect(Rect::new(10, 30, 130, 80), 16.0, glass);
+        c.fill_circle(60.0, 70.0, 20.0, ink);
+        c.stroke_rounded_rect(Rect::new(10, 30, 130, 80), 16.0, 3.0, ink);
+        c.push_clip(Rect::new(40, 50, 40, 40));
+        c.fill_rect(Rect::new(0, 0, 200, 160), glass);
+        c.line(0.0, 60.0, 120.0, 90.0, 2.0, ink);
+        c.pop_clip();
+        let w = c.text(20, 36, "Wallets and files", Font::regular(14.0), ink);
+        c.pop_clip();
+        c.icon(Rect::new(150, 130, 24, 24), Icon::Scan, 24.0, ink);
+        let w = w + c.text(8, 100, "Recorded", Font::regular(14.0), ink);
+        c.text_wrapped(
+            Rect::new(70, 100, 60, 50),
+            "a few words wrapped inside a narrow box",
+            Font::regular(14.0),
+            ink,
+            crate::text::TextAlign::Start,
+        );
+        c.push_clip(Rect::new(0, 100, 200, 40));
+        c.shift(Rect::new(0, 100, 200, 40), -7);
+        c.pop_clip();
+        c.frost(4, 3, Color::rgb(255, 255, 255).with_alpha(60));
+        c.fill_rect(Rect::new(0, 0, 40, 40), ink);
+        w
+    }
+
+    /// Invariant: A scene recorded and then replayed has the pixels of the same scene drawn at once.
+    /// Regression: Replaying the recorded calls paints in another order or drops a call.
+    /// Owner: kit
+    #[test]
+    fn a_scene_recorded_then_replayed_is_the_scene_drawn() {
+        let mut direct = canvas();
+        let wide = scene(&mut direct);
+        let mut recorded = canvas();
+        recorded.record_calls(true);
+        let same_width = scene(&mut recorded);
+        let (calls, barriers) = recorded.waiting();
+        assert!(
+            calls > 20 && barriers == 2,
+            "{calls} calls, {barriers} barriers"
+        );
+        recorded.replay();
+        assert_eq!(recorded.waiting(), (0, 0));
+        assert_eq!(wide, same_width);
+        assert!(direct.pixels().rgba == recorded.pixels().rgba);
+        assert_eq!(direct.lines_drawn(), recorded.lines_drawn());
+    }
+
+    /// Invariant: A scene recorded a second time into the same list paints the same pixels.
+    /// Regression: The list keeps state from the first frame that changes the second.
+    /// Owner: kit
+    #[test]
+    fn a_scene_recorded_again_paints_the_same_pixels() {
+        let mut direct = canvas();
+        scene(&mut direct);
+        let mut recorded = canvas();
+        recorded.record_calls(true);
+        for _ in 0..2 {
+            scene(&mut recorded);
+            recorded.replay();
+        }
+        assert!(direct.pixels().rgba == recorded.pixels().rgba);
+    }
+
+    /// Invariant: A call that reads the canvas has everything recorded before it painted first.
+    /// Regression: A blur reads the canvas before the calls waiting for it are painted.
+    /// Owner: kit
+    #[test]
+    fn a_call_that_reads_the_canvas_paints_what_waits_first() {
+        let ink = Color::rgb(30, 90, 200);
+        let mut direct = canvas();
+        direct.fill_rect(Rect::new(10, 10, 50, 50), ink);
+        let kept = direct.snapshot();
+        direct.fill_circle(40.0, 40.0, 10.0, Color::BLACK);
+        direct.restore(&kept);
+        let mut recorded = canvas();
+        recorded.record_calls(true);
+        recorded.fill_rect(Rect::new(10, 10, 50, 50), ink);
+        let at = recorded.snapshot();
+        assert_eq!(recorded.waiting(), (0, 0));
+        recorded.fill_circle(40.0, 40.0, 10.0, Color::BLACK);
+        assert_eq!(recorded.waiting().0, 1);
+        recorded.restore(&at);
+        assert_eq!(recorded.waiting(), (0, 0));
+        assert!(direct.pixels().rgba == recorded.pixels().rgba);
+    }
+
+    /// Paints the waiting list in `n` bands, one after the other.
+    fn replay_in(c: &mut Canvas, n: usize) {
+        c.replay_banded(n, &mut |bands| {
+            for b in bands {
+                b.paint();
+            }
+        });
+    }
+
+    /// Invariant: A scene painted in bands has the pixels of the scene painted whole.
+    /// Regression: Painting by band changes a pixel at a band's edge.
+    /// Owner: kit
+    #[test]
+    fn a_scene_painted_in_bands_is_the_scene_drawn() {
+        let mut direct = canvas();
+        let wide = scene(&mut direct);
+        for n in [1, 2, 3, 4, 5, 7, 11, 160] {
+            let mut banded = canvas();
+            banded.record_calls(true);
+            let same_width = scene(&mut banded);
+            replay_in(&mut banded, n);
+            assert_eq!(banded.waiting(), (0, 0));
+            assert_eq!(wide, same_width);
+            let (a, b) = (direct.pixels().rgba.to_vec(), banded.pixels().rgba.to_vec());
+            if let Some(i) = (0..a.len()).find(|&i| a[i] != b[i]) {
+                let bad = (0..a.len()).filter(|&i| a[i] != b[i]).count();
+                panic!(
+                    "{n} bands differ at x {} y {}, {bad} bytes",
+                    i / 4 % 200,
+                    i / 800
+                );
+            }
+        }
+    }
+
+    /// Invariant: A path that crosses a band's edge is painted whole in both bands.
+    /// Regression: A path crossing a band's edge loses its pixels in one of the bands.
+    /// Owner: kit
+    #[test]
+    fn a_path_across_a_band_edge_is_painted_whole() {
+        let ink = Color::rgb(30, 90, 200);
+        let draw = |c: &mut Canvas| {
+            c.clear(Color::rgb(240, 236, 230));
+            // Edges of two to eleven bands run through each of these.
+            c.fill_rounded_rect(Rect::new(10, 10, 60, 140), 18.0, ink);
+            c.stroke_rounded_rect(Rect::new(80, 5, 50, 150), 14.0, 1.0, ink);
+            c.stroke_rounded_rect(Rect::new(80, 5, 50, 150), 14.0, 2.5, ink);
+            c.fill_circle(150.5, 80.25, 30.0, ink);
+            c.fill_circle(30.0, 5.0, 12.0, ink);
+            c.line(5.0, 3.0, 190.0, 157.0, 0.5, ink);
+            c.line(5.0, 3.0, 190.0, 157.0, 1.0, ink);
+            c.line(100.0, 0.0, 100.0, 160.0, 4.0, ink);
+            c.line(0.0, 80.0, 200.0, 80.0, 2.0, ink);
+            c.line(20.0, 20.0, 60.0, 30.0, 3.0, ink);
+            // Thin strokes inside a band that is not the first, moved by
+            // whole rows to be drawn there.
+            for (i, w) in [0.2, 0.5, 1.0, 1.0, 1.5].into_iter().enumerate() {
+                let y = 100.3 + 9.7 * i as f32;
+                c.line(10.3, y, 70.6, y + 4.9, w, ink);
+                c.stroke_closed(&[(120.4, y), (180.1, y + 3.3), (150.5, y + 8.0)], w, ink);
+            }
+            c.stroke_closed(&[(110.0, 10.0), (190.0, 70.0), (120.0, 150.0)], 1.0, ink);
+        };
+        let mut direct = canvas();
+        draw(&mut direct);
+        for n in [2, 3, 4, 6, 9, 16] {
+            let mut banded = canvas();
+            banded.record_calls(true);
+            draw(&mut banded);
+            replay_in(&mut banded, n);
+            assert!(
+                direct.pixels().rgba == banded.pixels().rgba,
+                "{n} bands differ"
+            );
+        }
+    }
+
+    /// Invariant: More distinct shapes than the shape cache holds still all draw.
+    /// Regression: A full shape cache refuses a new shape or draws it blank.
+    /// Owner: kit
+    #[test]
+    fn more_kept_shapes_than_the_cache_holds_still_draw() {
+        let ink = Color::rgb(30, 90, 200);
+        let draw = |c: &mut Canvas| {
+            c.clear(Color::WHITE);
+            for i in 0..50 {
+                let key = ShapeKey::new(100 + i, 10.0, 10.0, 1.0);
+                let (x, y) = ((i % 8) as f32 * 24.0, (i / 8) as f32 * 24.0);
+                let tri = move || {
+                    alloc::vec![alloc::vec![
+                        (x + 2.0, y + 2.0),
+                        (x + 20.0, y + 4.0),
+                        (x + 9.0, y + 20.5)
+                    ]]
+                };
+                c.fill_kept(key, tri, ink);
+            }
+        };
+        let mut direct = canvas();
+        direct.record_calls(true);
+        draw(&mut direct);
+        direct.replay();
+        let mut banded = canvas();
+        banded.record_calls(true);
+        draw(&mut banded);
+        replay_in(&mut banded, 3);
+        assert!(direct.pixels().rgba == banded.pixels().rgba);
+        let mut plain = canvas();
+        draw(&mut plain);
+        assert!(plain.pixels().rgba == banded.pixels().rgba);
+    }
+
+    /// Invariant: Only a blur and a stretch count as calls that wait for the other bands.
+    /// Regression: An ordinary fill is counted as a barrier and the bands lose their parallel painting.
+    /// Owner: kit
+    #[test]
+    fn only_a_blur_and_a_stretch_wait_for_the_other_bands() {
+        let mut c = canvas();
+        c.record_calls(true);
+        let ink = Color::BLACK;
+        c.line(0.0, 10.0, 50.0, 20.0, 2.0, ink);
+        c.line(0.0, 10.0, 50.0, 150.0, 2.0, ink);
+        c.stroke_rounded_rect(Rect::new(10, 10, 80, 100), 30.0, 2.0, ink);
+        c.shift(Rect::new(0, 0, 10, 10), 1);
+        for n in [1, 2, 4] {
+            assert_eq!(c.barriers_in(n), 1);
+        }
+    }
+
+    /// Invariant: A stroked card across a band's edge is painted whole.
+    /// Regression: The stroke of a card is cut at a band's edge.
+    /// Owner: kit
+    #[test]
+    fn a_stroked_card_across_a_band_edge_is_painted_whole() {
+        let mk = || {
+            Canvas::new(&Display {
+                width: 480,
+                height: 640,
+                dpi: 286,
+                orientation: Orientation::Portrait,
+                rotation_offered: None,
+                external: false,
+                preview: None,
+            })
+        };
+        for alpha in [255u8, 120] {
+            let ink = Color::rgb(30, 90, 200).with_alpha(alpha);
+            let draw = |c: &mut Canvas| {
+                c.clear(Color::rgb(240, 236, 230));
+                if alpha == 120 {
+                    c.push_clip(Rect::new(14, 32, 452, 476));
+                }
+                c.stroke_rounded_rect(Rect::new(43, 415, 250, 71), 35.75, 1.7875, ink);
+                c.pop_clip();
+            };
+            let mut d = mk();
+            draw(&mut d);
+            let mut bad = alloc::vec::Vec::new();
+            for n in 2..60 {
+                let mut b = mk();
+                b.record_calls(true);
+                draw(&mut b);
+                replay_in(&mut b, n);
+                let (p, q) = (d.pixels().rgba.to_vec(), b.pixels().rgba.to_vec());
+                let at: alloc::vec::Vec<_> = (0..p.len())
+                    .filter(|&i| p[i] != q[i])
+                    .map(|i| (i / 4 % 480, i / 4 / 480, p[i], q[i]))
+                    .collect();
+                if !at.is_empty() {
+                    bad.push((n, 640 / n, at.len()));
+                }
+            }
+            assert!(bad.is_empty(), "alpha {alpha} {bad:?}");
+        }
+    }
+
+    /// Invariant: Paths across band edges and below the first band are painted whole.
+    /// Regression: A path that starts in a lower band is lost when the bands are painted one after another.
+    /// Owner: kit
+    #[test]
+    fn paths_across_band_edges_and_below_the_first_band_are_painted_whole() {
+        let mk = || {
+            Canvas::new(&Display {
+                width: 480,
+                height: 640,
+                dpi: 286,
+                orientation: Orientation::Portrait,
+                rotation_offered: None,
+                external: false,
+                preview: None,
+            })
+        };
+        let zig: [(f32, f32); 5] = [
+            (30.0, 20.0),
+            (200.0, 60.0),
+            (420.0, 25.0),
+            (330.0, 560.0),
+            (60.0, 600.0),
+        ];
+        let tri: [(f32, f32); 3] = [(300.0, 100.0), (460.0, 130.0), (350.0, 330.0)];
+        for alpha in [255u8, 120] {
+            let ink = Color::rgb(30, 90, 200).with_alpha(alpha);
+            let draw = |c: &mut Canvas| {
+                c.clear(Color::rgb(240, 236, 230));
+                c.push_clip(Rect::new(14, 32, 452, 476));
+                for y in [20, 130, 250, 415] {
+                    c.stroke_rounded_rect(Rect::new(43, y, 250, 71), 35.75, 1.7875, ink);
+                    c.fill_rounded_rect(Rect::new(23, y + 10, 190, 90), 20.0, ink);
+                    c.fill_rounded_rect(Rect::new(210, y, 160, 50), 12.0, ink);
+                    c.fill_circle(340.0, y as f32 + 30.0, 40.0, ink);
+                    c.fill_circle(100.5, y as f32 + 12.25, 9.0, ink);
+                    c.line(5.0, y as f32, 470.0, y as f32 + 33.5, 2.5, ink);
+                }
+                c.line(100.0, 5.0, 130.0, 620.0, 3.0, ink);
+                c.stroke_closed(&zig, 3.0, ink);
+                c.stroke_closed(&tri, 2.0, ink);
+                c.fill_contours(&[&tri[..], &zig[..]], ink);
+                c.pop_clip();
+                c.fill_rounded_rect(Rect::new(30, 100, 400, 480), 36.0, ink);
+            };
+            let mut d = mk();
+            draw(&mut d);
+            let mut bad = alloc::vec::Vec::new();
+            for n in 2..60 {
+                let mut b = mk();
+                b.record_calls(true);
+                draw(&mut b);
+                replay_in(&mut b, n);
+                let differ = d
+                    .pixels()
+                    .rgba
+                    .iter()
+                    .zip(b.pixels().rgba.iter())
+                    .filter(|(p, q)| p != q)
+                    .count();
+                if differ > 0 {
+                    bad.push((n, differ));
+                }
+            }
+            assert!(bad.is_empty(), "alpha {alpha} {bad:?}");
+        }
+    }
+
+    /// Invariant: A band's scratch holds only zeros once the band is painted.
+    /// Regression: A painted band leaves ink in its scratch that shows in the next frame.
+    /// Owner: kit
+    #[test]
+    fn nothing_painted_is_left_behind_in_the_bands_scratch() {
+        let mut c = canvas();
+        c.record_calls(true);
+        c.push_clip(Rect::new(0, 0, 100, 100));
+        c.fill_rounded_rect(Rect::new(5, 5, 90, 300), 20.0, Color::rgb(200, 10, 10));
+        c.stroke_closed(
+            &[(5.0, 5.0), (80.0, 40.0), (20.0, 150.0)],
+            2.0,
+            Color::WHITE,
+        );
+        c.pop_clip();
+        replay_in(&mut c, 4);
+        assert!(c.scratch_is_clear());
+    }
+}
