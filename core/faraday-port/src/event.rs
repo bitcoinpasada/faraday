@@ -125,8 +125,8 @@ pub enum SecureBootAtStart {
     On,
 }
 
-/// The computer's light or dark scheme.
-// Spec: 02 §3.1 leaves this open (its variants).
+/// The computer's light or dark scheme. `Start::scheme` is `None` where the setting says
+/// neither or cannot be read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scheme {
     Light,

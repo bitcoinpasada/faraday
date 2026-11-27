@@ -34,8 +34,8 @@ pub enum Medium {
     Desktop,
 }
 
-/// Faraday Demo's preview of a device's size, and the size chosen.
-// Spec: 02 §3.2 leaves this open (its fields; `main`'s `PreviewOffered` carried `chosen` in dp).
+/// Faraday Demo's preview of a device's size: the size shown, in dp; `None` is the window's
+/// own size.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Preview {
     pub chosen: Option<(u16, u16)>,

@@ -183,7 +183,6 @@ pub enum Failure {
     Os(OsError),
 }
 
-/// The operating system's own error code.
-// Spec: 02 §7.2 leaves this open (the type of `OsError`).
+/// The operating system's own error code, as `std::io::Error::raw_os_error` gives it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OsError(pub i32);

@@ -9,8 +9,9 @@ pub struct Rect {
     pub h: i32,
 }
 
-/// A band moved vertically since the last frame (a scroll).
-// Spec: 02 §5 leaves this open (its fields).
+/// A band moved vertically since the last frame (a scroll): the rows the adapter last took
+/// inside `band` now stand `dy` rows lower (higher for a negative `dy`), but for the rows the
+/// move brought into view, which the frame painted. An adapter that ignores it is right.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Moved {
     pub band: Rect,

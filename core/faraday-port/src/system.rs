@@ -1,9 +1,8 @@
 //! The Starter's operating system: its asks, answers and value types (02 §4.10). `main`'s
 //! `StarterCommand` and `StarterEvent` value types, with `String` as `Text`.
-// Spec: 02 §4.10 says "typed as they are on main" and does not list the variants of
-// `SystemAnswer`; each answer's name and payload here follows `main`'s `StarterEvent`.
 
 use alloc::vec::Vec;
+use core::fmt;
 
 use faraday_text::{SecretText, Text};
 
@@ -53,12 +52,18 @@ pub struct BitLocker {
     pub starts_left: Option<u32>,
 }
 
-/// A BitLocker recovery key. The app checks its shape.
-// Spec: 02 §4.10 leaves this open (`main`'s has private fields and its own checks).
+/// A BitLocker recovery key. The app checks its shape (P25); the port holds no check (P6).
 pub struct RecoveryKey {
     pub drive: Text,
     pub id: Text,
     pub key: SecretText,
+}
+
+impl fmt::Debug for RecoveryKey {
+    /// Names the drive only (P16).
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -172,9 +177,66 @@ pub enum StickFault {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReleaseFault {
     Image,
-    // Spec: 02 §4.10 leaves this open: `main`'s holds `faraday_fat::Error`, which the port
-    // cannot name (P5).
-    Fat(Text),
+    Fat(FatFault),
+}
+
+/// The port's copy of `faraday_fat::Error`, variant for variant (the port does not depend on
+/// `faraday-fat`, P5); the Starter's adapter maps one to the other.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FatFault {
+    Io,
+    NotFat(FatBoot),
+    Fat12,
+    Corrupt(FatCorrupt),
+    NotFound,
+    Exists,
+    Full,
+    DirFull,
+    Name(FatName),
+    TooLarge,
+}
+
+/// `faraday_fat::Boot`: what in a boot sector is not FAT's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FatBoot {
+    Signature,
+    SectorSize,
+    ClusterSize,
+    NoFat,
+    EmptyFat,
+    FatsLarger,
+    TooManyClusters,
+    Fat32Root,
+    Fat16Clusters,
+    Fat16NoRoot,
+    VolumeLarger,
+    FatSmall,
+    RootOutside,
+}
+
+/// `faraday_fat::Fault`: how the filesystem contradicts itself.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FatCorrupt {
+    ClusterNumber,
+    ClusterOutside,
+    Loop,
+    TopFolderLong,
+    FolderLong,
+    FileLonger,
+    EmptyRoot,
+    Unwritten,
+    SharedCluster,
+    FreeEnd,
+    HiddenEntries,
+}
+
+/// `faraday_fat::BadName`: a name FAT cannot hold.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FatName {
+    Empty,
+    Long,
+    Ending,
+    Character,
 }
 
 /// Why a system ask failed.
@@ -297,6 +359,8 @@ pub enum Reason {
     BootSum {
         sha256: Text,
     },
+    /// P9: the wrong answer for the ask.
+    Adapter,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -422,10 +486,27 @@ pub enum SystemAsk {
     PrepareDemoSticks,
 }
 
+/// An uninstall that ended: where the firmware's boot entry was left in place, why.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Uninstalled {
+    pub boot_entry_kept: Option<Reason>,
+}
+
+/// What `ReadVersion` read of a stick.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Version {
+    /// The release on its boot partition (`None` for a stick made before Faraday put one there)
+    /// and that partition's SHA-256 when it could be read; or why not.
+    pub result: Result<(Option<Text>, Option<Text>), Reason>,
+    /// Asked with a release: whether a partition that is not the release's is it with a boot
+    /// file the person signed; `None` when it is the release's or was not judged.
+    pub signed: Option<bool>,
+}
+
 pub enum SystemAnswer {
     WriteStick(Result<(), Reason>),
     Install(Result<Text, Reason>),
-    Uninstall(Result<(), Reason>),
+    Uninstall(Result<Uninstalled, Reason>),
     RemoveBootEntry(Result<(), Reason>),
     RestartIntoFirmware(Result<(), Reason>),
     RestartFromStick(Result<(), Reason>),
@@ -439,8 +520,7 @@ pub enum SystemAnswer {
         disk: Text,
         serial: Text,
         size: u64,
-        result: Result<(Option<Text>, Option<Text>), Reason>,
-        signed: Option<bool>,
+        version: Version,
     },
     BootFiles {
         folder: Text,
@@ -472,7 +552,7 @@ pub struct Install;
 request!(Install => Result<Text, Reason>);
 
 pub struct Uninstall;
-request!(Uninstall => Result<(), Reason>);
+request!(Uninstall => Result<Uninstalled, Reason>);
 
 pub struct RemoveBootEntry;
 request!(RemoveBootEntry => Result<(), Reason>);
@@ -500,7 +580,7 @@ pub struct ReadVersion {
     pub size: u64,
     pub source: Option<Source>,
 }
-request!(ReadVersion => Result<(Option<Text>, Option<Text>), Reason>);
+request!(ReadVersion => Version);
 
 pub struct ListBootFiles;
 request!(ListBootFiles => (Text, Vec<Text>));
