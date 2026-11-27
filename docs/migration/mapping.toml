@@ -211,13 +211,24 @@ changed = [
 main = "faraday/faraday-keys"
 fate = "copy"
 next = ["core/faraday-keys"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the dependency paths to `core/`'s layout; `faraday-forms` and `faraday-intake` removed",
+    "`src/refusal.rs` added: `Refusal`, moved from `faraday-intake`'s `wallet` module without its `text()` (the application maps it to wording) and exported from `lib.rs` (01 §2.3)",
+    "`src/identity.rs`: `Makes` defined here, returned by `Material::makes` in place of `faraday-forms`' (01 §2.3); `src/lib.rs` exports it",
+    "`src/{codex32,job,seed_check,session,xprv,vault/mod}.rs`: `faraday_intake::wallet::Refusal` is `crate::Refusal`",
+    "`src/{core_wallet,hsm_secret,job,lightning,vault/mod,vault/reveals}.rs`, `tests/{core_wallet,hsm_secret,operations,slip39_set,vault,vault_keyed}.rs`: `faraday_intake::secret_buf::SecretText` is `faraday_text::secret::SecretText`; `src/{texts,operations}.rs`: `faraday_intake::ROOM` is `faraday_text::secret::ROOM`",
+    "`src/vault/tests.rs`, `tests/{codex32,core_wallet,hsm_secret,operations,round_trips,saved_identity,slip39_set,split_facts,vault,vault_keyed,xprv_read}.rs`: `Compute::new(closure)` is `Compute::new(Hooks { count, stop, progress })` with the same counting function, under the same `#[expect]` (05 §5.2)",
+]
 
 [[module]]
 main = "faraday/faraday-vault"
 fate = "copy"
 next = ["core/faraday-vault"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the dependency paths to `core/`'s layout; `faraday-intake` removed; the alloc-count path to `tools/faraday-alloc-count`",
+    "`src/{contents,contents/tree}.rs`: `faraday_intake::secret_buf::SecretText` is `faraday_text::secret::SecretText`; `src/entries.rs`: `faraday_intake::is_otpauth` is `faraday_codec::otpauth::is_otpauth` (01 §2.3)",
+    "`src/tests.rs`, `tests/{attachments,file,kdbx,kdbx_items,kdbx_xml,keyed,keyfile_write,reader_memory,sizes}.rs`, `examples/{argon2_bench,large,vectors}.rs`: `Compute::new(closure)` is `Compute::new(Hooks { count, stop, progress })` with the same counting function, under the same `#[expect]` (05 §5.2)",
+]
 
 [[module]]
 main = "faraday/faraday-pgp"

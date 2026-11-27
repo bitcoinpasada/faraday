@@ -1,19 +1,77 @@
-//! The domain crate `faraday-keys`: Faraday's own code, copied from `main` in a later step.
-//! Everything a crate of the domain may do is in `docs/spec/01-layers.md` section 2.
+//! Where Faraday's key material is held and used (`docs/KEYS.md`, F70).
+//!
+//! - **Held.** [`Keys`] holds the session's keys (words, passphrase,
+//!   master key) and [`vault::OpenVaults`] the open vaults' slot keys and
+//!   decrypted records, in private fields. Callers address a key by its
+//!   place and a record by its vault and index, and read public values.
+//! - **Used.** Every operation on a secret is here: signing
+//!   ([`psbt`], [`message`]), derivation and key texts ([`texts`],
+//!   [`identity`]), [`bip85`], [`lightning`], [`silent`],
+//!   [`vanity`], a private key swept ([`sweep`]), paper forms ([`operations`], and [`codex32`], the work
+//!   set of a codex32 set being made), [`gpg`],
+//!   [`secure_boot`], [`totp`], and seed words made into a `Mnemonic` ([`words`]). Each gives back a
+//!   public result. The flow around each (state, sheets, toasts, the
+//!   Outbox, strings) stays in faraday-core.
+//! - **Leaving.** A secret leaves only for a [`Reveal`] reason, lent as
+//!   [`Revealed`] or held as [`Held`], neither `Clone` nor `Debug`, wiped
+//!   when dropped. Types that hold a secret ([`silent::Receiver`],
+//!   [`lightning::Node`], [`vault::MadeKey`]) give public values, and their secret only for a
+//!   reason.
+//! - **Held to.** `tools/lint-secrets.sh` rule 4 refuses key material and
+//!   the primitive crates' secret-taking functions anywhere else under
+//!   `faraday/`.
+//!
+//! This crate does not depend on faraday-core.
+//!
+//! Copies and text-making calls are refused (clippy.toml), beside
+//! faraday/clippy.toml's cost-token entries: every source file turns the
+//! refusal on with its own
+//! `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`, and a copy of
+//! non-secret data carries `#[expect(clippy::disallowed_methods, reason = ...)]`.
+//! Test code (`#[cfg(test)]` and `tests/`) has both off; the costs lint still
+//! refuses `Compute::unchecked` and a mint outside its list there.
+#![allow(clippy::disallowed_methods)]
 
-// Placeholder until the domain copy: `main`'s `faraday/faraday-keys/src/session.rs`.
-pub struct Keys(());
+pub mod bip85;
+pub mod codex32;
+pub mod core_wallet;
+pub mod gpg;
+pub mod hsm_node;
+pub mod hsm_secret;
+pub mod identity;
+pub mod job;
+pub mod kef;
+pub mod lightning;
+pub mod message;
+pub mod operations;
+pub mod parts;
+pub mod psbt;
+pub mod published;
+pub mod refusal;
+pub mod secure_boot;
+pub mod seed_check;
+pub mod session;
+pub mod silent;
+pub mod slip39_set;
+pub mod sweep;
+pub mod texts;
+pub mod totp;
+pub mod vanity;
+pub mod vault;
+pub mod words;
+pub mod xprv;
 
-// Placeholder until the domain copy: 09 §2.1 says `faraday-keys` gains `Refusal`; `main` has
-// several refusals in its modules.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Refusal {}
-
-pub mod vault {
-    // Placeholder until the domain copy: `main`'s `faraday/faraday-keys/src/vault/mod.rs`.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct VaultId(u32);
-
-    // Placeholder until the domain copy: `main`'s `faraday/faraday-keys/src/vault/mod.rs`.
-    pub struct OpenVaults(());
-}
+pub use codex32::{Making, StringCheck, WorkSet};
+pub use identity::{Makes, Material, fingerprint, fp_text};
+pub use operations::{
+    Convert, Dial, Paper, codex32_random_len, codex32_seed, seed_xor_random_len, slip39_random_len,
+    slip39_seed,
+};
+pub use parts::UnlockParts;
+pub use refusal::Refusal;
+pub use seed_check::CheckFacts;
+pub use session::{
+    CopyCheck, Handout, Held, Infos, KEY_TEXTS_KEPT, KeyId, KeyInfo, Keys, Part, Reveal, Revealed,
+    WordsId, compare_words, words_id,
+};
+pub use texts::Spec;

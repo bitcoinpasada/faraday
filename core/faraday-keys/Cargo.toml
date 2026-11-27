@@ -1,22 +1,48 @@
 [package]
 name = "faraday-keys"
-version = "0.0.0"
+version = "0.2.0"
+description = "Where Faraday's key material is held and used: the session's keys, the open vaults, every operation on them, and the fifteen reasons a secret leaves (docs/KEYS.md)"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }
-faraday-codec = { path = "../faraday-codec" }
-faraday-crypto = { path = "../faraday-crypto" }
-faraday-entropy = { path = "../faraday-entropy" }
-faraday-kef = { path = "../faraday-kef" }
-faraday-pgp = { path = "../faraday-pgp" }
 faraday-psbt = { path = "../faraday-psbt" }
+faraday-entropy = { path = "../faraday-entropy" }
+faraday-crypto = { path = "../faraday-crypto" }
+faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
+faraday-vault = { path = "../faraday-vault" }
+faraday-codec = { path = "../faraday-codec", default-features = false }
+# Krux's encrypted code, sealed and opened as a job (docs/KEF.md).
+faraday-kef = { path = "../faraday-kef" }
 faraday-strings = { path = "../faraday-strings" }
 faraday-text = { path = "../faraday-text" }
-faraday-vault = { path = "../faraday-vault" }
+zeroize = { workspace = true, features = ["alloc"] }
+# Core Lightning's encrypted hsm_secret (docs/deps/poly1305.md): Argon2id,
+# then libsodium's secretstream over ChaCha20 (with HChaCha20) and Poly1305.
+argon2 = { workspace = true }
+chacha20 = { workspace = true, features = ["xchacha"] }
+poly1305 = { workspace = true }
+subtle.workspace = true
+# Bitcoin Core's wallet keys (F229): AES-256 in CBC, over the `aes` the tree holds.
+aes = { workspace = true }
+cbc = { version = "0.2", default-features = false, features = ["zeroize"] }
+
+[features]
+# `Keys::master_for_tests`: a key's master key, for the tests that check a
+# public result against the one they derive themselves. Turned on by
+# faraday-core's dev-dependency only; `tools/lint-keys-tests.sh` fails if a
+# shipped binary has it.
+master-for-tests = []
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["std"] }
+proptest.workspace = true
+bip39.workspace = true
 
 [lints]
 workspace = true
