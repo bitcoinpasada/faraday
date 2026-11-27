@@ -18,6 +18,7 @@ mod update;
 
 use faraday_kernel::Public;
 
+pub use faraday_present::Pressed;
 pub use model::{Body, Over};
 pub use msg::{AppPress, Msg, Press};
 pub use root::{Device, MODES, NoOptions};

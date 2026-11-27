@@ -543,4 +543,18 @@ mod tests {
         );
         assert!(parse_from(&args(&["--sizee", "1x1"])).is_err());
     }
+
+    /// Invariant: Every tour written so far runs to its end at a small size with no pictures, the screens check run on each of its frames.
+    /// Regression: A tour stops early on a press its frame no longer offers, or a frame fails the screens check, and nothing says so until a person renders it.
+    /// Owner: root
+    #[test]
+    fn the_tours_written_run_to_their_end() {
+        let command = parse_from(&[]).expect("the default command line");
+        // Home and the Power sheet (06 §8). Each tour joins this list when it is written; the
+        // rest of the table is still its `todo!()` bodies.
+        for name in ["default", "power"] {
+            let played = play(&command, Some(name), (480, 640), 286, None, false);
+            assert!(played.is_ok(), "{name}: {:?}", played.err());
+        }
+    }
 }

@@ -283,6 +283,7 @@ impl<R: Root> Runtime<R> {
             &frame.pointer,
             frame.ink,
         );
+        ui.size_class();
         root.frame(&lent_tops, &view, &show, &mut ui);
         let out = ui.finish();
 

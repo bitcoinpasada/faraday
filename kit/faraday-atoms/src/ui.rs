@@ -248,6 +248,19 @@ impl<'f, A: Pressed> Ui<'f, A> {
         }
     }
 
+    /// Takes the window's class from the canvas: a window under `WINDOW_MEDIUM` dp wide is
+    /// compact, and its touch floor is `dims::touch`'s for it. The root's frame calls it once
+    /// before it draws.
+    pub fn size_class(&mut self) {
+        let factor = self.c.scale().factor().max(f32::EPSILON);
+        let window = faraday_tokens::dims::Window {
+            width: self.c.width() as f32 / factor,
+            height: self.c.height() as f32 / factor,
+        };
+        self.compact = window.class() == faraday_tokens::dims::WindowClass::Compact;
+        self.touch = faraday_tokens::dims::touch(window);
+    }
+
     /// A child page draws here; its presses are lifted to this one's.
     pub fn within<B: Pressed>(&mut self, lift: fn(B) -> A, f: impl FnOnce(&mut Ui<'_, B>)) {
         let child_edit = self.edit_for_child();

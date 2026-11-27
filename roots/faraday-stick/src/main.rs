@@ -1,6 +1,8 @@
 //! The device app's root: the command line, the stick and storage adapters, and the loop of
 //! 02 §1 (09 §7).
 
+#[cfg(test)]
+mod journey;
 mod options;
 
 use std::process::ExitCode;
