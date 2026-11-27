@@ -1,5 +1,5 @@
 # The check. Recipes for tests and the lints come with the code they check.
-default: check clippy fmt deny vet lint
+default: check clippy fmt deny vet test lint
 
 check:
     cargo check --workspace --all-targets --locked
@@ -9,6 +9,10 @@ clippy:
 
 fmt:
     cargo fmt --all --check
+
+# Every test of the workspace, each run to its end (07 TS21).
+test:
+    cargo nextest run --workspace --locked --no-fail-fast
 
 # Advisories, licences, duplicates and sources, against deny.toml.
 deny:
