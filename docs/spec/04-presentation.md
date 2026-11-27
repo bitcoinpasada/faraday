@@ -560,6 +560,10 @@ pub enum Turn { Page, Step }
   `features/flow-container.md`), so Back lands where the person was. A sheet therefore opens at
   its top each time. Held by the runtime's store and a runtime test that Back lands where the
   person was.
+- **Built.** `Ui` holds the frame's time (`set_now_ms`, set by the runtime where it builds the
+  `Ui`); `Ui::hold_fraction`, `Ui::shown_fraction` and the overlay scrollbar's fade read the
+  store with it, and `Pointer` carries the press under the pointer and the press pressed
+  (`Ui::is_hovered`, `Ui::is_pressed`). `FrameOut` carries the tooltip anchors the template left.
 - Scrolling is motion, not state: a wheel notch, a pan, a flick and the stretch are handled by the
   runtime against the last frame's `regions`, change the store and send no message (inventory
   `features/motion.md`: slop, coast, notch, Reduce motion). Reason: a pan is up to 60 events a

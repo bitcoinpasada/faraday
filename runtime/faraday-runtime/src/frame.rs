@@ -66,6 +66,8 @@ impl<R: Root> Painted<R> {
                 at: None,
                 down: false,
                 focused: None,
+                hovered: None,
+                pressed: None,
             },
             down: None,
             wanted: false,
@@ -275,6 +277,11 @@ impl<R: Root> Runtime<R> {
         let mut canvas = Canvas::new(&facts.facts.display);
         // The kit's `Theme` is mapped from `Settings::appearance` (04 §12.2) once the kit holds
         // the scheme table; until then every frame is drawn in its default.
+        // The press under the pointer and the press a button or a finger is down on, from the
+        // frame seen: what a control asks to draw its hovered and pressed state (04 §7.1).
+        let under = frame.pointer.at.and_then(|at| frame.hit_at(at));
+        frame.pointer.pressed = frame.down.clone();
+        frame.pointer.hovered = if frame.pointer.down { None } else { under };
         let mut ui = Ui::new(
             &mut canvas,
             Theme::default(),
@@ -283,6 +290,7 @@ impl<R: Root> Runtime<R> {
             &frame.pointer,
             frame.ink,
         );
+        ui.set_now_ms(clock.now_ms);
         ui.size_class();
         root.frame(&lent_tops, &view, &show, &mut ui);
         let out = ui.finish();

@@ -11,6 +11,7 @@ use crate::hits::Shape;
 use crate::offered::Offered;
 use crate::shown::Shown;
 use crate::ui::{Ui, W};
+use faraday_port::values::Anchor;
 use faraday_tokens::dims::shape_full;
 use faraday_tokens::dims::{
     BUTTON_H, BUTTON_PAD, BUTTON_PAD_V, DISABLED_CONTAINER, DISABLED_CONTENT, LABEL_L,
@@ -52,17 +53,19 @@ impl HoldTone {
 pub struct HoldModel<'s, A> {
     pub label: Shown<'s>,
     pub tone: HoldTone,
-    /// How much of it is filled, 0 to 1: the motion store's `Motion::Hold`, worked out by the
-    /// runtime from its time.
-    pub held: f32,
+    /// The hold's place in the motion store (K10): the page's anchor and this make its
+    /// `Motion::Hold`, which fills it while its press is held.
+    pub id: Anchor,
     pub offered: Offered<A>,
 }
 
 /// Draws the hold at (x, y), as wide as its label and no wider than `room`. Returns its width.
 pub fn draw<A: Pressed>(m: &HoldModel<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
     ui.showing(&m.label, |ui| {
-        ui.offered(&m.offered, |ui, press, _| {
-            ui.hold_button(at, (m.label.as_str(), m.tone), m.held, press)
+        ui.offered(&m.offered, |ui, press, dimmed| {
+            let down = !dimmed && press.as_ref().is_some_and(|p| ui.is_pressed(p));
+            let held = ui.hold_fraction(m.id, down);
+            ui.hold_button(at, (m.label.as_str(), m.tone), held, press)
         })
     })
 }

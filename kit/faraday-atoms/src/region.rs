@@ -236,8 +236,15 @@ impl<A: Pressed> Ui<'_, A> {
         let into = region.fade.unwrap_or(ground);
         let fade_top = self.layer > 0 || view.y > 0;
         self.edge_fades(view, (max, offset), into, fade_top);
-        if region.shown_bar && !region.own_bar && max > 0.0 {
-            self.scroll_bar(view, max, offset, 255);
+        // The pinned bar is at full strength; the overlay one stays after the content moves and
+        // fades out (04 §8.1), and is not drawn while no entry says it moved.
+        let alpha = if region.shown_bar {
+            255
+        } else {
+            self.bar_alpha_of(region.id)
+        };
+        if !region.own_bar && max > 0.0 && alpha > 0 {
+            self.scroll_bar(view, max, offset, alpha);
         }
         if region.shown_bar && across > 0.0 {
             self.scroll_bar_across(view, across, region.pan, 255);

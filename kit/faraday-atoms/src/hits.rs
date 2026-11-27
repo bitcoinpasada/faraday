@@ -589,6 +589,8 @@ mod tests {
             at: Some(faraday_port::values::Point { x: 160, y: 120 }),
             down: true,
             focused: None,
+            hovered: None,
+            pressed: None,
         };
         let rest = {
             let mut c = canvas(160);

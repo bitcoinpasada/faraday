@@ -426,6 +426,8 @@ mod tests {
                         at: None,
                         down: false,
                         focused: None,
+                        hovered: None,
+                        pressed: None,
                     };
                     let mut ui =
                         Ui::new(&mut c, Theme::default(), 1.0, &mut store, &pointer, false);

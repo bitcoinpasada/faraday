@@ -46,11 +46,14 @@ impl<A: Pressed> Ui<'_, A> {
         // The pointer is over the control's target while a press draws its layer, over the
         // layer's own box otherwise.
         let over = self.over.unwrap_or_else(|| self.pointer_over(x, y, w, h));
-        let opacity = if over && self.down {
+        // Over it by position, or its press is the one the last frame found under the pointer
+        // (a control drawn twice for one press lights in both).
+        let pressed = (over && self.down) || self.is_pressed(action);
+        let opacity = if pressed {
             STATE_PRESS
         } else if self.is_focused(action) {
             STATE_FOCUS
-        } else if over {
+        } else if over || self.is_hovered(action) {
             STATE_HOVER
         } else {
             return;

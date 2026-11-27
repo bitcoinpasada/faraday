@@ -29,6 +29,11 @@ pub struct Pointer<R> {
     pub down: bool,
     /// The press the keyboard is on: ringed, and Enter or Space presses it.
     pub focused: Option<R>,
+    /// The press under the pointer while no button or finger is down: the last frame's top
+    /// hit there.
+    pub hovered: Option<R>,
+    /// The press the button or the finger went down on and is still down on.
+    pub pressed: Option<R>,
 }
 
 /// A face: text, emphasis, or data.
@@ -81,6 +86,12 @@ pub struct Ui<'f, A: Pressed> {
     /// Whether the press given is the one the keyboard is on, as the root's press, through
     /// every lift between here and the root.
     pub(crate) focus: Box<dyn Fn(&A) -> bool + 'f>,
+    /// Whether the press given is the one under the pointer, and whether it is the one pressed,
+    /// through every lift between here and the root.
+    pub(crate) hover: Box<dyn Fn(&A) -> bool + 'f>,
+    pub(crate) press_down: Box<dyn Fn(&A) -> bool + 'f>,
+    /// The frame's time in milliseconds on the runtime's clock (04 §8.1).
+    pub(crate) now_ms: u64,
     /// While a press draws its state layer: whether the pointer is over its target.
     pub(crate) over: Option<bool>,
     /// 0 for the page, then 1 for the lowest sheet over it and up (04 §7.1).
@@ -170,6 +181,11 @@ impl<'f, A: Pressed> Ui<'f, A> {
     ) -> Self {
         let focused = pointer.focused.as_ref();
         let focus: Box<dyn Fn(&A) -> bool + 'f> = Box::new(move |a| focused == Some(a));
+        let hovered = pointer.hovered.as_ref();
+        let pressed = pointer.pressed.as_ref();
+        let hover: Box<dyn Fn(&A) -> bool + 'f> =
+            Box::new(move |a| hovered == Some(a) && pressed != Some(a));
+        let press_down: Box<dyn Fn(&A) -> bool + 'f> = Box::new(move |a| pressed == Some(a));
         let s = canvas.scale();
         let tr = s.type_factor() / s.factor();
         canvas.record_ink(ink);
@@ -185,6 +201,9 @@ impl<'f, A: Pressed> Ui<'f, A> {
             at: pointer.at,
             down: pointer.down,
             focus,
+            hover,
+            press_down,
+            now_ms: 0,
             over: None,
             layer: 0,
             ox: 0.0,
@@ -238,6 +257,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             anchors: self.anchors,
             regions: self.regions,
             laid: self.laid,
+            tips: self.tips,
             secret: self.secret,
             pace: if self.moving {
                 Pace::Moving
@@ -266,6 +286,11 @@ impl<'f, A: Pressed> Ui<'f, A> {
         let child_edit = self.edit_for_child();
         let parent_focus = &self.focus;
         let focus: Box<dyn Fn(&B) -> bool + '_> = Box::new(move |b| parent_focus(&lift(b.clone())));
+        let parent_hover = &self.hover;
+        let hover: Box<dyn Fn(&B) -> bool + '_> = Box::new(move |b| parent_hover(&lift(b.clone())));
+        let parent_down = &self.press_down;
+        let press_down: Box<dyn Fn(&B) -> bool + '_> =
+            Box::new(move |b| parent_down(&lift(b.clone())));
         let mut child: Ui<'_, B> = Ui {
             c: &mut *self.c,
             f: self.f,
@@ -278,6 +303,9 @@ impl<'f, A: Pressed> Ui<'f, A> {
             at: self.at,
             down: self.down,
             focus,
+            hover,
+            press_down,
+            now_ms: self.now_ms,
             over: None,
             layer: self.layer,
             ox: self.ox,
@@ -454,6 +482,29 @@ impl<'f, A: Pressed> Ui<'f, A> {
     pub fn is_focused(&self, press: &A) -> bool {
         (self.focus)(press)
     }
+
+    /// Whether the press given is the one under the pointer with no button down on another: what
+    /// a control asks to draw its hovered state (`main`'s `is_hovered`).
+    pub fn is_hovered(&self, press: &A) -> bool {
+        (self.hover)(press)
+    }
+
+    /// Whether the press given is the one a button or a finger is down on: what a control asks
+    /// to draw its pressed state (`main`'s `is_pressed`).
+    pub fn is_pressed(&self, press: &A) -> bool {
+        (self.press_down)(press)
+    }
+
+    /// The runtime's only: sets the frame's time, milliseconds on its clock, once before the
+    /// frame draws (04 §8.1).
+    pub fn set_now_ms(&mut self, now_ms: u64) {
+        self.now_ms = now_ms;
+    }
+
+    /// The frame's time, milliseconds on the runtime's clock; 0 where the runtime gave none.
+    pub fn now_ms(&self) -> u64 {
+        self.now_ms
+    }
 }
 
 impl<A: Pressed> Ui<'_, A> {
@@ -519,8 +570,13 @@ impl<A: Pressed> Ui<'_, A> {
             let rect = self.rect(cx - r, cy - r, 2.0 * r, 2.0 * r);
             let width = self.f.max(1.0);
             self.c.stroke_rounded_rect(rect, r * self.f, width, edge);
+            self.c.note(faraday_draw::canvas::InkKind::Dot, rect);
             return;
         }
+        self.c.note(
+            faraday_draw::canvas::InkKind::Dot,
+            self.rect(cx - r, cy - r, 2.0 * r, 2.0 * r),
+        );
         let color = self.col(self.solid(color));
         self.c.fill_circle(
             (cx + self.ox) * self.f,
@@ -1034,6 +1090,8 @@ pub mod testing {
             at: None,
             down: false,
             focused,
+            hovered: None,
+            pressed: None,
         }
     }
 
@@ -1045,6 +1103,19 @@ pub mod testing {
     ) -> FrameOut<P> {
         let mut motion = MotionStore::new();
         let mut ui = Ui::new(canvas, Theme::default(), 1.0, &mut motion, pointer, true);
+        draw(&mut ui);
+        ui.finish()
+    }
+
+    /// [`frame`] with the motion store given and the frame's time `now_ms`.
+    pub fn frame_in(
+        canvas: &mut Canvas,
+        pointer: &Pointer<P>,
+        (motion, now_ms): (&mut MotionStore, u64),
+        draw: impl FnOnce(&mut Ui<'_, P>),
+    ) -> FrameOut<P> {
+        let mut ui = Ui::new(canvas, Theme::default(), 1.0, motion, pointer, true);
+        ui.set_now_ms(now_ms);
         draw(&mut ui);
         ui.finish()
     }
@@ -1302,6 +1373,56 @@ mod tests {
         fn hides(&self) -> bool {
             false
         }
+    }
+
+    /// Invariant: A control asks whether its press is the one under the pointer or the one pressed, a child page's press asked through its lift, and a press that is down is not also hovered.
+    /// Regression: A child's control never lights for the root's pointer, or lights hovered while pressed.
+    /// Owner: kit
+    #[test]
+    fn a_control_asks_whether_its_press_is_hovered_or_pressed_through_every_lift() {
+        let mut c = canvas(160);
+        let mut pointer = at_rest(None);
+        pointer.hovered = Some(P(11));
+        pointer.pressed = Some(P(12));
+        frame(&mut c, &pointer, |ui| {
+            assert!(!ui.is_hovered(&P(12)) && ui.is_pressed(&P(12)));
+            ui.within(
+                |b: P| P(b.0 + 10),
+                |ui| {
+                    assert!(ui.is_hovered(&P(1)) && !ui.is_pressed(&P(1)));
+                    assert!(ui.is_pressed(&P(2)) && !ui.is_hovered(&P(2)));
+                    assert!(!ui.is_hovered(&P(3)));
+                },
+            );
+        });
+        pointer.hovered = Some(P(12));
+        frame(&mut c, &pointer, |ui| {
+            assert!(!ui.is_hovered(&P(12)), "pressed, so not merely hovered");
+        });
+    }
+
+    /// Invariant: A frame hands back the tooltip anchors its controls drew, and notes a dot in its ink so that a test finds the dot by ink.
+    /// Regression: The frame drops its tooltip anchors, or a dot leaves no mark in the ink.
+    /// Owner: kit
+    #[test]
+    fn the_frame_carries_its_tooltip_anchors_and_notes_a_dot_in_its_ink() {
+        let mut c = canvas(160);
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            ui.tip_plain((10.0, 10.0, 40.0, 40.0), &P(1), "Scan");
+            ui.dot(100.0, 100.0, 4.0, primary_edge());
+        });
+        assert_eq!(out.tips.len(), 1);
+        assert_eq!(
+            (out.tips[0].press, out.tips[0].text.as_str()),
+            (P(1), "Scan")
+        );
+        let ink = out.ink.expect("the record is on");
+        assert!(
+            ink.0
+                .iter()
+                .any(|i| matches!(i.kind, faraday_draw::canvas::InkKind::Dot)
+                    && i.rect.contains(100, 100))
+        );
     }
 
     /// Invariant: A press a child page records reaches the frame as the root's press, and the keyboard's focus on the root's press rings the child's control.

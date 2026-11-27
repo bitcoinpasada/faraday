@@ -62,9 +62,8 @@ impl From<Style> for Look {
     fn from(style: Style) -> Look {
         match style {
             Style::Filled => Look::Primary,
-            // Material's elevated button is a tonal one lifted by its shadow; it is drawn as
-            // the tonal one, flat, until the shadow is part of the button.
-            Style::Tonal | Style::Elevated => Look::Tonal,
+            Style::Tonal => Look::Tonal,
+            Style::Elevated => Look::Elevated,
             Style::Outlined => Look::Secondary,
             Style::Text => Look::Ghost,
             Style::Error => Look::Danger,
@@ -84,6 +83,9 @@ pub enum Look {
     /// A second action that matters: filled in secondary-container, no
     /// edge.
     Tonal,
+    /// Material's elevated button: surface-container-low lifted by its level 1 shadow, its
+    /// label in primary; at High contrast, where it casts no shadow, edged in the outline role.
+    Elevated,
     /// Any other action: outlined in the outline role, its label in
     /// primary.
     Secondary,
@@ -103,6 +105,8 @@ pub enum Look {
     PrimaryOff,
     /// A tonal button not available now.
     TonalOff,
+    /// An elevated button not available now: no shadow, its fill faint.
+    ElevatedOff,
     /// A text button not available now.
     GhostOff,
 }
@@ -113,6 +117,7 @@ impl Look {
         match self {
             Look::Primary | Look::PrimaryOff => Look::PrimaryOff,
             Look::Tonal | Look::TonalOff => Look::TonalOff,
+            Look::Elevated | Look::ElevatedOff => Look::ElevatedOff,
             Look::Ghost | Look::GhostOff => Look::GhostOff,
             Look::Secondary | Look::Danger | Look::Selected | Look::Disabled => Look::Disabled,
         }
@@ -133,7 +138,7 @@ impl Look {
     pub const fn is_off(self) -> bool {
         matches!(
             self,
-            Look::Disabled | Look::PrimaryOff | Look::TonalOff | Look::GhostOff
+            Look::Disabled | Look::PrimaryOff | Look::TonalOff | Look::ElevatedOff | Look::GhostOff
         )
     }
 
@@ -144,11 +149,13 @@ impl Look {
         match self {
             Look::Primary => Role::OnPrimary.paint(),
             Look::Tonal | Look::Selected => Role::OnSecondaryContainer.paint(),
-            Look::Secondary | Look::Ghost => Role::Primary.paint(),
+            Look::Secondary | Look::Ghost | Look::Elevated => Role::Primary.paint(),
             Look::Danger => Role::Error.paint(),
-            Look::Disabled | Look::PrimaryOff | Look::TonalOff | Look::GhostOff => {
-                Role::OnSurface.at(faraday_tokens::dims::DISABLED_CONTENT)
-            }
+            Look::Disabled
+            | Look::PrimaryOff
+            | Look::TonalOff
+            | Look::ElevatedOff
+            | Look::GhostOff => Role::OnSurface.at(faraday_tokens::dims::DISABLED_CONTENT),
         }
     }
 }
@@ -428,6 +435,13 @@ impl<A: Pressed> Ui<'_, A> {
                     self.stroke(x, y, width, h, r, Role::Outline);
                 }
             }
+            Look::Elevated => {
+                self.shadow(x, y, width, h, r, 1);
+                self.fill(x, y, width, h, r, Role::SurfaceContainerLow);
+                if self.theme.is_high_contrast() {
+                    self.stroke(x, y, width, h, r, Role::Outline);
+                }
+            }
             Look::Secondary => self.stroke(x, y, width, h, r, Role::Outline),
             Look::Danger => self.stroke(x, y, width, h, r, Role::Error),
             Look::Disabled => {
@@ -436,7 +450,9 @@ impl<A: Pressed> Ui<'_, A> {
                 let line = self.f.max(1.0);
                 self.c.stroke_rounded_rect(rect, r * self.f, line, edge);
             }
-            Look::PrimaryOff | Look::TonalOff => self.wash(x, y, width, h, r, faint),
+            Look::PrimaryOff | Look::TonalOff | Look::ElevatedOff => {
+                self.wash(x, y, width, h, r, faint)
+            }
             Look::Ghost | Look::GhostOff => {}
         }
         let fg = style.label();
@@ -602,6 +618,25 @@ mod tests {
     fn the_control_the_keyboard_is_on_is_ringed() {
         assert_ne!(beside_a_button(Some(P(1))), beside_a_button(None));
         assert_eq!(beside_a_button(Some(P(2))), beside_a_button(None));
+    }
+
+    /// Invariant: An elevated button is lifted by a shadow under it, and a tonal one is flat.
+    /// Regression: The elevated style is drawn as the tonal one, flat.
+    /// Owner: kit
+    #[test]
+    fn an_elevated_button_casts_a_shadow_and_a_tonal_one_does_not() {
+        let below = |look: Look| {
+            let mut c = canvas(160);
+            frame(&mut c, &at_rest(None), |ui| {
+                ui.clear(page());
+                ui.button(100.0, 100.0, Some(80.0), 40.0, "Go", look, P(1));
+            });
+            (pixel(&c, 140, 142), pixel(&c, 20, 20))
+        };
+        let (tonal, ground) = below(Look::Tonal);
+        assert_eq!(tonal, ground);
+        let (elevated, _) = below(Look::from(Style::Elevated));
+        assert_ne!(elevated, ground);
     }
 
     /// Whether a button of `look` took a press.
