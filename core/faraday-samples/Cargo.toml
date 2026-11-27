@@ -1,24 +1,37 @@
 [package]
 name = "faraday-samples"
-version = "0.0.0"
+version = "0.2.0"
+description = "Faraday's samples: the public dummy keys, wallets and files Practice takes, as data (docs/MODES.md §5)"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
+# The shapes of the data (`types`), and nothing else.
 faraday-bip = { path = "../faraday-bip" }
 faraday-forms = { path = "../faraday-forms" }
 faraday-text = { path = "../faraday-text" }
 
 [dev-dependencies]
-faraday-codec = { path = "../faraday-codec" }
-faraday-crypto = { path = "../faraday-crypto" }
-faraday-intake = { path = "../faraday-intake" }
-faraday-keys = { path = "../faraday-keys" }
-faraday-ots = { path = "../faraday-ots" }
-faraday-psbt = { path = "../faraday-psbt" }
+# The code that derives what the data states. The data itself derives nothing.
+# The test wallets the samples are checked against come from `faraday-testkit`.
 faraday-testkit = { path = "../../tools/faraday-testkit" }
+faraday-keys = { path = "../faraday-keys" }
+faraday-psbt = { path = "../faraday-psbt" }
+faraday-codec = { path = "../faraday-codec" }
 faraday-vault = { path = "../faraday-vault" }
+faraday-intake = { path = "../faraday-intake" }
+faraday-ots = { path = "../faraday-ots" }
+faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }
+# The wording the Lightning sample's refusal is checked against.
+faraday-strings = { path = "../faraday-strings" }
+# Another implementation of BIP-39 and BIP-32, for the fingerprints.
+bip39.workspace = true
+serde_json = { workspace = true, features = ["std"] }
+unicode-normalization.workspace = true
+zeroize.workspace = true
 
 [lints]
 workspace = true

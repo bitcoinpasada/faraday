@@ -1640,8 +1640,9 @@ dependencies = [
 
 [[package]]
 name = "faraday-samples"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
+ "bip39",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
@@ -1650,9 +1651,13 @@ dependencies = [
  "faraday-keys",
  "faraday-ots",
  "faraday-psbt",
+ "faraday-strings",
  "faraday-testkit",
  "faraday-text",
  "faraday-vault",
+ "serde_json",
+ "unicode-normalization",
+ "zeroize",
 ]
 
 [[package]]

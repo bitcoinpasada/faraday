@@ -384,7 +384,14 @@ changed = [
 main = "faraday/faraday-samples"
 fate = "copy"
 next = ["core/faraday-samples"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block (`online`); the workspace crates' dependency paths to `core/`'s layout; `faraday-core`, `faraday-host` and `faraday-shell-api` removed; `faraday-forms` and `faraday-bip` are the normal edges, `faraday-testkit` and `faraday-strings` dev-dependencies, `faraday-crypto` with `unchecked`",
+    "`src/types.rs` added, `src/lib.rs` declares it: the samples' types (`SampleKey`, `SampleForm`, `SampleSize`, `SampleKind`, `SampleScript`, `SampleWallet`, `SampleInputs`, `SampleHsm`, `Samples` with `public` and `nodes`, `repeated`, `PASSPHRASE`) from `faraday-core`'s `samples` module over `faraday_forms::Form` (09 §2.1); `Samples::handouts`, the sheet's labels (`label`, `kind_label`), `tickable`, `held` and `add`, which need `faraday-keys`, `faraday-strings` or the session, stay with the application",
+    "`src/data.rs`: the imports are `crate::types` and `faraday_forms::Form`",
+    "`tests/all/main.rs`: the `mod` lines of the dropped files removed; `tests/all/common.rs`: `show`, `demo_app`, `strip`, `strip_offers`, `untick_samples` and `reference_key_text` removed (only dropped files used them), the imports to `faraday_samples::types`, and `compute` minted with `Compute::unchecked` under `#[expect]` in place of `faraday_core::testkit::compute` (10 §7.2)",
+    "`tests/all/{keys,vectors}.rs`: the imports to the crates the moved items are in, `compute` from `common`, the refusal of `add_words_with` is `faraday_keys::Refusal`, and `keys.rs` holds `handouts`, which was `Samples::handouts`",
+    "`examples/regenerate.rs`: not copied yet, since it reads items of `faraday-testkit`'s library (`SAMPLE_WORDS`, `ENTRIES_FILE`, `three_of_five`, `kdbx_vault`, the kits) that are `todo!()` or absent until the test kit is built (10 §6)",
+]
 
 [[module]]
 main = "faraday/faraday-samples/tests/all/check_samples.rs"

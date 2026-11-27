@@ -27,11 +27,7 @@ impl BlankCopy {
         match self {
             BlankCopy::Words => String::from("words"),
             BlankCopy::SeedQr => String::from("seedqr"),
-            BlankCopy::Both => format!(
-                "{} {}",
-                BlankCopy::Words.line(),
-                BlankCopy::SeedQr.line()
-            ),
+            BlankCopy::Both => format!("{} {}", BlankCopy::Words.line(), BlankCopy::SeedQr.line()),
         }
     }
 }

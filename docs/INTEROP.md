@@ -290,7 +290,7 @@ is the same wallet; the bare-zpub PSBT is refused. Optional, not in
 `just`: tools/electrum-check.py compares addresses with
 `electrum --offline`.
 
-Built in `faraday-intake/src/electrum.rs`. Accepted keystore types are
+Built in `core/faraday-intake/src/electrum.rs`. Accepted keystore types are
 `bip32` and `hardware`; `wallet_type` `standard` or `NofM`; anything else
 is refused by name. The whole-file encryption recognised is the base64 of
 Electrum's `BIE1` envelope. Not done: `electrum-check.py`.
@@ -329,8 +329,8 @@ silent payments. Tests: Sparrow's `specter-diy-export.txt` loads, named
 "Sparrow Multisig"; Faraday's code for it is that text; scanned parts
 reassemble to it.
 
-Built in `faraday-intake/src/specter_diy.rs`, read in
-`faraday-intake/src/wallet.rs::read_wallet` before the other readers.
+Built in `core/faraday-intake/src/specter_diy.rs`, read in
+`core/faraday-intake/src/wallet.rs::read_wallet` before the other readers.
 Read as Specter DIY's own `Wallet.parse` reads it (its
 `src/apps/wallets/wallet.py`): the name is everything before the last
 `&`, so a name may hold one; keys none of which carries a derivation are
@@ -369,7 +369,7 @@ the scan key's public key in constant time, the private key wiped) and
 `core/faraday-bip/src/silent_wallet.rs` (`parse_descriptor`,
 `from_scan_key`), so the decoder is in core beside `decode_v0` rather
 than in `faraday-intake`, which reads the forms
-(`faraday-intake/src/wallet.rs::read_wallet`, the one line `sp(…)` or
+(`core/faraday-intake/src/wallet.rs::read_wallet`, the one line `sp(…)` or
 `[origin]spscan1q…`) and words the refusals. The origin must be a
 fingerprint and BIP-352's path on the key's network to a hardened
 account; `sp(KEY,KEY)`, `spspend` (which carries the spend private
