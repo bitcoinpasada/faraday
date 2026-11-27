@@ -3,7 +3,10 @@
 use core::borrow::Borrow;
 use std::collections::VecDeque;
 
-use faraday_atoms::{Anchor, ComponentId, FrameOut, KeptFrost, Laid, Pointer, Theme, Ui};
+use faraday_atoms::{
+    Anchor, ComponentId, FrameOut, KeptFrost, Laid, Pan, Pointer, Theme, Ui,
+    motion::{FIRST_STEP_MS, MAX_STEP_MS},
+};
 use faraday_crypto::Secret;
 use faraday_draw::canvas::{Calls, Canvas};
 use faraday_draw::geom::Rect as Target;
@@ -25,6 +28,21 @@ const TOAST_SHOW_MS: u64 = 4000;
 /// (`Input::Wheel`): a notch covers the same part of the page on every screen.
 const WHEEL_NOTCH_UNITS: f32 = 56.0;
 const WHEEL_NOTCH_PX: f32 = 48.0;
+/// How far a finger moves, in design units, before it scrolls rather than presses.
+const SLOP_UNITS: f32 = 8.0;
+/// How long two-finger scrolling may pause before it is taken to have ended, for a shell that
+/// sends no end.
+const SCROLL_QUIET_MS: u64 = 300;
+
+/// The region a pan moves, as it stood when the pan began (units).
+#[derive(Clone, Copy)]
+pub(crate) struct PanState {
+    id: ComponentId,
+    max: f32,
+    view: f32,
+    began: bool,
+    last_ms: u64,
+}
 
 /// A frosted page kept under a sheet (04 K16), in a wiping buffer (02 P13).
 pub(crate) struct KeptCopy {
@@ -73,6 +91,16 @@ pub(crate) struct Painted<R: Root> {
     pub(crate) hold_ready: Option<R::Press>,
     /// The press of the hold sent for the contact now down: a contact sends it once.
     hold_sent: bool,
+    /// The focused hold Enter or Space is held down on: it fills as a held pointer fills it.
+    key_hold: Option<R::Press>,
+    /// The region the fingers are moving.
+    pan: Option<PanState>,
+    /// Where a finger dragging a region last was, pixels: set while a drag goes on.
+    drag_last: Option<Point>,
+    /// Where the contact now down went down, pixels, while it has not moved past the slop.
+    touch_from: Option<Point>,
+    /// The frame clock at the last advance of the regions' own motion.
+    motion_ms: Option<u64>,
     /// A frame was drawn that `Runtime::frame` has not handed out.
     fresh: bool,
     /// The ink record is on (04 V21).
@@ -105,6 +133,11 @@ impl<R: Root> Painted<R> {
             frosts: Vec::new(),
             hold_ready: None,
             hold_sent: false,
+            key_hold: None,
+            pan: None,
+            drag_last: None,
+            touch_from: None,
+            motion_ms: None,
             fresh: false,
             ink: false,
             #[cfg(test)]
@@ -190,7 +223,7 @@ impl<R: Root> Painted<R> {
 
     /// The press of a hold that is full under the contact now down, once per contact.
     fn finish_hold(&mut self) {
-        let Some(down) = self.down.as_ref() else {
+        let Some(down) = self.down.as_ref().or(self.key_hold.as_ref()) else {
             return;
         };
         let Some(out) = self.out.as_ref() else {
@@ -400,7 +433,7 @@ impl<R: Root> Runtime<R> {
         // The press under the pointer and the press a button or a finger is down on, from the
         // frame seen: what a control asks to draw its hovered and pressed state (04 §7.1).
         let under = frame.pointer.at.and_then(|at| frame.hit_at(at));
-        frame.pointer.pressed = frame.down.clone();
+        frame.pointer.pressed = frame.down.clone().or_else(|| frame.key_hold.clone());
         frame.pointer.hovered = if frame.pointer.down { None } else { under };
         let size =
             usize::from(facts.facts.display.width) * usize::from(facts.facts.display.height) * 4;
@@ -466,7 +499,8 @@ impl<R: Root> Runtime<R> {
     }
 
     /// A touch: the press goes down on the hit under it, and is sent when the contact lifts on
-    /// the same hit (R9: against the last frame handed out, the one the person saw).
+    /// the same hit (R9: against the last frame handed out, the one the person saw). A contact
+    /// that moves past the slop is a pan of the region it went down in and presses nothing.
     fn touch(&mut self, at: Point, phase: TouchPhase) {
         self.frame.pointer.at = Some(at);
         match phase {
@@ -474,15 +508,52 @@ impl<R: Root> Runtime<R> {
                 self.frame.pointer.down = true;
                 self.frame.down = self.frame.hit_at(at);
                 self.frame.hold_sent = false;
+                self.frame.touch_from = Some(at);
+                // A touch stops a coast where it is.
+                if let Some((id, _, _)) = self.region_at(at)
+                    && self.motion.stop_coast(id)
+                {
+                    self.frame.touch_from = None;
+                    self.frame.down = None;
+                }
                 // A frame shows the press down: a hold begins to fill.
                 self.frame.wanted = true;
             }
-            TouchPhase::Move => {}
+            TouchPhase::Move => {
+                if !self.frame.pointer.down {
+                    return;
+                }
+                if let Some(from) = self.frame.touch_from {
+                    let slop = SLOP_UNITS * self.scale();
+                    let (dx, dy) = ((at.x - from.x) as f32, (at.y - from.y) as f32);
+                    if dx.hypot(dy) < slop {
+                        return;
+                    }
+                    // A drag, not a press: the region it went down in follows the finger.
+                    self.frame.touch_from = None;
+                    self.frame.down = None;
+                    self.frame.hold_sent = false;
+                    self.frame.hold_ready = None;
+                    self.frame.pan = None;
+                    self.frame.drag_last = Some(from);
+                    self.frame.wanted = true;
+                }
+                if let Some(last) = self.frame.drag_last {
+                    self.frame.drag_last = Some(at);
+                    self.pan(last, (last.y - at.y) as f32);
+                }
+            }
             TouchPhase::Up => {
                 self.frame.pointer.down = false;
                 self.frame.hold_sent = false;
                 self.frame.hold_ready = None;
+                self.frame.touch_from = None;
                 self.frame.wanted = true;
+                if self.frame.drag_last.take().is_some() {
+                    self.release_pan();
+                    self.frame.down = None;
+                    return;
+                }
                 let down = self.frame.down.take();
                 if let (Some(down), Some(up)) = (down, self.frame.hit_at(at))
                     && down == up
@@ -498,15 +569,37 @@ impl<R: Root> Runtime<R> {
     /// the focused control; any other key is the root's (§2.2).
     fn key(&mut self, key: Key) {
         match key {
-            Key::Tab | Key::BackTab => self.move_focus(key == Key::BackTab),
-            Key::Enter => match self.frame.pointer.focused.clone() {
-                // A hold is pressed by holding it (F136): Enter does not press it.
-                Some(press) if self.frame.is_hold(&press) => {}
-                Some(press) => self.pressed(press),
-                None => self.root_input(&Input::Key(key)),
+            Key::Tab | Key::BackTab => {
+                self.frame.key_hold = None;
+                self.frame.hold_sent = false;
+                self.move_focus(key == Key::BackTab);
+            }
+            Key::Enter | Key::Char(' ') => match self.frame.pointer.focused.clone() {
+                // A hold is pressed by holding it (F136): the key held down fills it over the
+                // hold's time; a repeat of the key does not begin it again.
+                Some(press) if self.frame.is_hold(&press) => {
+                    if self.frame.key_hold.is_none() {
+                        self.frame.key_hold = Some(press);
+                        self.frame.hold_sent = false;
+                        self.frame.wanted = true;
+                    }
+                }
+                Some(press) if key == Key::Enter => self.pressed(press),
+                _ => self.root_input(&Input::Key(key)),
             },
             _ => self.root_input(&Input::Key(key)),
         }
+    }
+
+    /// A key let go: the hold it was filling empties, and sends nothing if it was not full.
+    fn key_up(&mut self, key: Key) {
+        if matches!(key, Key::Enter | Key::Char(' ')) && self.frame.key_hold.take().is_some() {
+            self.frame.hold_sent = false;
+            self.frame.hold_ready = None;
+            self.frame.wanted = true;
+            return;
+        }
+        self.root_input(&Input::KeyUp(key));
     }
 
     fn move_focus(&mut self, back: bool) {
@@ -558,15 +651,16 @@ impl<R: Root> Runtime<R> {
             Input::Touch { at, phase } => self.touch(at, phase),
             Input::Hover(at) => self.frame.pointer.at = at,
             // The motion store moves against the last frame's regions (04 §8.1): no message.
-            Input::Scroll { at, dy } => self.scroll(at, f32::from(dy)),
+            Input::Scroll { at, dy } => self.pan(at, f32::from(dy)),
             Input::Wheel { at, dy } => {
                 self.scroll(
                     at,
                     f32::from(dy) / WHEEL_NOTCH_PX * WHEEL_NOTCH_UNITS * self.scale(),
                 );
             }
-            Input::ScrollEnd { .. } => {}
+            Input::ScrollEnd { .. } => self.release_pan(),
             Input::Key(key) => self.key(key),
+            Input::KeyUp(key) => self.key_up(key),
             other => self.root_input(&other),
         }
     }
@@ -581,30 +675,104 @@ impl<R: Root> Runtime<R> {
         f32::from(pct) / 100.0
     }
 
-    /// Moves the region of the top layer under `at` by `dy` pixels (down is positive): the motion
-    /// store's offset and the time its scrollbar shows from are set from the frame's clock when
-    /// the offset changes (04 §8.1).
-    fn scroll(&mut self, at: Point, dy: f32) {
+    /// The region of the top layer under `at`: its entry, how far it scrolls and how tall it is
+    /// seen, in units.
+    fn region_at(&self, at: Point) -> Option<(ComponentId, f32, f32)> {
         let f = self.scale().max(0.1);
-        let Some(out) = self.frame.out.as_ref() else {
-            return;
-        };
+        let out = self.frame.out.as_ref()?;
         let top = out.hits.iter().map(|hit| hit.layer).max().unwrap_or(0);
-        let page = out.page;
-        let Some(region) = out
+        let region = out
             .regions
             .iter()
             .rev()
-            .find(|region| region.layer == top && region.view.contains(at.x, at.y))
-        else {
+            .find(|region| region.layer == top && region.view.contains(at.x, at.y))?;
+        let max = (region.extent.h - region.view.h).max(0) as f32 / f;
+        Some((
+            ComponentId(out.page, region.id),
+            max,
+            region.view.h as f32 / f,
+        ))
+    }
+
+    /// Moves the region of the top layer under `at` by `dy` pixels (down is positive): the motion
+    /// store's offset and the time its scrollbar shows from are set from the frame's clock when
+    /// the offset changes (04 §8.1). A wheel: it takes the content there and stops any coast.
+    fn scroll(&mut self, at: Point, dy: f32) {
+        let f = self.scale().max(0.1);
+        let Some((id, max, _)) = self.region_at(at) else {
             return;
         };
-        let max = (region.extent.h - region.view.h).max(0) as f32 / f;
-        let id = ComponentId(page, region.id);
         if self
             .motion
             .scroll_region(id, dy / f, max, self.clock.now_ms)
         {
+            self.frame.wanted = true;
+        }
+    }
+
+    /// The fingers moved the region under `at` by `dy` pixels: it follows them at once and
+    /// stretches past an end; the region the pan began in keeps it.
+    fn pan(&mut self, at: Point, dy: f32) {
+        let f = self.scale().max(0.1);
+        let now_ms = self.clock.now_ms;
+        let state = match self.frame.pan {
+            Some(state) => state,
+            None => {
+                let Some((id, max, view)) = self.region_at(at) else {
+                    return;
+                };
+                PanState {
+                    id,
+                    max,
+                    view,
+                    began: true,
+                    last_ms: now_ms,
+                }
+            }
+        };
+        let pan = Pan {
+            by: dy / f,
+            view: state.view,
+            began: state.began,
+        };
+        self.frame.pan = Some(PanState {
+            began: false,
+            last_ms: now_ms,
+            ..state
+        });
+        if self.motion.pan_region(state.id, pan, state.max, now_ms) {
+            self.frame.wanted = true;
+        }
+    }
+
+    /// The fingers lifted: a stretch springs back, a flick coasts on.
+    fn release_pan(&mut self) {
+        let f = self.scale().max(0.1);
+        if let Some(state) = self.frame.pan.take()
+            && self.motion.release_region(state.id, f, self.clock.now_ms)
+        {
+            self.frame.wanted = true;
+        }
+    }
+
+    /// At each tick of the frame clock: a pan that went quiet has ended, and what coasts or
+    /// springs moves by the time since the last tick. A frame is wanted while any does.
+    pub(crate) fn advance_motion(&mut self, now_ms: u64) {
+        if self
+            .frame
+            .pan
+            .is_some_and(|p| now_ms.saturating_sub(p.last_ms) > SCROLL_QUIET_MS)
+        {
+            self.release_pan();
+        }
+        let last = self.frame.motion_ms.replace(now_ms);
+        let dt = match last {
+            Some(t) if now_ms.saturating_sub(t) <= 4 * MAX_STEP_MS => now_ms.saturating_sub(t),
+            _ => FIRST_STEP_MS,
+        };
+        let f = self.scale().max(0.1);
+        let panning = self.frame.pan.map(|p| p.id);
+        if self.motion.advance(dt, f, panning) {
             self.frame.wanted = true;
         }
     }
@@ -615,6 +783,10 @@ impl<R: Root> Runtime<R> {
         self.frame.drop_frosts();
         self.frame.hold_ready = None;
         self.frame.hold_sent = false;
+        self.frame.key_hold = None;
+        self.frame.pan = None;
+        self.frame.drag_last = None;
+        self.frame.touch_from = None;
         self.frame.calls = None;
         self.frame.out = None;
         self.frame.changed.clear();

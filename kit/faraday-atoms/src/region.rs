@@ -164,13 +164,21 @@ pub struct Open {
 
 impl<A: Pressed> Ui<'_, A> {
     /// The offset (units) and stretch (pixels) the motion store holds for the region `id` of the
-    /// page drawn: none while no entry is there.
-    fn region_motion(&self, id: Anchor) -> (f32, i32) {
+    /// page drawn, and whether it moves on its own (a coast or a spring): none while no entry is
+    /// there.
+    fn region_motion(&self, id: Anchor) -> (f32, i32, bool) {
         match self.motion.get(&ComponentId(self.page, id)) {
             Some(Motion::Region {
-                offset, stretch, ..
-            }) => (*offset, stretch.round() as i32),
-            _ => (0.0, 0),
+                offset,
+                stretch,
+                velocity,
+                ..
+            }) => (
+                *offset,
+                (stretch * self.f).round() as i32,
+                *stretch != 0.0 || *velocity != 0.0,
+            ),
+            _ => (0.0, 0, false),
         }
     }
 
@@ -197,7 +205,7 @@ impl<A: Pressed> Ui<'_, A> {
     /// pushes the view's clip and the pixels the offset moves the content by.
     pub fn region_open(&mut self, region: Region) -> Open {
         let oy_px = self.oy_px;
-        let (offset, _) = self.region_motion(region.id);
+        let (offset, _, _) = self.region_motion(region.id);
         let px = self.px(offset);
         self.oy_px = oy_px - px;
         self.c.push_clip(region.view);
@@ -231,9 +239,9 @@ impl<A: Pressed> Ui<'_, A> {
             },
             layer: self.layer,
         });
-        let (_, stretch) = self.region_motion(region.id);
+        let (_, stretch, going) = self.region_motion(region.id);
         self.stretch = stretch;
-        if stretch != 0 {
+        if going {
             self.moving = true;
         }
         self.stretch_view(view, ground);

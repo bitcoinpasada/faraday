@@ -49,7 +49,7 @@ pub use frame_out::{FrameOut, Laid, Placement};
 pub use hits::{Hit, Plain, PressMark, Ring, Shape, Unpressed, hit_at};
 pub use icon_button::TipAnchor;
 pub use keeps::{KeptFrost, MadeFrost};
-pub use motion::{ComponentId, Motion, MotionStore, Turn};
+pub use motion::{ComponentId, Motion, MotionStore, Pan, Turn};
 pub use offered::{Drawn, Offered};
 pub use region::Scrolled;
 pub use shown::{PlainRef, Shown, btc, grouped, short, thousands};

@@ -243,6 +243,7 @@ impl<R: Root> Runtime<R> {
             self.facts.last_second = Some(time.unix_secs);
             self.notify(Pending::Facts(FactsChanged::Time));
         }
+        self.advance_motion(time.now_ms);
         if self.notes.tick(time.now_ms) || self.frame.pace() == Pace::Moving {
             self.frame.wanted = true;
         }

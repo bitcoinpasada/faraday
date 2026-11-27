@@ -39,31 +39,215 @@ impl MotionStore {
     /// what shows the overlay scrollbar and fades it (`Motion::Region`). The runtime's, at a
     /// wheel or a finger. Returns whether the offset changed.
     pub fn scroll_region(&mut self, id: ComponentId, by: f32, max: f32, now_ms: u64) -> bool {
-        let (offset, velocity, stretch) = match self.get(&id) {
-            Some(Motion::Region {
-                offset,
-                velocity,
-                stretch,
-                ..
-            }) => (*offset, *velocity, *stretch),
-            _ => (0.0, 0.0, 0.0),
+        let offset = match self.get(&id) {
+            Some(Motion::Region { offset, .. }) => *offset,
+            _ => 0.0,
         };
         let moved = (offset + by).clamp(0.0, max.max(0.0));
         if (moved - offset).abs() < f32::EPSILON {
             return false;
         }
+        // A wheel takes the content where it asks: a coast or a stretch stops.
         self.set(
             id,
             Motion::Region {
                 offset: moved,
-                velocity,
-                stretch,
+                velocity: 0.0,
+                stretch: 0.0,
                 extent: max,
                 // 0 means the content has not moved since the region opened.
                 bar_shown_ms: now_ms.max(1),
             },
         );
         true
+    }
+
+    /// The region `id` as kept: offset, velocity, stretch, bar time; a fresh one at rest.
+    fn region_of(&self, id: &ComponentId) -> (f32, f32, f32, u64) {
+        match self.get(id) {
+            Some(Motion::Region {
+                offset,
+                velocity,
+                stretch,
+                bar_shown_ms,
+                ..
+            }) => (*offset, *velocity, *stretch, *bar_shown_ms),
+            _ => (0.0, 0.0, 0.0, 0),
+        }
+    }
+
+    /// The fingers moved the region `id` by `by` units (down is positive), seen through a view
+    /// `view` units tall and scrolling `0..=max`: the content follows at once and, pushed past an
+    /// end, stretches like rubber. `began` is the first move of a pan, which catches a stretch
+    /// still springing back where it is and starts the speed again. The speed is kept for the
+    /// fling ([`MotionStore::release_region`]). Returns whether the offset or the stretch moved.
+    pub fn pan_region(&mut self, id: ComponentId, pan: Pan, max: f32, now_ms: u64) -> bool {
+        let Pan { by, view, began } = pan;
+        let (offset, velocity, stretch, last) = self.region_of(&id);
+        // A region with nothing to scroll stays still: it is not pulled past an end it has no
+        // distance to.
+        if max <= 0.0 {
+            return false;
+        }
+        let recent = !began && last > 0 && now_ms.saturating_sub(last) <= PAN_RECENT_MS;
+        let dt = if recent {
+            now_ms.saturating_sub(last).max(1)
+        } else {
+            FIRST_STEP_MS
+        } as f32;
+        let seen = by / dt;
+        let velocity = if recent {
+            velocity * 0.4 + seen * 0.6
+        } else {
+            seen
+        };
+        let mut pushed = if stretch == 0.0 {
+            0.0
+        } else {
+            unrubber(stretch, view)
+        };
+        let mut by = by;
+        if pushed != 0.0 {
+            let back = pushed + by;
+            if back.signum() == pushed.signum() {
+                // Still past the end: the stretch takes all of it.
+                pushed = back;
+                by = 0.0;
+            } else {
+                pushed = 0.0;
+                by = back;
+            }
+        }
+        let mut moved = offset;
+        if pushed == 0.0 {
+            let want = offset + by;
+            moved = want.clamp(0.0, max);
+            pushed = want - moved;
+        }
+        let shown = rubber(pushed, view);
+        let changed = (moved - offset).abs() >= f32::EPSILON || (shown - stretch).abs() > 1e-4;
+        self.set(
+            id,
+            Motion::Region {
+                offset: moved,
+                velocity,
+                stretch: shown,
+                extent: max,
+                bar_shown_ms: if changed { now_ms.max(1) } else { last },
+            },
+        );
+        changed
+    }
+
+    /// The fingers lifted from the region `id` at `now_ms`: a stretch springs back from rest, a
+    /// flick coasts on at the speed the last moves saw, and fingers that stopped before they
+    /// lifted leave none. `f` is pixels per unit. Returns whether it keeps moving.
+    pub fn release_region(&mut self, id: ComponentId, f: f32, now_ms: u64) -> bool {
+        let Some(Motion::Region {
+            offset,
+            velocity,
+            stretch,
+            extent,
+            bar_shown_ms,
+        }) = self.get(&id).copied()
+        else {
+            return false;
+        };
+        let fresh = bar_shown_ms > 0 && now_ms.saturating_sub(bar_shown_ms) <= PAN_RECENT_MS;
+        let velocity = if stretch != 0.0 || !fresh || (velocity * f).abs() < COAST_STOP_PX_MS {
+            0.0
+        } else {
+            velocity
+        };
+        self.set(
+            id,
+            Motion::Region {
+                offset,
+                velocity,
+                stretch,
+                extent,
+                bar_shown_ms,
+            },
+        );
+        stretch != 0.0 || velocity != 0.0
+    }
+
+    /// A touch on the region `id` stops a coast where it is. Returns whether one was going.
+    pub fn stop_coast(&mut self, id: ComponentId) -> bool {
+        match self.get(&id).copied() {
+            Some(Motion::Region {
+                offset,
+                velocity,
+                stretch,
+                extent,
+                bar_shown_ms,
+            }) if stretch == 0.0 && velocity != 0.0 => {
+                self.set(
+                    id,
+                    Motion::Region {
+                        offset,
+                        velocity: 0.0,
+                        stretch,
+                        extent,
+                        bar_shown_ms,
+                    },
+                );
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Advances every region's own motion by `dt_ms` of the frame clock, but for the one the
+    /// fingers hold (`panning`): a flick coasts and slows (its speed falls by e every
+    /// `COAST_TAU_MS`); one that runs into an end carries its speed into a stretch; a stretch
+    /// springs back, critically damped. `f` is pixels per unit. Returns whether anything moved.
+    pub fn advance(&mut self, dt_ms: u64, f: f32, panning: Option<ComponentId>) -> bool {
+        let dt = dt_ms.min(MAX_STEP_MS) as f32;
+        let mut moved = false;
+        for (id, motion) in &mut self.entries {
+            let Motion::Region {
+                offset,
+                velocity,
+                stretch,
+                extent,
+                bar_shown_ms,
+            } = motion
+            else {
+                continue;
+            };
+            if Some(*id) == panning || (*velocity == 0.0 && *stretch == 0.0) || dt == 0.0 {
+                continue;
+            }
+            moved = true;
+            if *stretch == 0.0 {
+                let decay = (-dt / COAST_TAU_MS).exp();
+                let want = *offset + *velocity * COAST_TAU_MS * (1.0 - decay);
+                let held = want.clamp(0.0, extent.max(0.0));
+                *offset = held;
+                *velocity *= decay;
+                if (want - held).abs() < f32::EPSILON {
+                    if (*velocity * f).abs() < COAST_STOP_PX_MS {
+                        *velocity = 0.0;
+                    }
+                    *bar_shown_ms = (*bar_shown_ms).max(1);
+                    continue;
+                }
+                // It ran into an end: the speed it had carries into a stretch that springs back.
+            }
+            let (mut x, mut v) = (*stretch, *velocity);
+            for _ in 0..dt as u32 {
+                let a = -SPRING_OMEGA * SPRING_OMEGA * x - 2.0 * SPRING_OMEGA * v;
+                v += a;
+                x += v;
+            }
+            if (x * f).abs() < 0.5 && (v * f).abs() < 0.05 {
+                (x, v) = (0.0, 0.0);
+            }
+            *stretch = x;
+            *velocity = v;
+        }
+        moved
     }
 
     /// Drops a component's entry.
@@ -80,6 +264,15 @@ impl MotionStore {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+}
+
+/// One move of a pan: how far the fingers went, how tall the region is seen, and whether it is
+/// the pan's first.
+#[derive(Clone, Copy, Debug)]
+pub struct Pan {
+    pub by: f32,
+    pub view: f32,
+    pub began: bool,
 }
 
 /// Numbers, rectangles and times only (K9).
@@ -116,6 +309,39 @@ pub enum Turn {
 /// A component's key in the store: the page's anchor, the component's anchor.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ComponentId(pub Anchor, pub Anchor);
+
+/// How quickly a coast slows: its speed falls by e every this many milliseconds.
+const COAST_TAU_MS: f32 = 325.0;
+/// The speed in pixels per millisecond below which a coast stops, and below which a lifted pan
+/// does not start one.
+const COAST_STOP_PX_MS: f32 = 0.02;
+/// The spring that takes a stretch back: critically damped, at this angular frequency per
+/// millisecond, so it settles in about 300 ms.
+const SPRING_OMEGA: f32 = 0.02;
+/// How stiff the rubber is: the iOS constant.
+const RUBBER: f32 = 0.55;
+/// The longest step an advance takes, so a frame the panel missed does not throw the content.
+pub const MAX_STEP_MS: u64 = 50;
+/// The step assumed for the first move of a pan or a coast, which has none before it.
+pub const FIRST_STEP_MS: u64 = 16;
+/// How old the last move of a pan may be and still count as the fingers moving.
+const PAN_RECENT_MS: u64 = 100;
+
+/// The displayed stretch for a push of `x` past an end, seen through a region `d` tall: it grows
+/// ever more slowly and never reaches `d`.
+fn rubber(x: f32, d: f32) -> f32 {
+    let d = d.max(1.0);
+    let s = (1.0 - 1.0 / (x.abs() * RUBBER / d + 1.0)) * d;
+    if x < 0.0 { -s } else { s }
+}
+
+/// The push that shows as `stretch`: [`rubber`]'s inverse.
+fn unrubber(stretch: f32, d: f32) -> f32 {
+    let d = d.max(1.0);
+    let s = (stretch.abs() / d).min(0.999);
+    let x = (1.0 / (1.0 - s) - 1.0) * d / RUBBER;
+    if stretch < 0.0 { -x } else { x }
+}
 
 /// How long the overlay scrollbar stays after the content stops, and how long it then takes to
 /// fade, milliseconds.

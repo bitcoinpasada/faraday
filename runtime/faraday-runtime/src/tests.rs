@@ -1418,13 +1418,133 @@ fn a_hold_sends_its_press_once_when_held_to_its_end_and_never_when_let_go_early(
     at(&mut runtime, 40_000);
     touch(&mut runtime, on, Up);
     assert_eq!(presses(), 0, "once for the contact");
+}
 
-    // Enter does not press a hold either.
+fn key(runtime: &mut Runtime<Device>, key: port::event::Key, down: bool) {
+    runtime.event(Event::Input(if down {
+        port::event::Input::Key(key)
+    } else {
+        port::event::Input::KeyUp(key)
+    }));
+}
+
+/// Invariant: Enter or Space held down on a focused hold fills it over the hold's time and sends its press once at the end; a key let go early sends nothing, and a repeat of the key does not begin the fill again.
+/// Regression: A hold has no keyboard way; or a key repeat restarts the fill so it never completes; or the press is sent again at the key's lift.
+/// Owner: runtime
+#[test]
+fn a_hold_held_by_key_sends_once_at_its_end_and_none_when_let_go_early() {
+    use port::event::Key;
+    let mut runtime = drawing(draw_hold);
+    at(&mut runtime, 1_000);
     runtime.frame.pointer.focused = Some(Press(false));
-    runtime.event(Event::Input(port::event::Input::Key(
-        port::event::Key::Enter,
-    )));
-    assert_eq!(presses(), 0);
+    take_log();
+    key(&mut runtime, Key::Enter, true);
+    at(&mut runtime, 1_050);
+    key(&mut runtime, Key::Enter, false);
+    at(&mut runtime, 20_000);
+    assert_eq!(presses(), 0, "let go early");
+
+    key(&mut runtime, Key::Char(' '), true);
+    at(&mut runtime, 20_050);
+    key(&mut runtime, Key::Char(' '), true);
+    at(&mut runtime, 20_500);
+    key(&mut runtime, Key::Char(' '), true);
+    assert_eq!(presses(), 0, "not yet");
+    at(&mut runtime, 30_000);
+    assert_eq!(presses(), 1, "held to its end");
+    at(&mut runtime, 40_000);
+    key(&mut runtime, Key::Char(' '), false);
+    assert_eq!(presses(), 0, "once for the key");
+}
+
+/// The region's offset and stretch the store holds, units.
+fn region_state(runtime: &Runtime<Device>) -> (f32, f32) {
+    match runtime
+        .motion
+        .get(&faraday_atoms::ComponentId(PAGE, REGION))
+    {
+        Some(faraday_atoms::Motion::Region {
+            offset, stretch, ..
+        }) => (*offset, *stretch),
+        _ => (0.0, 0.0),
+    }
+}
+
+fn scroll(runtime: &mut Runtime<Device>, dy: i16) {
+    runtime.event(Event::Input(port::event::Input::Scroll {
+        at: port::values::Point { x: 50, y: 50 },
+        dy,
+    }));
+}
+
+fn scroll_end(runtime: &mut Runtime<Device>) {
+    runtime.event(Event::Input(port::event::Input::ScrollEnd {
+        at: port::values::Point { x: 50, y: 50 },
+    }));
+}
+
+/// Invariant: A flick lifted off a scrolled region keeps the content moving the way it went, slows, and stops; fingers that stopped before they lifted leave it where it is.
+/// Regression: The content stops dead when the fingers lift; or the coast never ends and frames are asked for ever.
+/// Owner: runtime
+#[test]
+fn a_flick_keeps_the_content_moving_and_stops() {
+    use port::values::Pace;
+    let mut runtime = drawing(draw_region);
+    at(&mut runtime, 1_000);
+    for i in 1..=5 {
+        at(&mut runtime, 1_000 + 16 * i);
+        scroll(&mut runtime, 2);
+    }
+    let lifted = region_state(&runtime).0;
+    scroll_end(&mut runtime);
+    at(&mut runtime, 1_200);
+    let a = region_state(&runtime).0;
+    assert!(a > lifted, "it keeps moving after the lift");
+    at(&mut runtime, 1_400);
+    let b = region_state(&runtime).0;
+    assert!(b > a, "and still moves");
+    for i in 0..60 {
+        at(&mut runtime, 1_600 + 100 * i);
+    }
+    let end = region_state(&runtime).0;
+    at(&mut runtime, 8_000);
+    assert_eq!(region_state(&runtime).0, end, "it stopped");
+    assert!(end < 200.0, "within the region");
+    at(&mut runtime, 20_000);
+    assert_eq!(runtime.frame.pace(), Pace::Rest);
+
+    let mut runtime = drawing(draw_region);
+    at(&mut runtime, 1_000);
+    for i in 1..=5 {
+        at(&mut runtime, 1_000 + 16 * i);
+        scroll(&mut runtime, 2);
+    }
+    at(&mut runtime, 1_500);
+    scroll_end(&mut runtime);
+    let held = region_state(&runtime).0;
+    at(&mut runtime, 1_800);
+    assert_eq!(region_state(&runtime).0, held, "no coast after a pause");
+}
+
+/// Invariant: A pull past an end stretches the content, more slowly the farther it goes, and it springs back to the end when the fingers lift.
+/// Regression: The content is clamped dead at the end with no stretch; or it stays stretched after the fingers lift.
+/// Owner: runtime
+#[test]
+fn a_pull_past_the_end_springs_back() {
+    let mut runtime = drawing(draw_region);
+    at(&mut runtime, 1_000);
+    scroll(&mut runtime, -30);
+    let (offset, pulled) = region_state(&runtime);
+    assert_eq!(offset, 0.0);
+    assert!(pulled < 0.0, "the top is pulled down");
+    scroll(&mut runtime, -30);
+    let (_, more) = region_state(&runtime);
+    assert!(more < pulled && more > 2.0 * pulled, "slower the farther");
+    scroll_end(&mut runtime);
+    for i in 1..=40 {
+        at(&mut runtime, 1_000 + 16 * i);
+    }
+    assert_eq!(region_state(&runtime), (0.0, 0.0), "back at its end");
 }
 
 /// Invariant: The frost under a sheet is made once when the sheet opens, kept while it stays over the same page, and gone when the sheet closes.

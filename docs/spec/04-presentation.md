@@ -575,6 +575,7 @@ clock (`MotionStore::scroll_region`), and a hold held to its end sends its press
   `features/motion.md`: slop, coast, notch, Reduce motion). Reason: a pan is up to 60 events a
   second of the person's view, not a fact of any feature, and 03 §9.2 keeps geometry out of
   state. Turned down: an offset in each feature's state, set by a message per pan event.
+- Built: a pan (a trackpad or a finger past the slop) follows the fingers and stretches like rubber past an end; a lift coasts on at the speed the last moves saw, or springs a stretch back, advanced from the frame clock (`MotionStore::{pan_region, release_region, advance}`); Enter or Space held on a focused hold fills it and sends its press once at the end.
 
 ### 8.2 What an update may ask of the view
 
