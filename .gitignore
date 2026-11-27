@@ -1,0 +1,41 @@
+# Rust
+/target
+**/target/
+
+# Private notes and scratch files; never committed
+/local/
+
+# Editor and OS noise
+*.swp
+*~
+
+# Build output: images, renders, staging
+/out/
+
+# Build directories
+**/build/
+
+# Session handoff notes; private, never committed
+/.thoughts/
+
+# Fuzzing (fuzz/README.md, fuzz/faraday/README.md). One rule for both
+# directories: a file with an extension was put there by hand and is
+# committed -- the seed corpus, and the minimized input of a crash that is
+# still open. What a run produces is named after its SHA-1, has no
+# extension, and is not.
+/fuzz/corpus/*/*
+!/fuzz/corpus/*/*.*
+/fuzz/artifacts/*/*
+!/fuzz/artifacts/*/*.*
+/fuzz/coverage/
+/fuzz/faraday/corpus/*/*
+!/fuzz/faraday/corpus/*/*.*
+/fuzz/faraday/artifacts/*/*
+!/fuzz/faraday/artifacts/*/*.*
+/fuzz/faraday/coverage/
+# Python bytecode, written wherever a tool or the cross-check runs Python.
+__pycache__/
+*.pyc
+
+# build/ is the image build and the build list, tracked (docs/spec/09-manifest.md 1.1).
+!/build/

@@ -1,0 +1,22 @@
+[package]
+name = "faraday-kernel"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-port = { path = "../../../core/faraday-port" }
+faraday-text = { path = "../../../core/faraday-text" }
+faraday-crypto = { path = "../../../core/faraday-crypto" }
+faraday-bip = { path = "../../../core/faraday-bip" }
+faraday-psbt = { path = "../../../core/faraday-psbt" }
+faraday-keys = { path = "../../../core/faraday-keys" }
+faraday-strings = { path = "../../../core/faraday-strings" }
+faraday-kernel-derive = { path = "../faraday-kernel-derive" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "app"
+role = "kernel"

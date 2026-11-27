@@ -1,0 +1,21 @@
+[package]
+name = "faraday-qr"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-bip = { path = "../faraday-bip" }
+faraday-codec = { path = "../faraday-codec" }
+faraday-crypto = { path = "../faraday-crypto" }
+faraday-text = { path = "../faraday-text" }
+
+[dev-dependencies]
+faraday-alloc-count = { path = "../../tools/faraday-alloc-count" }
+faraday-files = { path = "../faraday-files" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "domain"

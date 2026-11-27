@@ -1,0 +1,15 @@
+[package]
+name = "faraday-crypto"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-text = { path = "../faraday-text" }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[package.metadata.faraday]
+layer = "domain"
+no_std = true

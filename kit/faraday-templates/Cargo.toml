@@ -1,0 +1,20 @@
+[package]
+name = "faraday-templates"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-organisms = { path = "../faraday-organisms" }
+faraday-molecules = { path = "../faraday-molecules" }
+faraday-atoms = { path = "../faraday-atoms" }
+faraday-tokens = { path = "../faraday-tokens" }
+faraday-strings = { path = "../../core/faraday-strings" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "kit"
+level = "templates"
+reexports = ["faraday_atoms::Ui", "faraday_atoms::Pressed", "faraday_atoms::Shown", "faraday_atoms::PlainRef", "faraday_atoms::Offered", "faraday_atoms::Drawn", "faraday_atoms::Style", "faraday_atoms::Laid", "faraday_atoms::Placement"]

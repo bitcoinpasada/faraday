@@ -1,0 +1,24 @@
+[package]
+name = "faraday-os-adapter"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-port = { path = "../../core/faraday-port" }
+faraday-boot = { path = "../../core/faraday-boot" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-fat = { path = "../../core/faraday-fat" }
+faraday-payload = { path = "../../core/faraday-payload" }
+faraday-sb = { path = "../../core/faraday-sb" }
+faraday-text = { path = "../../core/faraday-text" }
+
+[build-dependencies]
+faraday-payload = { path = "../../core/faraday-payload" }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[package.metadata.faraday]
+layer = "adapter"
+online = true

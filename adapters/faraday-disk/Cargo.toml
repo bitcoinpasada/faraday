@@ -1,0 +1,23 @@
+[package]
+name = "faraday-disk"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-boot = { path = "../../core/faraday-boot" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-fat = { path = "../../core/faraday-fat" }
+faraday-files = { path = "../../core/faraday-files" }
+faraday-strings = { path = "../../core/faraday-strings" }
+faraday-text = { path = "../../core/faraday-text" }
+
+[dev-dependencies]
+faraday-leak-scan = { path = "../../tools/faraday-leak-scan" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "adapter"
+process = true

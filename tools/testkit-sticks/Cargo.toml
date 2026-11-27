@@ -1,0 +1,15 @@
+[package]
+name = "faraday-testkit-sticks"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-testkit = { path = "../faraday-testkit" }
+faraday-backup = { path = "../../app/features/faraday-backup" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "tool"

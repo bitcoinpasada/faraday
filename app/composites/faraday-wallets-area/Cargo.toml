@@ -1,0 +1,35 @@
+[package]
+name = "faraday-wallets-area"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-kernel = { path = "../../kernel/faraday-kernel" }
+faraday-present = { path = "../../kernel/faraday-present" }
+faraday-port = { path = "../../../core/faraday-port" }
+faraday-strings = { path = "../../../core/faraday-strings" }
+faraday-organisms = { path = "../../../kit/faraday-organisms" }
+faraday-templates = { path = "../../../kit/faraday-templates" }
+faraday-wallets = { path = "../../features/faraday-wallets" }
+faraday-create = { path = "../../features/faraday-create" }
+faraday-restore = { path = "../../features/faraday-restore" }
+faraday-seeds = { path = "../../features/faraday-seeds" }
+faraday-public-files = { path = "../../features/faraday-public-files" }
+faraday-core-import = { path = "../../features/faraday-core-import" }
+faraday-addresses = { path = "../../features/faraday-addresses" }
+faraday-silent = { path = "../../features/faraday-silent" }
+faraday-backup = { path = "../../features/faraday-backup" }
+faraday-backup-flow = { path = "../../features/faraday-backup-flow" }
+faraday-backups-list = { path = "../../features/faraday-backups-list" }
+faraday-spend-backup = { path = "../../features/faraday-spend-backup" }
+
+[dev-dependencies]
+faraday-app-test = { path = "../../../tools/faraday-app-test" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "app"
+role = "composite"

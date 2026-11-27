@@ -1,0 +1,30 @@
+[package]
+name = "faraday-demo-product"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-runtime = { path = "../../../runtime/faraday-runtime" }
+faraday-online = { path = "../../composites/faraday-online" }
+faraday-session = { path = "../../owners/faraday-session" }
+faraday-settings = { path = "../../owners/faraday-settings" }
+faraday-vaults = { path = "../../owners/faraday-vaults" }
+faraday-kernel = { path = "../../kernel/faraday-kernel" }
+faraday-present = { path = "../../kernel/faraday-present" }
+faraday-port = { path = "../../../core/faraday-port" }
+faraday-strings = { path = "../../../core/faraday-strings" }
+faraday-organisms = { path = "../../../kit/faraday-organisms" }
+faraday-templates = { path = "../../../kit/faraday-templates" }
+
+[dev-dependencies]
+faraday-app-test = { path = "../../../tools/faraday-app-test" }
+faraday-fixture-adapters = { path = "../../../tools/faraday-fixture-adapters" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "app"
+role = "product"
+online = true

@@ -1,0 +1,21 @@
+[package]
+name = "faraday-ways-in"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-kernel = { path = "../../kernel/faraday-kernel" }
+faraday-port = { path = "../../../core/faraday-port" }
+faraday-text = { path = "../../../core/faraday-text" }
+faraday-forms = { path = "../../../core/faraday-forms" }
+faraday-intake = { path = "../../../core/faraday-intake" }
+faraday-text-field = { path = "../faraday-text-field" }
+faraday-word-grid = { path = "../faraday-word-grid" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "app"
+role = "part"

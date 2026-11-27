@@ -1,0 +1,26 @@
+[package]
+name = "faraday-stick-adapter"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-port = { path = "../../core/faraday-port" }
+faraday-storage = { path = "../faraday-storage" }
+faraday-camera = { path = "../faraday-camera" }
+faraday-v4l2 = { path = "../faraday-v4l2" }
+faraday-scanner = { path = "../faraday-scanner" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-boot = { path = "../../core/faraday-boot" }
+faraday-paper = { path = "../../core/faraday-paper" }
+faraday-text = { path = "../../core/faraday-text" }
+faraday-tokens = { path = "../../kit/faraday-tokens" }
+
+[dev-dependencies]
+faraday-leak-scan = { path = "../../tools/faraday-leak-scan" }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[package.metadata.faraday]
+layer = "adapter"

@@ -1,0 +1,25 @@
+[package]
+name = "faraday-starter-shell"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-starter-product = { path = "../../app/products/faraday-starter-product" }
+faraday-runtime = { path = "../../runtime/faraday-runtime" }
+faraday-port = { path = "../../core/faraday-port" }
+faraday-window = { path = "../../adapters/faraday-window" }
+faraday-desktop-adapter = { path = "../../adapters/faraday-desktop-adapter" }
+faraday-storage = { path = "../../adapters/faraday-storage" }
+faraday-os-adapter = { path = "../../adapters/faraday-os-adapter" }
+
+[dev-dependencies]
+faraday-fixture-adapters = { path = "../../tools/faraday-fixture-adapters" }
+faraday-testkit = { path = "../../tools/faraday-testkit" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "root"
+online = true

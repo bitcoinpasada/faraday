@@ -1,0 +1,23 @@
+[package]
+name = "faraday-stick"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-device-product = { path = "../../app/products/faraday-device-product" }
+faraday-runtime = { path = "../../runtime/faraday-runtime" }
+faraday-port = { path = "../../core/faraday-port" }
+faraday-stick-adapter = { path = "../../adapters/faraday-stick-adapter" }
+faraday-storage = { path = "../../adapters/faraday-storage" }
+
+[dev-dependencies]
+faraday-fixture-adapters = { path = "../../tools/faraday-fixture-adapters" }
+faraday-testkit = { path = "../../tools/faraday-testkit" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "root"
+offline = true

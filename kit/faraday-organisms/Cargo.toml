@@ -1,0 +1,22 @@
+[package]
+name = "faraday-organisms"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-molecules = { path = "../faraday-molecules" }
+faraday-atoms = { path = "../faraday-atoms" }
+faraday-tokens = { path = "../faraday-tokens" }
+faraday-strings = { path = "../../core/faraday-strings" }
+faraday-guide = { path = "../../core/faraday-guide" }
+faraday-codec = { path = "../../core/faraday-codec" }
+faraday-text = { path = "../../core/faraday-text" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "kit"
+level = "organisms"
+reexports = ["faraday_atoms::Ui", "faraday_atoms::Pressed", "faraday_atoms::Shown", "faraday_atoms::PlainRef", "faraday_atoms::Offered", "faraday_atoms::Drawn", "faraday_atoms::Style", "faraday_atoms::Laid", "faraday_atoms::Placement", "faraday_draw::icons::Icon"]

@@ -1,0 +1,25 @@
+[package]
+name = "faraday-window"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-port = { path = "../../core/faraday-port" }
+faraday-text = { path = "../../core/faraday-text" }
+faraday-camera = { path = "../faraday-camera" }
+faraday-scanner = { path = "../faraday-scanner" }
+faraday-tokens = { path = "../../kit/faraday-tokens" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+faraday-v4l2 = { path = "../faraday-v4l2" }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+faraday-mediafoundation = { path = "../faraday-mediafoundation" }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[package.metadata.faraday]
+layer = "adapter"
+online = true

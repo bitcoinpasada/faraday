@@ -1,0 +1,18 @@
+[package]
+name = "faraday-word-grid"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-kernel = { path = "../../kernel/faraday-kernel" }
+faraday-port = { path = "../../../core/faraday-port" }
+faraday-text = { path = "../../../core/faraday-text" }
+faraday-bip = { path = "../../../core/faraday-bip" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "app"
+role = "part"

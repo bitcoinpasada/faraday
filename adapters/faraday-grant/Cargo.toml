@@ -1,0 +1,15 @@
+[package]
+name = "faraday-grant"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-boot = { path = "../../core/faraday-boot" }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[package.metadata.faraday]
+layer = "adapter"
+process = true

@@ -1,0 +1,18 @@
+[package]
+name = "faraday-files"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-codec = { path = "../faraday-codec" }
+faraday-crypto = { path = "../faraday-crypto" }
+faraday-fat = { path = "../faraday-fat" }
+faraday-strings = { path = "../faraday-strings" }
+faraday-text = { path = "../faraday-text" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "domain"

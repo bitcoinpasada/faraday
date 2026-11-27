@@ -1,0 +1,25 @@
+[package]
+name = "faraday-keys"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-bip = { path = "../faraday-bip" }
+faraday-codec = { path = "../faraday-codec" }
+faraday-crypto = { path = "../faraday-crypto" }
+faraday-entropy = { path = "../faraday-entropy" }
+faraday-kef = { path = "../faraday-kef" }
+faraday-pgp = { path = "../faraday-pgp" }
+faraday-psbt = { path = "../faraday-psbt" }
+faraday-sb = { path = "../faraday-sb" }
+faraday-strings = { path = "../faraday-strings" }
+faraday-text = { path = "../faraday-text" }
+faraday-vault = { path = "../faraday-vault" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "domain"
+boundary = true

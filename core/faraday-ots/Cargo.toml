@@ -1,0 +1,15 @@
+[package]
+name = "faraday-ots"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-crypto = { path = "../faraday-crypto" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "domain"
+no_std = true

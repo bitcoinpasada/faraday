@@ -1,0 +1,23 @@
+[package]
+name = "faraday-secrets"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-kernel = { path = "../../kernel/faraday-kernel" }
+faraday-port = { path = "../../../core/faraday-port" }
+faraday-bip = { path = "../../../core/faraday-bip" }
+faraday-codec = { path = "../../../core/faraday-codec" }
+faraday-intake = { path = "../../../core/faraday-intake" }
+faraday-keys = { path = "../../../core/faraday-keys" }
+faraday-pgp = { path = "../../../core/faraday-pgp" }
+faraday-qr = { path = "../../../core/faraday-qr" }
+faraday-text = { path = "../../../core/faraday-text" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "app"
+role = "part"

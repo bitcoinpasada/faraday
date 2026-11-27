@@ -1,0 +1,23 @@
+[package]
+name = "faraday-app-test"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-kernel = { path = "../../app/kernel/faraday-kernel" }
+faraday-port = { path = "../../core/faraday-port" }
+faraday-session = { path = "../../app/owners/faraday-session" }
+faraday-settings = { path = "../../app/owners/faraday-settings" }
+faraday-vaults = { path = "../../app/owners/faraday-vaults" }
+faraday-testkit = { path = "../faraday-testkit" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-keys = { path = "../../core/faraday-keys" }
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-psbt = { path = "../../core/faraday-psbt" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "tool"

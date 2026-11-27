@@ -1,0 +1,24 @@
+[package]
+name = "faraday-storage"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-port = { path = "../../core/faraday-port" }
+faraday-files = { path = "../../core/faraday-files" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-qr = { path = "../../core/faraday-qr" }
+faraday-strings = { path = "../../core/faraday-strings" }
+faraday-text = { path = "../../core/faraday-text" }
+
+[dev-dependencies]
+faraday-codec = { path = "../../core/faraday-codec" }
+faraday-vault = { path = "../../core/faraday-vault" }
+faraday-leak-scan = { path = "../../tools/faraday-leak-scan" }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[package.metadata.faraday]
+layer = "adapter"

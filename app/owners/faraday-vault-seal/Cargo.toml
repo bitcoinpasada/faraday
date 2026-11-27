@@ -1,0 +1,28 @@
+[package]
+name = "faraday-vault-seal"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-kernel = { path = "../../kernel/faraday-kernel" }
+faraday-present = { path = "../../kernel/faraday-present" }
+faraday-port = { path = "../../../core/faraday-port" }
+faraday-strings = { path = "../../../core/faraday-strings" }
+faraday-organisms = { path = "../../../kit/faraday-organisms" }
+faraday-templates = { path = "../../../kit/faraday-templates" }
+faraday-keys = { path = "../../../core/faraday-keys" }
+faraday-vault = { path = "../../../core/faraday-vault" }
+faraday-crypto = { path = "../../../core/faraday-crypto" }
+faraday-plan = { path = "../../../core/faraday-plan" }
+
+[dev-dependencies]
+faraday-app-test = { path = "../../../tools/faraday-app-test" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "app"
+role = "feature"
+owner = true

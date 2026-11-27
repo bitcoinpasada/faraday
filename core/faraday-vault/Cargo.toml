@@ -1,0 +1,23 @@
+[package]
+name = "faraday-vault"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-bip = { path = "../faraday-bip" }
+faraday-codec = { path = "../faraday-codec" }
+faraday-crypto = { path = "../faraday-crypto" }
+faraday-entropy = { path = "../faraday-entropy" }
+faraday-text = { path = "../faraday-text" }
+
+[dev-dependencies]
+faraday-alloc-count = { path = "../../tools/faraday-alloc-count" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "domain"
+no_std = true
+boundary = true

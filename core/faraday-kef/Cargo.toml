@@ -1,0 +1,16 @@
+[package]
+name = "faraday-kef"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-codec = { path = "../faraday-codec" }
+faraday-crypto = { path = "../faraday-crypto" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "domain"
+no_std = true

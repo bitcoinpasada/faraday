@@ -1,0 +1,20 @@
+[package]
+name = "faraday-desktop-adapter"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-port = { path = "../../core/faraday-port" }
+faraday-storage = { path = "../faraday-storage" }
+faraday-files = { path = "../../core/faraday-files" }
+faraday-fat = { path = "../../core/faraday-fat" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-text = { path = "../../core/faraday-text" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "adapter"
+online = true

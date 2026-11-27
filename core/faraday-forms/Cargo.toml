@@ -1,0 +1,15 @@
+[package]
+name = "faraday-forms"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-keys = { path = "../faraday-keys" }
+faraday-strings = { path = "../faraday-strings" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "domain"

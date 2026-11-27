@@ -1,0 +1,21 @@
+[package]
+name = "faraday-scan-part"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-kernel = { path = "../../kernel/faraday-kernel" }
+faraday-port = { path = "../../../core/faraday-port" }
+faraday-codec = { path = "../../../core/faraday-codec" }
+faraday-intake = { path = "../../../core/faraday-intake" }
+faraday-qr = { path = "../../../core/faraday-qr" }
+faraday-bip = { path = "../../../core/faraday-bip" }
+faraday-pgp = { path = "../../../core/faraday-pgp" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "app"
+role = "part"

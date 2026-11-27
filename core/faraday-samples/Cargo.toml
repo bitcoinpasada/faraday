@@ -1,0 +1,27 @@
+[package]
+name = "faraday-samples"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+faraday-bip = { path = "../faraday-bip" }
+faraday-forms = { path = "../faraday-forms" }
+faraday-text = { path = "../faraday-text" }
+
+[dev-dependencies]
+faraday-codec = { path = "../faraday-codec" }
+faraday-crypto = { path = "../faraday-crypto" }
+faraday-intake = { path = "../faraday-intake" }
+faraday-keys = { path = "../faraday-keys" }
+faraday-ots = { path = "../faraday-ots" }
+faraday-psbt = { path = "../faraday-psbt" }
+faraday-testkit = { path = "../../tools/faraday-testkit" }
+faraday-vault = { path = "../faraday-vault" }
+
+[lints]
+workspace = true
+
+[package.metadata.faraday]
+layer = "domain"
+online = true
