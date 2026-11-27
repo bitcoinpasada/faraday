@@ -27,6 +27,7 @@ pub use faraday_atoms::button::ButtonModel;
 pub use faraday_atoms::field::FieldModel;
 pub use faraday_atoms::hold::HoldModel;
 pub use faraday_molecules::address::AddressModel;
+pub use faraday_molecules::buttons::ButtonsModel;
 pub use faraday_molecules::caution::CautionModel;
 pub use faraday_molecules::flow_text::FlowText;
 pub use faraday_molecules::options::ChoiceModel;

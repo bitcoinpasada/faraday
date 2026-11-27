@@ -74,6 +74,7 @@ pub struct TestView {
     clock: Clock,
     seeds: Vec<TestSeed>,
     wallets: Vec<TestWallet>,
+    started: Started,
 }
 
 impl TestView {
@@ -123,6 +124,7 @@ impl TestView {
             },
             seeds: Vec::new(),
             wallets: Vec::new(),
+            started: Started::Power,
         }
     }
 
@@ -153,6 +155,13 @@ impl TestView {
         self
     }
 
+    /// This build of the scope began as `started` says (a lock, a power-on).
+    #[must_use]
+    pub fn with_started(mut self, started: Started) -> Self {
+        self.started = started;
+        self
+    }
+
     /// With the test `Compute`.
     #[must_use]
     pub fn ctx(&self) -> Ctx<'_> {
@@ -171,7 +180,7 @@ impl TestView {
                     last_input_ms: self.clock.last_input_ms,
                 },
                 running: &[],
-                started: Started::Power,
+                started: self.started,
             },
             compute: test_compute(),
         }

@@ -1,7 +1,6 @@
 //! A feature of the app: Home and the bar search.
 //! Section 09 §4.4 and §4.6, §4.7: the feature's shape.
 
-#![expect(dead_code, reason = "the fields are read once the bodies are written")]
 #![cfg_attr(
     not(test),
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
@@ -27,6 +26,12 @@ pub struct Home;
 
 pub const JOBS: &[JobKind] = &[];
 pub const CARRY: &[CarryName] = &[];
+/// Where the page's scroll stands, keyed in the motion store beside the page's own anchor.
+pub(crate) const SCROLL: Anchor = Anchor {
+    scope: "home.Home",
+    n: 1,
+};
+
 /// Each page and sheet (06 §4.2).
 pub const ANCHORS: &[Anchor] = &[Anchor {
     scope: "home.Home",

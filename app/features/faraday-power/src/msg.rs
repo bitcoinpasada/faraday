@@ -1,14 +1,47 @@
-use faraday_kernel::{FrameSheet, Message, Top};
+use faraday_kernel::{FrameSheet, Message, Public, Top};
 use faraday_present::Pressed;
+
+/// The sheets the feature shows.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub enum Which {
+    /// Power off, and Restart where the computer offers it.
+    Power,
+    /// The Lock sheet: what a lock would lose, asked before it.
+    LockAsk,
+    /// What the next app tells after a lock.
+    Locked,
+    /// The warning before the idle lock.
+    IdleWarn,
+}
+
+impl Which {
+    /// The frame's stack slot of the sheet (06 §4.4).
+    #[must_use]
+    pub fn frame(self) -> FrameSheet {
+        match self {
+            Which::Power => FrameSheet::Power,
+            Which::LockAsk => FrameSheet::LockAsk,
+            Which::Locked => FrameSheet::Lock,
+            Which::IdleWarn => FrameSheet::IdleWarn,
+        }
+    }
+}
 
 #[derive(Message)]
 pub enum Msg {
     Press(Press),
+    /// The parent shows a sheet: the Power control's, the idle warning's.
+    Show(Which),
+    /// A Lock was asked for anywhere: with `asks_first` (what the parent read of `holds`) the
+    /// Lock sheet comes first, else the lock begins.
+    Lock {
+        asks_first: bool,
+    },
 }
 
 impl From<Press> for Msg {
-    fn from(_press: Press) -> Msg {
-        todo!()
+    fn from(press: Press) -> Msg {
+        Msg::Press(press)
     }
 }
 
@@ -23,4 +56,14 @@ pub enum Out {
 
 /// What a press on this feature's page sends.
 #[derive(Clone, PartialEq, Pressed)]
-pub enum Press {}
+pub enum Press {
+    /// Cancel, Continue, Keep working: the sheet goes away.
+    Away,
+    /// Lock, sealing the open vaults first.
+    Lock,
+    /// Lock, losing what cannot be sealed.
+    LockWithoutSealing,
+    Restart,
+    /// Power off; Quit in the desktop app.
+    PowerOff,
+}

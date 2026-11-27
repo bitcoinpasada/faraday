@@ -6,17 +6,23 @@ use faraday_pass_field::Press as PassPress;
 
 /// A control's press or why not, from the one gate (A10, V11).
 pub fn offer<P: Pressed, F: Feature>(
-    _state: &F::State,
-    _msg: &F::Msg,
-    _press: P,
-    _view: &View<'_>,
+    state: &F::State,
+    msg: &F::Msg,
+    press: P,
+    view: &View<'_>,
 ) -> Offered<P> {
-    todo!()
+    match F::refuses(state, msg, view) {
+        None => Offered::Yes(press),
+        Some(refusal) => Offered::Refused(press, refused(&refusal)),
+    }
 }
 
 /// A worded line as the kit's text.
-pub fn line<'s>(_l: &'s Line) -> Shown<'s> {
-    todo!()
+pub fn line<'s>(l: &'s Line) -> Shown<'s> {
+    match l {
+        Line::Fixed(text) => Shown::plain(*text),
+        Line::Filled(text) => Shown::plain(text),
+    }
 }
 
 /// The busy line of a feature's job kind, none when no such job runs or it is quiet.
@@ -34,6 +40,9 @@ pub fn pass_model<'s, A: Pressed>(
 }
 
 /// `Refused::drawn` to the kit's own `Drawn`.
-pub fn refused(_r: &impl Refused) -> faraday_organisms::Drawn {
-    todo!()
+pub fn refused(r: &impl Refused) -> faraday_organisms::Drawn {
+    match r.drawn() {
+        faraday_kernel::Drawn::Dimmed => faraday_organisms::Drawn::Dimmed,
+        faraday_kernel::Drawn::AsUsual => faraday_organisms::Drawn::AsUsual,
+    }
 }

@@ -1111,6 +1111,7 @@ dependencies = [
  "faraday-present",
  "faraday-strings",
  "faraday-templates",
+ "faraday-text",
 ]
 
 [[package]]
