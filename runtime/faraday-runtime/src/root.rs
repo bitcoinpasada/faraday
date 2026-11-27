@@ -10,6 +10,9 @@ use faraday_kernel::{
 use faraday_port as port;
 use faraday_port::event::{CameraFact, DevicesFact, HostFact, SystemFact};
 
+use crate::queue::Part;
+use crate::runtime::Built;
+
 /// What a product is made of, as the runtime sees it. Its value carries the product's Options.
 pub trait Root: Sized + 'static {
     type Settings: shared::Owner<Out = Top, State: Borrow<faraday_kernel::shared::Settings>>;
@@ -54,24 +57,36 @@ pub struct Tops<'a, R: Root> {
 }
 
 impl<'a, R: Root> Tops<'a, R> {
+    /// The runtime's: the top states as built, `None` before the first `Start` has built the
+    /// part outside the scope.
+    pub(crate) fn lend(built: &'a Built<R>) -> Option<Tops<'a, R>> {
+        Some(Tops {
+            settings: built.settings.as_ref()?,
+            session: built.session.as_ref(),
+            vaults: built.vaults.as_ref(),
+            app: built.app.as_ref(),
+            outside: built.outside.as_ref()?,
+        })
+    }
+
     pub fn settings(&self) -> &'a OwnerState<R::Settings> {
-        todo!()
+        self.settings
     }
 
     pub fn session(&self) -> Option<&'a OwnerState<R::Session>> {
-        todo!()
+        self.session
     }
 
     pub fn vaults(&self) -> Option<&'a OwnerState<R::Vaults>> {
-        todo!()
+        self.vaults
     }
 
     pub fn app(&self) -> Option<&'a <R::App as Feature>::State> {
-        todo!()
+        self.app
     }
 
     pub fn outside(&self) -> &'a <R::Outside as Feature>::State {
-        todo!()
+        self.outside
     }
 }
 
@@ -84,12 +99,31 @@ pub enum Addr<R: Root> {
     Outside(<R::Outside as Feature>::Msg),
 }
 
+impl<R: Root> Addr<R> {
+    /// The top state this message is for.
+    pub(crate) fn part(&self) -> Part {
+        match self {
+            Addr::Settings(_) => Part::Settings,
+            Addr::Session(_) => Part::Session,
+            Addr::Vaults(_) => Part::Vaults,
+            Addr::App(_) => Part::App,
+            Addr::Outside(_) => Part::Outside,
+        }
+    }
+}
+
 /// A port fact that goes to one feature, not into `Facts` (§2.2).
 pub enum Stream {
     Devices(DevicesFact),
     Camera(CameraFact),
     Host(HostFact),
     System(SystemFact),
+}
+
+/// Whether the root has a part outside the lock scope: its `Outside` is not `Nothing` (the
+/// Starter, §7.9).
+pub(crate) fn has_outside<R: Root>() -> bool {
+    core::any::type_name::<R::Outside>() != core::any::type_name::<Nothing>()
 }
 
 /// A top state's state type, by its feature.
@@ -108,21 +142,22 @@ pub enum NoRefusal {}
 
 impl AtLock for Empty {
     fn holds(&self) -> Holds {
-        todo!()
+        Holds {
+            kept: false,
+            typed: false,
+            session: false,
+            asks_first: None,
+        }
     }
 
-    fn hide(&mut self) {
-        todo!()
-    }
+    fn hide(&mut self) {}
 
-    fn at_lock(&mut self) {
-        todo!()
-    }
+    fn at_lock(&mut self) {}
 }
 
 impl Worded for NoRefusal {
     fn words(&self, _show: &Show<'_>) -> faraday_kernel::Line {
-        todo!()
+        match *self {}
     }
 }
 
@@ -135,18 +170,18 @@ impl Feature for Nothing {
     type Refusal = NoRefusal;
 
     fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Empty, Effects<Never, Top>) {
-        todo!()
+        (Empty, Effects::none())
     }
 
-    fn update(_state: &mut Empty, _msg: Never, _cx: &Ctx<'_>) -> Effects<Never, Top> {
-        todo!()
+    fn update(_state: &mut Empty, msg: Never, _cx: &Ctx<'_>) -> Effects<Never, Top> {
+        match msg {}
     }
 
     fn notice(_state: &mut Empty, _notice: &Notice<'_>, _cx: &Ctx<'_>) -> Effects<Never, Top> {
-        todo!()
+        Effects::none()
     }
 
-    fn refuses(_state: &Empty, _msg: &Never, _view: &View<'_>) -> Option<NoRefusal> {
-        todo!()
+    fn refuses(_state: &Empty, msg: &Never, _view: &View<'_>) -> Option<NoRefusal> {
+        match *msg {}
     }
 }

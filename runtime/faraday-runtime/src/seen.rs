@@ -6,16 +6,25 @@ use faraday_draw::canvas::Ink;
 use crate::root::Root;
 use crate::runtime::Runtime;
 
+const NO_PAGE: Anchor = Anchor { scope: "", n: 0 };
+
 impl<R: Root> Runtime<R> {
     /// What the last frame shows and keeps, and what the last event did.
     pub fn seen(&self) -> Seen<'_> {
-        todo!()
+        let out = self.frame.last();
+        Seen {
+            ink: out.and_then(|out| out.ink.as_ref()),
+            kept: &[],
+            page: out.map_or(NO_PAGE, |out| out.page),
+            sheets: out.map_or(&[], |out| out.sheets.as_slice()),
+            marks: &[],
+        }
     }
 
     /// Turn the ink record on (04 V21). The tour root's, the leak crate's and test support's
     /// only (clippy `disallowed-methods`).
-    pub fn record_ink(&mut self, _on: bool) {
-        todo!()
+    pub fn record_ink(&mut self, on: bool) {
+        self.frame.ink = on;
     }
 }
 

@@ -152,20 +152,24 @@ pub struct Show<'a> {
 
 impl<'a> Show<'a> {
     pub fn strings(&self) -> &'static Strings {
-        todo!()
+        self.strings
     }
 
     pub fn memo(&self) -> &'a Memo {
-        todo!()
+        self.memo
     }
 
     pub fn note(&self) -> Option<NoteUp<'a>> {
-        todo!()
+        self.note
     }
 
     /// The runtime's and test support's only (clippy `disallowed-methods`).
-    pub fn new(_strings: &'static Strings, _memo: &'a Memo, _note: Option<NoteUp<'a>>) -> Self {
-        todo!()
+    pub fn new(strings: &'static Strings, memo: &'a Memo, note: Option<NoteUp<'a>>) -> Self {
+        Show {
+            strings,
+            memo,
+            note,
+        }
     }
 }
 
@@ -191,7 +195,7 @@ impl Memo {
         reason = "only the runtime makes the memo (01 R1)"
     )]
     pub fn new() -> Memo {
-        todo!()
+        Memo(RefCell::new(()))
     }
 
     /// The runtime's only, at a frame's end: every entry that frame did not use is dropped.
@@ -231,6 +235,11 @@ impl Memo {
 /// How many times an owner or a feature has changed what it holds.
 #[derive(Public, Copy, PartialEq, Eq, Hash)]
 pub struct Edits(u64);
+
+impl Edits {
+    /// The count of a part that has changed nothing: what the empty readers answer (05 R26).
+    pub const NONE: Edits = Edits(0);
+}
 
 /// A costly value kept on a state by the inputs it came from. Public, so a state field of it is
 /// marked `#[lock(public)]`.

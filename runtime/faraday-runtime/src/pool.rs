@@ -59,6 +59,17 @@ struct LaneState {
     hand: Option<Sender<(Queued, Arc<Signal>)>>,
 }
 
+impl LaneState {
+    fn idle() -> Self {
+        LaneState {
+            waiting: VecDeque::new(),
+            busy: None,
+            thread: None,
+            hand: None,
+        }
+    }
+}
+
 pub(crate) struct Pool {
     workers: Workers,
     heavy: LaneState,
@@ -68,9 +79,20 @@ pub(crate) struct Pool {
 }
 
 impl Pool {
-    /// Start the lanes with the runtime (§5.1).
-    pub(crate) fn start(_workers: Workers, _waker: Arc<dyn port::Waker>) -> Self {
-        todo!()
+    /// Start the lanes with the runtime (§5.1). Only `Workers::Inline`, which has no lane
+    /// threads, is built; the threads are the workers' (§5).
+    pub(crate) fn start(workers: Workers, _waker: Arc<dyn port::Waker>) -> Self {
+        let (_hand, answers) = std::sync::mpsc::channel();
+        match workers {
+            Workers::Inline => Pool {
+                workers,
+                heavy: LaneState::idle(),
+                light: LaneState::idle(),
+                answers,
+                next: 0,
+            },
+            Workers::Threads => todo!(),
+        }
     }
 
     pub(crate) fn submit(&mut self, _lane: Lane, _job: Queued) {

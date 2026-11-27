@@ -37,63 +37,104 @@ pub enum Fx<M, O> {
 
 impl<M: Message, O: Message> Effects<M, O> {
     pub fn none() -> Self {
-        todo!()
+        Effects(Vec::new())
     }
 
     /// The runtime's only: the effects, in the order they were made (05 §3).
     pub fn into_list(self) -> Vec<Fx<M, O>> {
-        todo!()
+        self.0
     }
 
-    pub fn order(self, _o: port::Order) -> Self {
-        todo!()
+    fn push(mut self, fx: Fx<M, O>) -> Self {
+        self.0.push(fx);
+        self
     }
 
-    pub fn ask<R: port::Request, C: Public>(
+    pub fn order(self, o: port::Order) -> Self {
+        self.push(Fx::Order(o))
+    }
+
+    pub fn ask<R: port::Request + 'static, C: Public>(
         self,
-        _r: R,
-        _context: C,
-        _reply: fn(C, R::Answer) -> M,
-    ) -> Self {
-        todo!()
+        r: R,
+        context: C,
+        reply: fn(C, R::Answer) -> M,
+    ) -> Self
+    where
+        R::Answer: 'static,
+    {
+        self.push(Fx::Ask(AskFor::new(r, context, reply)))
     }
 
-    pub fn change<R: shared::Change, C: Public>(
+    pub fn change<R: shared::Change + 'static, C: Public>(
         self,
-        _r: R,
-        _context: C,
-        _reply: fn(C, R::Done) -> M,
-    ) -> Self {
-        todo!()
+        r: R,
+        context: C,
+        reply: fn(C, R::Done) -> M,
+    ) -> Self
+    where
+        R::Done: 'static,
+    {
+        self.push(Fx::Change(ChangeFor::new(r, context, reply)))
     }
 
-    pub fn job(self, _j: Job<M>) -> Self {
-        todo!()
+    /// Only an owner: the answer to a change it was given (§7.3).
+    pub fn done(self, id: shared::ChangeId, done: shared::Done) -> Self {
+        self.push(Fx::Done(id, done))
     }
 
-    pub fn then(self, _m: M) -> Self {
-        todo!()
+    pub fn job(self, j: Job<M>) -> Self {
+        self.push(Fx::Job(j))
     }
 
-    pub fn out(self, _o: O) -> Self {
-        todo!()
+    /// Ask the runtime to stop this feature's running job of this kind (§8.3).
+    pub fn stop(self, kind: JobKind) -> Self {
+        self.push(Fx::Stop(kind))
     }
 
-    pub fn note<W: Worded + Public>(self, _n: W) -> Self {
-        todo!()
+    pub fn then(self, m: M) -> Self {
+        self.push(Fx::Then(m))
     }
 
-    pub fn view(self, _v: ViewOrder) -> Self {
-        todo!()
+    pub fn out(self, o: O) -> Self {
+        self.push(Fx::Out(o))
     }
 
-    /// A composite takes a child's effects into its own (§6).
+    pub fn note<W: Worded + Public>(self, n: W) -> Self {
+        self.push(Fx::Note(Note::new(n)))
+    }
+
+    pub fn view(self, v: ViewOrder) -> Self {
+        self.push(Fx::View(v))
+    }
+
+    /// A composite takes a child's effects into its own (§6): the order is kept, a child's
+    /// message becomes the composite's, and each out is routed by `out`.
     pub fn lift<N: Message, P: Message>(
         self,
-        _msg: fn(M) -> N,
-        _out: fn(O) -> Route<N, P>,
+        msg: fn(M) -> N,
+        out: fn(O) -> Route<N, P>,
     ) -> Effects<N, P> {
-        todo!()
+        let mut lifted = Vec::with_capacity(self.0.len());
+        for fx in self.0 {
+            match fx {
+                Fx::Order(o) => lifted.push(Fx::Order(o)),
+                Fx::Ask(a) => lifted.push(Fx::Ask(a.map(msg))),
+                Fx::Change(c) => lifted.push(Fx::Change(c.map(msg))),
+                Fx::Done(id, done) => lifted.push(Fx::Done(id, done)),
+                Fx::Job(j) => lifted.push(Fx::Job(j.map(msg))),
+                Fx::Stop(kind) => lifted.push(Fx::Stop(kind)),
+                Fx::Then(m) => lifted.push(Fx::Then(msg(m))),
+                Fx::Out(o) => match out(o) {
+                    Route::To(n) => lifted.push(Fx::Then(n)),
+                    Route::Up(p) => lifted.push(Fx::Out(p)),
+                    Route::Drop => {}
+                },
+                Fx::Note(n) => lifted.push(Fx::Note(n)),
+                Fx::View(v) => lifted.push(Fx::View(v)),
+            }
+        }
+        Effects(lifted)
     }
 }
 
@@ -127,21 +168,39 @@ pub struct AskFor<M> {
 }
 
 impl<M: Message> AskFor<M> {
-    pub fn new<R: port::Request, C: Public>(
-        _request: R,
-        _context: C,
-        _reply: fn(C, R::Answer) -> M,
-    ) -> Self {
-        todo!()
+    /// An answer of another kind than the request's reaches the reply as `R::fault()`, with
+    /// `Fault::WrongKind` for the runtime to note (P9).
+    pub fn new<R: port::Request + 'static, C: Public>(
+        request: R,
+        context: C,
+        reply: fn(C, R::Answer) -> M,
+    ) -> Self
+    where
+        R::Answer: 'static,
+    {
+        AskFor {
+            request: request.into(),
+            reply: Box::new(move |answer| match R::take(answer) {
+                Ok(answer) => (reply(context, answer), Fault::None),
+                Err(_wrong) => (reply(context, R::fault()), Fault::WrongKind),
+            }),
+        }
     }
 
-    pub fn map<N: Message>(self, _f: fn(M) -> N) -> AskFor<N> {
-        todo!()
+    pub fn map<N: Message>(self, f: fn(M) -> N) -> AskFor<N> {
+        let reply = self.reply;
+        AskFor {
+            request: self.request,
+            reply: Box::new(move |answer| {
+                let (m, fault) = reply(answer);
+                (f(m), fault)
+            }),
+        }
     }
 
     /// The runtime's only: the request to carry and the reply to keep.
     pub fn into_parts(self) -> (port::Ask, Reply<M>) {
-        todo!()
+        (self.request, self.reply)
     }
 }
 
@@ -152,21 +211,37 @@ pub struct ChangeFor<M> {
 }
 
 impl<M: Message> ChangeFor<M> {
-    pub fn new<R: shared::Change, C: Public>(
-        _change: R,
-        _context: C,
-        _reply: fn(C, R::Done) -> M,
-    ) -> Self {
-        todo!()
+    pub fn new<R: shared::Change + 'static, C: Public>(
+        change: R,
+        context: C,
+        reply: fn(C, R::Done) -> M,
+    ) -> Self
+    where
+        R::Done: 'static,
+    {
+        ChangeFor {
+            change: change.into(),
+            reply: Box::new(move |done| match R::take(done) {
+                Ok(done) => (reply(context, done), Fault::None),
+                Err(_wrong) => (reply(context, R::fault()), Fault::WrongKind),
+            }),
+        }
     }
 
-    pub fn map<N: Message>(self, _f: fn(M) -> N) -> ChangeFor<N> {
-        todo!()
+    pub fn map<N: Message>(self, f: fn(M) -> N) -> ChangeFor<N> {
+        let reply = self.reply;
+        ChangeFor {
+            change: self.change,
+            reply: Box::new(move |done| {
+                let (m, fault) = reply(done);
+                (f(m), fault)
+            }),
+        }
     }
 
     /// The runtime's only: the change to hand to its owner and the reply to keep.
     pub fn into_parts(self) -> (shared::AnyChange, ChangeReply<M>) {
-        todo!()
+        (self.change, self.reply)
     }
 }
 
@@ -192,32 +267,54 @@ pub struct JobParts<M> {
 
 impl<M: Message> Job<M> {
     /// The input is moved in, a secret included; `work` is a function.
-    pub fn new<I: Send + 'static>(_kind: JobKind, _input: I, _work: fn(I, &Compute) -> M) -> Self {
-        todo!()
+    pub fn new<I: Send + 'static>(kind: JobKind, input: I, work: fn(I, &Compute) -> M) -> Self {
+        Job {
+            kind,
+            quiet: false,
+            heavy: false,
+            seal: false,
+            run: Box::new(move |compute| work(input, compute)),
+        }
     }
 
-    pub fn quiet(self) -> Self {
-        todo!()
+    pub fn quiet(mut self) -> Self {
+        self.quiet = true;
+        self
     }
 
     /// The heavy lane, for work that asks Argon2id for memory (05 §5.1). Only the shared
     /// owners' crates call it.
-    pub fn heavy(self) -> Self {
-        todo!()
+    pub fn heavy(mut self) -> Self {
+        self.heavy = true;
+        self
     }
 
     /// A seal: it runs to its end at a lock. Only the vault owner's crate calls it.
-    pub fn seal(self) -> Self {
-        todo!()
+    pub fn seal(mut self) -> Self {
+        self.seal = true;
+        self
     }
 
-    pub fn map<N: Message>(self, _f: fn(M) -> N) -> Job<N> {
-        todo!()
+    pub fn map<N: Message>(self, f: fn(M) -> N) -> Job<N> {
+        let run = self.run;
+        Job {
+            kind: self.kind,
+            quiet: self.quiet,
+            heavy: self.heavy,
+            seal: self.seal,
+            run: Box::new(move |compute| f(run(compute))),
+        }
     }
 
     /// The runtime's only: the job's parts, for the pool (05 §5).
     pub fn into_parts(self) -> JobParts<M> {
-        todo!()
+        JobParts {
+            kind: self.kind,
+            quiet: self.quiet,
+            heavy: self.heavy,
+            seal: self.seal,
+            run: self.run,
+        }
     }
 }
 
@@ -229,8 +326,8 @@ pub struct JobKind(pub &'static str);
 pub struct Note(Box<dyn Worded>);
 
 impl Note {
-    pub fn new<W: Worded + Public>(_w: W) -> Self {
-        todo!()
+    pub fn new<W: Worded + Public>(w: W) -> Self {
+        Note(Box::new(w))
     }
 }
 

@@ -25,6 +25,14 @@ pub(crate) struct Log {
 }
 
 impl Log {
+    /// Off and empty.
+    pub(crate) fn new() -> Self {
+        Log {
+            on: false,
+            lines: VecDeque::new(),
+        }
+    }
+
     pub(crate) fn push(&mut self, _line: LogLine) {
         todo!()
     }

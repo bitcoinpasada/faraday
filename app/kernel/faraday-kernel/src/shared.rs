@@ -1,7 +1,13 @@
 //! The shared owners: the session, the vaults and the settings, read through `View`'s traits and
 //! changed only by a change sent to its owner (03 §7).
 
+use faraday_bip::keys::Network;
+use faraday_keys::Keys;
+use faraday_keys::vault::{OpenVaults, VaultId};
+
+use crate::cx::Edits;
 use crate::feature::Feature;
+use crate::handle::{KeyId, WalletId};
 use crate::message::Public;
 
 pub mod session;
@@ -84,3 +90,77 @@ pub trait Owner: Feature {
 }
 
 pub use settings::Settings;
+
+/// The empty readers (A19): what a part is lent where it has no session or vaults to read, and
+/// what an owner is lent in its own slot (05 R13, R26). It holds nothing and changes never.
+pub struct Empty {
+    keys: Keys,
+    open: OpenVaults,
+}
+
+impl Empty {
+    pub fn new() -> Empty {
+        Empty {
+            keys: Keys::on(Network::Mainnet),
+            open: OpenVaults::default(),
+        }
+    }
+}
+
+impl Default for Empty {
+    fn default() -> Empty {
+        Empty::new()
+    }
+}
+
+impl session::Read for Empty {
+    fn keys(&self) -> &Keys {
+        &self.keys
+    }
+
+    fn key(&self, _id: KeyId) -> Option<session::KeyView<'_>> {
+        None
+    }
+
+    fn wallets(&self) -> &[session::WalletView] {
+        &[]
+    }
+
+    fn wallet(&self, _id: WalletId) -> Option<&session::WalletView> {
+        None
+    }
+
+    fn waiting(&self) -> &[session::WaitingItem] {
+        &[]
+    }
+
+    fn inbox(&self) -> &[session::FileView] {
+        &[]
+    }
+
+    fn outbox(&self) -> &[session::FileView] {
+        &[]
+    }
+
+    fn seeded(&self) -> bool {
+        false
+    }
+
+    fn edits(&self) -> Edits {
+        Edits::NONE
+    }
+}
+
+impl vaults::Read for Empty {
+    fn open(&self) -> &OpenVaults {
+        &self.open
+    }
+
+    fn current(&self) -> Option<VaultId> {
+        None
+    }
+
+    fn edits(&self) -> Edits {
+        Edits::NONE
+    }
+}

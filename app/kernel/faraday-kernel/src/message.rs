@@ -82,10 +82,10 @@ pub enum Never {}
 
 impl Message for Never {
     fn kind(&self) -> &'static str {
-        todo!()
+        match *self {}
     }
 
     fn public(&self) -> Option<&dyn Debug> {
-        todo!()
+        match *self {}
     }
 }

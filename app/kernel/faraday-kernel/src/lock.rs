@@ -79,6 +79,16 @@ pub enum FileBox {
 }
 
 impl Carried {
+    /// What the first build of a process starts from: nothing carried (05 §7.5).
+    pub fn empty() -> Carried {
+        Carried {
+            inbox: Vec::new(),
+            outbox: Vec::new(),
+            entries: Vec::new(),
+            only_copy: false,
+        }
+    }
+
     pub fn put<V: CarryValue>(&mut self, _name: CarryName, _value: &V) {
         todo!()
     }

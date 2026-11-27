@@ -7,6 +7,17 @@ use faraday_port::values::Anchor;
 /// anchor).
 pub struct MotionStore(());
 
+impl MotionStore {
+    /// The runtime's only: the one store, empty.
+    #[expect(
+        clippy::new_without_default,
+        reason = "only the runtime makes the motion store (01 R1)"
+    )]
+    pub fn new() -> MotionStore {
+        MotionStore(())
+    }
+}
+
 /// Numbers, rectangles and times only (K9).
 pub enum Motion {
     Region {

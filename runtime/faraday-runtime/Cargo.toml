@@ -15,6 +15,8 @@ faraday-selftest = { path = "../../core/faraday-selftest" }
 faraday-strings = { path = "../../core/faraday-strings" }
 
 [dev-dependencies]
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-keys = { path = "../../core/faraday-keys" }
 faraday-app-test = { path = "../../tools/faraday-app-test" }
 faraday-alloc-count = { path = "../../tools/faraday-alloc-count" }
 faraday-leak-scan = { path = "../../tools/faraday-leak-scan" }

@@ -23,3 +23,6 @@ pub use log::LogLine;
 pub use root::{Addr, Nothing, OwnerState, Root, Stream, Tops};
 pub use runtime::{Phase, Runtime, Workers};
 pub use seen::{KeptImage, Mark, Seen};
+
+#[cfg(test)]
+mod tests;

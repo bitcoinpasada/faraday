@@ -1296,6 +1296,9 @@ main = "docs/COMPUTE.md"
 fate = "rewrite"
 next = ["docs/COMPUTE.md"]
 contract = "08 §4.4"
+changed = [
+    "written for `next`: who mints the token (the root thread in `Runtime::new`, each pool lane), the two hooks, what drawing may not reach; the lint's list and the named costs wait for the lint and the features",
+]
 
 [[module]]
 main = "docs/WORKERS.md"
@@ -1320,12 +1323,18 @@ main = "docs/SPEED.md"
 fate = "rewrite"
 next = ["docs/SPEED.md"]
 contract = "08 §4.4"
+changed = [
+    "written for `next`: drawing reads, costly work is a token and a job, parse once, how a cost is held; the budget tests and the timed session come with the screens",
+]
 
 [[module]]
 main = "docs/FRAMES.md"
 fate = "rewrite"
 next = ["docs/FRAMES.md"]
 contract = "08 §4.4"
+changed = [
+    "written for `next`: the runtime's frame (05 §2.5) and what it keeps; the kit's painting, motion store and kept images wait for the kit",
+]
 
 [[module]]
 main = "docs/FLOW-CONTAINER.md"
@@ -1475,6 +1484,9 @@ fate = "rewrite"
 next = ["app/kernel/faraday-kernel/src/effects.rs", "runtime/faraday-runtime/src/dispatch.rs"]
 feature = ["app-shell", "motion"]
 contract = "03 §4 and 05 §3: what the core hands the shell becomes the ordered effects the runtime serves"
+changed = [
+    "`faraday-kernel/src/effects.rs`: the ordered list and its builders, `AskFor`, `ChangeFor`, `Job` and `Note` filled, with `Effects::done` and `Effects::stop`, which the specification's builder list lacks; `runtime/faraday-runtime/src/dispatch.rs`: the walk of the list, the reply table, asks answered once, changes served beside asks, jobs handed to the pool (05 §3); jobs and their lanes are written with the workers",
+]
 
 [[module]]
 main = "faraday/faraday-core/src/compute.rs"
@@ -1482,6 +1494,9 @@ fate = "rewrite"
 next = ["app/kernel/faraday-kernel/src/cx.rs", "runtime/faraday-runtime/src/pool.rs"]
 feature = ["drawing-compute"]
 contract = "03 §5 and 05 §2.4: the token is handed by `Ctx`, never fetched from the app"
+changed = [
+    "`faraday-kernel/src/cx.rs`: `Show`'s accessors and constructor, `Memo::new`, `Edits::NONE`; `runtime/faraday-runtime/src/runtime.rs`: the root thread's token minted once, with its three hooks (05 §2.4, R10); `pool.rs` keeps the lane threads' mint and the worker side of the hooks for the workers",
+]
 
 [[module]]
 main = "faraday/faraday-core/src/at_lock.rs"
@@ -1608,6 +1623,9 @@ fate = "rewrite"
 next = ["runtime/faraday-runtime/src/memo.rs", "runtime/faraday-runtime/src/frame.rs"]
 feature = ["drawing-compute"]
 contract = "04 §6 and 04 §13: what a frame works out once becomes the memo of a `present`; drawing reads and works nothing out"
+changed = [
+    "`runtime/faraday-runtime/src/frame.rs`: the frame's order, the buffer, the laid facts sent once, presses hit-tested against the last frame, the focus order, the notes (05 §2.5); the memo store (`memo.rs`) and the kit's painting are left for the workers and the kit",
+]
 
 [[module]]
 main = "faraday/faraday-core/src/drawing"
@@ -1615,6 +1633,9 @@ fate = "rewrite"
 next = ["runtime/faraday-runtime/src/memo.rs", "kit/faraday-atoms/src/frame_out.rs"]
 feature = ["drawing-compute"]
 contract = "04 §6, §7 and §13: the memo's fills, the values kept for drawing and the owner's exceptions go with the memo and the `Ui`'s frame"
+changed = [
+    "`runtime/faraday-runtime/src/frame.rs` and `facts.rs`: `View` and `Show` built from separate borrows, the empty readers, `Facts` kept as the process's (05 §4); the memo's fills and the kit's frame output wait for the memo and the kit",
+]
 
 [[module]]
 main = "faraday/faraday-core/src/fade.rs"

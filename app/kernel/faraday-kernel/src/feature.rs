@@ -56,12 +56,18 @@ pub enum Notice<'a> {
 }
 
 /// How a composite or root passes a message to a child.
+///
+/// A refused message gives one note, the refusal's words, and nothing else (A9); otherwise it
+/// reaches `update`.
 pub fn route<F: Feature>(
-    _state: &mut F::State,
-    _msg: F::Msg,
-    _cx: &Ctx<'_>,
+    state: &mut F::State,
+    msg: F::Msg,
+    cx: &Ctx<'_>,
 ) -> Effects<F::Msg, F::Out> {
-    todo!()
+    match F::refuses(state, &msg, &cx.view) {
+        Some(refusal) => Effects::none().note(refusal),
+        None => F::update(state, msg, cx),
+    }
 }
 
 /// In the kernel's `feature` module: what the top states tell the runtime.
