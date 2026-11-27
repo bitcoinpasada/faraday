@@ -1,13 +1,1749 @@
-//! The keyboard organism (09 §3.3).
+//! The keyboard organism (09 §3.3): the on-screen keyboard's key layouts and their drawing as
+//! Faraday's keys, across the foot of a small panel or a strip of the wide layout. A press is the
+//! key a physical keyboard would send.
+//!
+//! The keyboard keeps no copy of what is typed (the field's part holds the text) and the label of
+//! a key is the key, never the typed text. What it holds between frames is Shift, the symbol
+//! layer and how Done is drawn ([`Keys`]), and which key is pressed (the frame's pointer).
+//!
+//! Anti-observation defaults: no popup previews, and no press layer on a key: hover and focus
+//! show, the press does not, so a watcher reads nothing from a press (F152).
 
-use core::marker::PhantomData;
+use faraday_atoms::button::Look;
+use faraday_atoms::{Icon, Pressed, Shown, Ui};
+use faraday_tokens::palette::Role;
 
-use faraday_atoms::{Pressed, Ui};
+/// The display facts a layout of keys depends on.
+#[derive(Debug, Clone, Copy)]
+pub struct KeyLayout {
+    /// dp scale.
+    pub scale: Scale,
+    /// The shell's bottom inset in dp: what a keyboard's bottom row stands clear of.
+    pub inset_bottom_dp: f32,
+}
 
-/// The model. Its fields are those of `main`'s component, ported (09 §3.4).
-pub struct KeyboardModel<A>(PhantomData<(A,)>);
+impl KeyLayout {
+    /// A layout with no inset.
+    pub fn new(scale: Scale) -> Self {
+        KeyLayout {
+            scale,
+            inset_bottom_dp: 0.0,
+        }
+    }
 
-/// Draws the model.
-pub fn draw<A: Pressed>(_m: &KeyboardModel<A>, _ui: &mut Ui<'_, A>) {
-    todo!()
+    /// dp to whole pixels.
+    pub fn px(&self, dp: f32) -> i32 {
+        self.scale.px(Dp(dp))
+    }
+}
+
+use faraday_draw::geom::{Dp, Rect, Scale};
+use faraday_tokens::dims as tokens;
+
+/// Which keyboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyboardKind {
+    /// QWERTY letters only, for BIP-39 words. Keys that cannot lead to a
+    /// valid word are disabled; the enabled set comes from the application.
+    Bip39,
+    /// Digits 0–9, optionally scrambled.
+    Pin,
+    /// Hex digits 0–9 A–F.
+    Hex,
+    /// Printable ASCII with shift and a symbol layer.
+    Passphrase,
+    /// The dice pad: six large keys `1`–`6` in two rows and a backspace
+    /// spanning both rows; no ✓.
+    Dice,
+    /// The coin pad: `Heads`, `Tails` and a backspace in one row of tall
+    /// keys. Heads is [`KeyInput::Char`]`('H')`, tails `'T'`.
+    Coin,
+    /// The binary pad: `0`, `1`, a backspace and ✓ in one row of tall
+    /// keys, for typing a value bit by bit.
+    Binary,
+    /// The card pad: thirteen rank keys and four suit keys in three
+    /// rows, with a backspace and ✓. A card is typed rank-then-suit or
+    /// suit-then-rank; the pad does not care which comes first.
+    Cards,
+    /// The derivation-path keyboard: digits, `/`, `h` (hardened),
+    /// backspace and ✓, in three rows.
+    Path,
+    /// The address keyboard (`docs/DESIGN.md` §4.3): the bech32
+    /// alphabet on the QWERTY positions, and a shift that swaps it for
+    /// base58 so that a legacy or nested address can be typed. Keys
+    /// that cannot continue an address are disabled; the enabled set
+    /// comes from the application.
+    Address,
+    /// The codex32 keyboard (`docs/DESIGN.md` §4.3): the same bech32
+    /// alphabet on the same QWERTY positions as [`KeyboardKind::Address`],
+    /// without the `1` and `b` an address needs for its human-readable
+    /// part and without the shift that reaches base58, because a codex32
+    /// string is bech32 characters and nothing else. Keys that cannot
+    /// continue a string are disabled; the enabled set comes from the
+    /// application.
+    Codex32,
+    /// The codex32 keyboard with `?`, which marks a box that cannot be
+    /// read, at the end of its bottom row (`docs/CODEX32.md` §8.4): the
+    /// keyboard while Suggest corrections is ticked. The same keys as
+    /// [`KeyboardKind::Codex32`] otherwise.
+    Codex32Unreadable,
+    /// The kana keyboard, for the Japanese wordlist: the 五十音 as ten
+    /// columns of five, with the voicing marks, the small-kana key,
+    /// backspace in the cells the grid leaves empty.
+    Kana,
+    /// The jamo keyboard, for the Korean wordlist: the two-set layout on
+    /// the QWERTY positions, with shift for the doubled consonants and
+    /// the two shifted vowels.
+    Jamo,
+    /// The pinyin keyboard, for the Simplified Chinese wordlist: the
+    /// BIP-39 letter rows and a fourth row of the five tone keys, the
+    /// backspace ending it.
+    Pinyin,
+    /// The 注音 keyboard, for the Traditional Chinese wordlist: the 大千
+    /// layout, four rows, the backspace at the end of the last.
+    Zhuyin,
+}
+
+/// What a key does when tapped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyInput {
+    /// Insert a character.
+    Char(char),
+    /// Delete the previous character.
+    Backspace,
+    /// Confirm / done.
+    Done,
+    /// Toggle shift (passphrase keyboard).
+    Shift,
+    /// Toggle the symbol layer (passphrase keyboard).
+    Symbols,
+}
+
+/// Modifier state the keyboard is drawn with (kept in [`crate::UiState`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Modifiers {
+    /// Shift is on (letters upper-case).
+    pub shift: bool,
+    /// The symbol layer is showing.
+    pub symbols: bool,
+}
+
+/// One key's geometry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyCap {
+    /// Where the key is.
+    pub rect: Rect,
+    /// What it does.
+    pub input: KeyInput,
+    /// Whether it accepts taps.
+    pub enabled: bool,
+}
+
+const BIP39_ROWS: [&str; 3] = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+const PASS_ROWS: [&str; 4] = ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm"];
+const SYMBOL_ROWS: [&str; 4] = ["!@#$%^&*()", "-_=+[]{}\\|", ";:'\",.<>/?", "`~"];
+const HEX_ROWS: [&str; 3] = ["123456", "7890AB", "CDEF"];
+const PATH_ROWS: [&str; 3] = ["12345", "67890", "/h"];
+
+/// The address keyboard's bech32 layer. The alphabet is
+/// `qpzry9x8gf2tvdw0s3jn54khce6mua7l`, which is every lower-case letter
+/// but `b`, `i` and `o` and every digit but `1`; the rows put each
+/// where QWERTY does, so the letters a person knows are where they
+/// expect them. `1` and `b` have keys of their own because an address
+/// begins with a human-readable part and the separator — `bc1`, `tb1`,
+/// `bcrt1` — and neither character is in the alphabet that follows it.
+const ADDRESS_ROWS: [&str; 4] = ["0123456789", "qwertyup", "asdfghjkl", "zxcvbnm"];
+
+/// The codex32 keyboard's rows: the bech32 alphabet on the same
+/// positions the address keyboard puts it, less `1` and `b`, which are
+/// an address's human-readable part and no part of the alphabet.
+const CODEX32_ROWS: [&str; 4] = ["023456789", "qwertyup", "asdfghjkl", "zxcvnm"];
+
+/// The key [`KeyboardKind::Codex32Unreadable`] adds: a box that cannot
+/// be read.
+pub(crate) const UNREADABLE_KEY: char = '?';
+
+/// The mask bit of [`UNREADABLE_KEY`]: the first after the digits, which
+/// the codex32 keyboards (no upper case) leave free.
+const UNREADABLE_BIT: KeyMask = 1 << 36;
+
+/// The address keyboard's base58 layer, lower case: the alphabet
+/// without `0`, `O`, `I` and `l`, which is what a legacy or nested
+/// address is written in.
+const BASE58_LOWER_ROWS: [&str; 4] = ["123456789", "qwertyuiop", "asdfghjk", "zxcvbnm"];
+
+/// The same layer in upper case.
+const BASE58_UPPER_ROWS: [&str; 4] = ["123456789", "QWERTYUP", "ASDFGHJKL", "ZXCVBNM"];
+
+/// The rank keys, in two rows of seven and six. `T` is the ten.
+const CARD_RANK_ROWS: [&str; 2] = ["A234567", "89TJQK"];
+
+/// The suit keys: ♠ ♥ ♦ ♣.
+pub(crate) const CARD_SUITS: [char; 4] = ['\u{2660}', '\u{2665}', '\u{2666}', '\u{2663}'];
+
+/// The standalone voiced sound mark ゛, which the dakuten key shows.
+pub const DAKUTEN_KEY: char = '\u{309B}';
+/// The standalone semi-voiced sound mark ゜, which the handakuten key shows.
+pub const HANDAKUTEN_KEY: char = '\u{309C}';
+/// 小, the key that turns the last kana typed into its small form.
+pub const SMALL_KEY: char = '\u{5C0F}';
+
+/// One kana cell, so that the grid below reads as the 五十音 it is.
+const fn k(c: char) -> Option<KeyInput> {
+    Some(KeyInput::Char(c))
+}
+
+/// The kana keyboard, cell by cell: five rows of the vowels あいうえお,
+/// ten columns of the consonant groups あかさたなはまやらわ. The 五十音
+/// leaves five cells empty — や at い and え, わ at い, う and え — and
+/// they carry ゛, ゜ and 小; ん takes the わ column's え cell and the
+/// backspace the bottom-right one, where the archaic を would sit.
+/// Four keys for five cells leaves one
+/// empty, and an empty cell is a cell: nothing is drawn there and a tap
+/// on it does nothing.
+const KANA_GRID: [[Option<KeyInput>; 10]; 5] = [
+    [
+        k('あ'),
+        k('か'),
+        k('さ'),
+        k('た'),
+        k('な'),
+        k('は'),
+        k('ま'),
+        k('や'),
+        k('ら'),
+        k('わ'),
+    ],
+    [
+        k('い'),
+        k('き'),
+        k('し'),
+        k('ち'),
+        k('に'),
+        k('ひ'),
+        k('み'),
+        k(DAKUTEN_KEY),
+        k('り'),
+        k(SMALL_KEY),
+    ],
+    [
+        k('う'),
+        k('く'),
+        k('す'),
+        k('つ'),
+        k('ぬ'),
+        k('ふ'),
+        k('む'),
+        k('ゆ'),
+        k('る'),
+        None,
+    ],
+    [
+        k('え'),
+        k('け'),
+        k('せ'),
+        k('て'),
+        k('ね'),
+        k('へ'),
+        k('め'),
+        k(HANDAKUTEN_KEY),
+        k('れ'),
+        k('ん'),
+    ],
+    [
+        k('お'),
+        k('こ'),
+        k('そ'),
+        k('と'),
+        k('の'),
+        k('ほ'),
+        k('も'),
+        k('よ'),
+        k('ろ'),
+        Some(KeyInput::Backspace),
+    ],
+];
+
+/// The two-set jamo rows on the QWERTY positions.
+const JAMO_ROWS: [&str; 3] = [
+    "ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔ",
+    "ㅁㄴㅇㄹㅎㅗㅓㅏㅣ",
+    "ㅋㅌㅊㅍㅠㅜㅡ",
+];
+
+/// The same rows with shift down: the five doubled consonants and the
+/// two shifted vowels; everything else keeps its key.
+const JAMO_SHIFT_ROWS: [&str; 3] = [
+    "ㅃㅉㄸㄲㅆㅛㅕㅑㅒㅖ",
+    "ㅁㄴㅇㄹㅎㅗㅓㅏㅣ",
+    "ㅋㅌㅊㅍㅠㅜㅡ",
+];
+
+/// The tone keys of the pinyin keyboard: 1 to 4 as a dictionary marks
+/// them, 5 for the neutral tone. A syllable is not a word until one of
+/// them is pressed.
+const PINYIN_TONES: &str = "12345";
+
+/// ˉ, the first tone. The 大千 layout leaves the first tone to the space
+/// bar, which this keyboard has no room for, so it is a key of its own.
+pub(crate) const TONE_HIGH: char = '\u{02C9}';
+/// ˊ, the second tone.
+pub(crate) const TONE_RISING: char = '\u{02CA}';
+/// ˇ, the third tone.
+pub(crate) const TONE_LOW: char = '\u{02C7}';
+/// ˋ, the fourth tone.
+pub(crate) const TONE_FALLING: char = '\u{02CB}';
+/// ˙, the neutral tone.
+pub(crate) const TONE_NEUTRAL: char = '\u{02D9}';
+
+/// The 注音 tone marks, in tone order from the first. Every tone has a
+/// key, so every reading ends the same way.
+pub const ZHUYIN_MARKS: [char; 5] = [TONE_HIGH, TONE_RISING, TONE_LOW, TONE_FALLING, TONE_NEUTRAL];
+
+/// The 大千 layout, four rows on the QWERTY positions, with ㄦ at the end
+/// of the top row where the layout puts it and ˉ after it on the second
+/// row, where the layout has the space bar this keyboard lacks. Eleven
+/// keys in the first two rows and ten in the others: the rows are the
+/// ones people have on a Taiwanese keyboard, so the key width follows
+/// the row.
+const ZHUYIN_ROWS: [&str; 4] = [
+    "\u{3105}\u{3109}\u{02C7}\u{02CB}\u{3113}\u{02CA}\u{02D9}\u{311A}\u{311E}\u{3122}\u{3126}",
+    "\u{3106}\u{310A}\u{310D}\u{3110}\u{3114}\u{3117}\u{3127}\u{311B}\u{311F}\u{3123}\u{02C9}",
+    "\u{3107}\u{310B}\u{310E}\u{3111}\u{3115}\u{3118}\u{3128}\u{311C}\u{3120}\u{3124}",
+    "\u{3108}\u{310C}\u{310F}\u{3112}\u{3116}\u{3119}\u{3129}\u{311D}\u{3121}\u{3125}",
+];
+
+/// The seven keys shift swaps in, which have no unshifted position of
+/// their own and so are numbered after the rows.
+const JAMO_SHIFTED: [char; 7] = ['ㅃ', 'ㅉ', 'ㄸ', 'ㄲ', 'ㅆ', 'ㅒ', 'ㅖ'];
+
+/// Bitmask of the keys a keyboard still offers: bit `n` is the `n`-th
+/// key of that kind ([`key_bit`]), and bit 63 is [`DONE_DISABLED`].
+/// [`ALL_KEYS`] enables everything.
+pub type KeyMask = u64;
+
+/// Every key enabled.
+pub const ALL_KEYS: KeyMask = !(DONE_DISABLED | DONE_ABSENT);
+
+/// Mask bit that disables the ✓ key of the dice, coin, hex, PIN and
+/// path pads, where ✓ means "continue" and is live only once what has
+/// been entered is usable. The other kinds ignore it, and the five that
+/// type a wordlist have no ✓ at all.
+pub(crate) const DONE_DISABLED: KeyMask = 1 << 63;
+
+/// Mask bit that leaves the digit pad's ✓ cell empty: no key drawn and
+/// no target, the digits and the backspace where the PIN pad has them.
+/// Word numbers' pad carries it, because a word is taken by a tap on its
+/// candidate and the pad has nothing to confirm. The other kinds ignore it; no kind numbers a key at
+/// this bit.
+pub(crate) const DONE_ABSENT: KeyMask = 1 << 62;
+
+/// The mask bit of a key on `kind`'s keyboard, or 0 for a character
+/// that has no key there. The BIP-39 keyboard numbers its letters `a` to
+/// `z`; the kana and jamo keyboards number their keys in layout order.
+pub fn key_bit(kind: KeyboardKind, c: char) -> KeyMask {
+    let index = match kind {
+        KeyboardKind::Kana => KANA_GRID
+            .iter()
+            .flatten()
+            .position(|cell| *cell == Some(KeyInput::Char(c))),
+        KeyboardKind::Jamo => JAMO_ROWS
+            .iter()
+            .flat_map(|r| r.chars())
+            .chain(JAMO_SHIFTED)
+            .position(|k| k == c),
+        KeyboardKind::Zhuyin => ZHUYIN_ROWS
+            .iter()
+            .flat_map(|r| r.chars())
+            .position(|k| k == c),
+        // The letters keep the BIP-39 numbering, so a pinyin syllable
+        // and a Latin word light the same bits; the five tone keys
+        // follow them.
+        KeyboardKind::Pinyin => {
+            return if c.is_ascii_lowercase() {
+                1 << (c as u32 - 'a' as u32)
+            } else if let Some(i) = PINYIN_TONES.find(c) {
+                1 << (26 + i)
+            } else {
+                0
+            };
+        }
+        // The digit pad numbers its keys by the digit itself, so a mask
+        // can dim the digits that cannot lead where the screen is going.
+        KeyboardKind::Pin => {
+            return if c.is_ascii_digit() {
+                1 << (c as u32 - '0' as u32)
+            } else {
+                0
+            };
+        }
+        // The address keyboard carries both cases and the digits, so
+        // its bits run lower case, digits, upper case: 62 of the 63 the
+        // mask has under [`DONE_DISABLED`].
+        KeyboardKind::Address => {
+            return if c.is_ascii_lowercase() {
+                1 << (c as u32 - 'a' as u32)
+            } else if c.is_ascii_digit() {
+                1 << (26 + (c as u32 - '0' as u32))
+            } else if c.is_ascii_uppercase() {
+                1 << (36 + (c as u32 - 'A' as u32))
+            } else {
+                0
+            };
+        }
+        // The codex32 keyboards number their letters and digits as the
+        // address keyboard does, so one mask reads on either; they have
+        // no upper case, and `?` takes the first bit after the digits.
+        KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable => {
+            return if c.is_ascii_lowercase() {
+                1 << (c as u32 - 'a' as u32)
+            } else if c.is_ascii_digit() {
+                1 << (26 + (c as u32 - '0' as u32))
+            } else if c == UNREADABLE_KEY && kind == KeyboardKind::Codex32Unreadable {
+                UNREADABLE_BIT
+            } else {
+                0
+            };
+        }
+        _ => {
+            return if c.is_ascii_lowercase() {
+                1 << (c as u32 - 'a' as u32)
+            } else {
+                0
+            };
+        }
+    };
+    index.map_or(0, |i| 1 << i)
+}
+
+/// The mask bit for a letter of the BIP-39 keyboard, or 0 for a
+/// non-letter.
+pub fn letter_bit(c: char) -> KeyMask {
+    key_bit(KeyboardKind::Bip39, c)
+}
+
+/// Every character `kind` has a key for, in layout order. The font baker
+/// reads this, so a keycap can never be drawn that was not baked.
+pub fn keycaps(kind: KeyboardKind) -> impl Iterator<Item = char> {
+    let kana = (kind == KeyboardKind::Kana)
+        .then(|| KANA_GRID.iter().flatten())
+        .into_iter()
+        .flatten()
+        .filter_map(|cell| match cell {
+            Some(KeyInput::Char(c)) => Some(*c),
+            _ => None,
+        });
+    let jamo = (kind == KeyboardKind::Jamo)
+        .then(|| JAMO_ROWS.iter().flat_map(|r| r.chars()).chain(JAMO_SHIFTED))
+        .into_iter()
+        .flatten();
+    let pinyin = (kind == KeyboardKind::Pinyin)
+        .then(|| {
+            BIP39_ROWS
+                .iter()
+                .flat_map(|r| r.chars())
+                .chain(PINYIN_TONES.chars())
+        })
+        .into_iter()
+        .flatten();
+    let zhuyin = (kind == KeyboardKind::Zhuyin)
+        .then(|| ZHUYIN_ROWS.iter().flat_map(|r| r.chars()))
+        .into_iter()
+        .flatten();
+    let cards = (kind == KeyboardKind::Cards)
+        .then(|| {
+            CARD_RANK_ROWS
+                .iter()
+                .flat_map(|r| r.chars())
+                .chain(CARD_SUITS)
+        })
+        .into_iter()
+        .flatten();
+    kana.chain(jamo).chain(pinyin).chain(zhuyin).chain(cards)
+}
+
+/// Whether every row of `kind` is the same height, with no reserve
+/// under the last: the codex32 keyboards and the codex32 entry's dice
+/// pad, which a page draws inside its own column rather than at the
+/// screen's edge.
+pub(crate) fn equal_rows(kind: KeyboardKind) -> bool {
+    matches!(
+        kind,
+        KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable | KeyboardKind::Dice
+    )
+}
+
+/// The least height in dp a row of `kind` is drawn at, where the one
+/// drawing it sets the row: [`tokens::CODEX32_KEY_ROW`] (a 48 dp touch
+/// row) for the codex32 keyboards and the dice pad, [`tokens::HEX_KEY_ROW`]
+/// for the hex keyboard, nothing for the others, which keep their own
+/// geometry.
+pub fn min_row(kind: KeyboardKind) -> f32 {
+    if kind == KeyboardKind::Hex {
+        tokens::HEX_KEY_ROW
+    } else if equal_rows(kind) {
+        tokens::CODEX32_KEY_ROW
+    } else {
+        0.0
+    }
+}
+
+/// Number of rows a keyboard kind has (for height measurement).
+pub fn rows(kind: KeyboardKind) -> usize {
+    match kind {
+        KeyboardKind::Bip39 => 3,
+        KeyboardKind::Pin => 4,
+        KeyboardKind::Hex => 3,
+        KeyboardKind::Passphrase => 5,
+        KeyboardKind::Dice => 2,
+        KeyboardKind::Coin | KeyboardKind::Binary => 1,
+        KeyboardKind::Path => 3,
+        KeyboardKind::Address | KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable => 4,
+        KeyboardKind::Cards => 3,
+        KeyboardKind::Kana => 5,
+        KeyboardKind::Jamo => 3,
+        KeyboardKind::Pinyin | KeyboardKind::Zhuyin => 4,
+    }
+}
+
+/// Gap between key cells in dp. Zero: keys tile the keyboard area with no
+/// dead zones, and each one paints a face inset by [`KEY_FACE_INSET`], so
+/// the visible gaps between keys are still tappable.
+pub(crate) const KEY_GAP: f32 = tokens::KEY_GAP;
+
+/// Inset in dp from a key's cell to its visible face, left and right.
+pub const KEY_FACE_INSET: f32 = tokens::KEY_FACE_INSET;
+
+/// Inset in dp from a key's cell to its visible face, top and bottom.
+/// Smaller than the horizontal one: height is the scarce axis, and a
+/// key that reads tall enough is worth more than an even border.
+pub const KEY_FACE_INSET_Y: f32 = tokens::KEY_FACE_INSET_Y;
+
+/// Inset in dp under the bottom row's faces: the visible keys sit this
+/// far above the bottom edge of the screen, while their hit rectangles
+/// reach it.
+pub const KEY_BOTTOM_INSET: f32 = tokens::KEY_BOTTOM_INSET;
+
+/// Deterministic permutation of the digits 0–9 for `seed` (xorshift32 +
+/// Fisher–Yates). The same seed always gives the same order.
+pub(crate) fn scrambled_digits(seed: u32) -> [char; 10] {
+    let mut digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    let mut x = seed | 1;
+    for i in (1..10).rev() {
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        let j = (x % (i as u32 + 1)) as usize;
+        digits.swap(i, j);
+    }
+    digits
+}
+
+/// The key rectangles for `kind` filling `area`.
+///
+/// `enabled` is the BIP-39 letter mask (ignored by other kinds);
+/// `scramble` is the PIN scramble seed (`None` = natural order).
+pub fn keys(
+    kind: KeyboardKind,
+    area: Rect,
+    ctx: &KeyLayout,
+    enabled: KeyMask,
+    scramble: Option<u32>,
+    mods: Modifiers,
+) -> Vec<KeyCap> {
+    let gap = ctx.px(KEY_GAP);
+    let n_rows = rows(kind) as i32;
+    // The rows tile the whole region: every row but the last is
+    // `key_h` tall, and the last one takes the remainder, which carries
+    // the bottom reserve down to the screen edge. The codex32 keyboards
+    // keep every row the same height (`equal_rows`).
+    let reserve = if equal_rows(kind) {
+        0
+    } else {
+        ctx.px(tokens::key_bottom_reserve(ctx.inset_bottom_dp))
+    };
+    let key_h = ((area.h - reserve) / n_rows).max(1);
+    let row_y = |r: i32| area.y + r * key_h;
+    let row_h = |r: i32| {
+        if r + 1 == n_rows {
+            (area.bottom() - row_y(r)).max(1)
+        } else {
+            key_h
+        }
+    };
+    let mut out = Vec::new();
+
+    // A row of `units` total width units; each entry is (units, input,
+    // enabled). Keys are laid out left to right with `gap` between.
+    let lay_row = |r: i32, entries: &[(f32, KeyInput, bool)], out: &mut Vec<KeyCap>| {
+        let (y, h) = (row_y(r), row_h(r));
+        let total_units: f32 = entries.iter().map(|e| e.0).sum();
+        let n = entries.len() as i32;
+        let usable = (area.w - gap * (n - 1)) as f32;
+        let unit = usable / total_units;
+        let mut x = area.x as f32;
+        for (i, &(units, input, en)) in entries.iter().enumerate() {
+            let w = units * unit;
+            let x0 = round(x);
+            let x1 = if i as i32 == n - 1 {
+                area.right()
+            } else {
+                round(x + w)
+            };
+            out.push(KeyCap {
+                rect: Rect::new(x0, y, (x1 - x0).max(1), h),
+                input,
+                enabled: en,
+            });
+            x += w + gap as f32;
+        }
+    };
+
+    match kind {
+        KeyboardKind::Bip39 => {
+            for (r, letters) in BIP39_ROWS.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = letters
+                    .chars()
+                    .map(|c| (1.0, KeyInput::Char(c), enabled & letter_bit(c) != 0))
+                    .collect();
+                if r == 2 {
+                    // A wordlist keyboard has no ✓ — a word is
+                    // taken by a tap on its candidate — so row three is
+                    // the seven letters and the backspace at the right.
+                    entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+        }
+        KeyboardKind::Pin => {
+            let digits = scramble.map_or(
+                ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+                scrambled_digits,
+            );
+            let live = |c: char| enabled & key_bit(KeyboardKind::Pin, c) != 0;
+            for r in 0..3 {
+                let entries: Vec<_> = (0..3)
+                    .map(|c| {
+                        let d = digits[1 + r * 3 + c];
+                        (1.0, KeyInput::Char(d), live(d))
+                    })
+                    .collect();
+                lay_row(r as i32, &entries, &mut out);
+            }
+            let last = [
+                (1.0, KeyInput::Backspace, true),
+                (1.0, KeyInput::Char(digits[0]), live(digits[0])),
+                (1.0, KeyInput::Done, enabled & DONE_DISABLED == 0),
+            ];
+            lay_row(3, &last, &mut out);
+            // The row is laid out whole so the two keys keep their
+            // columns, and then the ✓ cell is emptied.
+            if enabled & DONE_ABSENT != 0 {
+                out.pop();
+            }
+        }
+        KeyboardKind::Hex => {
+            for (r, chars) in HEX_ROWS.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = chars
+                    .chars()
+                    .map(|c| (1.0, KeyInput::Char(c), true))
+                    .collect();
+                if r == 2 {
+                    entries.push((1.0, KeyInput::Backspace, true));
+                    entries.push((1.0, KeyInput::Done, enabled & DONE_DISABLED == 0));
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+        }
+        KeyboardKind::Dice => {
+            // Four columns: three dice keys per row and one backspace on
+            // the right spanning both rows.
+            let usable = (area.w - gap * 3) as f32;
+            let unit = usable / tokens::PAD_COLUMNS;
+            let col_x = |c: i32| area.x + round(c as f32 * (unit + gap as f32));
+            for r in 0..2 {
+                for c in 0..3 {
+                    let digit = (b'1' + (r * 3 + c) as u8) as char;
+                    let x0 = col_x(c);
+                    let x1 = col_x(c + 1) - gap;
+                    out.push(KeyCap {
+                        rect: Rect::new(x0, row_y(r), (x1 - x0).max(1), row_h(r)),
+                        input: KeyInput::Char(digit),
+                        enabled: true,
+                    });
+                }
+            }
+            // The fourth column: backspace spanning both rows; the flow's
+            // Continue goes on, the pad has no ✓.
+            let x0 = col_x(3);
+            let w = (area.right() - x0).max(1);
+            out.push(KeyCap {
+                rect: Rect::new(x0, row_y(0), w, (area.bottom() - row_y(0)).max(1)),
+                input: KeyInput::Backspace,
+                enabled: true,
+            });
+        }
+        KeyboardKind::Coin => {
+            let entries = [
+                (2.0, KeyInput::Char('H'), true),
+                (2.0, KeyInput::Char('T'), true),
+                (1.0, KeyInput::Backspace, true),
+                (1.0, KeyInput::Done, enabled & DONE_DISABLED == 0),
+            ];
+            lay_row(0, &entries, &mut out);
+        }
+        KeyboardKind::Binary => {
+            let entries = [
+                (2.0, KeyInput::Char('0'), true),
+                (2.0, KeyInput::Char('1'), true),
+                (1.0, KeyInput::Backspace, true),
+                (1.0, KeyInput::Done, enabled & DONE_DISABLED == 0),
+            ];
+            lay_row(0, &entries, &mut out);
+        }
+        KeyboardKind::Cards => {
+            // Seven columns: seven ranks, then six ranks and the
+            // backspace, then the four suits and a ✓ three columns wide.
+            for (r, chars) in CARD_RANK_ROWS.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = chars
+                    .chars()
+                    .map(|c| (1.0, KeyInput::Char(c), true))
+                    .collect();
+                if r == 1 {
+                    entries.push((1.0, KeyInput::Backspace, true));
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+            let mut entries: Vec<(f32, KeyInput, bool)> = CARD_SUITS
+                .iter()
+                .map(|&c| (1.0, KeyInput::Char(c), true))
+                .collect();
+            entries.push((
+                tokens::KEY_UNITS_DONE,
+                KeyInput::Done,
+                enabled & DONE_DISABLED == 0,
+            ));
+            lay_row(2, &entries, &mut out);
+        }
+        KeyboardKind::Path => {
+            // Five columns: two rows of digits, then `/`, `h` and the
+            // wider backspace and ✓ sharing the same five units.
+            for (r, chars) in PATH_ROWS.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = chars
+                    .chars()
+                    .map(|c| (1.0, KeyInput::Char(c), true))
+                    .collect();
+                if r == 2 {
+                    entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+                    // Dead while the path does not parse: ✓ applies the
+                    // text on the field (UX review 2026-09-07, §3.7).
+                    entries.push((
+                        tokens::KEY_UNITS_EDGE,
+                        KeyInput::Done,
+                        enabled & DONE_DISABLED == 0,
+                    ));
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+        }
+        KeyboardKind::Address => {
+            // Shift swaps the bech32 alphabet for base58, and on the
+            // base58 layer the key in the digit row's tenth place
+            // swaps the case. The bottom row is the same four places on
+            // every layer, so shift, backspace and ✓ do not move when
+            // the alphabet does.
+            let rows_src: &[&str; 4] = match (mods.shift, mods.symbols) {
+                (false, _) => &ADDRESS_ROWS,
+                (true, false) => &BASE58_LOWER_ROWS,
+                (true, true) => &BASE58_UPPER_ROWS,
+            };
+            for (r, chars) in rows_src.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = chars
+                    .chars()
+                    .map(|c| {
+                        let input = KeyInput::Char(c);
+                        (1.0, input, live(kind, input, enabled))
+                    })
+                    .collect();
+                if r == 0 && mods.shift {
+                    entries.push((1.0, KeyInput::Symbols, true));
+                }
+                if r == 3 {
+                    entries.insert(0, (tokens::KEY_UNITS_EDGE, KeyInput::Shift, true));
+                    entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+                    entries.push((
+                        tokens::KEY_UNITS_EDGE,
+                        KeyInput::Done,
+                        enabled & DONE_DISABLED == 0,
+                    ));
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+        }
+        KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable => {
+            // One layer: no shift to another alphabet, so the bottom row
+            // is the letters it has (and `?`, with the tick), then
+            // backspace and ✓.
+            for (r, chars) in CODEX32_ROWS.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = chars
+                    .chars()
+                    .map(|c| {
+                        let input = KeyInput::Char(c);
+                        (1.0, input, live(kind, input, enabled))
+                    })
+                    .collect();
+                if r == 3 {
+                    if kind == KeyboardKind::Codex32Unreadable {
+                        let input = KeyInput::Char(UNREADABLE_KEY);
+                        entries.push((1.0, input, live(kind, input, enabled)));
+                    }
+                    entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+                    entries.push((
+                        tokens::KEY_UNITS_EDGE,
+                        KeyInput::Done,
+                        enabled & DONE_DISABLED == 0,
+                    ));
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+        }
+        KeyboardKind::Kana => {
+            // The grid is laid cell by cell rather than key by key, so
+            // that the columns line up down the five rows whether a
+            // cell carries a key or not.
+            let cols = tokens::KANA_COLUMNS;
+            let cell_w = (area.w - gap * (cols as i32 - 1)) as f32 / cols as f32;
+            for (r, row) in KANA_GRID.iter().enumerate() {
+                let (y, h) = (row_y(r as i32), row_h(r as i32));
+                for (c, cell) in row.iter().enumerate() {
+                    let Some(input) = *cell else { continue };
+                    let x0 = area.x + round(c as f32 * (cell_w + gap as f32));
+                    let x1 = if c + 1 == cols {
+                        area.right()
+                    } else {
+                        area.x + round(c as f32 * (cell_w + gap as f32) + cell_w)
+                    };
+                    out.push(KeyCap {
+                        rect: Rect::new(x0, y, (x1 - x0).max(1), h),
+                        input,
+                        enabled: live(kind, input, enabled),
+                    });
+                }
+            }
+        }
+        KeyboardKind::Jamo => {
+            let rows_src = if mods.shift {
+                &JAMO_SHIFT_ROWS
+            } else {
+                &JAMO_ROWS
+            };
+            for (r, chars) in rows_src.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = chars
+                    .chars()
+                    .map(|c| {
+                        let input = KeyInput::Char(c);
+                        (1.0, input, live(kind, input, enabled))
+                    })
+                    .collect();
+                if r == 2 {
+                    entries.insert(0, (tokens::KEY_UNITS_EDGE, KeyInput::Shift, true));
+                    entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+        }
+        KeyboardKind::Pinyin => {
+            // The letter rows keep the shape they have on the BIP-39
+            // keyboard; the tones are a fourth row of their own, ending
+            // with the backspace that row 3 carries there.
+            for (r, letters) in BIP39_ROWS.iter().enumerate() {
+                let entries: Vec<(f32, KeyInput, bool)> = letters
+                    .chars()
+                    .map(|c| {
+                        let input = KeyInput::Char(c);
+                        (1.0, input, live(kind, input, enabled))
+                    })
+                    .collect();
+                lay_row(r as i32, &entries, &mut out);
+            }
+            let mut tones: Vec<(f32, KeyInput, bool)> = PINYIN_TONES
+                .chars()
+                .map(|c| {
+                    let input = KeyInput::Char(c);
+                    (1.0, input, live(kind, input, enabled))
+                })
+                .collect();
+            tones.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+            lay_row(3, &tones, &mut out);
+        }
+        KeyboardKind::Zhuyin => {
+            for (r, chars) in ZHUYIN_ROWS.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = chars
+                    .chars()
+                    .map(|c| {
+                        let input = KeyInput::Char(c);
+                        (1.0, input, live(kind, input, enabled))
+                    })
+                    .collect();
+                if r == 3 {
+                    entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+        }
+        KeyboardKind::Passphrase => {
+            let rows_src: &[&str; 4] = if mods.symbols {
+                &SYMBOL_ROWS
+            } else {
+                &PASS_ROWS
+            };
+            for (r, chars) in rows_src.iter().enumerate() {
+                let mut entries: Vec<(f32, KeyInput, bool)> = chars
+                    .chars()
+                    .map(|c| {
+                        let c = if mods.shift && !mods.symbols {
+                            c.to_ascii_uppercase()
+                        } else {
+                            c
+                        };
+                        (1.0, KeyInput::Char(c), true)
+                    })
+                    .collect();
+                if r == 3 {
+                    if mods.symbols {
+                        // "`~" plus a wide backspace.
+                        entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+                    } else {
+                        entries.insert(0, (tokens::KEY_UNITS_EDGE, KeyInput::Shift, true));
+                        entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
+                    }
+                }
+                lay_row(r as i32, &entries, &mut out);
+            }
+            let bottom = [
+                (2.0, KeyInput::Symbols, true),
+                (tokens::KEY_UNITS_SPACE, KeyInput::Char(' '), true),
+                (2.0, KeyInput::Done, enabled & DONE_DISABLED == 0),
+            ];
+            lay_row(4, &bottom, &mut out);
+        }
+    }
+    out
+}
+
+/// Whether a key of `kind` accepts taps under `enabled`: a character
+/// key follows its own bit, backspace is always live, and ✓ follows
+/// [`DONE_DISABLED`].
+fn live(kind: KeyboardKind, input: KeyInput, enabled: KeyMask) -> bool {
+    match input {
+        KeyInput::Char(c) => enabled & key_bit(kind, c) != 0,
+        KeyInput::Done => enabled & DONE_DISABLED == 0,
+        _ => true,
+    }
+}
+
+fn round(v: f32) -> i32 {
+    (v + 0.5) as i32
+}
+
+/// A press on the keyboard, or on a bar's keyboard button.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OskPress {
+    /// A character key.
+    Char(char),
+    /// Backspace.
+    Back,
+    /// Done: Enter.
+    Done,
+    /// Shift.
+    Shift,
+    /// The symbol layer.
+    Symbols,
+    /// Bring the keyboard up.
+    Show,
+    /// Put it away.
+    Hide,
+}
+
+/// What a press types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Typed {
+    /// A character.
+    Char(char),
+    /// Backspace.
+    Backspace,
+    /// Enter.
+    Enter,
+}
+
+/// One row of keys on a compact (small) panel, design units, where ten keys across leave no room
+/// for more (F152).
+const KEY_ROW_COMPACT: f32 = 32.0;
+
+/// The widest the keys grow in the wide layout, design units: past it they sit centred in the
+/// strip.
+const KEYS_MAX_W: f32 = 720.0;
+
+/// The keyboard's own state: Shift and the symbol layer, and how its Done key is drawn.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Keys {
+    /// Shift is on: the next letter is a capital.
+    pub shift: bool,
+    /// The symbol layer is up.
+    pub symbols: bool,
+    /// How Done is drawn.
+    pub done: DoneKey,
+}
+
+/// How the keyboard's Done key is drawn.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum DoneKey {
+    /// Filled: the page's one way on.
+    #[default]
+    Primary,
+    /// Outlined: the page's own button is its one way on.
+    Secondary,
+    /// Outlined and not available now: it takes no press.
+    Off,
+}
+
+impl Keys {
+    /// A press: what it types, if anything. A letter turns Shift off. Show and Hide are the
+    /// caller's.
+    pub fn press(&mut self, p: OskPress) -> Option<Typed> {
+        match p {
+            OskPress::Char(c) => {
+                if c.is_alphabetic() {
+                    self.shift = false;
+                }
+                Some(Typed::Char(c))
+            }
+            OskPress::Back => Some(Typed::Backspace),
+            OskPress::Done => Some(Typed::Enter),
+            OskPress::Shift => {
+                self.shift = !self.shift;
+                None
+            }
+            OskPress::Symbols => {
+                self.symbols = !self.symbols;
+                None
+            }
+            OskPress::Show | OskPress::Hide => None,
+        }
+    }
+
+    /// Shift off and the letters up, as a keyboard comes up fresh.
+    pub fn reset(&mut self) {
+        *self = Keys::default();
+    }
+}
+
+/// The keyboard to draw: its kind, its layers, whether the panel is compact, the words of its Done
+/// key, the keys that can be pressed and what each press sends. It holds no typed text.
+pub struct KeyboardModel<'s, A> {
+    pub kind: KeyboardKind,
+    pub keys: Keys,
+    /// The panel is a small one: a row of keys is [`KEY_ROW_COMPACT`] tall.
+    pub compact: bool,
+    /// The Done key's words.
+    pub done: Shown<'s>,
+    /// The keys that can be pressed ([`ALL_KEYS`] for every one).
+    pub enabled: KeyMask,
+    /// The PIN pad's scramble seed; none for the natural order.
+    pub scramble: Option<u32>,
+    /// What a key's press sends.
+    pub act: fn(OskPress) -> A,
+}
+
+/// The keyboard's height, design units, on a `compact` panel or not.
+pub fn height(kind: KeyboardKind, compact: bool) -> f32 {
+    rows(kind) as f32 * row(kind, compact) + 8.0
+}
+
+/// One row of `kind`'s keys, design units: a touch target and a gap
+/// ([`tokens::OSK_KEY_ROW`]), or on a compact panel [`KEY_ROW_COMPACT`]; the least the keyboard
+/// asks for ([`min_row`]) where it sets one.
+fn row(kind: KeyboardKind, compact: bool) -> f32 {
+    let least = min_row(kind);
+    if least > 0.0 {
+        least
+    } else if compact {
+        KEY_ROW_COMPACT
+    } else {
+        tokens::OSK_KEY_ROW
+    }
+}
+
+/// Draws the keyboard across the panel from `x`, `w` wide, from `y` down; on a wide layout
+/// (not `compact`) its keys no wider than [`KEYS_MAX_W`], centred. Returns its height.
+pub fn draw<A: Pressed>(
+    m: &KeyboardModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    // The keys keep their size whatever the text size: they are set by what must fit on the
+    // panel (`docs/TEXT-SIZE.md` §3).
+    ui.fixed_text(|ui| keys_drawn(m, ui, (x, y, w)));
+    height(m.kind, m.compact)
+}
+
+fn keys_drawn<A: Pressed>(
+    m: &KeyboardModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) {
+    let (kind, keys) = (m.kind, m.keys);
+    let n_rows = rows(kind) as f32;
+    ui.fill(
+        x,
+        y,
+        w,
+        n_rows * row(kind, m.compact) + 8.0,
+        0.0,
+        Role::SurfaceContainer,
+    );
+    ui.fill(x, y, w, 1.0, 0.0, Role::OutlineVariant);
+    let kw = if m.compact { w } else { w.min(KEYS_MAX_W) };
+    let kx = x + (w - kw) / 2.0;
+    let area = Rect::new(
+        (kx + 4.0) as i32,
+        (y + 6.0) as i32,
+        (kw - 4.0) as i32,
+        (n_rows * row(kind, m.compact)) as i32,
+    );
+    let ctx = KeyLayout::new(Scale::new(160));
+    let mods = Modifiers {
+        shift: keys.shift,
+        symbols: keys.symbols,
+    };
+    for cap in self::keys(kind, area, &ctx, m.enabled, m.scramble, mods) {
+        let r = cap.rect;
+        let (kx, ky, kw, kh) = (r.x as f32, r.y as f32, r.w as f32 - 3.0, r.h as f32 - 3.0);
+        // The label is the key, never anything typed.
+        let (label, look, press) = match cap.input {
+            KeyInput::Char(' ') => (String::new(), Look::Secondary, OskPress::Char(' ')),
+            KeyInput::Char(c) => (c.to_string(), Look::Secondary, OskPress::Char(c)),
+            KeyInput::Backspace => (String::new(), Look::Secondary, OskPress::Back),
+            KeyInput::Done => {
+                let look = match keys.done {
+                    DoneKey::Primary => Look::Primary,
+                    DoneKey::Secondary => Look::Secondary,
+                    DoneKey::Off => Look::Disabled,
+                };
+                (m.done.as_str().to_string(), look, OskPress::Done)
+            }
+            // Drawn as an icon below: Faraday's fonts have no "⇧".
+            KeyInput::Shift => (
+                String::new(),
+                if keys.shift {
+                    Look::Primary
+                } else {
+                    Look::Secondary
+                },
+                OskPress::Shift,
+            ),
+            KeyInput::Symbols => (
+                if keys.symbols { "abc" } else { "#+=" }.to_string(),
+                Look::Secondary,
+                OskPress::Symbols,
+            ),
+        };
+        let look = look.when(cap.enabled);
+        let shape = (kx, ky, Some(kw), kh, tokens::RADIUS_SMALL);
+        ui.key_in(shape, &label, look, (m.act)(press));
+        let mid = |dx: f32| (kx + kw / 2.0 - dx, ky + kh / 2.0 - dx);
+        let (ix, iy) = mid(9.0);
+        match cap.input {
+            KeyInput::Backspace => ui.icon(ix, iy, 18.0, Icon::Delete, 12.0, Role::OnSurface),
+            KeyInput::Char(' ') => ui.icon(ix, iy, 18.0, Icon::Space, 12.0, Role::OnSurfaceVariant),
+            KeyInput::Shift => ui.icon(
+                ix,
+                iy,
+                18.0,
+                Icon::ChevronUp,
+                12.0,
+                if keys.shift {
+                    Role::OnPrimary
+                } else {
+                    Role::OnSurface
+                },
+            ),
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use faraday_atoms::ui::testing::{P, at_rest, canvas, frame};
+
+    fn ctx(dpi: u16) -> KeyLayout {
+        KeyLayout::new(Scale::new(dpi))
+    }
+
+    /// Invariant: Only the letters the word list can continue with are live on the word keyboard, and the backspace always is.
+    /// Regression: A key that leads to no word stays pressable.
+    /// Owner: kit
+    #[test]
+    fn bip39_disables_letters_outside_the_mask() {
+        let area = Rect::new(0, 0, 360, 140);
+        let caps = keys(
+            KeyboardKind::Bip39,
+            area,
+            &ctx(160),
+            ["a", "b", "c"]
+                .iter()
+                .flat_map(|w| w.chars())
+                .fold(0, |m, c| m | key_bit(KeyboardKind::Bip39, c)),
+            None,
+            Modifiers::default(),
+        );
+        // Twenty-six letters and the backspace: no ✓ on a wordlist
+        // keyboard.
+        assert_eq!(caps.len(), 26 + 1);
+        assert_eq!(caps[caps.len() - 1].input, KeyInput::Backspace);
+        let find = |c: char| caps.iter().find(|k| k.input == KeyInput::Char(c)).unwrap();
+        assert!(find('a').enabled && find('b').enabled && find('c').enabled);
+        assert!(!find('d').enabled && !find('q').enabled);
+        assert!(
+            caps.iter()
+                .any(|k| k.input == KeyInput::Backspace && k.enabled)
+        );
+    }
+
+    /// Invariant: The five keyboards that type a wordlist carry no check key and end in the backspace.
+    /// Regression: A done key on a word keyboard, or the backspace moved off the last cell.
+    /// Owner: kit
+    #[test]
+    fn a_wordlist_keyboard_has_no_check_and_ends_in_the_backspace() {
+        for kind in [
+            KeyboardKind::Bip39,
+            KeyboardKind::Kana,
+            KeyboardKind::Jamo,
+            KeyboardKind::Pinyin,
+            KeyboardKind::Zhuyin,
+        ] {
+            let area = Rect::new(0, 0, 268, 200);
+            let caps = keys(kind, area, &ctx(160), ALL_KEYS, None, Modifiers::default());
+            assert!(
+                !caps.iter().any(|k| k.input == KeyInput::Done),
+                "{kind:?} carries a ✓"
+            );
+            let last = caps
+                .iter()
+                .max_by_key(|k| (k.rect.bottom(), k.rect.right()))
+                .expect("a key");
+            assert_eq!(
+                last.input,
+                KeyInput::Backspace,
+                "{kind:?}: the bottom-right key"
+            );
+            assert!(last.enabled, "{kind:?}: the backspace is always live");
+        }
+    }
+
+    /// Invariant: The dice pad keys stay inside the area and do not overlap.
+    /// Regression: Dice keys spilling over each other or off the panel.
+    /// Owner: kit
+    #[test]
+    fn dice_keys_stay_inside_the_area_without_overlap() {
+        {
+            let kind = KeyboardKind::Dice;
+            let area = Rect::new(7, 11, 353, 211);
+            let caps = keys(
+                kind,
+                area,
+                &ctx(160),
+                ALL_KEYS,
+                Some(3),
+                Modifiers::default(),
+            );
+            for (i, a) in caps.iter().enumerate() {
+                assert!(
+                    a.rect.x >= area.x && a.rect.right() <= area.right(),
+                    "{kind:?} x"
+                );
+                assert!(
+                    a.rect.y >= area.y && a.rect.bottom() <= area.bottom(),
+                    "{kind:?} y"
+                );
+                for b in &caps[i + 1..] {
+                    assert!(
+                        a.rect.intersect(&b.rect).is_empty(),
+                        "{kind:?} overlap {a:?} {b:?}"
+                    );
+                }
+            }
+            // Each row ends flush with the right edge.
+            let max_right = caps.iter().map(|k| k.rect.right()).max().unwrap();
+            assert_eq!(max_right, area.right());
+        }
+    }
+
+    /// Invariant: The same seed always scrambles the PIN digits the same way, and every digit stands once.
+    /// Regression: A digit lost or repeated by the scramble, or an order that changes between frames.
+    /// Owner: kit
+    #[test]
+    fn pin_scramble_is_deterministic_and_a_permutation() {
+        let a = scrambled_digits(42);
+        let b = scrambled_digits(42);
+        assert_eq!(a, b);
+        let mut sorted = a;
+        sorted.sort_unstable();
+        assert_eq!(sorted, ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
+        assert_ne!(scrambled_digits(1), scrambled_digits(2));
+        // The unscrambled pad has 1 top-left and 0 bottom-centre.
+        let caps = keys(
+            KeyboardKind::Pin,
+            Rect::new(0, 0, 300, 400),
+            &ctx(160),
+            0,
+            None,
+            Modifiers::default(),
+        );
+        assert_eq!(caps[0].input, KeyInput::Char('1'));
+        assert_eq!(caps[10].input, KeyInput::Char('0'));
+    }
+
+    /// Invariant: The hit rectangles cover the whole keyboard region with no gap and no overlap, so every pixel belongs to exactly one key.
+    /// Regression: A tap near the edge of the keyboard that lands on no key or on two.
+    /// Owner: kit
+    #[test]
+    fn hit_rects_tile_the_region_out_to_its_edges() {
+        for kind in [
+            KeyboardKind::Bip39,
+            KeyboardKind::Pin,
+            KeyboardKind::Hex,
+            KeyboardKind::Passphrase,
+            KeyboardKind::Coin,
+            KeyboardKind::Path,
+            KeyboardKind::Address,
+            KeyboardKind::Codex32,
+            KeyboardKind::Codex32Unreadable,
+            KeyboardKind::Kana,
+            KeyboardKind::Jamo,
+            KeyboardKind::Pinyin,
+            KeyboardKind::Zhuyin,
+        ] {
+            for dpi in [160, 240] {
+                let c = ctx(dpi);
+                // The region a screen gives a keyboard: full width, down
+                // to the bottom edge.
+                let area = Rect::new(0, 358 - 190, 268, 190);
+                let caps = keys(kind, area, &c, ALL_KEYS, Some(3), Modifiers::default());
+                // Rows partition the height, columns partition each row.
+                let mut ys: std::vec::Vec<(i32, i32)> =
+                    caps.iter().map(|k| (k.rect.y, k.rect.bottom())).collect();
+                ys.sort_unstable();
+                ys.dedup();
+                assert_eq!(ys[0].0, area.y, "{kind:?} starts at the top");
+                assert_eq!(
+                    ys[ys.len() - 1].1,
+                    area.bottom(),
+                    "{kind:?} reaches the bottom edge"
+                );
+                for w in ys.windows(2) {
+                    assert_eq!(w[0].1, w[1].0, "{kind:?} rows are adjacent");
+                }
+                // The kana grid is the one keyboard with an empty cell:
+                // the 五十音 leaves five cells for four keys.
+                let mut empty: i64 = 0;
+                let mut gaps = 0;
+                for &(y, bottom) in &ys {
+                    let mut row: std::vec::Vec<&KeyCap> = caps
+                        .iter()
+                        .filter(|k| k.rect.y == y && k.rect.bottom() == bottom)
+                        .collect();
+                    row.sort_by_key(|k| k.rect.x);
+                    assert_eq!(row[0].rect.x, area.x, "{kind:?} reaches the left edge");
+                    let h = i64::from(bottom - y);
+                    let mut gap = |w: i32| {
+                        if w > 0 {
+                            gaps += 1;
+                            empty += i64::from(w) * h;
+                        }
+                    };
+                    gap(area.right() - row[row.len() - 1].rect.right());
+                    for w in row.windows(2) {
+                        gap(w[1].rect.x - w[0].rect.right());
+                    }
+                }
+                assert_eq!(
+                    gaps,
+                    usize::from(kind == KeyboardKind::Kana),
+                    "{kind:?} leaves {empty} square pixels to no key"
+                );
+                // Every other point of the region resolves to a cell.
+                let area_px: i64 = i64::from(area.w) * i64::from(area.h);
+                let covered: i64 = caps
+                    .iter()
+                    .map(|k| i64::from(k.rect.w) * i64::from(k.rect.h))
+                    .sum();
+                assert_eq!(covered + empty, area_px, "{kind:?} covers the whole region");
+            }
+        }
+    }
+
+    /// Invariant: The passphrase keyboard types every printable ASCII character through its layers.
+    /// Regression: A character of a passphrase that cannot be typed.
+    /// Owner: kit
+    #[test]
+    fn passphrase_layers_cover_printable_ascii() {
+        let area = Rect::new(0, 0, 400, 240);
+        let c = ctx(160);
+        let mut seen = std::collections::BTreeSet::new();
+        for (shift, symbols) in [(false, false), (true, false), (false, true)] {
+            for k in keys(
+                KeyboardKind::Passphrase,
+                area,
+                &c,
+                0,
+                None,
+                Modifiers { shift, symbols },
+            ) {
+                if let KeyInput::Char(ch) = k.input {
+                    seen.insert(ch);
+                }
+            }
+        }
+        for b in 0x20u8..=0x7E {
+            assert!(seen.contains(&(b as char)), "missing {:?}", b as char);
+        }
+        assert_eq!(seen.len(), 95);
+    }
+
+    /// Invariant: The kana keyboard is the 五十音 grid with the voicing marks, 小 and the backspace in the cells it leaves empty, and every kana of the list on a key.
+    /// Regression: A kana of the Japanese list with no key, or a mark in the wrong cell.
+    /// Owner: kit
+    #[test]
+    fn the_kana_grid_carries_the_fifty_sounds_and_its_four_own_keys() {
+        let caps = keys(
+            KeyboardKind::Kana,
+            Rect::new(0, 0, 400, 250),
+            &ctx(160),
+            ALL_KEYS,
+            None,
+            Modifiers::default(),
+        );
+        // Fifty cells, one of them empty: four keys for the five the
+        // 五十音 leaves over.
+        assert_eq!(caps.len(), 49);
+        // Row order is the vowels; column order the consonant groups.
+        let at = |row: i32, column: usize| {
+            let mut ys: Vec<i32> = caps.iter().map(|k| k.rect.y).collect();
+            ys.sort_unstable();
+            ys.dedup();
+            let y = ys[row as usize];
+            let mut cells: Vec<&KeyCap> = caps.iter().filter(|k| k.rect.y == y).collect();
+            cells.sort_by_key(|k| k.rect.x);
+            cells.get(column).map(|k| k.input)
+        };
+        assert_eq!(at(0, 0), Some(KeyInput::Char('\u{3042}')), "あ");
+        assert_eq!(at(1, 7), Some(KeyInput::Char(DAKUTEN_KEY)));
+        assert_eq!(at(3, 7), Some(KeyInput::Char(HANDAKUTEN_KEY)));
+        assert_eq!(at(1, 9), Some(KeyInput::Char(SMALL_KEY)));
+        // The backspace holds the bottom-right cell, ん the one above
+        // it, and the cell over that is empty.
+        assert_eq!(at(4, 9), Some(KeyInput::Backspace));
+        assert_eq!(at(3, 9), Some(KeyInput::Char('\u{3093}')), "ん");
+        assert_eq!(at(2, 9), None);
+        assert!(
+            !caps.iter().any(|k| k.input == KeyInput::Done),
+            "no ✓ on a wordlist keyboard"
+        );
+        // A mask dims what it leaves out.
+        let one = keys(
+            KeyboardKind::Kana,
+            Rect::new(0, 0, 400, 250),
+            &ctx(160),
+            key_bit(KeyboardKind::Kana, '\u{3042}') | DONE_DISABLED,
+            None,
+            Modifiers::default(),
+        );
+        let live: Vec<KeyInput> = one.iter().filter(|k| k.enabled).map(|k| k.input).collect();
+        assert_eq!(live, [KeyInput::Char('\u{3042}'), KeyInput::Backspace]);
+    }
+
+    /// Invariant: The jamo keyboard is the two-set layout and shift swaps the doubled consonants and the two shifted vowels.
+    /// Regression: A jamo of the Korean list that cannot be typed.
+    /// Owner: kit
+    #[test]
+    fn the_jamo_rows_carry_the_two_set_layout_and_shift_doubles_five() {
+        let area = Rect::new(0, 0, 400, 160);
+        let plain = keys(
+            KeyboardKind::Jamo,
+            area,
+            &ctx(160),
+            ALL_KEYS,
+            None,
+            Modifiers::default(),
+        );
+        // Ten, nine, and seven with shift at the left of the last row
+        // and the backspace at its right.
+        assert_eq!(plain.len(), 10 + 9 + 9);
+        let chars = |caps: &[KeyCap]| -> std::string::String {
+            caps.iter()
+                .filter_map(|k| match k.input {
+                    KeyInput::Char(c) => Some(c),
+                    _ => None,
+                })
+                .collect()
+        };
+        assert_eq!(
+            chars(&plain),
+            concat!(
+                "\u{3142}\u{3148}\u{3137}\u{3131}\u{3145}\u{315B}\u{3155}\u{3151}\u{3150}\u{3154}",
+                "\u{3141}\u{3134}\u{3147}\u{3139}\u{314E}\u{3157}\u{3153}\u{314F}\u{3163}",
+                "\u{314B}\u{314C}\u{314A}\u{314D}\u{3160}\u{315C}\u{3161}"
+            )
+        );
+        assert_eq!(plain[19].input, KeyInput::Shift);
+        assert!(
+            plain
+                .iter()
+                .any(|k| k.input == KeyInput::Backspace && k.enabled)
+        );
+        let shifted = keys(
+            KeyboardKind::Jamo,
+            area,
+            &ctx(160),
+            ALL_KEYS,
+            None,
+            Modifiers {
+                shift: true,
+                symbols: false,
+            },
+        );
+        assert_eq!(
+            chars(&shifted)
+                .chars()
+                .take(10)
+                .collect::<std::string::String>(),
+            "\u{3143}\u{3149}\u{3138}\u{3132}\u{3146}\u{315B}\u{3155}\u{3151}\u{3152}\u{3156}"
+        );
+        // A shifted key follows the enabled set of the character it
+        // types, not of the one under it.
+        let only_double = keys(
+            KeyboardKind::Jamo,
+            area,
+            &ctx(160),
+            key_bit(KeyboardKind::Jamo, '\u{3132}') | DONE_DISABLED,
+            None,
+            Modifiers {
+                shift: true,
+                symbols: false,
+            },
+        );
+        let live: Vec<char> = only_double
+            .iter()
+            .filter(|k| k.enabled)
+            .filter_map(|k| match k.input {
+                KeyInput::Char(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(live, ['\u{3132}']);
+    }
+
+    /// Invariant: The pinyin keyboard is the letter rows and a row of the five tones ending with the backspace.
+    /// Regression: A tone with no key, or the backspace off the last row.
+    /// Owner: kit
+    #[test]
+    fn the_pinyin_rows_are_the_letters_and_a_row_of_tones() {
+        let area = Rect::new(0, 0, 400, 200);
+        let caps = keys(
+            KeyboardKind::Pinyin,
+            area,
+            &ctx(160),
+            ALL_KEYS,
+            None,
+            Modifiers::default(),
+        );
+        assert_eq!(caps.len(), 26 + 5 + 1);
+        let chars: std::string::String = caps
+            .iter()
+            .filter_map(|k| match k.input {
+                KeyInput::Char(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(chars, "qwertyuiopasdfghjklzxcvbnm12345");
+        // The tone row: the five tones and the backspace after them.
+        assert_eq!(caps[31].input, KeyInput::Backspace);
+        // Rows: ten, nine, seven, and the six of the tone row.
+        let rows_of = |caps: &[KeyCap]| -> Vec<usize> {
+            let mut ys: Vec<i32> = caps.iter().map(|k| k.rect.y).collect();
+            ys.sort_unstable();
+            ys.dedup();
+            ys.iter()
+                .map(|y| caps.iter().filter(|k| k.rect.y == *y).count())
+                .collect()
+        };
+        assert_eq!(rows_of(&caps), [10, 9, 7, 6]);
+        // A tone key is dead until the mask offers it.
+        let one = keys(
+            KeyboardKind::Pinyin,
+            area,
+            &ctx(160),
+            key_bit(KeyboardKind::Pinyin, '1') | DONE_DISABLED,
+            None,
+            Modifiers::default(),
+        );
+        let live: Vec<KeyInput> = one.iter().filter(|k| k.enabled).map(|k| k.input).collect();
+        assert_eq!(live, [KeyInput::Char('1'), KeyInput::Backspace]);
+    }
+
+    /// Invariant: The zhuyin keyboard is the 大千 layout with every bopomofo letter on a key.
+    /// Regression: A bopomofo letter of the Traditional Chinese list that cannot be typed.
+    /// Owner: kit
+    #[test]
+    fn the_zhuyin_rows_are_the_dachien_layout() {
+        let caps = keys(
+            KeyboardKind::Zhuyin,
+            Rect::new(0, 0, 400, 200),
+            &ctx(160),
+            ALL_KEYS,
+            None,
+            Modifiers::default(),
+        );
+        assert_eq!(caps.len(), 42 + 1);
+        let chars: std::string::String = caps
+            .iter()
+            .filter_map(|k| match k.input {
+                KeyInput::Char(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            chars,
+            concat!(
+                "\u{3105}\u{3109}\u{02C7}\u{02CB}\u{3113}\u{02CA}\u{02D9}\u{311A}\u{311E}\u{3122}\u{3126}",
+                "\u{3106}\u{310A}\u{310D}\u{3110}\u{3114}\u{3117}\u{3127}\u{311B}\u{311F}\u{3123}\u{02C9}",
+                "\u{3107}\u{310B}\u{310E}\u{3111}\u{3115}\u{3118}\u{3128}\u{311C}\u{3120}\u{3124}",
+                "\u{3108}\u{310C}\u{310F}\u{3112}\u{3116}\u{3119}\u{3129}\u{311D}\u{3121}\u{3125}",
+            )
+        );
+        // Every bopomofo letter and every mark is on a key, once.
+        let mut set: std::collections::BTreeSet<char> = keycaps(KeyboardKind::Zhuyin).collect();
+        assert_eq!(set.len(), 42);
+        for c in '\u{3105}'..='\u{3129}' {
+            assert!(set.remove(&c), "{c} has no key");
+        }
+        for m in ZHUYIN_MARKS {
+            assert!(set.remove(&m), "{m} has no key");
+        }
+        assert!(set.is_empty());
+        assert_eq!(caps[42].input, KeyInput::Backspace);
+        // The rows: eleven, eleven ending in ˉ, ten, and ten with the
+        // backspace after them.
+        let mut ys: Vec<i32> = caps.iter().map(|k| k.rect.y).collect();
+        ys.sort_unstable();
+        ys.dedup();
+        let row: Vec<Vec<KeyInput>> = ys
+            .iter()
+            .map(|y| {
+                caps.iter()
+                    .filter(|k| k.rect.y == *y)
+                    .map(|k| k.input)
+                    .collect()
+            })
+            .collect();
+        assert_eq!(
+            row.iter().map(Vec::len).collect::<Vec<_>>(),
+            [11, 11, 10, 11]
+        );
+        assert_eq!(row[1][10], KeyInput::Char(TONE_HIGH));
+    }
+
+    /// Invariant: The path keyboard has the digits, the slash and the hardened marker, all live.
+    /// Regression: A derivation path that cannot be typed.
+    /// Owner: kit
+    #[test]
+    fn path_keyboard_has_digits_slash_and_hardened_marker() {
+        let area = Rect::new(0, 0, 360, 140);
+        let caps = keys(
+            KeyboardKind::Path,
+            area,
+            &ctx(160),
+            0,
+            None,
+            Modifiers::default(),
+        );
+        assert_eq!(caps.len(), 10 + 2 + 2);
+        for c in "0123456789/h".chars() {
+            assert!(caps.iter().any(|k| k.input == KeyInput::Char(c)), "{c}");
+        }
+        assert!(caps.iter().all(|k| k.enabled));
+    }
+
+    /// Invariant: The dice pad carries its faces and no check; the coin pad a check that is not live.
+    /// Regression: A dice roll that cannot be confirmed, or a coin pad that continues early.
+    /// Owner: kit
+    #[test]
+    fn the_dice_pad_carries_its_faces_and_no_check_and_the_coin_pad_a_dead_one() {
+        let area = Rect::new(0, 0, 400, 100);
+        let caps = keys(
+            KeyboardKind::Dice,
+            area,
+            &ctx(160),
+            0,
+            None,
+            Modifiers::default(),
+        );
+        assert_eq!(caps.len(), 7);
+        for d in '1'..='6' {
+            assert!(caps.iter().any(|k| k.input == KeyInput::Char(d)), "{d}");
+        }
+        assert!(caps.iter().all(|k| k.input != KeyInput::Done));
+        let coin = keys(
+            KeyboardKind::Coin,
+            area,
+            &ctx(160),
+            0,
+            None,
+            Modifiers::default(),
+        );
+        assert_eq!(coin.len(), 4);
+        assert_eq!(coin[0].input, KeyInput::Char('H'));
+        assert_eq!(coin[1].input, KeyInput::Char('T'));
+    }
+
+    /// Invariant: A letter turns Shift off and a symbol toggle flips the layer; a key types what its label says and nothing else.
+    /// Regression: Shift left on after a letter, so the next one is typed as a capital.
+    /// Owner: kit
+    #[test]
+    fn a_letter_turns_shift_off() {
+        let mut k = Keys {
+            shift: true,
+            ..Keys::default()
+        };
+        assert_eq!(k.press(OskPress::Char('a')), Some(Typed::Char('a')));
+        assert!(!k.shift);
+        assert_eq!(k.press(OskPress::Symbols), None);
+        assert!(k.symbols);
+    }
+
+    /// Invariant: Every key the layout reports is drawn as a key that takes a press, and the keyboard reports the height it takes.
+    /// Regression: A drawn key with no press, or a height that differs from the layout's.
+    /// Owner: kit
+    #[test]
+    fn each_key_drawn_takes_a_press() {
+        let mut c = canvas(160);
+        let mut said = 0.0;
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            let m = KeyboardModel::<P> {
+                kind: KeyboardKind::Pin,
+                keys: Keys::default(),
+                compact: true,
+                done: Shown::plain("Done"),
+                enabled: ALL_KEYS,
+                scramble: None,
+                act: |_| P(1),
+            };
+            said = draw(&m, ui, (0.0, 0.0, 300.0));
+        });
+        assert_eq!(said, height(KeyboardKind::Pin, true));
+        assert!(out.hits.len() >= 12);
+    }
 }

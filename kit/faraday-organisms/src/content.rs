@@ -131,23 +131,29 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
         Block::Code(m) => faraday_molecules::qr::draw(m, ui, at),
         Block::Address(m, offered) => faraday_molecules::address::draw(m, ui, at, offered),
         Block::Part(Organism::DemoOnly(m)) => crate::demo_only::draw(m, ui, at),
-        Block::Part(o) => {
-            part(o, ui);
-            0.0
-        }
+        Block::Part(o) => part(o, ui, at),
     }
 }
 
 /// A bespoke organism: its own draw, which is not yet ported.
-fn part<A: Pressed>(o: &Organism<'_, A>, ui: &mut Ui<'_, A>) {
+fn part<A: Pressed>(o: &Organism<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
     match o {
-        Organism::Worksheet(m) => crate::worksheet::draw(m, ui),
-        Organism::Chart(m) => crate::chart::draw(m, ui),
-        Organism::WalletCard(_) => {}
-        Organism::Board(m) => crate::board::draw(m, ui),
-        Organism::WaysIn(m) => crate::ways_in::draw(m, ui),
-        Organism::QrGrid(m) => crate::qr_grid::draw(m, ui),
-        Organism::DemoOnly(_) => {}
+        Organism::Worksheet(m) => {
+            crate::worksheet::draw(m, ui);
+            0.0
+        }
+        Organism::Chart(m) => {
+            crate::chart::draw(m, ui);
+            0.0
+        }
+        Organism::WalletCard(_) => 0.0,
+        Organism::Board(m) => {
+            crate::board::draw(m, ui);
+            0.0
+        }
+        Organism::WaysIn(m) => crate::ways_in::draw(m, ui, at),
+        Organism::QrGrid(m) => crate::qr_grid::draw(m, ui, at),
+        Organism::DemoOnly(_) => 0.0,
     }
 }
 

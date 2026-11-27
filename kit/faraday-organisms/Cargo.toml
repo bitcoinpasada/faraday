@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 faraday-molecules = { path = "../faraday-molecules" }
+faraday-draw = { path = "../faraday-draw" }
 faraday-atoms = { path = "../faraday-atoms" }
 faraday-tokens = { path = "../faraday-tokens" }
 faraday-strings = { path = "../../core/faraday-strings" }
@@ -15,7 +16,6 @@ faraday-codec = { path = "../../core/faraday-codec" }
 faraday-text = { path = "../../core/faraday-text" }
 
 [dev-dependencies]
-faraday-draw = { path = "../faraday-draw" }
 faraday-atoms = { path = "../faraday-atoms", features = ["testing"] }
 
 [lints]

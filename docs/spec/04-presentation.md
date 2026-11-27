@@ -834,6 +834,7 @@ pub enum Style { Filled, Tonal, Outlined, Text, Elevated, Error }
   (`scanner-qr.md`, `public-files.md`), guide pages (`guide.md`, `ui-guide-text.md`), Faraday
   Demo's host strip and the "Demo only" card (`practice-demo.md`). A new one is a kit change and a
   row of DESIGN §4.
+- Built: the keyboard (its layouts and keys), the ways in, the viewfinder, the QR copy grid and a row's details (`kit/faraday-organisms/src/{keyboard,ways_in,viewfinder,qr_grid,row_details}.rs`), each a model and a `draw` over its box.
 
 ### 12.4 The templates
 

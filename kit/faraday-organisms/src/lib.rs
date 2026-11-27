@@ -11,6 +11,7 @@ pub mod keyboard;
 pub mod menu;
 pub mod nav;
 pub mod qr_grid;
+pub mod row_details;
 pub mod session_pane;
 pub mod sheet;
 pub mod snackbar;

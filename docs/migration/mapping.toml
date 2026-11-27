@@ -4829,7 +4829,7 @@ feature = ["restore-wallet"]
 [[module]]
 main = "faraday/faraday-core/src/screens/row_details.rs"
 fate = "port"
-next = ["kit/faraday-organisms/src/session_pane.rs"]
+next = ["kit/faraday-organisms/src/session_pane.rs", "kit/faraday-organisms/src/row_details.rs"]
 feature = ["session-pane"]
 
 [[module]]
