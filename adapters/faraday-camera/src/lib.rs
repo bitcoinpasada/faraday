@@ -3,8 +3,11 @@
 pub mod nv12;
 pub mod scale;
 
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 /// One captured frame: luma, and the NV12 chroma plane when the device gives one.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// Wipes on drop and is not `Clone`: a frame can show a SeedQR or written words.
+#[derive(Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct Frame {
     pub width: u16,
     pub height: u16,

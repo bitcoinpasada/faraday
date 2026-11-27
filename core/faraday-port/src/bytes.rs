@@ -9,7 +9,8 @@ pub type Bytes = faraday_crypto::Secret<Vec<u8>>;
 
 /// Randomness. Wipes on drop and is not `Clone` (02 §6).
 pub struct EntropyBytes(
-    #[expect(dead_code, reason = "read once the methods have bodies")] [u8; 32],
+    #[expect(dead_code, reason = "read once the methods have bodies")]
+    faraday_crypto::Secret<[u8; 32]>,
 );
 
 impl EntropyBytes {
@@ -17,7 +18,8 @@ impl EntropyBytes {
         todo!()
     }
 
-    pub fn into_bytes(self) -> [u8; 32] {
+    /// Borrows the bytes: a type that wipes on drop cannot give them up by value.
+    pub fn expose(&self) -> &[u8; 32] {
         todo!()
     }
 }

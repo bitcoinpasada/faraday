@@ -466,6 +466,9 @@ dependencies = [
 [[package]]
 name = "faraday-camera"
 version = "0.0.0"
+dependencies = [
+ "zeroize",
+]
 
 [[package]]
 name = "faraday-checks-area"

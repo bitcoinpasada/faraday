@@ -33,7 +33,7 @@ pub fn failure_of_status(_status: i32) -> Option<Failure> {
 }
 
 /// What a running `Camera` sends.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Message {
     Frame(Frame),
     Unavailable(Option<Failure>),
