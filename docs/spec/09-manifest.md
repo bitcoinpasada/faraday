@@ -366,7 +366,7 @@ give only what a crate holds beyond it.
 
 | Crate | Directory | Metadata | Normal edges | Dev edges |
 |---|---|---|---|---|
-| `faraday-kernel` | `app/kernel/faraday-kernel/` | `role = "kernel"` | port, text, crypto, bip, psbt, keys, strings, kernel-derive | none |
+| `faraday-kernel` | `app/kernel/faraday-kernel/` | `role = "kernel"` | port, text, crypto, bip, psbt, keys, vault, strings, kernel-derive | none |
 | `faraday-kernel-derive` | `app/kernel/faraday-kernel-derive/` | `role = "kernel"`, proc-macro | none | none |
 
 Its modules and items are 03 §1's table, with shapes in 03 §2 to §9, 04 §3, §6, §8.2, §13 and 05
@@ -382,11 +382,22 @@ without a shape:
 pub enum ScanFor { Psbt, Key, Wallet, Address, Message, Text, File, Any }
 /// A feature's ask to show a secret; the device composite routes it to devices, and back (06 §7).
 #[derive(Public, Copy, PartialEq, Eq)] pub struct Gate(pub u32);
-/// The tools a menu page opens (06 §3.3).
-#[derive(Public, Copy, PartialEq, Eq)] pub enum Tool { /* one variant per Check row and Tools tile */ }
+/// The tools a menu page opens (06 §3.3): one variant per tool-opening `catalog::Go` value of
+/// `main` (inventory `features/tools.md`, `check-page.md`), named the same, each added with the
+/// feature it opens.
+#[derive(Public, Copy, PartialEq, Eq)] pub enum Tool { /* main's catalog::Go */ }
+/// A published sample a device feature asks for (`Out::Sample`, §4.4): the online composite routes
+/// it to the strip, which loads it and answers the feature that asked; the device app drops it.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub enum SampleAsk { Codex32, Spend, ToolText(Tool) }   // BIP 93's second vector; the sample wallet's spend; the open tool's text
 
 // nav
-pub struct Nav<P: Copy + Eq> { /* 06 §4.3 */ }
+pub struct Nav<P: Copy + Eq> {
+    shown: P,
+    back: Vec<P>,       // Back's pages, the latest last
+    forward: Vec<P>,    // what Back left, for Forward
+    begun: Vec<(P, P)>, // each flow begun and the page it was begun from (06 §4.3)
+}
 impl<P: Copy + Eq> Nav<P> {
     pub fn new(home: P) -> Self;
     pub fn open(&mut self, p: P) -> Option<P>;        // the page left, for Notice::Left
@@ -403,6 +414,14 @@ pub enum FrameSheet { Lock, LockAsk, IdleWarn, NewInput, Devices, Power, Guide,
 /// Which child holds the camera, recorded by each composite from its children's outs.
 #[derive(Public, Copy, PartialEq, Eq)] pub struct Holder(pub u8);
 pub struct Frame<P: Copy + Eq> { nav: Nav<P>, sheets: Vec<FrameSheet>, camera: Option<Holder> }
+
+// lock
+impl CarryName {
+    /// A feature's crate declares each of its names as a `const` (its `CARRY`, §4.4).
+    pub const fn new(name: &'static str, first: bool, any_mode: bool) -> Self;
+}
+/// Where a held file lives: 05 §7.3's `put_file` and `take_files` take it.
+pub enum FileBox { Inbox, Outbox }
 ```
 
 ### 4.2 The presentation kernel
@@ -426,13 +445,21 @@ pub fn offer<P: Pressed, F: Feature>(state: &F::State, msg: &F::Msg, press: P, v
 pub fn line<'s>(l: &'s Line) -> Shown<'s>;
 pub fn busy<'s>(running: &[Running], kind: JobKind, show: &Show<'s>) -> Option<BusyModel<'s>>;
 pub fn pass_model<'s, A: Pressed>(v: faraday_pass_field::Read<'s>, to: fn(PassPress) -> A) -> PassModel<'s, A>;
+
+// flow
+/// One line of Your choices, worded by `ShowFlow::choice` (04 §5).
+pub struct ChoiceLine(pub Line);
+/// The blanket `Present` of every step flow: fills the step-flow template's model from
+/// `StepFlow` and `ShowFlow`, field by field as 04 §5's table says.
+pub fn fill<'s, F: ShowFlow>(flow: &'s Flow<F>, view: &View<'s>, show: &Show<'s>) -> FlowModel<'s, PressOf<F>>;
 ```
 
 ### 4.3 Parts
 
 In `app/parts/`, `role = "part"`. Each exports `State` (fields private), `Msg`, `Press`,
-`fn update(&mut State, Msg, &Ctx<'_>) -> Effects<Msg, Never>`, a `Read<'s>` view for its owner's
-`present`, and `AtLock` for `State`. Normal edges: kernel, port, and what the row adds.
+`fn update(&mut State, Msg, &Ctx<'_>) -> Effects<Msg, Never>` (`Never` is the kernel's, 03 §3.1),
+a `Read<'s>` view for its owner's `present`, and `AtLock` for `State`. Normal edges: kernel, port,
+and what the row adds.
 
 | Crate | Holds | Adds | Inventory |
 |---|---|---|---|
@@ -443,6 +470,20 @@ In `app/parts/`, `role = "part"`. Each exports `State` (fields private), `Msg`, 
 | `faraday-key-making` | making a key: its entries, the words made, the quiz (03 §9.3) | bip, entropy, keys, word-grid, pass-field | `keygen-flow.md` (the making) |
 | `faraday-scan-part` | the scanner sheet's state: the decoder's parts, the read card, classification | codec, intake, qr, bip, pgp | `scanner-qr.md` (the state) |
 | `faraday-secrets` | the Secret out sheet, the text checks (`TextCheck`), file classification | bip, codec, intake, keys, pgp, qr, text | `secrets.md` |
+
+The text check of `faraday-secrets` (Transfer's Send text, My seed's Compare, a wallet's name;
+inventory `features/secrets.md`) answers with `main`'s `text_check::TextCheck`:
+
+```rust
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TextCheck { Fine, TooLong, Secret(SecretKind), Inside(SecretKind), Partial, SeedHex }
+/// The secret a text is or holds: the kinds of `main`'s `scan_read::Kind` that `Kind::secret`
+/// names, and `Wallet` for a wallet file holding a secret.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SecretKind { SeedWords, SeedQr, CompactSeedQr, Codex32Secret, Codex32Share, Slip39Share,
+                      BadChecksum, Aezeed, Wif, Xprv, UrSeed, Nostr, SpendKey, Paperkey, Totp,
+                      Entries, Wallet }
+```
 
 This answers section 03's question: **the making of a key is the part `faraday-key-making`**,
 embedded by New key and by Make a new wallet. Parts embed parts (asked of section 01 below).
@@ -497,6 +538,9 @@ Composite crates export the same shape with `Msg`, `Out`, `Press`, `Page`, `Body
 
 A composite's and a product's `impl Drawn<Press>` for `Body` and `Over` are in a module `page`,
 which holds nothing else, and `present` works out the models and names no `Ui` (01 §5).
+
+An owner's `SheetModel<'s>` follows the rule for a feature's `Model<'s>` above: the name and the
+lifetime are fixed here, the fields come with the page that draws them (04 §2, §12).
 
 ### 4.5 The shared owners
 

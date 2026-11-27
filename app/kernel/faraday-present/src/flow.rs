@@ -38,7 +38,6 @@ where
 }
 
 /// One line of Your choices, worded.
-// Spec: 04 §5 names `ChoiceLine` without a shape.
 pub struct ChoiceLine(pub Line);
 
 /// A step flow's presses.
@@ -89,7 +88,6 @@ where
 }
 
 /// Fills the step-flow template's model from `StepFlow` and `ShowFlow`, once, for every flow.
-// Spec: 09 §4.2 lists `fill` under `flow` without a signature.
 pub fn fill<'s, F: ShowFlow>(
     _flow: &'s Flow<F>,
     _view: &View<'s>,

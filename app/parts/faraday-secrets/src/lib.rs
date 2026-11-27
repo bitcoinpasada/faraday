@@ -32,6 +32,41 @@ pub fn update(_state: &mut State, _msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Neve
 /// The read view the owner's `present` maps to a kit model.
 pub struct Read<'s>(PhantomData<&'s State>);
 
-/// What a text is checked as (the Secret out sheet's text checks).
-// Spec: 09 §4.3 names `TextCheck` without a shape.
-pub struct TextCheck(());
+/// What the text check found in a text (Transfer's Send text, My seed's Compare, a wallet's name).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TextCheck {
+    /// Nothing is refused: empty, or fit to show.
+    Fine,
+    /// Over the most text sent.
+    TooLong,
+    /// The whole text is this secret.
+    Secret(SecretKind),
+    /// This secret is in the text.
+    Inside(SecretKind),
+    /// Part of a code that can hold a secret, and the rest is missing.
+    Partial,
+    /// Bare hex of the length of BIP-39 entropy or a BIP-32 seed.
+    SeedHex,
+}
+
+/// The secret a text is or holds: `main`'s secret scan kinds, and a wallet file holding a secret.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SecretKind {
+    SeedWords,
+    SeedQr,
+    CompactSeedQr,
+    Codex32Secret,
+    Codex32Share,
+    Slip39Share,
+    BadChecksum,
+    Aezeed,
+    Wif,
+    Xprv,
+    UrSeed,
+    Nostr,
+    SpendKey,
+    Paperkey,
+    Totp,
+    Entries,
+    Wallet,
+}

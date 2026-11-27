@@ -3,7 +3,6 @@
 use crate::message::Public;
 
 /// Back, Forward, the page a flow was begun from and the resume on a tab.
-// Spec: 09 §4.1 gives `Nav` as `/* 06 §4.3 */`; the fields are the plainest that hold its rules.
 pub struct Nav<P: Copy + Eq> {
     shown: P,
     back: Vec<P>,

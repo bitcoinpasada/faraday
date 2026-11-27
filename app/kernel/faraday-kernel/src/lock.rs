@@ -53,7 +53,7 @@ pub struct CarryName {
 }
 
 impl CarryName {
-    // Spec: 05 §7.3 gives the fields and no constructor; features declare their names as consts.
+    /// A feature's crate declares each of its names as a `const` (09 §4.1).
     pub const fn new(_name: &'static str, _first: bool, _any_mode: bool) -> Self {
         todo!()
     }
@@ -72,7 +72,6 @@ pub trait CarryValue: Public + Sized {
 }
 
 /// Where a held file lives.
-// Spec: 05 §7.3 writes this type `Box`, which is `alloc`'s name; the kernel's is `FileBox`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FileBox {
     Inbox,

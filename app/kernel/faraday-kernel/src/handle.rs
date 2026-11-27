@@ -64,7 +64,6 @@ pub enum ScanFor {
 pub struct Gate(pub u32);
 
 /// The tools a menu page opens (06 §3.3).
-// Spec: 09 §4.1 gives one variant per Check row and Tools tile, which are the porting's.
 #[derive(Public, Copy, PartialEq, Eq)]
 pub enum Tool {}
 

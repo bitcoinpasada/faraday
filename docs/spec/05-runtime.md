@@ -566,8 +566,8 @@ impl Carried {
     pub fn put<V: CarryValue>(&mut self, name: CarryName, value: &V);
     pub fn take<V: CarryValue>(&mut self, name: CarryName) -> Option<V>;   // once; then None
     /// The session's crate only: a held file, its bytes moved, never copied.
-    pub fn put_file(&mut self, to: Box, name: Text, bytes: Bytes);
-    pub fn take_files(&mut self, from: Box) -> Files;
+    pub fn put_file(&mut self, to: FileBox, name: Text, bytes: Bytes);
+    pub fn take_files(&mut self, from: FileBox) -> Files;
     /// Something carried has no other copy (§7.6). The session's crate only.
     pub fn mark_only_copy(&mut self);
 }
