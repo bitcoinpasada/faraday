@@ -1,0 +1,99 @@
+# miniscript
+
+**Purpose.** Miniscript and output descriptors in `faraday-bip`: reading a
+`wsh(<miniscript>)`, `sh(wsh(<miniscript>))` or `tr(<key>,<tree>)`
+wallet, deriving its addresses, listing the ways it can be spent
+(`faraday_bip::spend`), and compiling a typed policy into a descriptor for
+Tools › Miniscript.
+
+**Why this crate.** This project writes formats in-house where the code
+is short: BC-UR and the BIP-388 policy parser. Miniscript is
+not short. Its type and correctness system (the base/verify/key/wrapped
+types, the malleability and safety analysis), its script encoding, and
+its satisfaction rules are each a specification in their own right, and
+an in-house version would be wrong in the two places that cost money —
+the address a person is shown, and the signature a spend needs. The
+reference implementation is `rust-miniscript`, by the people who wrote
+the specification; it pairs with the `bitcoin` crate already in the
+graph, and Bitcoin Core, Liana, Sparrow and Nunchuk all read the same
+descriptors it does.
+
+It also brings the second implementation the tests need. Every address
+of the two fixture wallets is checked against `miniscript` used directly
+and against Bitcoin Core's `deriveaddresses`
+(`tools/vectors/psbt/README.md`).
+
+**Version and features.** `miniscript = { version = "12.0",
+default-features = false, features = ["no-std", "compiler"] }`. The 12.x
+line is the one that pairs with `bitcoin` 0.32; 13.x moves to
+`bitcoin` 0.33 and is for whenever the rest of the tree does.
+
+- `no-std` keeps the core `no_std` + `alloc`, which the Pi and Android
+  shells build. Checked by building `faraday-bip` for
+  `wasm32-unknown-unknown`, which has no `std` at all.
+- `compiler` is the concrete-policy compiler
+  (`miniscript::policy::Concrete::compile`, `compile_tr`), which is what
+  Tools › Miniscript calls. It is compiled into the device binary; it is
+  not a build-time tool.
+- Not enabled: `std`, `serde`, `rand`, `base64`, `trace`.
+
+**Cost.** One crate. `miniscript` 12.3.7 depends on `bitcoin` and
+`bech32`, and both were already in `faraday-bip`'s graph — `bitcoin` as the
+direct dependency, `bech32` through it. `cargo tree -p faraday-bip` before
+and after differs by exactly these three lines:
+
+```
+├── miniscript v12.3.7
+│   ├── bech32 v0.11.1
+│   └── bitcoin v0.32.102 (*)
+```
+
+Command:
+`cargo tree -p <root> -e normal --prefix none | sed 's/ (.*//' | sort -u | wc -l`:
+
+| Graph | Before | After |
+|---|--:|--:|
+| `faraday-bip` | 34 | 35 |
+
+**The descriptor checksum.** `faraday_bip::descriptor::descriptor_checksum` is
+`miniscript::descriptor::checksum::desc_checksum`, which works on the text and
+so serves BIP-392's `sp(..)` descriptors too; `verify_checksum` compares it with
+the eight characters after the last `#`.
+
+**The finalizer.** `faraday-psbt`'s finalizer
+(`PsbtExt::finalize_inp_mut`) builds the final scriptSig and witness of
+every script kind Faraday finalizes: pk-hash, witness pk-hash and
+`sh(wpkh)`, multisig under `sh`, `wsh` and `sh(wsh)`, a `wsh` or
+`sh(wsh)` miniscript, and a taproot key or script path. It infers the
+descriptor from the PSBT's own scripts (`get_descriptor`) and runs
+`miniscript`'s interpreter over the witness it builds. Faraday keeps in
+front of it the choice of the smallest satisfaction by real signature
+size for a miniscript (a `multi` inside it keeps its k smallest), and
+for a plain multisig, under any wrapper, the first m signers' signatures
+as Bitcoin Core writes them, each checked by the same interpreter; the taproot `pkh` leaf left off; and
+the finalizer run on a copy, so that the UTXO and unknown fields stay
+and the signing fields, the hash preimages and the proprietary fields are
+cleared (BIP 174 keeps the UTXO and unknown fields and clears the rest; it
+does not require proprietary fields kept).
+
+**What it is not used for.** Signing. A miniscript or taproot script-path
+input is read, its change is verified, and signing it returns
+`Unsupported` with the reason the review shows. `miniscript`'s
+satisfaction machinery is the obvious way to do that, and is a pass of
+its own.
+
+`faraday_bip::policy` still parses the BIP-388 templates it always did —
+`multi`, `sortedmulti`, the four single-key forms and BIP-390's
+`tr(musig(…))` — in-house, and reaches `miniscript` only when none of
+them matches. Those templates are short, their tests are the BIP's own
+vectors, and routing them through a second parser would change what the
+existing wallets read as for no gain.
+
+**Licence.** CC0-1.0, as `bitcoin` is.
+
+**Reopen when** the tree moves to `bitcoin` 0.33, which wants
+`miniscript` 13; or if the `compiler` feature's cost in binary size
+stops being worth Tools › Miniscript, in which case the compiler moves
+out and the parser stays.
+
+**Review.** Trusted by publisher (apoelstra) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

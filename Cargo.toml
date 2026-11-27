@@ -159,6 +159,51 @@ repository = "https://github.com/bitcoinpasada/faraday"
 unsafe_code = "forbid"
 
 [workspace.dependencies]
+zeroize = { version = "1.8", default-features = false, features = ["derive"] }
+
+subtle = { version = "2.6", default-features = false }
+
+sha2 = { version = "0.11", default-features = false }
+
+hmac = { version = "0.13", default-features = false }
+
+pbkdf2 = { version = "0.13", default-features = false }
+
+# Argon2id for the key kept on the device (docs/deps/argon2.md).
+# `default-features = false` drops the `password-hash` string format and the RNG; the memory is a `Vec<Block>`
+# the caller owns, so no `alloc` feature is needed.
+argon2 = { version = "0.6", default-features = false, features = ["zeroize"] }
+
+# Hex, one module (docs/deps/base16ct.md): `faraday_crypto::hex`, and
+# the crates that call base16ct directly: `faraday-pgp` (paperkey's
+# `upper` and `mixed`) and `faraday-payload`.
+base16ct = { version = "1.0", default-features = false, features = ["alloc"] }
+
+# Base64 in four places (docs/deps/base64ct.md): PSBT, BIP-322, BSMS,
+# BIP-85, the OpenPGP armour and KDBX.
+base64ct = { version = "1.8", default-features = false, features = ["alloc"] }
+
+# AES's round function alone, for AEZ, which aezeed enciphers with
+# (docs/deps/aes.md). `hazmat` is the feature that exposes the round; it
+# builds on `cipher` 0.5, `cpufeatures` and `cpubits`, already in the
+# lock file.
+aes = { version = "0.9", default-features = false, features = ["hazmat", "zeroize"] }
+
+# rust-bitcoin without `std`: no_std + alloc. Brings `secp256k1` (docs/deps/bitcoin.md).
+# `secp-recovery` is a feature of the same crate, not another dependency:
+# it turns on libsecp256k1's public-key recovery and rust-bitcoin's
+# `sign_message` signature type, which BIP-137 needs to check a message
+# signature against an address (§9, `faraday_psbt::message`). Nothing else in
+# the graph changes.
+bitcoin = { version = "0.32", default-features = false, features = ["secp-recovery"] }
+
+# Miniscript policies and descriptors (§16; docs/deps/miniscript.md).
+# The 12.x line is the one that pairs with `bitcoin` 0.32.
+# `default-features = false` with `no-std` keeps the core `no_std` +
+# `alloc`; `compiler` is the concrete-policy compiler the Tools ›
+# Miniscript screen calls.
+miniscript = { version = "12.0", default-features = false, features = ["no-std", "compiler"] }
+
 # QR decoding. `rqrr` needs std.
 #
 # `rqrr` is the copy in `third_party/rqrr`, not the crates.io release.
@@ -177,3 +222,51 @@ unsafe_code = "forbid"
 # crates.io release.
 rqrr = { path = "third_party/rqrr", default-features = false }
 
+# NFKD of a typed BIP-39 sentence before its words are matched, as BIP-39
+# requires (`faraday_bip::bip39::Mnemonic::parse`;
+# docs/deps/unicode-normalization.md). no_std with `alloc`; the tests and
+# tools that wrote NFKD forms before use the same crate.
+unicode-normalization = { version = "0.1", default-features = false }
+
+png = "0.18"
+
+# Adler-32 of the zlib stream faraday-codec writes (docs/deps/adler2.md).
+adler2 = { version = "2.0.1", default-features = false }
+
+# Camera capture on Linux (§16.33; docs/deps/libc.md): the C type and
+# constant declarations the raw V4L2 ioctls need. Used by
+# `faraday-v4l2`, and by `faraday-disk` for `O_DIRECT` alone.
+libc = { version = "0.2", default-features = false }
+
+# Dev-dependencies (test-only; never in a release binary).
+bip39 = { version = "2.2", default-features = false, features = ["all-languages", "zeroize"] }
+
+# JSON, behind faraday-bip's reader (docs/deps/serde_json.md); a member that
+# needs `std` asks for it.
+serde = { version = "1.0", default-features = false, features = ["alloc"] }
+
+serde_json = { version = "1.0", default-features = false, features = ["alloc", "float_roundtrip"] }
+
+# Dependencies are optimized even in dev builds so that PBKDF2-heavy tests
+# run in seconds; workspace crates stay unoptimized for debugging. This
+# does not affect release builds.
+#
+# Debug info is file and line tables only: a panic's backtrace still names
+# the file and line, and the test binaries are smaller than with full debug info.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
+
+# The domain crates that the tests drive thousands of times.
+[profile.dev.package.faraday-crypto]
+opt-level = 2
+[profile.dev.package.faraday-bip]
+opt-level = 2
+[profile.dev.package.faraday-codec]
+opt-level = 2
+[profile.dev.package.faraday-psbt]
+opt-level = 2
+[profile.dev.package.faraday-entropy]
+opt-level = 2

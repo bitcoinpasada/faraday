@@ -1,0 +1,19 @@
+{
+ "source": "tools/reference/dice/README.md: Coldcard's docs/rolls.py run on the transcript (section 1), EntropyLab's hodlDiceEntropy with method coleman (section 2), EntropyLab's hodlBitBoxLookupWord with embit's bip39 (section 3)",
+ "commitments": [
+  {"rolls": "32461151351521144121541512665155412152342515356215",
+   "commitment": "b4b7bf155511dfa13688d93685fea50b2d56414be59fbde4658b84b42f355fa7"}
+ ],
+ "vectors": [
+  {"procedure": "hashed", "rolls": "32461151351521144121541512665155412152342515356215", "bytes": 16,
+   "entropy": "b4b7bf155511dfa13688d93685fea50b"},
+  {"procedure": "six_as_zero", "rolls": "32461151351521144121541512665155412152342515356215", "bytes": 16,
+   "entropy": "8bc19a488ea41da254da5f35c041ba3a"},
+  {"procedure": "six_as_zero", "rolls": "666666665321453214532145321453214532145321453214532145321453214532145321453214532145321453214532141", "bytes": 32,
+   "entropy": "dc08d10f0056ddb466b66682cef727f213a4da9ff8c0997e0f3a1fe1d0dfac89"},
+  {"procedure": "words", "rolls": "123411234122341233412344123415234126341231412342123413234124341235432141", "bytes": 16,
+   "entropy": "1b0d8ac66371b2d8ec66361b0d8ec6f2"},
+  {"procedure": "words", "rolls": "123411234122341233412344123415234126341231412342123413234124341235111111", "bytes": 16,
+   "entropy": "1b0d8ac66371b2d8ec66361b0d8ec680"}
+ ]
+}

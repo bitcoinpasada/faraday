@@ -1,0 +1,101 @@
+{
+  "wallet_name": "core-hot",
+  "descriptors": [
+    {
+      "desc": "pkh([ba11ec57/44h/1h/0h]tpubDDNRX28BPR1ArYHRV6hEMuHAjya7qcMVcA8YZv1dHyodqCgWbunXXa3HvNTrMkREZJAaiq4CdX1xrEWJpRJVJzjutrayMPENWiqv9EYvZXA/0/*)#w7alvk6u",
+      "timestamp": 1791392643,
+      "active": true,
+      "internal": false,
+      "range": [
+        0,
+        999
+      ],
+      "next": 0,
+      "next_index": 0
+    },
+    {
+      "desc": "pkh([ba11ec57/44h/1h/0h]tpubDDNRX28BPR1ArYHRV6hEMuHAjya7qcMVcA8YZv1dHyodqCgWbunXXa3HvNTrMkREZJAaiq4CdX1xrEWJpRJVJzjutrayMPENWiqv9EYvZXA/1/*)#l2c73r2y",
+      "timestamp": 1791392644,
+      "active": true,
+      "internal": true,
+      "range": [
+        0,
+        999
+      ],
+      "next": 0,
+      "next_index": 0
+    },
+    {
+      "desc": "sh(wpkh([ba11ec57/49h/1h/0h]tpubDDVAAJpC8x5cU5qr3SjEobBNUZ5Cn65TnBn6DEzkkWXtdzLmydqYEu917LjBRWj5AJwRHSZwtY9NJvQEyhVSPxhdizLNK4bQ1YKKfrcdghp/0/*))#alg82xhh",
+      "timestamp": 1791392643,
+      "active": true,
+      "internal": false,
+      "range": [
+        0,
+        999
+      ],
+      "next": 0,
+      "next_index": 0
+    },
+    {
+      "desc": "sh(wpkh([ba11ec57/49h/1h/0h]tpubDDVAAJpC8x5cU5qr3SjEobBNUZ5Cn65TnBn6DEzkkWXtdzLmydqYEu917LjBRWj5AJwRHSZwtY9NJvQEyhVSPxhdizLNK4bQ1YKKfrcdghp/1/*))#g7x3jezg",
+      "timestamp": 1791392644,
+      "active": true,
+      "internal": true,
+      "range": [
+        0,
+        999
+      ],
+      "next": 0,
+      "next_index": 0
+    },
+    {
+      "desc": "tr([ba11ec57/86h/1h/0h]tpubDD1pVcynUyWjzD5Wvy6cNzKXLPErMKSsiriZMs888wd6qxHLorx5URAH6obYYBuJMJxEXgDXVLyk9RQHEWBVHvHds7SuJWefyseABoNUGY6/0/*)#72j5kt39",
+      "timestamp": 1791392643,
+      "active": true,
+      "internal": false,
+      "range": [
+        0,
+        999
+      ],
+      "next": 0,
+      "next_index": 0
+    },
+    {
+      "desc": "tr([ba11ec57/86h/1h/0h]tpubDD1pVcynUyWjzD5Wvy6cNzKXLPErMKSsiriZMs888wd6qxHLorx5URAH6obYYBuJMJxEXgDXVLyk9RQHEWBVHvHds7SuJWefyseABoNUGY6/1/*)#07h4t7pa",
+      "timestamp": 1791392644,
+      "active": true,
+      "internal": true,
+      "range": [
+        0,
+        999
+      ],
+      "next": 0,
+      "next_index": 0
+    },
+    {
+      "desc": "wpkh([ba11ec57/84h/1h/0h]tpubDCXLwpxz4uRtu2JV9x4UQ6FidwBYWegroRgjMJYm1Ejuny3ZfmG8KDs4JZVRmjsy92oBSnZPi2UmjiUur4dxHqdZvFMkJfJX5p21naHqw6o/0/*)#wc3jweg6",
+      "timestamp": 1791392643,
+      "active": true,
+      "internal": false,
+      "range": [
+        0,
+        999
+      ],
+      "next": 0,
+      "next_index": 0
+    },
+    {
+      "desc": "wpkh([ba11ec57/84h/1h/0h]tpubDCXLwpxz4uRtu2JV9x4UQ6FidwBYWegroRgjMJYm1Ejuny3ZfmG8KDs4JZVRmjsy92oBSnZPi2UmjiUur4dxHqdZvFMkJfJX5p21naHqw6o/1/*)#lv5nnvcz",
+      "timestamp": 1791392644,
+      "active": true,
+      "internal": true,
+      "range": [
+        0,
+        999
+      ],
+      "next": 0,
+      "next_index": 0
+    }
+  ]
+}

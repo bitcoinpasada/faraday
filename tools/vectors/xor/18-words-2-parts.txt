@@ -1,0 +1,8 @@
+# 18 words, 2 parts
+
+part 1 entropy: 241e033b81b66cbe5164c1c10a7afdcd4191ad8e0daa1d4b
+part 1 words: catch useless solve address grocery game easily oblige scissors fatigue satoshi once boil strategy deal relief bubble flee
+part 2 entropy: 88c338433b0f8ed341e14daf352393c1468b5f047fb056f7
+part 2 words: match border awkward invite wedding have always claim quality poverty top little hamster question ball voyage finger retreat
+seed entropy: acdd3b78bab9e26d10858c6e3f596e0c071af28a721a4bbc
+seed words: proud truth taste install owner custom dragon ranch hotel width fortune blossom immune junk clap drive entry tired

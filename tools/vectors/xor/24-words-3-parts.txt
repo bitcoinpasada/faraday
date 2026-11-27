@@ -1,0 +1,10 @@
+# 24 words, 3 parts
+
+part 1 entropy: df0f742bd50863203e480df290aebcdfe3b1fcb3c29a46b7331c6928b9d705cb
+part 1 words: tenant knife april present mail mosquito weird accuse verb lyrics quality save deposit wrestle someone fashion effort ridge shove spoil merit twist blame lazy
+part 2 entropy: 54277ec3b2fae275a2bf53b74350aa57ca215016a9e6c3a3280d58f97688b6ea
+part 2 words: feature desk rail grass purchase depart memory tuna resemble box clever question pear pool follow devote senior bone addict rapid number dust sweet elegant
+part 3 entropy: 0ac08dc70d266cef954750ef96d1df49da60ecce787528eb4ede4b26ce119c7e
+part 3 words: approve afford impact bottom grocery jelly fence tube usage repair jelly neck plastic island delay attitude cigar foil resource north hollow angle impose suit
+seed entropy: 81e8872f6ad4edba09b00eaa452fc9c1f3f0406b1309adff55cf7af7014e2f5f
+seed words: limit during slim stick excite tackle chat achieve prevent city venue loop disease cage proof gentle pupil wide inherit vote hybrid poem runway witness

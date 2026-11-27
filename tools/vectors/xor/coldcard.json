@@ -1,0 +1,23 @@
+{
+  "source": "https://github.com/Coldcard/firmware/blob/f28e1b267dd61bbe5f0844edcd6dbd7fc28ba5b3/docs/seed-xor.md",
+  "examples": [
+    {
+      "name": "24 Words XOR Seed Example Using 3 Parts",
+      "parts": [
+        "romance wink lottery autumn shop bring dawn tongue range crater truth ability miss spice fitness easy legal release recall obey exchange recycle dragon room",
+        "lion misery divide hurry latin fluid camp advance illegal lab pyramid unaware eager fringe sick camera series noodle toy crowd jeans select depth lounge",
+        "vault nominee cradle silk own frown throw leg cactus recall talent worry gadget surface shy planet purpose coffee drip few seven term squeeze educate"
+      ],
+      "seed": "silent toe meat possible chair blossom wait occur this worth option bag nurse find fish scene bench asthma bike wage world quit primary indoor"
+    },
+    {
+      "name": "12 Words XOR Seed Example Using 3 Parts",
+      "parts": [
+        "romance wink lottery autumn shop bring dawn tongue range crater truth ability",
+        "boat unfair shell violin tree robust open ride visual forest vintage approve",
+        "lion misery divide hurry latin fluid camp advance illegal lab pyramid unhappy"
+      ],
+      "seed": "cannon opinion leader nephew found yard metal galaxy crouch between real trade"
+    }
+  ]
+}

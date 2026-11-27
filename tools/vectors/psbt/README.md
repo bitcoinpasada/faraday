@@ -1,0 +1,323 @@
+# PSBT vectors
+
+| File | What it is |
+|---|---|
+| `bip174.txt` | BIP-174 test vectors, extracted by `extract.py`; documented in `core/faraday-psbt/README.md` |
+| `bip174-roles.txt` | The BIP-174 role vectors (creator, updater, signer, combiner, finalizer, extractor) |
+| `rfc6979.txt` | RFC-6979 deterministic-nonce vectors |
+| `demo-regtest.psbt` | The clean regtest spend the Sign review scripts and the QR fixtures use |
+| `warn-*.psbt` | One transaction per policy warning (below) |
+| `wallet-2of3.policy` | A BIP-388 wallet policy: 2 of 3, `wsh(sortedmulti(…))`, the "abandon … about" key with "zoo … wrong" and "legal … yellow" as its cosigners, on regtest |
+| `wallet-2of3.psbt` | A spend of that wallet: 60 000 sat out, 39 000 back to its own change address, which is verified change only while the wallet is in use |
+| `wallet-liana.policy` | A Liana-shaped miniscript wallet: `wsh(or_d(pk(@0/**),and_v(v:pkh(@1/**),older(52560))))`, the "abandon … about" key with "zoo … wrong" as the recovery key, both at the BIP-48 p2wsh path, on regtest |
+| `wallet-liana.psbt` | A spend of that wallet: 60 000 sat out, 39 000 back to its own change address. The input carries the witness script and both key origins, so the first key's path is the one it takes |
+| `wallet-liana-recovery.psbt` | The same spend down the recovery path: the sequence `older(52560)` wants, and only the recovery key's origin, which is what a coordinator building this spend hands over |
+| `wallet-tree.policy` | A taproot tree wallet: `tr(@0/**,{and_v(v:pk(@1/**),older(4320)),pk(@2/**)})` over the three keys' BIP-86 accounts, on regtest |
+| `wallet-tree.psbt` | A spend of that wallet through the leaf that wants the third key alone: one leaf script, one control block, one key origin |
+| `wallet-tree-keypath.psbt` | The same spend by the key path: the internal key and the tree's root, and no leaf script at all |
+| `wallet-tapmulti.policy` | BIP 387's taproot multisig: 2 of 3, `tr(H,sortedmulti_a(2,…))` over the same three keys as `wallet-2of3.policy`, at BIP 48's `3'` account, on regtest |
+| `wallet-tapmulti-first.psbt` | That wallet's funded spend, as Bitcoin Core 31.1 built it: 0.5 BTC out, the rest back to its own change address, with the leaf script, its control block and four taproot key origins |
+| `wallet-tapmulti-signed.psbt` | What this tree wrote from it, signed by the "abandon" key and the "zoo" key: two `tap_script_sigs` under the leaf's hash, and the input not final, because `sign` finalizes nothing |
+| `wallet-musig.policy` | A BIP-390 MuSig2 wallet on mainnet: `tr(musig(@0,@1)/**)` over two BIP-86 accounts, which the address and export tests read |
+| `wallet-musig-regtest.policy` | The regtest MuSig2 wallet of the Bitcoin Core round trip below: the "abandon … about" key as `@0` and a key Core generated as `@1` |
+| `wallet-musig-device-first.psbt` | That wallet's funded spend, before any nonce: 0.5 BTC out, the rest back to its own change address |
+| `wallet-musig-core-first.psbt` | The same spend after Core's first `walletprocesspsbt`: Core's public nonce is on it, this device's is not |
+| `wallet-musig-core-first-signed.psbt` | What the device wrote from it: its own public nonce and its partial signature, both keyed by the taproot output key |
+| `wallet-musig-device-first-nonce.psbt` | The other order, round 1: the funded spend with this device's public nonce on it and nothing signed |
+| `wallet-musig-device-first-core.psbt` | Core's answer to it, after two `walletprocesspsbt` calls: Core's public nonce and Core's partial signature |
+| `wallet-musig-device-first-signed.psbt` | The device's round 2 over that: its partial signature, the aggregate as the key-path signature, and the input final |
+| `finalize-or-b.psbt` | The cross-check's seeded sign case `4fde5465…`, signed and not final: input 3 spends `wsh(or_b(pk(A),s:pk(B)))` with a 72-byte signature from A and a 71-byte one from B |
+| `finalize-or-b-final.psbt` | python-bip380's finalized answer to it: input 3's witness carries B's signature and A's empty push, the smaller of the two satisfactions (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `finalize-tap-leaf-tie.psbt` | The cross-check's seeded sign case `d2720ca6…` (corpus 17), signed and not final: input 1 spends a taproot tree whose leaves' witnesses differ by one byte as serialized and tie by `miniscript`'s count |
+| `finalize-tap-leaf-tie-final.psbt` | The cross-check's finalized answer to it: input 1's witness is the 240-byte leaf (`core/faraday-psbt/tests/all/satisfaction.rs`); Bitcoin Core v31.1.0's `finalizepsbt` on regtest gives the same witness, byte for byte |
+| `finalize-multi-smallest.psbt` | The cross-check's seeded sign case `faraday-crosscheck-1` corpus 28, signed and not final: input 0 spends `sh(wsh(or_d(multi(2,A,B,C),and_v(v:pkh(D),older(N)))))` with four signatures on hand, one of 72 bytes and three of 71, the timelock not met |
+| `finalize-multi-smallest-final.psbt` | Bitcoin Core v31.1.0's `finalizepsbt` answer to it on regtest: input 0's `multi` carries two 71-byte signatures, a 284-byte witness (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `finalize-multi-smallest-wsh.psbt` | The cross-check's sign case at seed `4e79bf0fbd080bcdd4aa2a01c5febb02` corpus 157, signed and not final: input 0 spends `wsh(or_d(multi(2,A,B,C),and_v(v:pkh(D),older(N))))` with four signatures on hand, one of 70 bytes and three of 71 |
+| `finalize-multi-smallest-wsh-final.psbt` | Core v31.1.0's `finalizepsbt` answer to it: the `multi` carries the 70-byte signature and a 71-byte one, a 283-byte witness (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `finalize-thresh-tie.psbt` | The cross-check's seeded sign case `faraday-crosscheck-1` corpus 4, signed and not final: input 2 spends `sh(wsh(thresh(2,pk(A),s:pk(B),sln:older(N))))` with A and B signed at 71 bytes each and the timelock met, so two satisfactions weigh 161 bytes |
+| `finalize-thresh-tie-final.psbt` | Core v31.1.0's `finalizepsbt` answer to it: B and the timelock satisfied, an empty push for A, as Core breaks a `thresh` tie (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `finalize-tap-leaf-order.psbt` | The cross-check's sign case at seed `41cb5a3d9e61f800a8639fab29ef926e` (scale 10) corpus 298, signed and not final: input 0 spends a taproot tree by its script path, two leaves of which give witnesses of the same 235 bytes |
+| `finalize-tap-leaf-order-final.psbt` | Core v31.1.0's `finalizepsbt` answer to it: the leaf whose script sorts first by its bytes (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `signer-core-signed.psbt` | `wallet-2of3.psbt` as Bitcoin Core 31.1 signed it: `walletprocesspsbt` (sign, no finalize) in a regtest wallet holding the "zoo … wrong" key and the other two as their xpubs, `tools/scripts/signer-core.py`; one partial signature under the zoo key, the input not final. Not rebuilt by `examples/signer.rs`, which reads it |
+| `signer-core-final.psbt` | `demo-regtest.psbt` signed and finalized by Core 31.1 (`walletprocesspsbt`, sign and finalize) in a regtest wallet holding the "abandon … about" key, `tools/scripts/signer-core.py`: input 0 final, its witness a signature and the key. Not rebuilt by `examples/signer.rs`, which reads it |
+| `signer-core-musig-sent.psbt` | Sent: a spend of a `tr(musig(...))` output over the "abandon … about" and "zoo … wrong" keys, after two `walletprocesspsbt` rounds in a regtest Core 31.1 wallet holding both: both public nonces, both partial signatures, the aggregate as the key-path signature (BIP-373), `tools/scripts/signer-core.py`. Nonces are random, so a rerun writes different files. Not rebuilt by `examples/signer.rs` |
+| `signer-core-musig-final.psbt` | That input as `finalizepsbt` of Core 31.1 returns it: the final witness and the UTXO only; the MuSig2 participants, nonces and partial signatures are gone with the other signing fields |
+| `bump-core-original.psbt` | A fee bump's original as Bitcoin Core 31.1 made it: `walletcreatefundedpsbt` in a regtest wallet holding the "abandon … about" key at BIP-84, one payment of 49.9999 BTC with the change at output 1, replace-by-fee on, 10 sat/vB, unsigned, with the change output's key origin; remade by `python3 -I -B tools/scripts/bump-core.py tools/vectors/psbt` (the pinned Core on regtest) |
+| `bump-core-original.tx` | That payment signed, finalized and broadcast, as hex |
+| `bump-core-replacement.psbt` | `psbtbumpfee`'s replacement of it at 20 sat/vB: the same input and payment, the change smaller by the fee raised. Core sets its locktime to the chain height (it does not keep the original's), so a rerun can differ in that field |
+| `bump-core-added.psbt` | `psbtbumpfee` at 100 sat/vB, which the change cannot pay: Core adds a second input of the wallet's. Its locktime is the chain height or a little under it, so a rerun can differ in that field |
+| `signer-core-sent.psbt` | Sent: `wallet-2of3.psbt` plus the one witness script Core added to output 1 beside its signature, copied from `signer-core-signed.psbt`; the Sent for every fixture below built from core-signed. `wallet-2of3.psbt` itself against core-signed is clean with one Info line, the witness script added at output 1, which hashes to that output's P2WSH program (F199); written by `examples/signer.rs` |
+| `signer-output-changed.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed with output 0 one sat less; written by `examples/signer.rs` |
+| `signer-invalid.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed with the last bit of its signature's s flipped; written by `examples/signer.rs` |
+| `signer-foreign-key.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus a valid signature under a key no origin names; written by `examples/signer.rs` |
+| `signer-sighash-none.psbt` | Returned, against demo-regtest.psbt: signed by the "abandon" key with SIGHASH_NONE; written by `examples/signer.rs` |
+| `signer-sighash-single.psbt` | Returned, against demo-regtest.psbt: signed by the "abandon" key with SIGHASH_SINGLE; written by `examples/signer.rs` |
+| `signer-random-nonce.psbt` | Returned, against demo-regtest.psbt: signed by the "abandon" key with a nonce RFC 6979 does not give; written by `examples/signer.rs` |
+| `signer-nonce-reuse-sent.psbt` | Sent: a spend of two inputs of one address of the "abandon" key, 70 000 sat out and 29 000 back; written by `examples/signer.rs` |
+| `signer-nonce-reuse.psbt` | Returned, against signer-nonce-reuse-sent.psbt: both inputs signed under one key with one nonce; written by `examples/signer.rs` |
+| `signer-sig-removed.psbt` | Returned, against wallet-tapmulti-signed.psbt: that file less one of its two script signatures; written by `examples/signer.rs` |
+| `signer-sig-changed.psbt` | Returned, against signer-core-signed.psbt: its signature remade, as valid, with another nonce; written by `examples/signer.rs` |
+| `signer-final-extra.psbt` | Returned, against demo-regtest.psbt: signer-core-final with one more item, a byte, at the end of the witness; written by `examples/signer.rs` |
+| `signer-origin-removed.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed with input 0's key origins removed; written by `examples/signer.rs` |
+| `signer-xpub-added.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus one global extended public key; written by `examples/signer.rs` |
+| `signer-unknown-added.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus a global pair of type 0xf0, a 2-byte key and a 4-byte value; written by `examples/signer.rs` |
+| `signer-unknown-sent.psbt` | Sent: signer-core-sent.psbt plus a global pair of type 0xf0, a 2-byte key and a 4-byte value; written by `examples/signer.rs` |
+| `signer-unknown-changed.psbt` | Returned, against signer-unknown-sent.psbt: signer-core-signed with that pair's value two bytes longer; written by `examples/signer.rs` |
+| `signer-proprietary-added.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus an input pair under the prefix "device", subtype 1, a 4-byte value; written by `examples/signer.rs` |
+| `signer-osk-added.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus an input record under Faraday's own prefix "osk", subtype 0, a 32-byte value; written by `examples/signer.rs` |
+| `signer-trailing.psbt` | Returned, against signer-core-sent.psbt: the bytes of signer-core-signed with eight bytes after the last map; written by `examples/signer.rs` |
+
+## The miniscript wallets' addresses
+
+The first two receive and change addresses of each, checked against
+Bitcoin Core v29.4.0 `deriveaddresses` on this machine on 2026-09-13 and
+against `miniscript` used directly (`core/faraday-bip/tests/all/miniscript.rs`).
+
+| Wallet | Chain | 0 | 1 |
+|---|---|---|---|
+| `wallet-liana` | receive | `bcrt1qcn77knrrdsk3wpjmndhe4xuntfqq3ft7xtr0yu23grfeqgsxkn2qjk0fz5` | `bcrt1qk93r8dd9jsf9ev4lzdzknj49se3fkmq9hju0tx8mwuhchfahn28q0l7hyz` |
+| `wallet-liana` | change | `bcrt1q5kpvx7hd28xgmxq2rv5cvvwu2dtm5qfhxzsdg7300jjy3r694r2qn045yn` | `bcrt1qemhk2n6cfm5w9xqhuzp94wgwprclmwvkk2ex9fksr55chlmjnugq083cg5` |
+| `wallet-tree` | receive | `bcrt1p0sf2utyzdhg8gcek3zjrh638jyns5dnfk0g6l25a9aem2v9lwjhqm20kl5` | `bcrt1pn4y4wpq7zdvjq8kyy5r6mfkckxkdvtwqcunp2mh80mqf4x47qu2q7gaumk` |
+| `wallet-tree` | change | `bcrt1pw60dya6xsx3y3xh35xu5r3xzdyh2j942kaz9gg8qtfhg7dz7t0usv0ge4q` | `bcrt1pnxumakwwk2yr6ejukntjxkf00ap8e06t6axel3jlsqjng9l9yuqqncymvc` |
+
+Core also accepted both descriptors' checksums, `#d9zz2z8e` for the
+`wsh` one and `#00m3rdde` for the `tr` one, which is a second reading of
+`faraday_bip::descriptor`.
+
+## The taproot recovery wallets' addresses
+
+Two taproot descriptors of Liana's shapes (one key now and one key after
+52 560 blocks; the second with a two-of-two primary) are not Liana's own
+fixtures. Their first two receive and change addresses were checked against Bitcoin Core v31.1.0
+`deriveaddresses` on this machine on 2026-09-18, and the test reads the
+same descriptors as fixed text
+(`core/faraday-bip/tests/all/liana_shapes.rs`):
+
+- **key path**, one primary key and one recovery key after 52 560
+  blocks, the primary on the key path —
+  `tr([73c5da0a/48'/1'/0'/2']tpubDFH9d…/<0;1>/*,and_v(v:pk([3f635a63/48'/1'/0'/2']tpubDFPtP…/<0;1>/*),older(52560)))#3ah698nn`
+- **unspendable**, a two-of-two primary and one recovery key after
+  52 560 blocks, so every path is a leaf and the internal key is
+  BIP-341's NUMS point over a chain code made from the leaves' keys —
+  `tr(tpubD6NzVbkrYhZ4Xc7sHx4R7YdxNd5kU29D9btbVAQwegYJ1xvbyxWZ2qQHxheE51nqZEtHMUsKk6E4XZhSbVrLCX4vJgBfcowgHeRSNweREV7/<0;1>/*,{…})#nzn0mjun`
+
+| Wallet | Chain | 0 | 1 |
+|---|---|---|---|
+| key path | receive | `bcrt1pw3s5nepc02jlyvk8hqqjs3ujwatfagv46t782nk9r9eh97grnwnsmgpq7z` | `bcrt1p4autzdywsrar9ea5k28acfetg0m6lm8ghwphdgklr2fphuefpxlspu9j37` |
+| key path | change | `bcrt1pzsezgsyppy7md9v3m788trauf8ext7lthk7yezhprrd42u63c92sjtnn7m` | `bcrt1puh67whutvxxcpumrunw6l7h7q8avlprcx9xvjs3qnyqcqcfjgndszym3gv` |
+| unspendable | receive | `bcrt1pswh84u67t65juskhtdgg6racc76txy69pl75t2axf400j2x0x3kq0u5qxn` | `bcrt1paglrj4pjtjwm2fu4c8pkzz5fp7z0a4aed3u7ua7ahzzuwj4s0xhqsqvp2l` |
+| unspendable | change | `bcrt1pqqzwemhxyn255eg6nle9nydaudllrq8u3uwja57nxrc27p55m5xqe9fcc6` | `bcrt1p8uunumevnv4y7dqw6wk08cdppxh0r8paksx4vx8g42twlyychnxsma6g5w` |
+
+Core accepted both checksums too.
+
+## What Bitcoin Core checked about the signing
+
+On 2026-09-13, on a throwaway regtest node (Bitcoin Core v29.4.0 on this
+machine, no network), both descriptors were imported into watch-only
+wallets, funded, and spent. Core built each PSBT with
+`walletcreatefundedpsbt`; this crate signed and finalized it; Core then
+judged the finished transaction with `testmempoolaccept`, which runs the
+script interpreter over it.
+
+| Spend | Witness | `testmempoolaccept` |
+|---|---|---|
+| `wsh(or_d(pk(A),and_v(v:pkh(B),older(52560))))` through `pk(A)` | signature, witness script | allowed, 161 vB |
+| The same script through `and_v(v:pkh(B),older(52560))`, sequence 52 560 | signature, key, the empty dissatisfaction, witness script | allowed, 170 vB |
+| `tr(A,{…,pk(C)})` by the key path, signed with A | one signature | allowed, 142 vB |
+| The same tree through the `pk(C)` leaf, signed with C | signature, leaf script, control block | allowed, 168 vB |
+
+The recovery row needed a coin 52 560 blocks old, so the regtest chain
+was mined out to that height first. Tried against the same coin before
+it matured, Core answered `non-BIP68-final`, and the device itself
+refuses earlier than that: the finalizer's interpreter rejects the
+satisfaction and the transaction stays partial, which is the
+"Timelock not met" caution on the review.
+
+The addresses Core derived for the funded wallets were the first receive
+addresses in the table above, which is a second reading of
+`WalletPolicy::script_at`.
+
+The wallet files are written by
+`cargo run -p faraday-psbt --example wallet` (also `just psbt-fixtures`) and
+checked byte for byte by the same test as the warning fixtures.
+tools/scripts/wallet.txt reads the policy, registers it and signs the
+transaction.
+
+## The MuSig2 wallet, and what Bitcoin Core 31.1 checked
+
+Bitcoin Core 31.1 signs `musig()` descriptor wallets and is the only
+counterpart that speaks BIP-373's fields today. On 2026-10-28, on a throwaway regtest node (Core v31.1.0 on
+this machine, no network), a two-key `musig()` wallet was built with Core
+holding the second key, funded, and spent in both orders: Core's nonce
+first with the device signing last and no session, and the device's nonce
+first with the session signing when the transaction came back.
+
+`tools/scripts/musig-regtest.sh` is the run. Core's key is generated
+afresh on every `setup`, so a rerun builds another wallet and every
+fixture below changes with it; the fixtures here are one run, and the two
+orders share its unsigned transaction.
+
+```text
+tools/scripts/musig-regtest.sh setup <datadir>
+cp <datadir>/wallet-musig-*.p* tools/vectors/psbt/
+cargo run -p faraday-psbt --example musig -- tools/vectors/psbt
+# Core first: the device signed last, Core finishes.
+tools/scripts/musig-regtest.sh finish <datadir> \
+    tools/vectors/psbt/wallet-musig-core-first-signed.psbt
+# The device first: Core answers round 1, twice (see below).
+tools/scripts/musig-regtest.sh answer <datadir> \
+    tools/vectors/psbt/wallet-musig-device-first-nonce.psbt
+tools/scripts/musig-regtest.sh answer <datadir> <that call's psbt>
+# The second call's PSBT is wallet-musig-device-first-core.psbt.
+cargo run -p faraday-psbt --example musig -- tools/vectors/psbt
+tools/scripts/musig-regtest.sh accept <datadir> \
+    tools/vectors/psbt/wallet-musig-device-first-signed.psbt
+tools/scripts/musig-regtest.sh stop <datadir>
+```
+
+`setup` imports
+`tr(musig([73c5da0a/86h/1h/0h]tpub…,[04c04143/86h/1h/0h]tpub…)/<0;1>/*)`,
+funds it with 1 BTC, and asks for a 0.5 BTC spend; Core's `tprv` stays in
+the datadir.
+
+**Core first, the device signing last.**
+
+| Step | Who | Result |
+|---|---|---|
+| `walletcreatefundedpsbt` | Core | `wallet-musig-device-first.psbt`, one input, two outputs, 1 550 sat fee |
+| `walletprocesspsbt` | Core | `wallet-musig-core-first.psbt`: Core's public nonce, no partial signature |
+| `sign` | this crate | `wallet-musig-core-first-signed.psbt`: this device's public nonce and partial signature, the PSBT not complete |
+| `walletprocesspsbt` | Core | `complete: true` — Core read this device's nonce and partial signature, wrote its own, and aggregated |
+| `finalizepsbt` | Core | `complete: true` |
+| `testmempoolaccept` | Core | `allowed: true`, txid `b517d63fcb361e5b6158d614746a6c14934f5eb019cfc4b191e699667aec1e2d`, wtxid `aeecc45ea3305a8b740f56a5c55e089456281a88348657c60838c46ee19f081b`, 154 vB, 1 550 sat |
+
+**The device first, with the session.**
+
+| Step | Who | Result |
+|---|---|---|
+| `sign` round 1 | this crate | `wallet-musig-device-first-nonce.psbt`: this device's public nonce alone, nothing signed, the secret nonce held in the session |
+| `walletprocesspsbt` | Core | `complete: false`, and the input carries two nonces and no partial signature: **Core writes only its nonce on this call**, although every nonce is now there |
+| `walletprocesspsbt` | Core | `complete: false`, two nonces and one partial signature: `wallet-musig-device-first-core.psbt`. A third call changes nothing, because what is missing is this device's signature |
+| `sign` round 2 | this crate | `wallet-musig-device-first-signed.psbt`: this device's partial signature, both aggregated, and the aggregate written as `tap_key_sig` |
+| `finalizepsbt` | Core | `complete: true` |
+| `testmempoolaccept` | Core | `allowed: true`, txid `b517d63fcb361e5b6158d614746a6c14934f5eb019cfc4b191e699667aec1e2d`, wtxid `e299246ec124243f8361253ecc318a1fb5802d4823657865c28b5b8f1d5ee1c5`, 154 vB, 1 550 sat |
+
+Both orders spend the same unsigned transaction, so both end at the same
+txid; the witnesses differ, because the two runs aggregate different
+nonces, and so do the wtxids (`aeecc45e…` for Core first, `e299246e…` for the device first).
+
+The three PSBTs this device wrote are written by
+`cargo run -p faraday-psbt --example musig -- tools/vectors/psbt`, that is
+`just psbt-fixtures`, under `Aux::Deterministic` and the example's fixed
+session seed, and are checked byte for byte by
+`core/faraday-psbt/tests/all/musig.rs`, which also carries the rounds the whole
+way with a second signer played in the test, so that the aggregate
+signature this crate builds finalizes the input. The files are recorded
+as they came out of the run:
+
+| File | SHA-256 |
+|---|---|
+| `wallet-musig-regtest.policy` | `ed5486164c59f6046e27faa21ffe17509a96e262ae65f7171d94a5d560a92fc0` |
+| `wallet-musig-device-first.psbt` | `14f5ccc107ca82019104a371f1fc41d4360f2321e627f978319e128e0885bbbc` |
+| `wallet-musig-core-first.psbt` | `61aeaa929dd1b4e7179a1cb1c7fedf120d23cbb41ea9d0138a73a45b963e80de` |
+| `wallet-musig-core-first-signed.psbt` | `ba0aede3658fb091a3ee90eb306d91ecb963988e1771b13be3721db71fb550b3` |
+| `wallet-musig-device-first-nonce.psbt` | `1255ffbbf588d58c15092b54c85e65eb89fb80c9f3cce79fb03d61e705ed5860` |
+| `wallet-musig-device-first-core.psbt` | `40ba578fd5846335c0fe45d4344fe87c2a8130ef765057f8f44f1bd707046aea` |
+| `wallet-musig-device-first-signed.psbt` | `d336d5eaf5cfb73427abf6ad764a27a28299ba42a387f8e872604bef0bc88832` |
+
+## The taproot multisig, and what Bitcoin Core 31.1 checked
+
+The wallet is `tr(H,sortedmulti_a(2,@0/**,@1/**,@2/**))` over the three
+keys `wallet-2of3.policy` uses, at BIP 48's `3'` account (its script type for taproot) on regtest —
+the wallet Add a wallet › Taproot multisig builds. Bitcoin Core 31.1
+imports `sortedmulti_a` as it stands: no rewriting to `multi_a` with the
+keys pre-sorted was needed, and the checksum Core computed for the
+descriptor, `#zxsxv8n3`, is the one `faraday_bip::descriptor` computes.
+
+The run was on 2026-10-29, on a throwaway regtest node (Core v31.1.0
+from the pinned release tarball, no network), whose datadir was
+removed afterwards. Core holds no key of this wallet: it imports it
+watch-only, funds it, builds the spend, and judges the finished
+transaction.
+
+```text
+tools/scripts/tapmulti-regtest.sh setup <datadir>
+cp <datadir>/wallet-tapmulti-first.psbt tools/vectors/psbt/
+cargo run -p faraday-psbt --example tapmulti -- tools/vectors/psbt
+tools/scripts/tapmulti-regtest.sh accept <datadir> \
+    tools/vectors/psbt/wallet-tapmulti-signed.psbt
+tools/scripts/tapmulti-regtest.sh stop <datadir>
+```
+
+| Step | Who | Result |
+|---|---|---|
+| `importdescriptors` | Core | the committed policy as one checksummed descriptor, watch-only, `success: true` |
+| `getnewaddress` | Core | `bcrt1pqh24wx2tfxedcq9tmj7r2e424n59zfqw54rehz4rh3kqws7kgqasqyjafg`, which is `WalletPolicy::address_at(regtest, receive, 0)` |
+| `walletcreatefundedpsbt` | Core | `wallet-tapmulti-first.psbt`, one input, two outputs, 1 550 sat fee |
+| `sign` | this tree | `wallet-tapmulti-signed.psbt`: two `tap_script_sigs` under the leaf's hash, the input not final |
+| `finalizepsbt` | Core | `complete: true` — Core builds the witness from this tree's two signatures |
+| `testmempoolaccept` | Core | `allowed: true`, txid `9fbda3301acc0935c2718dfc8e28e7484b3857e34496dcbe5c2640d3612e29e5`, wtxid `0fc499ca…`, 206 vB, 821 WU, 1 550 sat, effective fee rate 0.000 075 24 BTC/kvB |
+
+**What Core wrote for the input.** One `tap_scripts` entry: the
+`multi_a` leaf over the three derived x-only keys in sorted order, leaf
+version 192, and the one-byte-plus-32 control block
+`c050929b74…ce803ac0`, which is the NUMS point with the parity bit and
+no Merkle path, because the tree is one leaf. The Merkle root is
+therefore the leaf hash itself,
+`737fc3f05421457846235412e418c4424d68f23a0f4e7c4452e3142b5ae95bdb`.
+
+`taproot_bip32_derivs` holds **four** entries, not three: one per
+wallet key, at `m/48h/1h/0h/3h/0/0` under its own master fingerprint and
+naming that leaf hash, and a fourth for the NUMS internal key itself,
+with master fingerprint `7c461e5d`, path `m` and an empty `leaf_hashes`.
+Core writes an origin for a key nobody has, because the descriptor's
+internal key is a raw key and Core derives a fingerprint for it anyway.
+`WalletPolicy` already leaves a plain internal key out of the wallet's
+keys, so the reader passed it over and needed no change; a reader that
+counted origins to count cosigners would read this wallet as four.
+
+The device signs with two of the three keys in one pass and finalizes
+the result itself, so what the Sign flow hands over is the finished
+transaction. The committed fixture is the step before that: the PSBT
+`faraday_psbt::sign` writes, which is what a coordinator collecting
+signatures would be given.
+
+| File | SHA-256 |
+|---|---|
+| `wallet-tapmulti.policy` | `0dad50f741c82d1decd12af846b4b749a11b986dde1daab857a0c492208a9ac3` |
+| `wallet-tapmulti-first.psbt` | `fefbde43ebd1deffd044e43add5f825de4514eb5a348da4f86c14795a66ad29c` |
+| `wallet-tapmulti-signed.psbt` | `e54bcc64d1d3727935f0e2b651a290380c88abddfa6516416759f158b5fcd9f7` |
+
+The signed fixture is written by
+`cargo run -p faraday-psbt --example tapmulti -- tools/vectors/psbt`, that is
+`just psbt-fixtures`, and checked byte for byte by
+`core/faraday-psbt/tests/all/tapmulti.rs`.
+
+## The warning fixtures
+
+Written by `cargo run -p faraday-psbt --example warnings`, that is
+`just psbt-fixtures`, and checked byte for byte by
+`core/faraday-psbt/tests/all/fixtures.rs`. All but `warn-network-mismatch.psbt`
+are regtest spends of the "abandon … about" seed; addresses that are not
+ours belong to "zoo … wrong". Read them with the `abandon` key loaded on
+regtest.
+
+| File | Warning | Level | What else it carries |
+|---|---|---|---|
+| `warn-change-spoof.psbt` | `ChangeSpoof` | blocked | the change claims our key and pays the recipient's address, so an `AddressReuse` caution comes with it |
+| `warn-unverified-change.psbt` | `UnverifiedChange` | caution | |
+| `warn-high-fee.psbt` | `HighFee` | danger | fee is 25 % of the 80 000 sat sent |
+| `warn-absurd-fee-rate.psbt` | `AbsurdFeeRate` | danger | about 1 800 sat/vB, which is also a `HighFee` danger |
+| `warn-dust-output.psbt` | `DustOutput` | caution | a 200 sat output beside a 98 000 sat one, so no fee warning joins it |
+| `warn-unusual-sighash.psbt` | `UnusualSighash` | danger | `SIGHASH_NONE` |
+| `warn-mixed-script-types.psbt` | `MixedScriptTypes` | info | a p2wpkh and a p2tr input |
+| `warn-network-mismatch.psbt` | `NetworkMismatch` | danger | mainnet paths read on regtest; the paths are under no loaded account, so two cautions come with it |
+| `warn-no-participating-key.psbt` | `NoParticipatingKey` | danger | the whole transaction belongs to the "zoo" seed |
+| `warn-unknown-derivation.psbt` | `UnknownDerivation` | caution | our fingerprint at `84'/1'/5'/0/0` |
+| `warn-locktime-in-future.psbt` | none | none | locked until block 800 000, and not replaceable: a height lock is a plain row on Review, no warning |
+| `warn-non-standard-script.psbt` | `NonStandardScript` | info | an OP_RETURN output |
+| `warn-address-reuse.psbt` | `AddressReuse` | caution | two outputs pay one address |
+| `warn-utxo-mismatch.psbt` | `UtxoMismatch` | blocked | the input's transaction is not the one it spends, which leaves it with `MissingUtxo` and `NoParticipatingKey` too |
+| `warn-missing-utxo.psbt` | `MissingUtxo` | danger | no UTXO data, so `NoParticipatingKey` comes with it |
+| `warn-unsupported-input.psbt` | `UnsupportedInput` | caution | a taproot input claiming a tree the PSBT gives no leaf of and no internal key for, beside an ordinary one |
+| `warn-amount-unverified.psbt` | `AmountUnverified` | blocked | two p2wpkh inputs, neither with its previous transaction, so their stated amounts are committed to by nothing; one input alone would not be blocked |
