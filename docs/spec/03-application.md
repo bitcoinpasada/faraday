@@ -162,10 +162,10 @@ pub enum Notice<'a> {
     Hide,
     /// A key, wallet, file or vault came, went or changed (§7.2).
     Shared(&'a shared::Changed),
-    /// A fact in `View::facts` changed: sticks, display, cameras, time.
+    /// A fact in `View::facts` changed: sticks, display, cameras, time, downloads, the Starter's system facts.
     Facts(FactsChanged),
 }
-pub enum FactsChanged { Sticks, Display, Cameras, Time }
+pub enum FactsChanged { Sticks, Display, Cameras, Time, Downloads, System }
 ```
 
 - **Rule A13.** A screen left drops what it held, however it was left: the root's navigation

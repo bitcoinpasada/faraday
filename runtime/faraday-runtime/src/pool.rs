@@ -333,7 +333,17 @@ fn lane(
                 woke: Cell::new(None),
             });
         });
-        let answer = (job.run)(&compute);
+        // §5.1: a job that panics ends the process in every build, as release's `panic = "abort"`
+        // does; a lane that only unwound would leave a lock waiting for its answer for ever.
+        let Ok(answer) =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (job.run)(&compute)))
+        else {
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "§5.1: a panicked job ends the process in a debug build as release's abort does"
+            )]
+            std::process::abort();
+        };
         CURRENT.with(|current| *current.borrow_mut() = None);
         if answers.send(answer).is_err() {
             return;

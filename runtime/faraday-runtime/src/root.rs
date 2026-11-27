@@ -25,6 +25,9 @@ pub trait Root: Sized + 'static {
     /// One variant per top state's press (kit atoms, 04 §2.1).
     type Press: Pressed;
     type Options: Public;
+    /// Whether the root has a part outside the lock scope (the Starter, §7.9): true when
+    /// `Outside` is a feature of its own, false for `Nothing` (§1).
+    const OUTSIDE: bool;
 
     /// The mode the scope is built in: the carried one, or the root's own (§7.5).
     fn mode(&self, carried: &mut Carried, facts: &Facts) -> Mode;
@@ -120,10 +123,9 @@ pub enum Stream {
     System(SystemFact),
 }
 
-/// Whether the root has a part outside the lock scope: its `Outside` is not `Nothing` (the
-/// Starter, §7.9).
+/// Whether the root has a part outside the lock scope (the Starter, §7.9): `Root::OUTSIDE`.
 pub(crate) fn has_outside<R: Root>() -> bool {
-    core::any::type_name::<R::Outside>() != core::any::type_name::<Nothing>()
+    R::OUTSIDE
 }
 
 /// A top state's state type, by its feature.

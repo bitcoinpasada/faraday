@@ -20,7 +20,7 @@ use faraday_port as port;
 use faraday_port::event::{Event, Start, Time};
 use faraday_port::{Answer, Ask, AskId, Effect, Order, Request};
 
-use crate::facts::{Kept, default_settings};
+use crate::facts::Kept;
 use crate::root::{Addr, NoRefusal, Nothing, Root, Stream, Tops};
 use crate::runtime::{Phase, Runtime, Workers};
 
@@ -265,7 +265,7 @@ impl<P: Place> Feature for Probe<P> {
             ProbeState {
                 typed: false,
                 only_copy: false,
-                settings: default_settings(),
+                settings: shared::Settings::default(),
                 empty: Empty::new(),
                 place: PhantomData,
             },
@@ -398,7 +398,7 @@ trait Injected: Root {
 }
 
 macro_rules! test_root {
-    ($root:ident, $outside:ty) => {
+    ($root:ident, $outside:ty, $has_outside:expr) => {
         struct $root {
             next: RefCell<Option<Addr<$root>>>,
         }
@@ -425,6 +425,7 @@ macro_rules! test_root {
             type Outside = $outside;
             type Press = Press;
             type Options = bool;
+            const OUTSIDE: bool = $has_outside;
 
             fn mode(&self, _carried: &mut Carried, _facts: &faraday_kernel::Facts) -> Mode {
                 Mode {
@@ -466,8 +467,8 @@ macro_rules! test_root {
     };
 }
 
-test_root!(Device, Nothing);
-test_root!(Starter, Probe<OutsideAt>);
+test_root!(Device, Nothing, false);
+test_root!(Starter, Probe<OutsideAt>, true);
 
 struct NoWake;
 
@@ -690,6 +691,64 @@ fn a_second_start_is_dropped() {
     assert!(effects.is_empty());
     assert_eq!(take_log(), Vec::<String>::new());
     assert_eq!(runtime.phase(), Phase::Running);
+}
+
+/// Invariant: A process that stays clean sends `Order::Clean(true)` once at `Start`, and nothing for it after.
+/// Regression: Sending the marker only on a change leaves the grant helper waiting for ever on a process that never held a secret.
+/// Owner: runtime
+#[test]
+fn a_process_that_stays_clean_says_so_once_at_start() {
+    let mut runtime = Runtime::new(Device::new(), Arc::new(NoWake), Workers::Inline);
+    runtime.frame.skip = true;
+    let at_start = runtime.event(start_event());
+    let cleans = |effects: &[Effect]| {
+        effects
+            .iter()
+            .filter(|e| matches!(e, Effect::Order(Order::Clean(true))))
+            .count()
+    };
+    assert_eq!(cleans(&at_start), 1);
+    let later = send(&mut runtime, Addr::App(Msg::Look));
+    assert!(
+        later
+            .iter()
+            .all(|e| !matches!(e, Effect::Order(Order::Clean(_))))
+    );
+}
+
+/// Invariant: A job that reports no progress is in `View::running` at the next frame.
+/// Regression: Reading the pool only when a lane wakes the root hides the busy line of a job that never reports.
+/// Owner: runtime
+#[test]
+fn a_job_with_no_progress_is_running_at_the_next_frame() {
+    let mut runtime = started_on_threads();
+    assert!(runtime.running.is_empty());
+    send(&mut runtime, Addr::App(Msg::Job));
+    assert_eq!(runtime.running.len(), 1);
+    assert_eq!(runtime.running[0].kind, JobKind("test.job"));
+    woken_until(&mut runtime, |runtime| runtime.pool.running().is_empty());
+}
+
+/// Invariant: A change of the downloads or of the Starter's system facts is told to every top state built.
+/// Regression: Keeping the fact and telling no one leaves the Starter's pages showing the list as it was.
+/// Owner: runtime
+#[test]
+fn downloads_and_system_facts_are_told_to_every_top_state() {
+    use port::event::{HostFact, SystemFact};
+    let mut runtime = started(Device::new());
+    runtime.event(Event::Host(HostFact::Downloads {
+        dir: port::Text::of("d"),
+        files: Vec::new(),
+    }));
+    assert_eq!(
+        take_log().last().map(String::as_str),
+        Some("app:notice Facts(Downloads)")
+    );
+    runtime.event(Event::System(SystemFact::NoWriter));
+    assert_eq!(
+        take_log().last().map(String::as_str),
+        Some("app:notice Facts(System)")
+    );
 }
 
 /// Invariant: A feature that sends itself a message for ever does not stop the screen: the cascade is cut and the next event is handled.

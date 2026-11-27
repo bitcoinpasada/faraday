@@ -328,7 +328,7 @@ class Sources(Base):
         self.clean([port, k("use faraday_port::values::Display;\n")])
 
     def test_runtime_orders_and_owner_names(self):
-        """Invariant: Only the runtime names `Order::Exit`, `Order::Clean`, `Ask::Keep` and `Ask::Forget`, only an owner names `Top::Shared` and `Fx::Done`, and only the vault owner `vaults::Close`.
+        """Invariant: Only the runtime names `Order::Exit`, `Order::Clean`, `Ask::Keep` and `Ask::Forget`, only an owner names `Top::Shared`, `Fx::Done` and `Effects::done`, and only the vault owner `vaults::Close`.
         Regression: A feature marks the process clean or ends the scope itself.
         Owner: tool"""
         port, kernel = Crate("faraday-port", "port", no_std=True), app("faraday-kernel", "kernel", deps=["faraday-port"])
@@ -347,6 +347,9 @@ class Sources(Base):
         self.refused("R6", [port, kernel, f("use faraday_kernel::Top;\nfn a() { let _ = Top::Shared; }\n")])
         self.clean([port, kernel, f("use faraday_kernel::Top;\nfn a() { let _ = Top::Shared; }\n", owner=True)])
         self.refused("A24", [port, kernel, f("use faraday_kernel::Fx;\nfn a() { let _ = Fx::Done; }\n")])
+        self.refused("A24", [port, kernel, f("use faraday_kernel::Effects;\nfn a(e: Effects<u8, u8>) { let _ = e.done(1, 2); }\n")])
+        self.refused("A24", [port, kernel, f("use faraday_kernel::Effects;\nfn a() { let _ = Effects::done; }\n")])
+        self.clean([port, kernel, f("use faraday_kernel::Effects;\nfn a(e: Effects<u8, u8>) { let _ = e.done(1, 2); }\n", owner=True)])
         self.refused("A22", [port, kernel, f("use faraday_kernel::shared::vaults;\nfn a() { let _ = vaults::Close; }\n")])
 
     def test_root_builds_no_event(self):

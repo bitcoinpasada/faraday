@@ -12,7 +12,7 @@ use faraday_port as port;
 use faraday_port::event::{Input, Key, TouchPhase};
 use faraday_port::values::{Pace, Point};
 
-use crate::facts::{Lent, build_view, default_settings, show_of};
+use crate::facts::{Lent, build_view, show_of};
 use crate::queue::Item;
 use crate::root::{Root, Tops};
 use crate::runtime::{Phase, Runtime};
@@ -222,6 +222,8 @@ impl<R: Root> Runtime<R> {
     /// laid facts, keep the frame. Returns the presses of the laid facts that changed, when
     /// `send` is set; the second frame of an event sends none (step 6).
     pub(crate) fn draw(&mut self, send: bool) -> Vec<R::Press> {
+        // §5.3: the jobs' progress is read at each frame, so a job that reports none still shows.
+        self.running = self.pool.running();
         #[cfg(test)]
         if self.frame.skip {
             self.frame.wanted = false;
@@ -248,7 +250,7 @@ impl<R: Root> Runtime<R> {
         let Some(lent_tops) = Tops::lend(tops) else {
             return Vec::new();
         };
-        let fallback = default_settings();
+        let fallback = shared::Settings::default();
         let settings: &shared::Settings = tops
             .settings
             .as_ref()

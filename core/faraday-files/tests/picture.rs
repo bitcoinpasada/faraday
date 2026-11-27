@@ -113,7 +113,10 @@ fn picture_with_too_many_codes_is_answered_with_a_reason() {
     ));
     let many = vec![vec![7u8; 2953]; 400];
     match fit_picture_answer(bytes, many) {
-        Response::Failed(why) => assert!(why.contains("too many codes")),
+        Response::Failed { kind, why } => {
+            assert_eq!(kind, faraday_files::proto::Kind::TooLarge);
+            assert!(why.contains("too many codes"));
+        }
         _ => panic!("an answer over the frame limit must be Failed"),
     }
 }

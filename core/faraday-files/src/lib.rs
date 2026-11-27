@@ -1384,7 +1384,10 @@ pub fn fit_picture_answer(bytes: Vec<u8>, codes: Vec<Vec<u8>>) -> proto::Respons
         answer
     } else {
         answer.wipe();
-        proto::Response::Failed(Text::of(EN.files_picture_codes_many))
+        proto::Response::Failed {
+            kind: proto::Kind::TooLarge,
+            why: Text::of(EN.files_picture_codes_many),
+        }
     }
 }
 

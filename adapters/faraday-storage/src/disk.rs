@@ -8,14 +8,13 @@ use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
 use faraday_crypto::{Secret, Zeroize, Zeroizing, sha256};
-use faraday_files::proto::{self, Problem, Request, Response};
+use faraday_files::proto::{self, Kind, Problem, Request, Response};
 use faraday_port::Failure;
 use faraday_port::bytes::Bytes;
 use faraday_port::storage::{
     self, Codes, NameRefused, OnTaken, Room, Sha256, StickId, StickInfo, StickMake, Unrenamed,
     Wiped, Written, Zeroing,
 };
-use faraday_text::Text;
 
 use crate::Sticks;
 
@@ -122,9 +121,15 @@ impl DiskSticks {
     }
 }
 
-/// The disk process says why in words; the port says it as a kind.
-fn failed(_why: &Text) -> Failure {
-    Failure::Gone
+/// The disk process says why as a kind (02 §8); the port's `Failure` of the same name.
+fn failed(kind: Kind) -> Failure {
+    match kind {
+        Kind::Gone => Failure::Gone,
+        Kind::TooLarge => Failure::TooLarge,
+        Kind::NoRoom => Failure::NoRoom,
+        Kind::ReadOnly => Failure::ReadOnly,
+        Kind::NotFat => Failure::NotFat,
+    }
 }
 
 fn hashes(of: &[Sha256]) -> Vec<[u8; 32]> {
@@ -180,9 +185,9 @@ impl Sticks for DiskSticks {
             });
             let (total, mut part) = match answer {
                 Ok(Response::Part { total, bytes }) => (total, bytes),
-                Ok(Response::Failed(why)) => {
+                Ok(Response::Failed { kind, .. }) => {
                     out.zeroize();
-                    return Err(failed(&why));
+                    return Err(failed(kind));
                 }
                 Ok(_) => {
                     out.zeroize();
@@ -215,7 +220,7 @@ impl Sticks for DiskSticks {
                 picture: Secret::new(bytes),
                 codes: codes.into_iter().map(Secret::new).collect(),
             }),
-            Response::Failed(why) => Err(failed(&why)),
+            Response::Failed { kind, .. } => Err(failed(kind)),
             _ => Err(Failure::Malformed),
         }
     }
@@ -240,7 +245,7 @@ impl Sticks for DiskSticks {
             req.wipe();
             match answer? {
                 Response::Held(_) => {}
-                Response::Failed(why) => return Err(failed(&why)),
+                Response::Failed { kind, .. } => return Err(failed(kind)),
                 _ => return Err(Failure::Malformed),
             }
         }
@@ -271,7 +276,7 @@ impl Sticks for DiskSticks {
                 // The file in the way is over the read limit or cannot be read: no hash to name.
                 None => Err(Failure::TooLarge),
             },
-            Response::Failed(why) => Err(failed(&why)),
+            Response::Failed { kind, .. } => Err(failed(kind)),
             _ => Err(Failure::Malformed),
         }
     }
@@ -283,7 +288,7 @@ impl Sticks for DiskSticks {
         })? {
             Response::Wiped => Ok(Wiped::Zeroed),
             Response::WipedName => Ok(Wiped::NameOnly),
-            Response::Failed(why) => Err(failed(&why)),
+            Response::Failed { kind, .. } => Err(failed(kind)),
             _ => Err(Failure::Malformed),
         }
     }
@@ -291,7 +296,7 @@ impl Sticks for DiskSticks {
     fn space(&mut self, ask: storage::Space) -> Result<Room, Failure> {
         match self.ask(&Request::Space { stick: ask.stick.0 })? {
             Response::Space { free, size } => Ok(Room { free, size }),
-            Response::Failed(why) => Err(failed(&why)),
+            Response::Failed { kind, .. } => Err(failed(kind)),
             _ => Err(Failure::Malformed),
         }
     }
@@ -302,7 +307,7 @@ impl Sticks for DiskSticks {
             from: ask.from,
         })? {
             Response::Zeroing { next, total, done } => Ok(Zeroing { next, total, done }),
-            Response::Failed(why) => Err(failed(&why)),
+            Response::Failed { kind, .. } => Err(failed(kind)),
             _ => Err(Failure::Malformed),
         }
     }
@@ -310,7 +315,7 @@ impl Sticks for DiskSticks {
     fn make_empty(&mut self, ask: storage::MakeEmpty) -> Result<(), Failure> {
         match self.ask(&Request::MakeEmpty { stick: ask.stick.0 })? {
             Response::Zeroing { .. } => Ok(()),
-            Response::Failed(why) => Err(failed(&why)),
+            Response::Failed { kind, .. } => Err(failed(kind)),
             _ => Err(Failure::Malformed),
         }
     }
@@ -328,7 +333,7 @@ impl Sticks for DiskSticks {
             Response::Renamed => Ok(()),
             Response::NameTaken { same_vault: false } => Err(Unrenamed::Taken),
             Response::NameTaken { same_vault: true } => Err(Unrenamed::SameVault),
-            Response::Failed(why) => Err(Unrenamed::Failed(failed(&why))),
+            Response::Failed { kind, .. } => Err(Unrenamed::Failed(failed(kind))),
             _ => Err(Unrenamed::Failed(Failure::Malformed)),
         }
     }
@@ -342,7 +347,7 @@ impl Sticks for DiskSticks {
             .map_err(NameRefused::Failed)?;
         match answer {
             Response::Renamed => Ok(()),
-            Response::Failed(why) => Err(NameRefused::Failed(failed(&why))),
+            Response::Failed { kind, .. } => Err(NameRefused::Failed(failed(kind))),
             _ => Err(NameRefused::Failed(Failure::Malformed)),
         }
     }
@@ -402,5 +407,17 @@ mod tests {
         assert!(accept_part(&mut out, 0, 2, b"ab"));
         assert!(!accept_part(&mut out, 2, 9, b"c"), "another total");
         assert_eq!(out, b"ab");
+    }
+
+    /// Invariant: each failure kind the disk process reports reaches the app as the port's failure of that name.
+    /// Regression: every disk failure coming out as `Gone` words a full or read-only stick as a stick that went.
+    /// Owner: adapter
+    #[test]
+    fn a_disk_failure_keeps_its_kind() {
+        assert_eq!(failed(Kind::Gone), Failure::Gone);
+        assert_eq!(failed(Kind::TooLarge), Failure::TooLarge);
+        assert_eq!(failed(Kind::NoRoom), Failure::NoRoom);
+        assert_eq!(failed(Kind::ReadOnly), Failure::ReadOnly);
+        assert_eq!(failed(Kind::NotFat), Failure::NotFat);
     }
 }
