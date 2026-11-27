@@ -49,8 +49,16 @@ pub fn ease_path(path: &EasingPath, t: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tokens::{
-        EASE_EMPHASIZED, EASE_EMPHASIZED_DECELERATE, EASE_STANDARD, EASE_STANDARD_ACCELERATE,
+
+    // Material 3's published curves (m3.material.io, "Easing and duration"), written out here so
+    // the test checks the easing against CSS's definition, not the tokens' values.
+    const EASE_STANDARD: Easing = [0.2, 0.0, 0.0, 1.0];
+    const EASE_EMPHASIZED_DECELERATE: Easing = [0.05, 0.7, 0.1, 1.0];
+    const EASE_STANDARD_ACCELERATE: Easing = [0.3, 0.0, 1.0, 1.0];
+    const EASE_EMPHASIZED: EasingPath = EasingPath {
+        join: [0.166_666, 0.4],
+        first: [0.05, 0.0, 0.133_333, 0.06],
+        second: [0.208_333, 0.82, 0.25, 1.0],
     };
 
     /// The curves agree with the cubic Bézier a browser draws for the
