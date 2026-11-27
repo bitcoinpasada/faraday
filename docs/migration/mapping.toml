@@ -2936,7 +2936,7 @@ changed = ["a MarkModel and draw over the Ui methods"]
 [[module]]
 main = "faraday/faraday-ui/src/lists.rs"
 fate = "port"
-next = ["kit/faraday-molecules/src/row.rs", "kit/faraday-molecules/src/options.rs", "kit/faraday-molecules/src/kind_rows.rs"]
+next = ["kit/faraday-molecules/src/row.rs", "kit/faraday-molecules/src/options.rs", "kit/faraday-molecules/src/kind_rows.rs", "kit/faraday-molecules/src/code_box.rs", "kit/faraday-molecules/src/multi.rs"]
 feature = ["sheets-parts"]
 changed = ["split by row kind"]
 
@@ -3030,7 +3030,7 @@ changed = ["what a page offers only in Practice"]
 [[module]]
 main = "faraday/faraday-ui/src/nav/mod.rs"
 fate = "port"
-next = ["kit/faraday-organisms/src/nav.rs"]
+next = ["kit/faraday-organisms/src/nav.rs", "kit/faraday-molecules/src/destination.rs"]
 feature = ["ui-navigation"]
 changed = []
 
@@ -4811,7 +4811,7 @@ feature = ["decode"]
 [[module]]
 main = "faraday/faraday-core/src/screens/parts.rs"
 fate = "port"
-next = ["kit/faraday-molecules/src/row.rs", "kit/faraday-molecules/src/buttons.rs", "kit/faraday-molecules/src/pads.rs", "kit/faraday-molecules/src/words.rs"]
+next = ["kit/faraday-molecules/src/row.rs", "kit/faraday-molecules/src/buttons.rs", "kit/faraday-molecules/src/pads.rs", "kit/faraday-molecules/src/words.rs", "kit/faraday-molecules/src/address.rs", "kit/faraday-molecules/src/caution.rs", "kit/faraday-molecules/src/kind_rows.rs"]
 feature = ["sheets-parts", "keyboard"]
 
 [[module]]

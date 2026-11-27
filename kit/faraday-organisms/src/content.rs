@@ -3,8 +3,10 @@
 use faraday_atoms::button::ButtonModel;
 use faraday_atoms::field::FieldModel;
 use faraday_atoms::hold::HoldModel;
-use faraday_atoms::{Pressed, Shown, Ui};
+use faraday_atoms::{Offered, Pressed, Shown, Ui};
+use faraday_molecules::address::AddressModel;
 use faraday_molecules::buttons::draw_items;
+use faraday_molecules::caution::CautionModel;
 use faraday_molecules::flow_text::FlowText;
 use faraday_molecules::options::ChoiceModel;
 use faraday_molecules::pads::PadModel;
@@ -52,12 +54,13 @@ pub enum Block<'s, A> {
     /// Dice, cards, coin.
     Pad(PadModel<A>),
     Code(QrModel<'s>),
-    Address(Shown<'s>),
+    /// An address whole and wrapped; its press, where the row opens its code.
+    Address(AddressModel<'s>, Offered<A>),
     /// Each with its `Style` and `Offered`.
     Buttons(Vec<ButtonModel<'s, A>>),
     Hold(HoldModel<'s, A>),
     Busy(BusyModel<'s>),
-    Caution(Shown<'s>),
+    Caution(CautionModel<'s>),
     /// A bespoke organism: worksheet, chart, board, ways-in.
     Part(Organism<'s, A>),
 }
@@ -115,9 +118,7 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
             }
             cy - y
         }
-        Block::Caution(s) => ui.showing(s, |ui| {
-            ui.wrap_as((x, y, w), BODY_M, Role::Warning, s.as_str())
-        }),
+        Block::Caution(m) => faraday_molecules::caution::draw(m, ui, at),
         Block::Buttons(items) => draw_items(items, &[], false, ui, at),
         Block::Busy(m) => status::draw_busy(m, ui, at),
         Block::Hold(m) => faraday_atoms::hold::draw(m, ui, at),
@@ -128,7 +129,8 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
         Block::Words(m) => faraday_molecules::words::draw(m, ui, at),
         Block::Pad(m) => faraday_molecules::pads::draw(m, ui, at),
         Block::Code(m) => faraday_molecules::qr::draw(m, ui, at),
-        Block::Address(_) => 0.0,
+        Block::Address(m, offered) => faraday_molecules::address::draw(m, ui, at, offered),
+        Block::Part(Organism::DemoOnly(m)) => crate::demo_only::draw(m, ui, at),
         Block::Part(o) => {
             part(o, ui);
             0.0
@@ -145,7 +147,7 @@ fn part<A: Pressed>(o: &Organism<'_, A>, ui: &mut Ui<'_, A>) {
         Organism::Board(m) => crate::board::draw(m, ui),
         Organism::WaysIn(m) => crate::ways_in::draw(m, ui),
         Organism::QrGrid(m) => crate::qr_grid::draw(m, ui),
-        Organism::DemoOnly(m) => crate::demo_only::draw(m, ui),
+        Organism::DemoOnly(_) => {}
     }
 }
 
@@ -165,4 +167,37 @@ pub fn draw<A: Pressed>(m: &Content<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32,
 /// The height [`draw`] takes `w` wide, with nothing drawn.
 pub fn height<A: Pressed>(m: &Content<'_, A>, ui: &mut Ui<'_, A>, w: f32) -> f32 {
     ui.measured(|ui| draw(m, ui, (0.0, 0.0, w)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use faraday_atoms::ui::testing::{P, at_rest, canvas, frame};
+    use faraday_molecules::caution::Size;
+
+    /// Invariant: An address block draws its address whole under its label and a caution block draws in the warning tone, each taking the height it drew so the next block starts below it.
+    /// Regression: A block draws nothing and reports no height, as the address block did while it was a placeholder.
+    /// Owner: kit
+    #[test]
+    fn the_address_and_caution_blocks_draw_and_take_their_height() {
+        let c = Content(vec![
+            Block::Address(
+                AddressModel {
+                    label: Shown::plain("Receive"),
+                    address: Shown::plain("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"),
+                },
+                Offered::<P>::No,
+            ),
+            Block::Caution(CautionModel {
+                text: Shown::plain("Not checked"),
+                size: Size::Body,
+            }),
+        ]);
+        let mut cv = canvas(160);
+        frame(&mut cv, &at_rest(None), |ui| {
+            let both = draw(&c, ui, (0.0, 0.0, 300.0));
+            let one = draw(&Content(vec![]), ui, (0.0, 0.0, 300.0));
+            assert!(both > 40.0 && one == 0.0, "{both}");
+        });
+    }
 }
