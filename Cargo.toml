@@ -142,6 +142,12 @@ members = [
     "tools/op-cost",
     "tools/testkit-sticks",
 ]
+# `third_party/rqrr` is a dependency, not a member: it is vendored
+# third-party code and neither `cargo fmt` nor `clippy -D warnings`
+# should be applied to it. `cargo fmt --all` also formats path
+# dependencies, so the copy carries a `rustfmt.toml` that turns
+# formatting off.
+exclude = ["third_party/rqrr"]
 
 [workspace.package]
 edition = "2024"
@@ -153,3 +159,21 @@ repository = "https://github.com/bitcoinpasada/faraday"
 unsafe_code = "forbid"
 
 [workspace.dependencies]
+# QR decoding. `rqrr` needs std.
+#
+# `rqrr` is the copy in `third_party/rqrr`, not the crates.io release.
+# Upstream's `Perspective::map` asserts that the mapped point fits in an
+# `i32`, and a camera frame with a near-degenerate capstone group trips
+# that assertion during grid detection: on the Pi, built with
+# `panic = "abort"`, a printed sheet held in front of the camera powers
+# the device off. The copy returns `None` there and every caller rejects
+# the candidate grid; it is also trimmed of `lru`, `g2p` and the
+# proc-macro behind it. `third_party/rqrr/PATCHES.md` records what was
+# changed.
+#
+# It is a path dependency rather than a `[patch.crates-io]` because Cargo
+# applies a patch only in the workspace being built: a project that
+# depends on a crate of this repository by git would otherwise get the
+# crates.io release.
+rqrr = { path = "third_party/rqrr", default-features = false }
+
