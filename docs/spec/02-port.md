@@ -31,9 +31,17 @@ Its modules:
 | `ask` | `Ask`, `Answer`, `AskId`, the `Request` trait, every ask's own type (§2, §4) |
 | `order` | `Order`: effects with no answer (§4.9) |
 | `frame` | `Frame`, `Rect`, `Moved`, `Region`, `Pace` (§5) |
-| `values` | the display's and the machine's facts the kit may name (P4): `Display`, `Orientation`, `Point`, `Medium` |
+| `values` | the display's and the machine's facts the kit may name (P4): `Display`, `Orientation`, `Point`, `Medium`, and `Anchor` |
 | `bytes` | `Bytes`, `EntropyBytes` and the rule of what wipes (§6) |
 | `storage`, `host`, `camera`, `devices`, `system` | each family's value types (§4) |
+
+`Anchor` is the name the app gives a place it draws; the kernel's view orders and the kit's motion
+store key by it (section 04, K10):
+
+```rust
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Anchor { pub scope: &'static str, pub n: u32 }
+```
 
 The loop, as the root runs it (section 06 gives each root):
 
@@ -87,9 +95,11 @@ guessing whether anything happened.
 ### 2.2 How an answer finds its request
 
 ```rust
-/// Minted by the runtime only. `generation` counts the models this
-/// process has built (a lock in Faraday Demo or the Starter rebuilds the
-/// model in process); `n` counts asks within one.
+/// Minted by the runtime only. `generation` counts the builds of the
+/// lock scope in this process, from 1 (a lock in Faraday Demo or the
+/// Starter's Faraday Demo builds the scope again in process); the part
+/// outside the scope (the Starter's own composite and its settings owner)
+/// asks with generation 0. `n` counts asks within one generation.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct AskId { pub generation: u32, pub n: u32 }
 
@@ -132,8 +142,9 @@ impl<M: Message> AskFor<M> {
   Reason: a closure could capture a typed passphrase and keep it in the runtime's table past its
   screen. Turned down: a boxed closure as `Job<M>` is, which a job needs (it moves its secret in)
   and an answer does not (its secret comes in the answer).
-- **Rule P9.** An answer whose generation is not the current model's is dropped by the runtime,
-  and its payload wipes as it drops (§6). An answer of the wrong kind for its ask (`R::take`
+- **Rule P9.** An answer whose generation is neither 0 nor the lock scope's current build is
+  dropped by the runtime, and its payload wipes as it drops (§6). Generation 0 is never stale: no
+  lock and no `Exit::Reset` (§4.9) drops it. An answer of the wrong kind for its ask (`R::take`
   fails) reaches the feature as `R::fault()`, which is that ask's `Failure::Adapter` (or, for
   `Ask::Memory`, `None`: nothing known); the runtime notes the fault for
   diagnostics. Held by an update test of the runtime (section 07).
@@ -160,7 +171,9 @@ The `Waker` (§1) is how a finished job wakes the root's loop; it replaces `main
 
 ```rust
 pub enum Event {
-    /// First, exactly once per model. Nothing else comes before it.
+    /// First, exactly once per process. Nothing else comes before it. A
+    /// scope built again in process gets its start from the runtime, not
+    /// from an adapter (section 05, §7.6).
     Start(Start),
     /// The display changed: a resize, a turn, a preview size, a new screen.
     Display(Display),
@@ -190,7 +203,7 @@ pub struct Start {
     pub abilities: Abilities,
     pub machine: Machine,
     pub time: Time,
-    /// What the previous model kept for this one (§4.2); moved in, once.
+    /// What the previous process kept for this one (§4.2); moved in, once.
     pub carried: Option<Carry>,
     /// The Starter's own settings text, stored unread (§4.8).
     pub settings: Option<Text>,
@@ -215,6 +228,7 @@ pub struct Abilities {
     pub restart_computer: bool,
     pub moves_window: bool,
     pub system: bool,            // the Starter's operating-system asks (§4.10)
+    pub lock_ends_process: bool, // the device: a lock ends the process (§4.2, §4.9)
 }
 
 pub struct Machine {
@@ -468,8 +482,8 @@ is not `no_std`, and the storage adapter maps one to the other.
 ### 4.2 Storage: the carry across a lock
 
 ```rust
-/// What one model leaves the next: named files in the app's own format,
-/// stored unread, each written whole (a temporary file, then a rename)
+/// What one process leaves the next across a lock: named files in the
+/// app's own format, stored unread, each written whole (a temporary file, then a rename)
 /// in the order given.
 pub struct Carry {
     pub inbox: Files,
@@ -479,18 +493,22 @@ pub struct Carry {
 pub type Files = Vec<(Text, Bytes)>;
 ```
 
-`Ask::Keep(Carry)` hands it to the adapter; `Ask::Forget` removes every carried file (zeros
-first) when the app ends for good. `Keep` and `Forget` are a family of their own: the
-adapter serves them from its own keeping (a RAM directory, memory), never through the disk
-process, so they are never queued behind a stick's work nor answered `Busy`; a lock during a
-vault's write-back keeps its carry. The next model gets it once, moved, in `Start::carried`, and the
-adapter keeps no copy after handing it over.
+`Ask::Keep(Carry)` hands it to the adapter, and is asked only where the lock ends the process
+(`Abilities::lock_ends_process`, the device). Where the lock does not end it (Faraday Demo, the
+Starter's Faraday Demo), the carry never leaves the runtime: it moves from the dropped scope into
+the next build (section 05, §7.6). `Ask::Forget` removes every carried file (zeros first) when the
+app ends for good. `Keep` and `Forget` are a family of their own: the adapter serves them from its
+own keeping (the RAM directory), never through the disk process, so they are never queued behind
+a stick's work nor answered `Busy`; a lock during a vault's write-back keeps its carry. The next
+process gets it once, moved, in `Start::carried`, and the adapter keeps no copy after handing it
+over.
 
 **Decision: the carry is handed over once, at lock, by move.** Reason: no second copy of the
 Inbox's secrets sits in an adapter while the app runs. Turned down: `main`'s `SaveBoxes` after
 every change to the Inbox or Outbox, which keeps every Inbox secret twice for the whole session.
-A failed keep hands the carry back in its answer (`Err((failure, carry))`), so the app still holds
-it and decides what to do (section 05).
+A failed keep first removes every file it wrote, zeroing each, and then hands the carry back in
+its answer (`Err((failure, carry))`), so the app still holds it and decides what to do (section
+05, §7.6).
 
 **Decision: the mode and the input counts are entries of `kept`.** `main`'s stick shell read them
 from the app at lock (`mode_after_restart`, `input_carry`) and wrote them to its own files. Reason:
@@ -593,16 +611,23 @@ pub enum Order {
 }
 
 pub enum Exit {
-    /// The device powers off; a desktop root closes (or the Starter closes
-    /// its Demo).
+    /// The process ends for good: the device powers off; a desktop root
+    /// closes.
     End,
-    /// A lock: the device's process ends with the restart code; a desktop
-    /// root drops the model and builds the next in process (section 05).
+    /// A lock that ends the process: the device's process ends with the
+    /// restart code.
     Lock,
     /// The device restarts the computer.
     RestartComputer,
+    /// The lock scope of this generation was dropped in this process: at a
+    /// lock that does not end the process, at a failed keep's rebuild and at
+    /// the Starter's Close. Each adapter drops what belonged to that
+    /// generation and sends its state facts again (section 05, §7.6).
+    Reset(u32),
 }
 ```
+
+`Reset` carries the generation of the scope dropped (§2.2); it never touches generation 0.
 
 `AimInput`, `DecideInput` and `Clean` replace the stick shell's reads of the app's state
 (`input_aims`, `input_is_used`, `poll_input_decision`, `clean`); `Exit` replaces `Command::Exit`
@@ -618,13 +643,17 @@ inventory sends it and every adapter of the three products ignores it.
 `ReadRecoveryKey` (answered with recovery keys as `SecretText`), `ReadVersion`, `ListBootFiles`,
 `JudgeBoot`, `CheckBootFile`, `FindImages { dropped }`, `CheckAgain`. The others find a home
 elsewhere: `SaveTemplate` is `HostAsk::Save`, `PrintTemplate` and `PrintNotes` are `Ask::Print`,
-`OpenTemplate` is `HostAsk::Open(File)`, `KeepTextSize` is `Ask::Settings`, `Close` is
-`Order::Exit(End)`. `OpenDemo` and `DemoClosed` are not effects: the Starter's composite holds the
-device composite as a child (section 01, §7.2). What `OpenDemo` did on the computer is one ask,
+`OpenTemplate` is `HostAsk::Open(File)`, `KeepTextSize` is `Ask::Settings`, and the Starter's
+own `Close` is `Order::Exit(End)`. `OpenDemo` and `DemoClosed` are not effects: the Starter has
+one model, and Faraday Demo is its lock scope, beside the Starter's own composite (section 01,
+§7.2; section 05, §7.9). What `OpenDemo` did on the computer is one ask,
 `SystemAsk::PrepareDemoSticks`: the desktop adapter makes the Demo's sticks folder and its
 `BOOTSTICK` and `STICK-2`, answered `Ok` or a `Failure` naming the folder, which the Starter
-shows as `main` shows `DesktopStarted(Err)` (`features/starter-app.md`). On `Ok` the Starter
-builds the child, whose `Start` the same adapters send.
+shows as `main` shows `DesktopStarted(Err)` (`features/starter-app.md`). On `Ok` the Starter's
+composite sends `Top::Open` and the runtime builds the scope at the next generation, with a start
+it makes from its own facts; no adapter sends a second `Start`. Closing Faraday Demo inside the
+Starter (its Quit, or the Starter's Back over it) is a Close: the runtime drops the scope and
+sends `Order::Exit(Exit::Reset(generation))`; the Starter goes on.
 
 ## 5. The frame out
 
@@ -656,9 +685,9 @@ app's queue cannot promise. Turned down: `main`'s call from the window into the 
 (`is_strip_room`) on each press, and an order from the app, which would come after the press.
 
 - **Rule P13.** The runtime's frame buffer wipes on drop and is cleared before a lock drops the
-  model. An adapter that keeps a copy of the picture (the stick's converted and last-shown bands,
-  a window's buffer) keeps it in a wiping buffer, blanks the panel and wipes its copies on
-  `Exit`, before the process ends or the next model starts. Held by the runtime's and the
+  lock scope. An adapter that keeps a copy of the picture (the stick's converted and last-shown
+  bands, a window's buffer) keeps it in a wiping buffer, blanks the panel and wipes its copies on
+  `Exit`, before the process ends or the scope is built again. Held by the runtime's and the
   adapters' buffer types (`Secret<Vec<u8>>`) and a test of the stick adapter (section 07).
 
 ## 6. What wipes, what is Public
@@ -705,9 +734,10 @@ down: keeping `Clone` for tests, which can build two from the same array.
 
 ### 7.1 Order
 
-- **Rule P17.** `Start` is the first event of every model, exactly once; an adapter queues
-  anything that comes before it. Held by the runtime, which refuses to build a model without it,
-  and by a journey test of each root.
+- **Rule P17.** `Start` is the first event of every process, exactly once; an adapter queues
+  anything that comes before it, and no adapter sends a second. A scope built again in process
+  starts from the runtime's kept facts and the carry (section 05, §7.6). Held by the runtime,
+  which refuses to build the model without it, and by a journey test of each root.
 - **Rule P18.** The effects of one `update` are carried in the order it returned them; a
   composite keeps its children's order. Events from one adapter arrive in the order it made them,
   and the runtime handles one event at a time.
@@ -770,9 +800,9 @@ pub enum Failure {
 | `faraday-storage`: the `Sticks` trait, `Dirs` (folder sticks), `DiskProcess` (the FIFO client), `Boxes`, the host's Downloads, print folder and opening, the memory read | The storage adapter, re-pointed at the port: it takes `Ask::Storage`, `Keep`, `Forget`, `Host`, `Print`, `Memory` and answers them. It depends on the port, `faraday-files`, `faraday-fat` (through the files crate), `faraday-crypto` (SHA-256, in place of `faraday-core`'s `file_menu::sha256`), `faraday-qr` (`MAX_FILE`). Its edge to `faraday-core` is cut |
 | `faraday-disk` (the disk process) and `faraday-grant` | Unchanged adapter processes (S2). The storage adapter speaks to the disk process over `faraday_files::proto`, as on `main` |
 | The stick shell's disk-work thread, stick scan every 700 ms, `attached`, hiding sticks not yet handed out | The stick adapter. It sends `SticksFact::Attached`, `Listed`, `Problem`, `BootMedium`; it hides a stick the grant has not handed over while `Order::Clean(true)` stands, and tells a process that is not clean at once |
-| The stick shell's boxes in its RAM directory, `mode` and `input-counts` files | The storage adapter's carry in the RAM directory, read and removed at start into `Start::carried` |
-| Faraday Demo's sticks folder, `BOOTSTICK`, `STICK-2`, the pills, the Downloads and camera listing thread | The desktop adapter (a library the Demo and Starter roots share, section 01 §9): folder sticks over the folder `Place` moved out of `faraday-files` (section 01, §2.1), `Order::ToggleStick`, `HostFact::Downloads`, `CameraFact::Listed`; the carry in memory |
-| The Starter's own boxes (memory) and `settings.txt` | The Starter's adapters: the carry in memory for its Demo child; `Ask::Settings` for its text size |
+| The stick shell's boxes in its RAM directory, `mode` and `input-counts` files | The storage adapter's carry in the RAM directory, read and removed at start into `Start::carried`; the RAM directory's carry files removed at `Exit::Reset` |
+| Faraday Demo's sticks folder, `BOOTSTICK`, `STICK-2`, the pills, the Downloads and camera listing thread | The desktop adapter (a library the Demo and Starter roots share, section 01 §9): folder sticks over the folder `Place` moved out of `faraday-files` (section 01, §2.1), `Order::ToggleStick`, `HostFact::Downloads`, `CameraFact::Listed`. It holds no carry: a lock does not end the process, so the carry stays in the runtime (§4.2) |
+| The Starter's own boxes (memory) and `settings.txt` | The Starter's adapters: no carry (Faraday Demo is the Starter's lock scope, and its carry stays in the runtime, §4.2); `Ask::Settings` for its text size |
 
 - **Rule P26.** The storage adapter knows no app type and no file's meaning beyond what
   `faraday-files` reads (a vault by its contents, FAT names, system files ignored by name). Held by
@@ -815,7 +845,7 @@ The adapter reads; the app classifies what it read (`features/scanner-qr.md`, "C
 | `Region::MovesWindow` | no | yes | yes | ignored |
 | `Ask::Storage`, `SticksFact` | disk process over FAT | folder sticks | folder sticks, for its Demo | fixture sticks |
 | `ToggleStick` | no | yes | yes | scripted |
-| `Keep`, `Forget`, `Start::carried` | RAM directory | memory | memory | memory |
+| `Keep`, `Forget`, `Start::carried` | RAM directory | never asked (answered if asked); `carried` is `None` | as the Demo | as the Demo |
 | `Ask::Host`, `HostFact` | `Unsupported` | yes | yes | fixture |
 | `Ask::Print` | `Unsupported` | print folder | temporary folder and viewer | recorded |
 | `Ask::Camera`, `CameraFact` | V4L2, reduced read | V4L2 or Media Foundation, full read | as the Demo | fixture frames |
@@ -826,8 +856,9 @@ The adapter reads; the app classifies what it read (`features/scanner-qr.md`, "C
 | `Clean` | the clean marker | ignored | ignored | ignored |
 | `Ask::Settings` | `Unsupported` | `Unsupported` | `settings.txt` | memory |
 | `Ask::System`, `SystemFact` | `Unsupported` | `Unsupported` | yes | fixture |
-| `Exit::Lock` | process ends, restart code | model rebuilt in process | its Demo child rebuilt | model rebuilt |
-| `Exit::End`, `RestartComputer` | power off, restart | close; never offered | close the Demo or the Starter; never offered | ends the tour |
+| `Exit::Lock` | process ends, restart code | never sent | never sent | never sent |
+| `Exit::Reset` | after a failed keep's rebuild: the adapters reset (section 05, §7.6) | after every lock: the adapters reset | after a lock inside Faraday Demo and at its Close | after every lock |
+| `Exit::End`, `RestartComputer` | power off, restart | close; never offered | close the Starter; never offered | ends the tour |
 | `Vibrate` | ignored | ignored | ignored | ignored |
 
 An `Unsupported` row is still answered (§2.1), and the `Abilities` in `Start` say which rows a
@@ -842,7 +873,7 @@ contract.
 | On `main` | In the port |
 |---|---|
 | `Command::Draw` | none: the root paints the runtime's frame when it changed (§5) |
-| `Command::Exit`, read with `restart_requested` and the exit codes 0, 75, 76 | `Order::Exit(End \| Lock \| RestartComputer)` |
+| `Command::Exit`, read with `restart_requested` and the exit codes 0, 75, 76 | `Order::Exit(End \| Lock \| RestartComputer)`; an in-process lock is `Exit::Reset` |
 | `Command::CameraOn`, `CameraOff` | `camera::On` (an ask), `Order::CameraOff` |
 | `Command::RequestClipboard` | `Ask::Clipboard` |
 | `Command::RequestEntropy` | `Ask::Entropy` |
@@ -881,7 +912,7 @@ Not carried, each with its reason:
 | `WriteClipboard` | §4.5 |
 | `Event::Button`, `Event::Lock` | No shell sends them |
 | `Parts::inner` | §5 |
-| `StarterCommand::DemoClosed` | §4.10: dropping the child is the composite's |
+| `StarterCommand::DemoClosed` | §4.10: closing Faraday Demo is the runtime's Close of the lock scope, which the adapters see as `Exit::Reset` |
 | `Faraday::press` from the shells | Test and dev scripting; tours send `Input` through the tour root (R4) |
 
 ## 12. What holds each rule
@@ -917,13 +948,13 @@ Not carried, each with its reason:
 - Section 03: the kernel's `AskFor<M>` exactly, how a composite maps a child's asks to its own
   message type, and how `Abilities` reach a feature (in `Ctx`).
 - Section 05: what happens when `Ask::Keep` fails at a lock while keys wait for their backup: the
-  model stays (as `main`'s not-kept path) or a new model is built in process, and in that case
-  which adapter state is reset (the held inputs back to waiting, the camera off, the sticks
-  scanned again).
+  model stays (as `main`'s not-kept path) or the lock scope is built again in process, and in
+  that case which adapter state is reset (the held inputs back to waiting, the camera off, the
+  sticks scanned again).
 - Section 05: the runtime's dropping of stale answers and stream facts (P9, P21), and the frame
   buffer's clearing at lock (P13).
-- Section 06: which adapters each root builds, and how the Starter's root builds its Demo child
-  after `SystemAsk::PrepareDemoSticks`.
+- Section 06: which adapters each root builds, and how the Starter's root builds Faraday Demo's
+  lock scope after `SystemAsk::PrepareDemoSticks`.
 - Section 07: the adapter tests this section names (storage write-back, timeouts, the camera's
   buffers, the stick's frame copies): whether they are a test kind of their own beside update
   tests and journeys.

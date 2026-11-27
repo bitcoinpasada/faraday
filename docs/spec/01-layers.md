@@ -24,15 +24,19 @@ on nothing else.
 | Port | The one contract between app and shells: events in, effects out, the frame out | Domain | Kit, application, runtime, adapters, roots |
 | UI kit, tokens to templates | Faraday's look, by atomic level; no app types (`Ui<A>` is generic over the action) | Lower kit levels, port value types, domain | Application, runtime, adapters, roots |
 | Application kernel | The shared shapes every feature uses: `Ctx`, `Effects`, `Message`, `Public`, `AtLock`, the step-flow machine, the handles | Port, domain | Kit, features, runtime, adapters, roots |
+| Presentation kernel (`role = "present"`) | `Present`, `Page`, `ShowFlow`, the step-flow fill and the helpers every `present` shares (section 04 §2) | Kernel, port, domain, the kit's templates and organisms | Features, runtime, adapters, roots |
 | Application parts | State machines a feature embeds and owns (a text field, the passphrase field, the scanner sheet's state) | Kernel, port, domain | Features, kit, runtime, adapters, roots |
-| Application features | One feature each: `State`, `Msg`, `update`; and its presentation, `present` and its pages (§5) | Kernel, parts, port, domain; its pages also the kit's templates and organisms | Another feature (but a composite's children, §4.3), the kit below organisms, runtime, adapters, roots |
-| Runtime | The model's owner: queue, effect dispatch, worker pool, memo, lock and restart, the frame's hit targets | Kernel, port, kit atoms (the `Ui` and its frame), domain | Any feature or composite, adapters, roots |
+| Application features | One feature each: `State`, `Msg`, `update`; and its presentation, `present` and its pages (§5) | Kernel, presentation kernel, parts, port, domain; its `model`, `present` and `page` also the kit's templates and organisms | Another feature (but a composite's children, §4.3), the kit below organisms, runtime, adapters, roots |
+| Product crates (`role = "product"`) | One per product: the runtime's `Root` for that product, its app composite's frame and the assertion of L1 (§7.2) | Runtime, composites, features, parts, the kernels, the kit's templates and organisms, port, domain | Adapters, roots |
+| Runtime | The model's owner: queue, effect dispatch, worker pool, memo, note queue, motion store, lock and restart, the frame's hit targets | Kernel, port, kit atoms (the `Ui` and its frame), domain | Any feature or composite, the presentation kernel, product crates, adapters, roots |
 | Adapters | The shells' I/O: the stick's framebuffer, input and disk client, the desktop window, sticks as folders, the camera, the scanner, the disk and grant processes, the Starter's operating-system side | Other adapters (no cycle; not a separate process, S2), port, domain, kit tokens | Kit above tokens, application, runtime, roots |
 | Composition roots | One binary per product (the device app, Faraday Demo, the Starter) and the tour root | Every layer above | Another root, a tool (but as a dev-dependency, §7.3) |
 | Tools and test support | Bakers, lints, cross-check servers, cost measures, test allocators, fixture writers | Any library crate | A root; nothing that ships depends on a tool (§7.3) |
 
-Presentation is not a crate of its own. Its two stages are modules of each feature crate (§5),
-and its second stage is the kit's pages level (§6).
+Presentation's two stages are modules of each feature crate (§5), and its second stage is the
+kit's pages level (§6). The traits that join a feature to the kit, and the step-flow fill, are in
+one application crate of their own, the presentation kernel (section 04 §2), since the kernel may
+not name the kit. Only a root and a tool depend on a product crate.
 
 **Decision: a layer is declared in each crate's manifest, and one lint checks every edge.** Each
 crate carries
@@ -41,8 +45,11 @@ crate carries
 [package.metadata.faraday]
 layer = "domain"     # domain | port | kit | app | runtime | adapter | root | tool
 level = "organisms"  # kit only: tokens | atoms | molecules | organisms | templates
-role  = "feature"    # app only: kernel | part | feature | composite
+role  = "feature"    # app only: kernel | present | part | feature | composite | product
 owner = true         # app only: the crate of a shared owner (section 03 §7, A24)
+online = true        # a crate only an online product holds: Transfer, the strip, the samples, the window and desktop adapters (section 06, S8)
+offline = true       # root only: the device root, whose resolved graph holds no `online` crate (section 06, S8)
+ships = false        # root only: the tour root, which never ships (section 06, S5 and S16)
 checks = "app"       # tool only, for a tool crate that holds tests: the layer they check (section 07 §4)
 ```
 
@@ -78,8 +85,11 @@ are added.
   `no_std = true` from the crate's metadata and checks the attribute is present.
 - **Rule D3.** Domain crates are copied from `main` with their own tests and are changed only to
   cut the edges in §2.3 and move out the I/O above. A copied test takes its header (section 07
-  §3) when it is next changed, and a header added then is not a change this rule forbids. Held by
-  review against `main` at `d89dde5de`; section 10 names how.
+  §3) when it is next changed, and a header added then is not a change this rule forbids. One
+  further change is made: `faraday-crypto`'s `Compute` gains the `stop` and `progress` hooks
+  beside `count` (`Compute::new` takes `Hooks`; section 05 §5.2), function pointers as `count` is,
+  so the crate stays `no_std` and the token `!Send`. Held by review against `main` at
+  `d89dde5de`; section 10 names how.
 - **Rule D4.** A domain crate's dev-dependencies are domain crates and test-support tools only
   (§7.3). Its tests are published vectors and outside implementations, as on `main`.
 
@@ -137,9 +147,10 @@ not depend on `faraday-intake`, `faraday-forms` or any crate that depends on eit
 - **Rule P3.** No application crate depends on an adapter or a root, and no adapter depends on
   the application or the runtime. The root joins them: it hands the runtime's effects to the
   adapters and the adapters' events to the runtime. Held by `lint-layers`.
-- **Rule P4.** The kit may name the port's display value types (`Display`, `Orientation`,
-  `Point` and `Medium`: a display's density, size and kind, which `faraday-draw` reads on `main`)
-  and never its events or effects. Held by `lint-layers` with the port's metadata naming its value module
+- **Rule P4.** The kit may name the port's value types (`Display`, `Orientation`, `Point` and
+  `Medium`: a display's density, size and kind, which `faraday-draw` reads on `main`; and
+  `Anchor`, the name the app gives a place it draws, which the kernel's `ViewOrder` and the kit's
+  `Ui` both name, section 04 §8.1) and never its events or effects. Held by `lint-layers` with the port's metadata naming its value module
   (`values = "display"`); a kit crate's use of the port is checked to name only that module.
 
 ## 4. The application
@@ -162,6 +173,9 @@ pub trait Feature {
     fn update(state: &mut Self::State, msg: Self::Msg, cx: &Ctx<'_>) -> Effects<Self::Msg, Self::Out>;
     fn notice(state: &mut Self::State, notice: &Notice<'_>, cx: &Ctx<'_>) -> Effects<Self::Msg, Self::Out>;
     fn refuses(state: &Self::State, msg: &Self::Msg, view: &View<'_>) -> Option<Self::Refusal>;
+    /// At a lock, after the seal: what the next build of the scope needs (section 05 §7.4).
+    /// The default carries nothing.
+    fn carry(state: &mut Self::State, into: &mut Carried) {}
 }
 
 /// One ordered list: P18 keeps the order across kinds (section 03 §4.1).
@@ -176,6 +190,7 @@ pub enum Fx<M, O> {
     Then(M),               // to this same feature, before the next event
     Out(O),                // to the parent
     Note(Note),            // a short typed line the frame shows
+    View(ViewOrder),       // to the runtime's motion store; not answered (section 04 §8.2)
 }
 
 /// A worker job: it owns its inputs (a secret moved in, never copied)
@@ -210,26 +225,30 @@ pub trait AtLock {
 A part is a state machine a feature embeds: the passphrase field (`pass_field` on `main`), a text
 field and its caret, the word grid, the scanner sheet's state, the ways in to a key. It has a
 `State`, a `Msg` and an `update` like a feature, and it answers only its owner, through its return
-value. It never routes, never names a feature and never returns an `Out`.
+value. It never routes, never names a feature and never returns an `Out`. A part may expose a
+read view for its owner's `present`: the passphrase field's gives its dots, its eye and its chips,
+and its text only while the eye is open. Only the part's crate names the part's state.
 
 - **Rule A2.** A part depends on the kernel, the port and the domain. Held by `lint-layers`
   (`role = "part"`).
 - **Rule A3.** The passphrase field part is the only holder and filter of a typed passphrase
   (`docs/KEYS.md` §2 on `main`; inventory `features/secrets.md`). Held by the rule `main` keeps
   in `lint-components` (a passphrase field drawn or held outside `pass_field`), carried into
-  `lint-layers`' module rule: only the part's crate names the passphrase field's state type.
+  `lint-layers`' module rule: only the part's crate names the passphrase field's state type; a
+  feature's `present` reads the field through its read view alone.
 
 ### 4.3 Features, composites and routing
 
 - **Rule A4.** A feature crate holds one feature of the inventory (or a few that share one state,
-  named in the manifest). It depends on the kernel, parts, the port and the domain, and its
-  pages on the kit's templates and organisms (§6.4).
+  named in the manifest). It depends on the kernel, the presentation kernel, parts, the port and
+  the domain, and its `model`, `present` and `page` on the kit's templates and organisms (§6.4).
 - **Rule A5.** A feature crate never depends on another feature crate. Held by the crate boundary
   and `lint-layers`: an edge from `role = "feature"` to `role = "feature"` is refused.
 - **Rule A6.** A composite is a crate whose state holds its children's states. It depends on its
   children, receives each child's `Out` and turns it into a message for another child, or into
   its own `Out`. It is the only way one feature reaches another. Held by `lint-layers`: only
-  `role = "composite"` (and a root) may depend on a feature.
+  `role = "composite"` and `role = "product"` crates depend on a feature, and only roots and
+  tools depend on a product.
 - **Rule A7.** A feature's `State` keeps its fields private to its crate. A composite holds a
   child's state, passes it to the child's `update` and `present`, and reads nothing in it. Held by
   the compiler, and by `lint-layers`, which refuses a `pub` field on a type that implements
@@ -237,8 +256,8 @@ value. It never routes, never names a feature and never returns an `Out`.
 - **Rule A8.** What features share to read (the keys and wallets the session holds, the sticks
   attached, the mode, the clock) reaches them only through `Ctx` and `View`, which are sets of
   shared borrows. Three shared owners hold what is shared: the session, the vault composite and
-  the settings, each held by the root beside its app composite (never a child of it) and read
-  through `View`'s kernel traits. A change to one is a `ChangeFor` effect the runtime serves to
+  the settings, each a top state held by the runtime beside the app composite (never a child of
+  it; section 05 §1) and read through `View`'s kernel traits. A change to one is a `ChangeFor` effect the runtime serves to
   that owner, answered once (section 03 §7). Held by the compiler (`&Ctx` gives no `&mut`) and by
   `lint-layers` (`owner = true`).
 
@@ -277,25 +296,31 @@ Each feature crate has these modules. The module split is the presentation layer
 
 | Module | Holds | May name | Never names |
 |---|---|---|---|
-| `state`, `msg`, `update` | the feature's state, messages, update | kernel, parts, port, domain | `present`, `model`, `page`, any kit crate, `faraday_strings` (section 03, A30) |
+| `state`, `msg`, `update` | the feature's state, messages, update | kernel, parts, port, domain | `present`, `model`, `page`, any kit crate, `Show`, `Memo`, `faraday_strings` (any path, `EN` included), `Worded::words` (section 03, A30) |
 | `model` | the feature's `ScreenModel` and the kit models it fills | kit model types (§6.5), domain value types, wording | `state`, `update`, the kit's drawing |
-| `present` | `present(&State, &View) -> ScreenModel` | `state`, `model`, kernel, domain, wording | `update`, `page`, the kit's drawing, `Compute` |
-| `page` | `draw(&ScreenModel, &mut Ui<Msg>)` | `model`, `msg`, the kit's templates and organisms | `state`, `update`, `present`, the kit below organisms |
+| `present` | `present(&State, &View, &Show) -> Model` | `state`, `model`, kernel, presentation kernel, domain, wording | `update`, `page`, `Ui`, the kit's drawing, `Compute` |
+| `page` | `draw(&Model, &mut Ui<'_, Press>)` | `model`, `msg`, the presentation kernel, the kit's templates and organisms | `state`, `update`, `present`, `View`, `Show`, `faraday_strings`, the kit below organisms |
 
-Sketch (section 04 gives the full shapes):
+Section 04 §2.2 gives these additions with the rule that keeps the wording crate from being
+re-exported under another path.
+
+Sketch (section 04 §2 gives the full shapes), both traits in the presentation kernel:
 
 ```rust
 pub trait Present: Feature {
     type Model<'s>;
-    fn present<'s>(state: &'s Self::State, view: &View<'s>) -> Self::Model<'s>;
+    fn present<'s>(state: &'s Self::State, view: &View<'s>, show: &Show<'s>) -> Self::Model<'s>;
 }
 pub trait Page: Present {
-    fn draw(model: &Self::Model<'_>, ui: &mut Ui<Self::Msg>);
+    /// What a press on this page sends.
+    type Press: Pressed;
+    fn draw(model: &Self::Model<'_>, ui: &mut Ui<'_, Self::Press>);
 }
 ```
 
 - **Rule V1.** `present` does all the working out of what a screen shows; `draw` reads the model
-  and paints. `draw` is given no state, no `Ctx` and no `View`, so it can read nothing else. Held
+  and paints. `draw` is given no state, no `Ctx`, no `View` and no `Show`, so it can read nothing
+  else. Held
   by the compiler (the signature) and by `lint-layers`' module rule (the table above), which
   checks each module's `use` paths and path expressions.
 - **Rule V2.** `present` is given no `Compute` (`View` has none) and so cannot do costly work.
@@ -305,11 +330,13 @@ pub trait Page: Present {
   `features/drawing-compute.md`, `features/pane-container.md`, `features/session-pane.md`,
   `features/add-key.md`, `features/codex-shares.md`, `features/silent-payments.md`,
   `features/address-check-explore.md`, `features/spend-backup.md`): a value worked out per frame
-  on `main` is state written by `update` or a memoised `present`, and a measure drawing finds
-  (a content height, a scroll extent) comes back as a message.
+  on `main` becomes state written by `update` (or a `Derived` kept by its inputs), or a cheap
+  derivation kept in the memo. A measure an update decides on comes back as a message; one read
+  only by the next frame is the motion store's (section 04 §7.2, §8.1).
 - **Rule V3.** Hit targets are the page's output, held by the runtime for the frame (§7.1). No
-  model and no state holds a rectangle a page drew. Held by the compiler: `Ui<Msg>` records its
-  hit targets in the frame it returns to the runtime, and a page cannot reach state.
+  model and no state holds a rectangle a page drew. Held by the compiler: the `Ui` records its
+  hit targets in the `FrameOut` it returns to the runtime (section 04 §7.1), and a page cannot
+  reach state.
 - **Rule V4.** Every user-facing string a model carries comes from the wording crate. Held by
   `lint-strings` (as on `main`).
 
@@ -325,9 +352,9 @@ per feature.
 | Level | Holds | On `main` |
 |---|---|---|
 | tokens | named dimensions, colours, durations, type roles; no code but constants and their helpers | `faraday-draw`'s `tokens` |
-| atoms | the canvas, surface, text, shapes, fonts, icons, the `Ui<A>` frame and hit registration; buttons, chips, switches, fields, the keyboard | `faraday-draw`, `faraday-ui`'s controls and frame |
+| atoms | the canvas, surface, text, shapes, fonts, icons, the `Ui<A>` frame and hit registration; buttons, chips, switches, fields | `faraday-draw`, `faraday-ui`'s controls and frame |
 | molecules | rows, list items, chip sets, the passphrase field's drawing, the appearance rows | `faraday-ui` |
-| organisms | the session pane, sheets and dialogs, menus, the snackbar, ways-in, the navigation rail and bar, the scanner's viewfinder | `faraday-ui`, `faraday-core`'s `screens/session_pane/`, `ways_in` |
+| organisms | the session pane, sheets and dialogs, menus, the snackbar, ways-in, the navigation rail and bar, the scanner's viewfinder, the on-screen keyboard's panel | `faraday-ui`, `faraday-core`'s `screens/session_pane/`, `ways_in` |
 | templates | the pane container, the step-flow layout, the menu page | `faraday-core`'s `screens/hub_layout/`, the flow container, the menu page container |
 | pages | one per screen: each feature's `page` module (§5) | `faraday-core`'s screens |
 
@@ -342,8 +369,9 @@ per feature.
   `lint-layers` (no kit edge to the application) and by the compiler.
 - **Rule K4.** A kit crate may name the wording crate (a dialog's Cancel, a key's label) and the
   guide (its blocks), and domain value types it draws (a QR code's modules from `faraday-codec`).
-- **Rule K5.** The kit owns no state across frames but what a component's motion needs, keyed by
-  the component's id and held by the runtime's frame; section 04 says how.
+- **Rule K5.** The kit owns no state across frames but what a component's motion needs, kept in
+  the motion store: a kit atoms type the runtime owns and lends to each frame's `Ui`, keyed by
+  the component's `Anchor` (section 04 §8.1).
 
 ### 6.3 Who may name the tokens
 
@@ -356,10 +384,11 @@ Held by `lint-layers`: an edge from domain or adapter to the kit is refused unle
 
 ### 6.4 What a page uses
 
-- **Rule K6.** A page uses only templates and organisms, and the `Ui` the templates hand it. Held
-  by Cargo (a feature crate's kit dependencies are the templates and organisms crates only), by
-  `lint-layers` (a feature crate's edge to a kit crate below organisms is refused), and by its
-  module rule (only `page` and `model` name the kit).
+- **Rule K6.** A page uses only templates and organisms, and the `Ui` the templates hand it;
+  `present` names the kit's model types and never its drawing. Held by Cargo (a feature crate's
+  kit dependencies are the templates and organisms crates only), by `lint-layers` (a feature
+  crate's edge to a kit crate below organisms is refused), and by its module rule (only `page`,
+  `model` and `present` name the kit, and only `page` its drawing).
 - **Rule K7.** A template or organism re-exports from a lower level only what a page needs to
   call it: the `Ui` type, the action type's bounds and its own model's field types. Held by
   `lint-layers`, which lists each kit crate's `pub use` of a lower level and refuses one not
@@ -374,16 +403,24 @@ Held by `lint-layers`: an edge from domain or adapter to the kit is refused unle
 
 An organism or template that shows structured content takes a model the kit defines: the session
 pane takes a `SessionPaneModel<'s, A>` of rows, each a label, a value, an icon and the action its
-press returns. A feature's `present` fills it; its `page` passes it. The kit model holds borrowed
-text (`&'s str`), so a revealed secret it shows is a borrow of a reveal guard (§8.2).
+press returns. A feature's `present` fills it; its `page` passes it.
+
+Every text a kit model holds is a `Shown<'s>`, a kit atoms type whose variants are private
+(section 04 §11). `Shown::plain` takes only a `&'s Text` or a `&'static str`; `Shown::secret`
+takes a `SecretText`'s text, a reveal's text or the passphrase part's read view. So a revealed
+secret a model shows is a borrow of a reveal guard (§8.2), marked secret, and a borrowed secret
+cannot be made plain.
 
 ## 7. The runtime, adapters, roots and tools
 
 ### 7.1 The runtime
 
-- **Rule R1.** The runtime is generic over the root's composite (`Runtime<R: Root>`) and names no
-  feature. It owns the model, the queue, the dispatch of effects, the worker pool, the memo, the
-  lock and restart, and the last frame (its call list and hit targets). Held by `lint-layers`.
+- **Rule R1.** The runtime is generic over the product (`Runtime<R: Root>`) and names no
+  feature. `Root` is the runtime's own trait, which each product crate implements (section 05
+  §1). The runtime owns the model, the queue, the dispatch of effects, the worker pool, the memo,
+  the motion store, the lock and restart, and the last frame (its `FrameOut`). It never depends
+  on the presentation kernel: it calls `Root::frame`, whose arguments are the kernel's `View` and
+  `Show` and the kit atoms' `Ui`. Held by `lint-layers`.
 - **Rule R2.** The runtime is the only shipped code that mints `Compute`, in event handling and
   on a worker. Test code and tools (`layer = "tool"`) may mint one with `Compute::unchecked`
   under `#[expect(clippy::disallowed_methods, reason = "...")]`, as on `main`, so that a pure
@@ -397,8 +434,9 @@ text (`&'s str`), so a revealed secret it shows is a borrow of a reveal guard (�
   read-only output, which the root paints through an adapter. A tour reads the same output.
   No app or kit crate carries a hook for tours. This replaces `main`'s hooks in non-test code
   (`press`, `where_offered`, `drawn_texts`, `drawn_targets`, `drawn_ink`; inventory
-  `features/starter-app.md`, `features/tour-runner.md`), and the tour runner's leak check reads
-  the frame's text as it does now.
+  `features/starter-app.md`, `features/tour-runner.md`). The tour reads the drawn text from
+  `FrameOut::ink`, recorded only once `Runtime::record_ink` turns it on; `record_ink` is in
+  `clippy.toml`'s `disallowed-methods` outside the tour root, the leak crate and test support.
 
 ### 7.2 Adapters and roots
 
@@ -411,23 +449,31 @@ text (`&'s str`), so a revealed secret it shows is a borrow of a reveal guard (�
   `main`. They depend on the domain only, and no crate depends on them: the root's adapters
   speak to them over a pipe. Held by `lint-layers` (`layer = "adapter"`, `process = true`: no
   edge to the port, and no edge into them).
-- **Rule S3.** A composition root is a binary. It picks the features it holds through the
-  composites it builds, the adapters it runs, and starts the runtime. It never depends on another
-  root. Held by `lint-layers` (no edge from `root` to `root`).
-- **Rule S4.** The device app, Faraday Demo and the Starter are each their own root. The tour
-  root, which renders tours for review, is a root that never ships.
+- **Rule S3.** A composition root is a binary. Its product crate builds the model (the `Root`
+  and the composites it holds); the binary holds only the command line, the adapters it runs and
+  the loop that starts the runtime (section 06 §1). It never depends on another root. Held by
+  `lint-layers` (no edge from `root` to `root`).
+- **Rule S4.** The device app, Faraday Demo and the Starter are each their own root over their
+  own product crate: the device product, the Demo product and the Starter product. The tour root,
+  which renders tours for review, builds the three product crates' models and has none of its
+  own; its metadata names `ships = false`, and it never ships.
 
-**Decision: the Starter holds Faraday Demo by composing the same composite, not by depending on
-the Demo's root.** The device app's features are composed by a library composite (the device
-composite). The Demo root holds it beside the Demo's own features (the strip at the window's foot,
-from `main`'s `faraday-host`, and the samples). The Starter root holds the Starter's features and,
-when "Open Faraday Demo" is pressed, the same device composite and the Demo's strip feature as a
-child of its own composite, run on the same desktop adapters (sticks as folders, the window).
-A lock in that child drops and rebuilds the child in the Starter's process, as
-`restart_demo` does on `main` (inventory `features/starter-app.md`, `features/practice-demo.md`).
-Reason: the Starter carries Faraday Demo, and both roots then share library crates only. Turned
-down: the Starter starting the Demo as a second process, which needs a second binary shipped
-beside the Starter and a channel between them.
+**Decision: the Starter holds Faraday Demo by composing the same library crates, not by
+depending on the Demo's root.** The device app's features are composed by a library composite
+(the device composite). The online composite holds it beside the Demo's own features (the strip
+at the window's foot, from `main`'s `faraday-host`, the samples, and Transfer); with its frame it
+is the online app, which the Demo product holds. The Starter has one model: Faraday Demo is its
+lock scope, the session and vaults owners and the same online app, held by the runtime as top
+states that exist only while the scope is built. The Starter's own composite (`Root::Outside`)
+and its settings owner stand beside the scope, outside it, on the same desktop adapters (sticks
+as folders, the window). A lock inside the Demo drops and rebuilds the scope alone in the
+Starter's process, as `restart_demo` does on `main` (section 05 §7.9; inventory
+`features/starter-app.md`, `features/practice-demo.md`). Reason: the Starter carries Faraday Demo,
+both products then share library crates only, and the routing between the strip, Transfer and the
+device's features is written once. Turned down: the Demo as a child state of the Starter's
+composite, which puts the Starter's own state inside what a lock drops; and the Starter starting
+the Demo as a second process, which needs a second binary shipped beside the Starter and a
+channel between them.
 
 Today's edges this removes: `shells/starter` to `faraday-demo` (normal) and `faraday-starter` to
 `faraday-demo` (dev); `faraday-starter`, `shells/starter`, `faraday-host`, `shells/window`,
@@ -456,8 +502,8 @@ where printed sheets are made.
 | Port | Only in transit, in wiping types: a pasted text, a file's bytes read from a stick, a camera frame, a file's bytes to write | The port's event and effect types use the wiping types for these fields |
 | Application | In state, only in `faraday-keys` types (the key store, an open vault) and the wiping types (typed words before Done, a typed passphrase in its part) | A message moves one; it never copies one |
 | Presentation | Only a borrow of a reveal guard, for one frame | §8.2 |
-| Kit | Only borrowed text for one frame | `&'s str` from the model |
-| Runtime | Only what the model it owns holds and what moves through its queue and jobs | It drops the model at a lock (§8.4) |
+| Kit | Only borrowed text for one frame | `Shown<'s>` from the model, a secret marked by `Shown::secret` (§6.5) |
+| Runtime | Only what the model it owns holds, what moves through its queue and jobs, and the carry it holds between the drop and the next start or Keep | It drops the model at a lock (§8.4); the carry's secret bytes are the Inbox's and Outbox's alone (section 05 §7.3) |
 | Adapters | Only in transit, as the port's types | Written or read, never kept |
 
 - **Rule K-1.** Key material lives in `faraday-keys` and leaves it only through its named reveals
@@ -484,8 +530,9 @@ where printed sheets are made.
   wiping type. Held by `faraday-keys`' reveal list.
 - **Into a log or a replay:** never. Only `Public` messages are logged or replayed, and no secret
   type is `Public`. Held by the compiler (the sealed trait and its derive).
-- **Rule R5.** The memo holds only models whose type is `Public` (no borrow, no secret), so a
-  memoised model never keeps a reveal. Held by the compiler (the memo's bound).
+- **Rule R5.** The memo keeps only `Public` values: `Memo::get`'s key, input and value are each
+  bound `Public` (`K: Public`, `I: Public`, `V: Public`; section 04 §6), so no borrow and no
+  secret is kept, and a reveal is never memo input. Held by the compiler (the memo's bounds).
 
 ### 8.3 Messages
 
@@ -497,11 +544,11 @@ where printed sheets are made.
 
 ### 8.4 Lock
 
-- **Rule L1.** The model is never `Clone`. Held by a compile-time assertion in the runtime over the
-  root's model type.
-- **Rule L2.** Every feature's state implements `AtLock`, saying what a lock wipes, and the runtime
-  calls it before it seals and then drops the model and restarts. Held by the kernel's `Feature`
-  bound. Section 05 gives what carries over a restart (on `main`, the Inbox and Outbox kept by the
+- **Rule L1.** The model is never `Clone`. Held by a compile-time assertion in each product
+  crate over its model's types (its top states).
+- **Rule L2.** Every feature's state implements `AtLock`, saying what a lock wipes. At a lock the
+  runtime seals the vaults, then calls `Feature::carry`, then `at_lock`, and then drops the model
+  and restarts (section 05 §7.2). Held by the kernel's `Feature` bound. Section 05 gives what carries over a restart (on `main`, the Inbox and Outbox kept by the
   storage adapter; inventory `features/lock.md`, `features/storage.md`).
 
 ## 9. Main's crates by layer
@@ -511,7 +558,7 @@ each takes in `next`.
 
 | Crate on `main` | Layer in `next` | What changes |
 |---|---|---|
-| `faraday-text`, `faraday-crypto`, `faraday-bip`, `faraday-psbt`, `faraday-codec`, `faraday-entropy` | domain | Copied. `faraday-text` gains `SecretText` and `ROOM`; `faraday-codec` gains the `otpauth://` test |
+| `faraday-text`, `faraday-crypto`, `faraday-bip`, `faraday-psbt`, `faraday-codec`, `faraday-entropy` | domain | Copied. `faraday-text` gains `SecretText` and `ROOM`; `faraday-codec` gains the `otpauth://` test; `faraday-crypto`'s `Compute` gains the `stop` and `progress` hooks (`Compute::new(Hooks)`, D3) |
 | `faraday-selftest`, `faraday-handwriting`, `faraday-boot`, `faraday-payload` | domain | Copied; the self-test's read of the mount list moves to the stick adapter (§2.1) |
 | `faraday-keys`, `faraday-vault` | domain, `boundary = true` | Copied; edges to `faraday-intake` and `faraday-forms` cut (§2.3); `faraday-keys` gains `Refusal` and `Makes` |
 | `faraday-pgp`, `faraday-sb`, `faraday-kef`, `faraday-ots`, `faraday-plan`, `faraday-fat`, `faraday-sqlite`, `faraday-core-wallet`, `faraday-qr` | domain | Copied; `faraday-core-wallet`'s edge to `faraday-intake` cut |
@@ -524,16 +571,16 @@ each takes in `next`.
 | `faraday-shell-api` | port | Grown into the port (section 02) |
 | `faraday-draw` | kit: tokens (its `tokens`) and atoms (the rest) | Split in two crates by level |
 | `faraday-ui` | kit: atoms, molecules, organisms | Copied, then arranged by level |
-| `faraday-core` | application (kernel, parts, features, composites) and the kit's organisms and templates | Ported, not copied; its tests are not ported (the plan's §1) |
-| `faraday-starter` | application: the Starter's features and composite | Ported like `faraday-core`; its edges to `faraday-core`, `faraday-host` and `faraday-demo` cut |
-| `faraday-host` | application: the Demo's strip feature; its window-holding part to the runtime and the desktop adapter | Ported; it reaches the device composite only through messages the root routes (it calls into `Faraday` on `main`, inventory `features/desktop-shells.md`) |
+| `faraday-core` | application (kernel, presentation kernel, parts, features, composites, product crates) and the kit's organisms and templates | Ported, not copied; its tests are not ported (the plan's §1) |
+| `faraday-starter` | application: the Starter's features, its composite and the Starter product | Ported like `faraday-core`; its edges to `faraday-core`, `faraday-host` and `faraday-demo` cut |
+| `faraday-host` | application: the Demo's strip feature, in the online composite; its window-holding part to the runtime and the desktop adapter | Ported; it reaches the device composite only through messages the online composite routes (it calls into `Faraday` on `main`, inventory `features/desktop-shells.md`) |
 | `faraday-storage` | adapter | Re-pointed at the port |
 | `faraday-scanner`, `faraday-camera` (`shells/camera`), `faraday-v4l2`, `faraday-mediafoundation`, `faraday-window` | adapter | Re-pointed at the port; `faraday-window`'s edge to `faraday-core` cut |
 | `faraday-disk`, `faraday-grant` | adapter, `process = true` | Copied |
-| `shells/stick` (`faraday-stick`) | root: the device app, and its stick adapter | Re-pointed at the runtime and the device composite |
-| `shells/demo` (`faraday-demo`) | root: Faraday Demo, and the desktop adapter for sticks as folders | Re-pointed; the adapter part is a library the Starter's root shares |
-| `shells/starter` (`faraday-starter-shell`) | root: the Starter, and its operating-system adapter | Re-pointed; its edge to `faraday-demo` cut (§7.2) |
-| `shells/snapshot` (`faraday-snapshot`) | root: the tour root, never shipped | Re-pointed at the runtime's frame output (R4) |
+| `shells/stick` (`faraday-stick`) | root: the device app, and its stick adapter | Re-pointed at the runtime and the device product |
+| `shells/demo` (`faraday-demo`) | root: Faraday Demo, and the desktop adapter for sticks as folders | Re-pointed at the runtime and the Demo product; the adapter part is a library the Starter's root shares |
+| `shells/starter` (`faraday-starter-shell`) | root: the Starter, and its operating-system adapter | Re-pointed at the runtime and the Starter product; its edge to `faraday-demo` cut (§7.2) |
+| `shells/snapshot` (`faraday-snapshot`) | root: the tour root, never shipped (`ships = false`) | Re-pointed at the three product crates and the runtime's frame output (R4) |
 | `fontbake`, `costs-lint`, `op-cost`, `crosscheck`, `faraday-testkit`, `faraday-alloc-count`, `faraday-leak-scan` | tool | Copied or re-pointed; `op-cost`, `crosscheck` and `testkit` lose their edges to `faraday-core` and name the domain or the features they measure |
 
 ## 10. unsafe code
@@ -565,14 +612,14 @@ each takes in `next`.
 | A3 | one holder of a typed passphrase | `lint-layers`' module rule (from `main`'s `lint-components`) |
 | A7 | a state's fields are private | the compiler; `lint-layers` |
 | A8, V1, V2 | `Ctx` is read-only; `draw` sees only its model; `present` has no `Compute` | the compiler (signatures); `lint-layers`' module rule; `costs-lint` |
-| V3 | hit targets are the frame's | the compiler (`Ui<Msg>`'s frame) |
+| V3 | hit targets are the frame's | the compiler (the `Ui`'s `FrameOut`) |
 | V4 | strings in the wording crate | `lint-strings` |
 | K1 to K7 | the kit's levels and what a page uses | `lint-layers` (`level`, `reexports`); `lint-tokens` |
 | R1 to R4 | the runtime is generic; only it mints `Compute`; tours read its frame | `lint-layers`; `clippy.toml`; `costs-lint` |
 | S1 to S4 | adapters and roots | `lint-layers` |
 | T1 | nothing shipped depends on a tool | `lint-layers` over each root's resolved graph |
 | K-1 to K-3, M1, M2, R5 | key material and messages | `faraday-keys`' API; `lint-leak-reveals`; `lint-secrets`; the compiler (`!Clone`, `Public`, lifetimes, the memo's bound) |
-| L1, L2 | the model is not `Clone`; every state says what a lock wipes | a compile-time assertion; the kernel's bound |
+| L1, L2 | the model is not `Clone`; every state says what a lock wipes | a compile-time assertion in each product crate; the kernel's bound |
 | U1 to U3 | `unsafe` only on the closed list | the workspace lints; `lint-layers` |
 
 ## Questions for later sections

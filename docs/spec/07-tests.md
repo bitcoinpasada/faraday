@@ -56,7 +56,7 @@ Each kind belongs to one layer of section 01, and the Owner of its header is tha
 |---|---|---|---|---|
 | `domain` | vector test | the domain crate's `tests/` or unit tests | the crate's functions, on published vectors, frozen outputs of an outside implementation, and the refusals of its parsers | any other layer |
 | `kit` | kit test | the kit crate's unit tests | one component's `Ui<A>` call and the hit targets and actions it records (§2.3) | an app type; a size, colour or position compared with a design value |
-| `app` | update test | the module it tests: `update`'s tests in a feature, part, composite or owner crate; the runner's in the kernel | `route`, `start`, `notice` and `refuses`, with a test `Ctx` (§2.2); `present` for a rule it holds (§2.2) | drawing, the runtime, an adapter, a shell |
+| `app` | update test | the module it tests: `update`'s tests in a feature, part, composite, owner or product crate (`role = "product"`, section 01 §1); the runner's in the kernel | `route`, `start`, `notice` and `refuses`, with a test `Ctx` (§2.2); `present` for a rule it holds (§2.2) | drawing, the runtime, an adapter, a shell |
 | `runtime` | runtime test | the runtime crate's tests | `Runtime<R>` over a test root of test features, events in, effects and frames out | an adapter; a product's features |
 | `adapter` | adapter test | the adapter crate's tests | `Adapters::carry` and `poll` over a stand-in for its I/O (§2.4) | the application, the runtime |
 | `root` | journey; the tours' run | the root crate's tests | the root's model over scripted adapters through the port (§2.5, §5) | a feature's internals; a geometry assertion |
@@ -75,8 +75,7 @@ make the journeys the many slow tests the plan keeps them from being.
 
 **Decision: what sections 02 and 03 call "an update test of the runtime" is a runtime test.**
 P9 (a stale or wrong answer), A15 (an event settles before the next), A23 (a stale change's
-answer dropped), A28 (no job input outlives its model) and A22's debug assertion are runtime
-tests. No earlier section needs a change for this.
+answer dropped) and A28 (no job input outlives its model) are runtime tests. No earlier section needs a change for this.
 
 ### 2.2 Update tests
 
@@ -129,7 +128,7 @@ feature is in the normal graph of anything a root ships.
 ### 2.3 Kit tests
 
 A kit test is allowed only for a rule a person would notice and a tour cannot show: a press
-inside a component's drawn target returns its action; a dimmed control records no target; a
+inside a component's drawn target returns its action; a control with no press records no target; a
 component's keyboard focus moves in drawing order; the passphrase field's drawing shows no
 character of its text with the eye off. It reads the hit targets and actions `Ui<A>` records,
 never a rectangle's size or place against a value.
@@ -179,8 +178,9 @@ lock).
 - **Rule TS10.** A journey asserts no rule a lower layer owns. Each product has a few: the device
   app (start, a test key typed, a PSBT signed from the fixture stick, a lock that keeps its
   carry and restarts); Faraday Demo (start in Practice on Testnet with the samples, a lock that
-  rebuilds the model in process); the Starter (Faraday Demo opened as its child, a lock in the
-  child that rebuilds only the child). The rules that are a root's own are held here: `Start`
+  rebuilds the model in process); the Starter (Faraday Demo opened as the lock scope of its
+  model, and a lock that rebuilds only the scope, leaving the Starter's own composite and its
+  settings owner as they were). The rules that are a root's own are held here: `Start`
   first and once (P17), a stick written only when asked (P27). Held by the header (Owner
   `root`) and review.
 
@@ -306,9 +306,10 @@ fixture adapters (section 02, §10), with a picture saved at each named step. A 
 the pictures; a screen change names the Material page it was checked against (section 08, §2).
 A tour has no assertion on what a screen shows.
 
-- **Rule TS15.** A tour reads only the runtime's frame output (R4): the frame's pixels, its call
-  list's text, its hit targets and the kept images the runtime and the kit hold for motion and
-  sheets. No app or kit crate carries a hook for tours. Held by R4 and `lint-layers`.
+- **Rule TS15.** A tour reads only the runtime's frame output (R4): the frame's pixels, its
+  drawn text with its boxes (`FrameOut::ink`, through the runtime's `Seen::ink`), its hit targets,
+  and the kept images, which are the runtime's alone (`Seen::kept`: a sheet's frost, a fade's
+  frame). No app or kit crate carries a hook for tours. Held by R4 and `lint-layers`.
 - **Rule TS16.** Every tour runs to its end. A test of the tour root (Owner `root`) runs each
   tour at one small size with no pictures and fails on a tour that stops early; this is the
   check of the scripts themselves, and the screens check of §5.3 runs in the same pass. Held by
@@ -343,11 +344,14 @@ what it checks. At the frame after a lock, a hide, leaving a page and leaving a 
 text is read against every text form of the planted test secrets, and every kept image whose
 frame showed one and that is still kept after the event is a hit. A hit fails the run (TS16).
 
-- **Rule TS17.** The events the check knows are the runtime's own (a lock, `Notice::Hide`,
-  `Notice::Left` sent by the root's navigation, a sheet closed) and a press whose message variant
-  the feature's derive marks `#[hides]` (an eye, Show pressed again). Reason: `main` found a hide
-  by words in the action's name; a mark on the variant is the feature's own statement. Held by
-  the check and the derive.
+- **Rule TS17.** The events the check knows are the runtime's marks (a lock, a hide, and
+  `Mark::Hides` for a hiding press) and a change of `FrameOut::page` or `FrameOut::sheets`
+  between two frames (leaving a page, a sheet closed). A hiding press (an eye, Show pressed
+  again) is one whose variant of the page's press type carries `#[hides]`, read through
+  `#[derive(Pressed)]`. `Notice::Left` is sent inside the app by its navigation and is not
+  visible to the check; the change of page stands for it. Reason: `main` found a hide by words in
+  the action's name; a mark on the variant is the page's own statement. Held by the check and the
+  derive.
 
 **Decision: the screens check is a check of the tour root, not a test of each screen.** Reason:
 it covers every screen a tour reaches, a screen added later included, without its author listing
@@ -361,15 +365,13 @@ for every Check row that opens a tool and fails when the tool has no Tools tile 
 `check-page.md`, `tools.md`). Not every Check row opens a tool: Dice opens New key at its dice
 source and Backup opens a sheet.
 
-**Decision: the rule is held by the compiler.** The tools a menu page can open are one enum
-(`Go` on `main`), which Check's and Tools' features both read from below them, and the Tools
-catalog's tile list is an exhaustive `match` over it with `clippy::wildcard_enum_match_arm`
-denied. Check's row that opens a tool carries a `Go`; a `Go` with no tile does not compile.
-Reason: with the rule a type, there is nothing left for a script to find. Turned down: carrying
-the regex lint re-pointed at two feature crates, which reads source text the compiler already
-types. Where the enum lives is the root's navigation (section 06). If section 06 cannot place
-one enum below both features, the lint carries, re-pointed at the two features' crates, and this
-paragraph changes.
+**Decision: the rule is held by the compiler.** The tools a menu page can open are one enum,
+the kernel's `Tool` (its `handle` module, section 06 §3.3; `Go` on `main`), which Check's and
+Tools' features both name, and the Tools catalog's tile list is an exhaustive `match` over it
+with `clippy::wildcard_enum_match_arm` denied. Check's row that opens a tool carries a `Tool`; a
+`Tool` with no tile does not compile. Reason: with the rule a type, there is nothing left for a
+script to find. Turned down: carrying the regex lint re-pointed at two feature crates, which
+reads source text the compiler already types.
 
 ## 6. Leak tests
 
@@ -493,9 +495,8 @@ This answers section 03's question, and places the tests sections 01, 02 and 08 
 | A12 | after `at_lock`, `holds()` is all false | `app` | feature that holds a secret |
 | A13 | `Notice::Left` drops every typed secret and shown value | `app` | feature with a typed secret |
 | A22 | a change given to an owner is answered once, also when refused | `app` | refusal of each owner's change (`faraday_keys::Refusal` and the owner's own variants, one test each) |
-| A22, debug | no change waits unanswered at a lock | `runtime` | one |
 | A25 | a stale answer changes nothing and its payload is dropped | `app` | feature that starts a job or waits on an ask |
-| A26 | while waiting, only Back, Cancel, scroll and the eye are taken | `app` | feature that waits |
+| A26 | while waiting, only Back, Cancel and the eye are taken | `app` | feature that waits |
 | A29 | Back, Cancel, the hide on a step change, the foot's refusal | `app` | runner rule, in the kernel, over a test flow |
 | A32 | in Practice, the press is refused | `app` | press of A32's list; the same test is that press's A10 test |
 | A33 | the key store refuses a sample on Mainnet and takes only samples in Practice | `domain` | way a key comes in, in `faraday-keys` |

@@ -510,7 +510,9 @@ Rules G1 and G2 are held by review; `CONTRIBUTING.md` states them for anyone sen
 ### 8.1 Carried, re-pointed at next's paths
 
 `lint-secrets` (on every application, kit and runtime crate, section 01 K-2), `lint-strings`,
-`lint-tokens`, `lint-docs` (§4.6), `lint-leak-reveals` (section 07 TS19), `lint-touch-targets`
+`lint-tokens`, `lint-docs` (§4.6), `lint-leak-reveals` (section 07 TS19; it also refuses a
+reveal's or a `SecretText`'s text reaching `Memo::get`, section 04 V14, and a reveal's text
+turned into a `Text`, section 04 K12), `lint-touch-targets`
 (over the tours, section 07 §5.2), `lint-tree`, `lint-fuzz-parsers`,
 `lint-builds`, `costs-lint` (section 01 R2, V2), `lint-standards`, `docs/crypto/verified.py`,
 `docs/crypto/check.py`, `docs/crypto/gen.py`, `lint-upstream`, the cross-check's `facts.py` and

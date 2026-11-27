@@ -23,17 +23,21 @@ crates whose types it names (`faraday-text`, `faraday-crypto`, `faraday-bip`, `f
 
 | Module | Holds |
 |---|---|
-| `feature` | `Feature`, `Notice`, `route` (§2) |
+| `feature` | `Feature`, `Notice`, `route` (§2); `Top`, `Lock`, `End`, what the top states tell the runtime (section 05, §1.1) |
 | `message` | `Message`, `Public`, `Withheld`, the derives (§3) |
-| `effects` | `Effects`, `Fx`, `AskFor`, `ChangeFor`, `Job`, `Route`, `Note` (§4) |
-| `cx` | `Ctx`, `View`, `Facts`, `Mode`, `Clock`, `Running` (§5) |
+| `effects` | `Effects`, `Fx`, `AskFor`, `ChangeFor`, `Job`, `Route`, `Note`, `ViewOrder` (§4) |
+| `cx` | `Ctx`, `View`, `Facts`, `Mode`, `Clock`, `Running`, `Started` (§5); `Show`, `Memo`, `Slot`, `Edits`, `Derived` (section 04, §3, §6, §13) |
 | `shared` | `Change`, `Done`, `ChangeId`, `Owner`, and the read traits and change types of the session, the vaults and the settings (§7) |
 | `flow` | `StepFlow`, `Flow`, `FlowMsg`, `Steps`, `CancelOffer`, `Ending` (§9) |
-| `lock` | `AtLock`, `Holds`, `Loss` (§2.3) |
-| `handle` | `KeyId`, `WalletId`, `FileId`, `Ticket`, `Waiting` (§3.3, §8) |
+| `lock` | `AtLock`, `Holds`, `Loss` (§2.3); `Carried`, `CarryName`, `CarryValue` (section 05, §7.3) |
+| `nav` | `Nav<P>`, the one navigation every frame uses (section 06, §4.3) |
+| `handle` | `KeyId`, `WalletId`, `FileId`, `Ticket`, `Waiting` (§3.3, §8); `Tool`, the enum of tools two composites name (section 06) |
 | `words` | `Worded`, `Refused`, `Line`, the wording of `port::Failure` (§10) |
 
 The derive crate (`role = "kernel"`, a proc-macro crate) derives `Message`, `Public` and `AtLock`.
+
+The kernel names no root and no root's trait: `Root` is the runtime's (section 05), and the
+kernel holds no type for what a root lends or returns.
 
 ## 2. Features
 
@@ -49,8 +53,8 @@ pub trait Feature {
     /// Why a message is refused before `update` sees it (§2.2, §10).
     type Refusal: Refused;
 
-    /// The state at the model's start, from what the last model carried
-    /// for this feature (section 05 gives `Carried`).
+    /// The state at a build of the lock scope, from what the last build
+    /// carried for this feature (`Carried`, section 05 §7.3).
     fn start(carried: &mut Carried, cx: &Ctx<'_>) -> (Self::State, Effects<Self::Msg, Self::Out>);
 
     /// One message: the state changes, effects come back.
@@ -63,8 +67,17 @@ pub trait Feature {
     /// Whether `msg` is refused now. Called by `route` before `update`, and
     /// by `present` to draw the control that would send it (§2.2).
     fn refuses(state: &Self::State, msg: &Self::Msg, view: &View<'_>) -> Option<Self::Refusal>;
+
+    /// At a lock, after the seal and before `at_lock`: put what the next
+    /// build's `start` needs into the carry (section 05, §7.2). Most features
+    /// carry nothing.
+    fn carry(state: &mut Self::State, into: &mut Carried) {}
 }
 ```
+
+The top states (the three owners of §7, the app composite and the root's `Outside`, which in
+the Starter is its own composite) have `Out = Top` (section 05, §1.1): a lock, an end or a
+broadcast is an out routed up, which the runtime handles.
 
 A feature is named by a type: an empty enum whose `State` is the feature's state, or, for a
 step flow, the flow's own state type, which gets `Feature` from the kernel (§9).
@@ -88,7 +101,8 @@ else, as `main`'s Practice toast does; otherwise it calls `F::update`.
   enabled, since both read one function. Held by the signature (`refuses` takes `&View`, which
   `present` has) and by an update test of each refusal (section 07).
 - `refuses` decides from state, the message and `View` only. A message that is an answer (an
-  ask's, a change's, a job's) is never refused: `refuses` matches presses alone.
+  ask's, a change's, a job's) or a laid fact (section 04, §7.3) is never refused: `refuses`
+  matches presses alone.
 
 ### 2.3 What a lock wipes
 
@@ -102,7 +116,8 @@ pub trait AtLock {
     /// at Lock pressed (even while a seal waits), at the idle warning, and
     /// at every step change of a flow (§9).
     fn hide(&mut self);
-    /// Wipe what a lock wipes. Called before the model is dropped.
+    /// Wipe what a lock wipes. Called after the seal and the carry, before
+    /// the scope's states are dropped (section 05, §7.2).
     fn at_lock(&mut self);
 }
 
@@ -117,14 +132,14 @@ pub struct Holds {
 
 **Decision: `AtLock` has `holds`, `hide` and `at_lock`.** Reason: `main`'s clean state, idle lock,
 stick hold and Lock sheet all read `holds`, and its one list of secrets on show (called at Lock
-and at the idle warning) is `hide`; a lock that drops the model still needs both, before the
+and at the idle warning) is `hide`; a lock that drops the scope still needs both, before the
 seal. Turned down: `at_lock` alone, as section 01 sketches, which leaves the runtime no way to
 know a typed secret is held.
 
 - **Rule A11.** `AtLock` is derived on a struct. Every field carries one mark: `#[lock(kept)]`,
   `#[lock(typed)]`, `#[lock(session)]` (each wiped by `at_lock` and counted by `holds` through the
   field type's `Holding` impl), `#[lock(shown)]` (also reset by `hide`) or `#[lock(public)]`
-  (kept until the model drops; the field's type must be `Public`). A field with no mark, or a
+  (kept until the scope drops; the field's type must be `Public`). A field with no mark, or a
   `public` mark on a type that is not `Public`, fails to compile. A state that is an enum (a step
   flow's step, §9) writes its impl by hand and its update test covers `holds`. Held by the derive
   and the compiler. This carries `main`'s listing rule (a new field does not compile until its
@@ -179,7 +194,8 @@ its kind alone. `#[derive(Public)]` on a type requires every field to be `Public
 - **Rule A14.** Only the derive implements `Public` and `__private::Sealed`. `lint-secrets` refuses a
   hand-written `impl Public` or `impl Sealed` outside the kernel, which writes the impls for
   `bool`, the integers, `char`, `Text`, `Fingerprint`, `Network`, `Txid`, `Sha256`, the handles,
-  the port's kinds and ids (`AskId`, `StickId`, `EventKind`), `Option`, `Vec`, arrays and tuples
+  the port's kinds, ids and values (`AskId`, `StickId`, `EventKind`, `Anchor`), the kernel's
+  `Edits` and `Slot`, `Option`, `Vec`, arrays and tuples
   of `Public`. No wiping secret type (`SecretText`, `Secret`, `Bytes`, `EntropyBytes`), no
   `faraday-keys` store and no part holding a typed passphrase is `Public`. Held by the compiler and
   `lint-secrets`. This makes M2 exact.
@@ -200,9 +216,9 @@ an `unsafe trait Public`, which would put `unsafe` on every derive and grow U2's
 // VaultId is faraday-keys'; StickId is the port's.
 ```
 
-**Decision: a handle is an id minted by the session and never reused within a model, not an
-index.** A read through a handle whose thing is gone answers `None`, never another thing.
-Reason: on `main` a wallet's leaving moved or ended every flow that held it by place
+**Decision: a handle is an id minted by the session and never reused within a build of the lock
+scope, not an index.** A read through a handle whose thing is gone answers `None`, never another
+thing. Reason: on `main` a wallet's leaving moved or ended every flow that held it by place
 (`wallet_left`, inventory `features/wallets.md`); with ids, a feature holding a gone id learns of
 it from `Notice::Shared` and ends or moves itself. Turned down: indices into the session's lists.
 Held by the session's id counters (private) and an update test of the session.
@@ -235,6 +251,8 @@ pub enum Fx<M, O> {
     Out(O),
     /// A short line the frame shows (a snackbar), typed (§10).
     Note(Note),
+    /// To the runtime's motion store: where the view goes (section 04, §8.2).
+    View(ViewOrder),
 }
 
 impl<M: Message, O: Message> Effects<M, O> {
@@ -246,6 +264,7 @@ impl<M: Message, O: Message> Effects<M, O> {
     pub fn then(self, m: M) -> Self;
     pub fn out(self, o: O) -> Self;
     pub fn note<W: Worded + Public>(self, n: W) -> Self;
+    pub fn view(self, v: ViewOrder) -> Self;
     /// A composite takes a child's effects into its own (§6).
     pub fn lift<N: Message, P: Message>(self, msg: fn(M) -> N, out: fn(O) -> Route<N, P>) -> Effects<N, P>;
 }
@@ -260,6 +279,8 @@ section 01's sketch of four vectors, whose order across kinds is lost.
   change served at once) are handled before the runtime takes the next event, in the order they
   were returned; a frame is drawn only after. Held by the runtime (section 05) and an update test
   of the runtime.
+- No feature, composite or root names `Order::Exit`, `Order::Clean`, `Ask::Keep` or
+  `Ask::Forget`: only the runtime emits them (section 05, R6). A lock or an end is a `Top` out.
 
 ### 4.2 Asks: `AskFor<M>` exactly
 
@@ -304,6 +325,11 @@ impl<M: Message> Job<M> {
     /// The input is moved in, a secret included; `work` is a function.
     pub fn new<I: Send + 'static>(kind: JobKind, input: I, work: fn(I, &Compute) -> M) -> Self;
     pub fn quiet(self) -> Self;
+    /// The heavy lane, for work that asks Argon2id for memory (section 05, §5.1).
+    /// Only the shared owners' crates call it.
+    pub fn heavy(self) -> Self;
+    /// A seal: it runs to its end at a lock. Only the vault owner's crate calls it.
+    pub fn seal(self) -> Self;
     pub fn map<N: Message>(self, f: fn(M) -> N) -> Job<N>;
 }
 
@@ -315,6 +341,8 @@ A job's input may hold a secret (a vault's passphrase, a PSBT, a MuSig2 round's 
 it is moved in and either dropped on the worker or moved back in the answer (K-3, §8.2 of
 section 01). `faraday-keys`' job types (`SignJob`, `StretchJob`, `SealJob`) are such inputs: the
 key material stays in its types, masters behind the `Arc` the key store already shares.
+`heavy` and `seal` are in the application directories' `clippy.toml` (`disallowed-methods`),
+allowed in the owners' crates, as A35's builders are.
 
 ### 4.4 Notes
 
@@ -325,24 +353,28 @@ impl Note { pub fn new<W: Worded + Public>(w: W) -> Self; }
 
 A note is a typed value the frame's snackbar words when it is drawn (§10). It is how a refused
 press, a written file or a removed key tells the person, and the only text-like effect: an update
-forms no text (A30).
+forms no text (A30). `lift` keeps every note, and the runtime takes each at the top into its note
+queue, which puts one up at a time (section 04, §10).
 
 ## 5. Ctx and View
 
 This answers section 01's question, field by field.
 
 ```rust
-/// What `present` reads. Shared borrows only; no Compute.
+/// What `refuses`, `update` and `present` read. Shared borrows only; no
+/// Compute and no wording (`present` gets the wording in `Show`, section 04 §3).
 pub struct View<'a> {
     pub session: &'a dyn session::Read,     // kernel trait (§7.2), the session owner's state
     pub vaults: &'a dyn vaults::Read,       // kernel trait (§7.2), the vault composite's state
     pub settings: &'a Settings,             // kernel type (§7.2), the settings owner's state
     pub facts: &'a Facts,                   // kernel type, kept by the runtime from port facts
-    pub mode: Mode,                         // kernel type, fixed for the model's life (§11)
+    pub mode: Mode,                         // kernel type, fixed for one build of the scope (§11)
     pub clock: Clock,                       // kernel type: the adapter's time and the person's offset
     pub running: &'a [Running],             // kernel type: jobs on the pool now, for busy lines
-    pub strings: &'static faraday_strings::Strings,
+    pub started: Started,                   // how this build of the scope began (section 05, §7.5)
 }
+
+pub enum Started { Power, Lock, Rebuilt }   // Rebuilt: in process after a failed keep (section 05, §7.6)
 
 /// What `update` reads: the view, and the token for costly work.
 pub struct Ctx<'a> {
@@ -361,27 +393,33 @@ pub struct Facts {
     pub downloads: Option<Downloads>,       // port::HostFact::Downloads, latest
     pub entropy_source: Option<port::EntropySource>,
     pub selftest: SelfTest,                 // Passed | Failed(check) | NotRun
+    pub clean: bool,                        // the runtime's clean marker (section 05, R14)
+    pub system: SystemFacts,                // the Starter's system facts, latest of each (port::SystemFact but WriteProgress)
 }
 
-pub struct Clock { pub now_ms: u64, pub unix_secs: u64, pub offset_secs: i64, pub set: bool }
+pub struct Clock { pub now_ms: u64, pub unix_secs: u64, pub offset_secs: i64, pub set: bool, pub last_input_ms: u64 }
 pub struct Running { pub kind: JobKind, pub began_ms: u64, pub done: u32, pub of: u32 }
 ```
 
-`Facts` holds the latest value of each fact that is a state of the world; the runtime replaces a
-field as its port fact arrives and sends `Notice::Facts`. Facts that are a stream (input devices,
-camera frames and codes, the Starter's system facts) are not in `Facts`: the root maps each to a
-message for the feature that handles it (section 06).
+`Facts` holds the latest value of each fact that is a state of the world, the Starter's system
+facts included; the runtime replaces a field as its port fact arrives and sends `Notice::Facts`.
+Facts that are a stream (input devices and the device check's `DevicesFact`, camera frames and
+codes, a write's progress) are not in `Facts`: the root maps each to a message for the feature
+that handles it (section 06). `Clock::last_input_ms` is the adapter's time of the person's last
+input, kept by the runtime.
 
 - **Rule A17.** `Abilities` reach a feature as `view.facts.abilities`. A feature offers a control
   only where its effect is carried (a Paste only with `clipboard`), through `refuses` (A10), and
   handles the `Unsupported` answer as any failure (P22). This answers section 02's question.
 - **Rule A18.** `View` has no `Compute` and no `&mut`, and `Ctx` adds only `Compute`. A read the
   shared traits give is cheap; a costly derivation (an address list, a merged share pool) is
-  worked out in `update` or a job and kept in state, or memoised by `present` (section 04). Held by
-  the compiler and `costs-lint` (V2).
-- **Rule A19.** A Starter model without a Demo child has no keys: its root lends an empty session
-  and empty vaults (`session::Read` and `vaults::Read` for `()`), so every feature has the same
-  `View`. Held by the types.
+  worked out in `update` or a job and kept in state (`Derived`, section 04 §13). Held by the
+  compiler and `costs-lint` (V2).
+- **Rule A19.** The part of the model outside the lock scope (the Starter's settings owner and its
+  own composite) is lent the empty session and empty vaults (`session::Read` and `vaults::Read`
+  for `()`) whether or not the scope is built (section 05, R26), so every feature has the same
+  `View` and none of the Starter's own reads Faraday Demo's keys. Held by the types and the
+  runtime's dispatch.
 
 **Decision: `Ctx` is `View` plus `Compute`.** Reason: `refuses` and `present` read the same
 facts `update` does, and one struct makes that a type. Turned down: a separate `Ctx` of its own
@@ -411,7 +449,7 @@ pub enum Route<M, O> {
 ```
 
 `lift(msg, out)` maps every `Ask`, `Change` and `Job` with `msg` (the child's variant
-constructor, a `fn`), keeps every `Order`, `Note` and `Stop`, turns each `Then(m)` into
+constructor, a `fn`), keeps every `Order`, `Note`, `View` and `Stop`, turns each `Then(m)` into
 `Then(msg(m))`, and each `Out(o)` into `Then(n)` for `Route::To(n)` or `Out(p)` for
 `Route::Up(p)`, in place. So a child's out reaches its sibling as a queued message to the
 composite, handled before the next event (A15).
@@ -463,13 +501,13 @@ composite is the one place the hand-over is written, and its test is one routing
 
 ### 7.1 Where they sit
 
-**Decision: three features are shared owners, held by the root beside its app composite: the
-session, the vault composite and the settings.** Every other feature reads them through `View` and
-changes them only by a change (§7.3). Reason: the runtime can then lend `&` of the three to `Ctx`
-while it updates the app composite with `&mut`, two disjoint fields of the model; and when it
-serves a change it updates the owner with `&mut` while no `Ctx` borrows it. Turned down: the
-session as a child of the device composite, whose state the composite may not read (A7) and could
-not lend while it updates a sibling.
+**Decision: three features are shared owners, top states held by the runtime beside the app
+composite: the session, the vault composite and the settings.** Every other feature reads them
+through `View` and changes them only by a change (§7.3). Reason: the runtime can then lend `&` of
+the three to `Ctx` while it updates the app composite with `&mut`, two disjoint fields of the
+model; and when it serves a change it updates the owner with `&mut` while no `Ctx` borrows it.
+Turned down: the session as a child of the device composite, whose state the composite may not
+read (A7) and could not lend while it updates a sibling.
 
 The session holds: the key store (`faraday_keys::Keys`), the wallets, what waits (PSBTs waiting
 to be signed, keys held until their backup is written), the Inbox and Outbox (files held), the
@@ -494,19 +532,24 @@ pub mod session {
         fn inbox(&self) -> &[FileView];
         fn outbox(&self) -> &[FileView];
         fn seeded(&self) -> bool;
+        /// Counts every change to what the session holds; a memo's key (section 04, V13).
+        fn edits(&self) -> Edits;
     }
     pub struct WalletView { /* id, name, policy (faraday-bip), origin, source, checked, network */ }
     pub enum Changed { KeyCame(KeyId), KeyGone(KeyId), WalletCame(WalletId), WalletGone(WalletId),
                        FileCame(FileId), FileGone(FileId), HeldReleased(KeyId), Network(Network) }
 }
-pub mod vaults { pub trait Read { fn open(&self) -> &faraday_keys::vault::OpenVaults; /* marks, current */ } }
+pub mod vaults { pub trait Read { fn open(&self) -> &faraday_keys::vault::OpenVaults; fn edits(&self) -> Edits; /* marks, current */ } }
 pub struct Settings { /* idle lock and off minutes, QR speed, time offset, appearance, scale, rotation */ }
+impl Settings { pub fn edits(&self) -> Edits; }
 ```
 
 `WalletView`, `KeyView` and `FileView` are kernel types of public data (A1); `main`'s `Wallet`
 holds no secret (inventory `features/wallets.md`) and becomes `WalletView`, its caches kept by
-the session. A `FileView` of a file holding a secret gives its name, kind and whether it holds
-one, never its bytes; the bytes are taken by a change.
+the session. A `FileView` is public data only: its name, kind and whether it holds a
+secret, never its bytes or any text read from them; the bytes are taken by a change. Text read
+lossily from a file's bytes (to show it) is kept only for a file of a kind that holds no secret,
+in the state of the feature that shows it, and never in `FileView`.
 
 ### 7.3 Changing: `ChangeFor<M>`
 
@@ -548,11 +591,19 @@ reply and routes the message to the asker. A change may move a secret in (typed 
 passphrase, a MuSig2 round): the change is moved, never kept by the runtime beyond its handing
 over; the reply's context is `Public` (A16).
 
+`vaults::Close { seal }` is the one change no feature gives: only the runtime gives it, at a lock
+(section 05, §7.2), under a reply entry of its own whose `Done` the runtime reads and never
+routes. Held by `lint-layers`' module rule: no application crate but the vault owner's names
+`vaults::Close`.
+
 - **Rule A22.** Every change given to an owner is answered exactly once, also when refused. Held
-  by the owner's `update` returning `Done` on every path (an update test per refusal) and by the
-  runtime, which at a lock in debug builds asserts no change waits unanswered.
-- **Rule A23.** A change's answer is dropped if its generation is not the current model's, as P9
-  drops an ask's. Held by the runtime.
+  by the owner's `update` returning `Done` on every path (an update test per refusal).
+- **Rule A23.** A change's answer is dropped if its generation is not the current build of the
+  lock scope's, as P9 drops an ask's; the part outside the scope has generation 0, which is never
+  stale. While the scope is locking or ending, what serves `Close` (the vault owner's asks,
+  changes and seal jobs, their answers and `Done`s) and every answer of generation 0 is
+  delivered; every other answer of the scope is dropped unread and wipes as it drops. Held by the
+  runtime (section 05, R16).
 - **Rule A35.** `faraday-keys`' job builders and store views (`job_view`, `compare_view`, the
   signing, stretch and seal jobs' constructors) are called only in the shared owners' crates, so
   no feature builds a job that passes the session's refusals (a key held for its backup). Held by
@@ -618,13 +669,13 @@ impl Waiting {
 - **Rule A25.** A feature that waits on an answer holds a `Waiting` per kind of answer, puts the
   ticket in the context, and acts on an answer only when `take` is true; a stale answer is dropped
   and its payload wipes as it drops. Back, Cancel and a fact that moves the screen `forget`.
-  Reason: the runtime's generation (P9, A23) drops answers of an older model, and only the
-  feature knows that its own flow was cancelled and begun again. Held by an update test of each
+  Reason: the runtime's generation (P9, A23) drops answers of an older build of the scope, and only
+  the feature knows that its own flow was cancelled and begun again. Held by an update test of each
   feature that starts a job: a stale answer changes nothing.
 - **Rule A26.** While a feature waits (`live`), its `refuses` takes only the presses that keep the
-  screen live (Back and Cancel to leave the wait, scrolling, the eye), and refuses the rest; Back
-  and Cancel are refused while a seal or the made-online check runs. This is `main`'s
-  `taken_while_busy`, per feature. Held by A10 and the feature's update tests.
+  screen live (Back and Cancel to leave the wait, the eye), and refuses the rest; Back and Cancel
+  are refused while a seal or the made-online check runs. This is `main`'s `taken_while_busy`, per
+  feature. Held by A10 and the feature's update tests.
 
 ### 8.2 Busy lines and progress
 
@@ -638,11 +689,14 @@ and the `Running` of its `JobKind`; a `quiet` job shows none.
   not started is dropped (its input wipes), and a running one sees `Compute::stop_asked()` true,
   which costly work checks between its counted pieces and then returns its `Stopped` answer. A
   ticket made stale is enough for correctness; `Stop` frees the worker and ends the input sooner.
-- **Rule A28.** No job's input outlives the model that made it. At a lock the runtime drops every
-  job not started, asks every running one to stop, and builds the next model (in Faraday Demo,
-  the Starter, or after a failed keep with keys waiting for their backup) only once every running
-  job has returned and its answer has been dropped. On the device the process ends anyway. Held by
-  the runtime (section 05) and a test of the runtime with a job that blocks until stopped.
+- **Rule A28.** No job's input outlives the lock scope that made it. When the scope ends (a lock,
+  an end, the Starter's Close) the runtime drops every job of the scope not started and asks
+  every running one to stop, but a seal, which runs to its end at a lock; it builds the next scope
+  (in Faraday Demo, in the Starter's Faraday Demo, or after a failed keep with an only copy) only
+  once every running job has returned. Of their answers, what serves `Close` is delivered (A23)
+  and the rest is dropped and wiped. Jobs of generation 0, outside the scope, are not stopped. On
+  the device the process ends anyway. Held by the runtime (section 05, R16) and a test of the
+  runtime with a job that blocks until stopped.
 
 ## 9. Step flows
 
@@ -683,6 +737,8 @@ pub trait StepFlow: AtLock + Sized + 'static {
     fn refuses(&self, m: &Self::Own, view: &View<'_>) -> Option<Self::Refusal>;
     /// The flow is cancelled. No effects: a Cancel can order nothing.
     fn cancelled(&mut self) -> Ending;
+    /// At a lock: what the next build's `start` needs (§2.1). Most flows carry nothing.
+    fn carry(&mut self, into: &mut Carried) {}
 }
 
 pub enum FlowMsg<S, M> { Forward, Back, ForwardAgain, Open(S), Cancel, CancelSure, CancelNot, Own(M) }
@@ -696,9 +752,15 @@ impl<F: StepFlow> Feature for F {
     type Msg = FlowMsg<F::Step, F::Own>;
     type Out = F::Out;
     type Refusal = FlowRefusal<F::Refusal>;
-    // update is the runner (§9.2); start, notice and refuses call F's.
+    // update is the runner (§9.2); start, notice, refuses and carry call F's
+    // (carry forwards to `state.inner`).
 }
 ```
+
+`Flow`'s fields are the kernel's: `inner` is the flow's own state, `asking` the loss Cancel asks
+about, `refused` the refusal the foot shows, `again` the step `ForwardAgain` opens. Neither
+`StepFlow` nor `Flow` has a press type: a flow's presses are the presentation kernel's
+`FlowPress` (section 04, §2.1, §5), which becomes a `FlowMsg`.
 
 **Decision: a step flow implements `StepFlow` and gets `Feature` from the kernel's one blanket
 impl, whose `update` is the step-flow runner.** Reason: Back, Forward, Cancel, the hide on a step
@@ -790,9 +852,10 @@ pub enum Refusal {
 ```rust
 /// A typed value the person is told about. Implemented in the feature's
 /// `present` module, by an exhaustive match. Object-safe: a `Note` boxes one;
-/// the `Public` bound is on `Note::new` and on `Refused`.
+/// the `Public` bound is on `Note::new` and on `Refused`. Worded only where a
+/// `Show` is (section 04, §3), so never in `update`.
 pub trait Worded: Send + 'static {
-    fn words(&self, s: &'static Strings) -> Line;
+    fn words(&self, show: &Show<'_>) -> Line;
 }
 pub enum Line { Fixed(&'static str), Filled(Text) }   // Filled: faraday_strings::fill of a template
 
@@ -819,14 +882,14 @@ pub trait Refused: Worded + Public {
 
 ## 11. Practice
 
-`Mode` is fixed for a model's life:
+`Mode` is fixed for one build of the lock scope:
 
 ```rust
 #[derive(Public, Copy, PartialEq, Eq)]
 pub struct Mode { pub network: Network, pub practice: bool, pub online: bool }
 ```
 
-The root picks the mode a model starts in (Faraday Demo and the Starter's Demo: Testnet,
+The root picks the mode a build of the scope starts in (Faraday Demo, also in the Starter: Testnet,
 Practice, online); a person's change of mode is kept in the carry and takes effect at the lock it
 asks for, as on `main` (inventory `features/settings-time.md`, `features/practice-demo.md`).
 
@@ -849,8 +912,9 @@ asks for, as on `main` (inventory `features/settings-time.md`, `features/practic
 ## 12. Writing a file that may hold a secret
 
 A feature forms every write as one ask carrying the file's whole bytes: `StorageAsk::Write`,
-`HostAsk::Save`, `Ask::Print` and `Ask::Keep`. The port has no append and no partial write, so a
-write in pieces cannot be formed. Every file's bytes may hold a secret (P14).
+`HostAsk::Save` and `Ask::Print` (the carry's `Ask::Keep` is the runtime's alone, §4.1). The port
+has no append and no partial write, so a write in pieces cannot be formed. Every file's bytes may
+hold a secret (P14).
 
 - **Rule A34.** A file that may hold a secret is written whole or not at all: the adapter writes
   it under a temporary name in the same folder, reads it back (P11), then renames it to its name;
@@ -865,21 +929,21 @@ write in pieces cannot be formed. Every file's bytes may hold a secret (P14).
 | Rule | What it says, short | Held by |
 |---|---|---|
 | A9, A10 | one gate, `refuses`, for update and drawing | `route`; `lint-layers`' module rule; update tests |
-| A11, A12 | every state field says what a lock does; nothing held after `at_lock` | the `AtLock` derive; a runtime assertion; update tests |
+| A11, A12 | every state field says what a lock does; nothing held after `at_lock` | the `AtLock` derive; the runtime's debug assertion; update tests |
 | A13 | a screen left drops what it held | `notice` with no default; update tests |
 | A14 | only the derive makes a type `Public` | the derive; the compiler; `lint-secrets` |
-| A15 | an event settles before the next | the runtime; a runtime test |
+| A15 | an event settles before the next; no feature names the runtime's orders | the runtime; a runtime test; `lint-layers` (section 05, R6) |
 | A16 | replies hold a `Public` context and `fn`s | private fields; `clippy.toml` on `into_parts` |
-| A17 to A19 | `Ctx` and `View`, abilities, no `Compute` in `View` | the types; `costs-lint` |
+| A17 to A19 | `Ctx` and `View`, abilities, no `Compute` in `View`, the empty readers outside the scope | the types; `costs-lint`; the runtime's dispatch |
 | A20, A21 | composites route, never call a sibling | A9; the derive |
-| A22 to A24 | a change is answered once, by its owner | update tests of the owners; the runtime; `lint-layers` (`owner`) |
+| A22 to A24 | a change is answered once, by its owner; answers of a dropped scope dropped, `Close`'s delivered | update tests of the owners; the runtime; `lint-layers` (`owner`, `vaults::Close`) |
 | A25, A26 | stale answers dropped by ticket; presses while waiting | update tests |
-| A27, A28 | stopping jobs; no job input outlives its model | the runtime; a runtime test |
+| A27, A28 | stopping jobs; no job input outlives its scope, a seal runs to its end | the runtime; a runtime test |
 | A29 | Back, Cancel, hide and refusals of every step flow | the blanket impl; the kernel's runner tests |
 | A30, A31 | refusals typed; worded exhaustively in `present` | `lint-layers`; `lint-strings`; clippy |
 | A32, A33 | Practice refuses at the gate and at the key boundary | update tests; `faraday-keys` |
 | A34 | a secret file written whole or not at all | the port's types; the adapters; an adapter test |
-| A35 | only the owners build `faraday-keys`' jobs and views | `clippy.toml` |
+| A35 | only the owners build `faraday-keys`' jobs and views, and call `Job::heavy` and `Job::seal` | `clippy.toml` |
 
 ## Changes asked of earlier sections
 
