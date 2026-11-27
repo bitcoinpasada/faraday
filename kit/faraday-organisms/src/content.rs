@@ -123,14 +123,8 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
         Block::Hold(m) => faraday_atoms::hold::draw(m, ui, at),
         Block::Field(m) => faraday_atoms::field::draw(m, ui, at),
         // The blocks below draw in the molecules and organisms that are not yet ported.
-        Block::Choose(m) => {
-            faraday_molecules::options::draw(m, ui);
-            0.0
-        }
-        Block::Pass(m) => {
-            faraday_molecules::pass::draw(m, ui);
-            0.0
-        }
+        Block::Choose(m) => faraday_molecules::options::draw(m, ui, at),
+        Block::Pass(m) => faraday_molecules::pass::draw(m, ui, at),
         Block::Words(m) => faraday_molecules::words::draw(m, ui, at),
         Block::Pad(m) => faraday_molecules::pads::draw(m, ui, at),
         Block::Code(m) => faraday_molecules::qr::draw(m, ui, at),
