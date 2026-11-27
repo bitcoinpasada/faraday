@@ -287,3 +287,36 @@ opt-level = 2
 opt-level = 2
 [profile.dev.package.faraday-entropy]
 opt-level = 2
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+strip = true
+debug = 0
+
+# A fade's step and the stick's frame for the panel, at speed rather than
+# size: both are loops over every byte of the frame, which opt-level "s"
+# does not vectorise. At 1366 × 768 on the build machine a blend is
+# 2.0 ms at "s" and 0.5 at 3, and the panel conversion 0.8 and 0.5
+# (2026-10-22).
+[profile.release.package.faraday-draw]
+opt-level = 3
+[profile.release.package.faraday-stick]
+opt-level = 3
+
+# The parsers of what the device takes in (a PSBT, a file, a QR code, the
+# stick's file system) add and multiply lengths they read from that input.
+# A release build does not check arithmetic overflow by default, so a wrap
+# would read on at a wrong bound; with the checks on, a wrap stops the app
+# (`panic = "abort"`) rather than reading on. The device and its images
+# build with this profile.
+[profile.release.package.faraday-bip]
+overflow-checks = true
+[profile.release.package.faraday-codec]
+overflow-checks = true
+[profile.release.package.faraday-fat]
+overflow-checks = true
+[profile.release.package.faraday-psbt]
+overflow-checks = true
