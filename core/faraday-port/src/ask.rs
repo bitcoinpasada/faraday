@@ -2,7 +2,7 @@
 
 use core::fmt;
 
-use faraday_text::{SecretText, Text};
+use faraday_text::{Text, secret::SecretText};
 
 use crate::bytes::Entropy as EntropyAnswer;
 use crate::camera;
@@ -26,6 +26,10 @@ pub trait Request: Into<Ask> {
     type Answer;
     /// Takes this ask's answer out of the port's enum; any other variant
     /// is the adapter's fault.
+    #[expect(
+        clippy::result_large_err,
+        reason = "the port's enums carry the domain's real types, which differ in size; a value is moved once through the queue"
+    )]
     fn take(answer: Answer) -> Result<Self::Answer, Answer>;
     /// This ask's answer when the adapter gave the wrong one (P9).
     fn fault() -> Self::Answer;

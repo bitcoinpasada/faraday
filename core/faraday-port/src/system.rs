@@ -4,7 +4,7 @@
 use alloc::vec::Vec;
 use core::fmt;
 
-use faraday_text::{SecretText, Text};
+use faraday_text::{Text, secret::SecretText};
 
 use crate::ask::request;
 

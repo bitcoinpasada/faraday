@@ -36,16 +36,28 @@ pub(crate) use change;
 /// Every change's own type implements this; the mirror of `port::Request`.
 pub trait Change: Into<AnyChange> {
     type Done;
+    #[expect(
+        clippy::result_large_err,
+        reason = "the kernel's enums carry the domain's real types, which differ in size; a value is moved once"
+    )]
     fn take(done: Done) -> Result<Self::Done, Done>;
     fn fault() -> Self::Done;
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the kernel's enums carry the domain's real types, which differ in size; a value is moved once"
+)]
 pub enum AnyChange {
     Session(session::Change),
     Vaults(vaults::Change),
     Settings(settings::Change),
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the kernel's enums carry the domain's real types, which differ in size; a value is moved once"
+)]
 pub enum Done {
     Session(session::Done),
     Vaults(vaults::Done),

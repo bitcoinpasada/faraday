@@ -14,6 +14,10 @@ use crate::system::{Computer, Concern, DevImage, Disk, Installed, WriteStage};
 use crate::values::{Display, Medium, Point};
 
 /// `Event` and `Answer` are neither `Clone` nor `Public` (02 §6).
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the port's enums carry the domain's real types, which differ in size; a value is moved once through the queue"
+)]
 pub enum Event {
     /// First, exactly once per process. Nothing else comes before it.
     Start(Start),

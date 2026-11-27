@@ -7,7 +7,7 @@ use faraday_keys::{Keys, Refusal};
 use faraday_port::bytes::{Bytes, Entropy, EntropyBytes};
 use faraday_port::storage::Sha256;
 use faraday_psbt::MusigSession;
-use faraday_text::{SecretText, Text};
+use faraday_text::{Text, secret::SecretText};
 
 use super::change;
 use crate::cx::Edits;
@@ -129,6 +129,10 @@ pub struct Confirm {
     pub source: WalletSource,
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the kernel's enums carry the domain's real types, which differ in size; a value is moved once"
+)]
 pub enum AddRefusal {
     Unconfirmed(Confirm),
     Refused(Refusal),
@@ -244,6 +248,10 @@ pub enum Change {
     Release(Release),
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the kernel's enums carry the domain's real types, which differ in size; a value is moved once"
+)]
 pub enum Done {
     AddKey(Result<KeyId, Refusal>),
     RemoveKey(Result<(), Refusal>),

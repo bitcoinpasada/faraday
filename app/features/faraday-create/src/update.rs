@@ -16,6 +16,10 @@ pub enum Step {
 
 /// Why a step or a message is refused (03 §9.3).
 #[derive(Public)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the enum carries the domain's real types, which differ in size; a value is moved once"
+)]
 pub enum Refusal {
     NoKind,
     BackupFormUnanswered,

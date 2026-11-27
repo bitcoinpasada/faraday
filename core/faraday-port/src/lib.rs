@@ -44,6 +44,10 @@ pub trait Waker: Send + Sync {
     fn wake(&self);
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the port's enums carry the domain's real types, which differ in size; a value is moved once through the queue"
+)]
 pub enum Effect {
     Ask(AskId, Ask),
     Order(Order),
