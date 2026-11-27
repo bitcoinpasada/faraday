@@ -899,6 +899,7 @@ dependencies = [
  "faraday-signing-area",
  "faraday-strings",
  "faraday-templates",
+ "faraday-text",
  "faraday-tools-area",
  "faraday-wallets-area",
 ]
@@ -922,6 +923,7 @@ dependencies = [
  "faraday-settings",
  "faraday-strings",
  "faraday-templates",
+ "faraday-text",
  "faraday-vaults",
 ]
 

@@ -134,6 +134,7 @@ mod tests {
                         current: i == 0,
                         badge: nav::Badge::None,
                         flows: 0,
+                        bar: true,
                     })
                     .collect(),
                 many: Shown::plain("999+"),

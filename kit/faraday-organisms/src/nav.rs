@@ -48,6 +48,9 @@ pub struct Dest<'s, A> {
     pub badge: Badge,
     /// How many flows in progress stand there, on its icon too.
     pub flows: usize,
+    /// The bar draws it as well as the rail: the bar keeps five destinations, the rail up to
+    /// seven (`main`'s rule).
+    pub bar: bool,
 }
 
 /// The destinations, the Scan button, the power button, the app's name and the lock tag: one
@@ -256,8 +259,9 @@ pub fn draw<A: Pressed>(_m: &NavModel<'_, A>, _ui: &mut Ui<'_, A>) {
 /// no rule along its top (Material's navigation bar), its destinations evenly spaced.
 pub fn draw_bar<A: Pressed>(m: &NavModel<'_, A>, ui: &mut Ui<'_, A>, (y, w): (f32, f32)) {
     ui.fill(0.0, y, w, NAV_BAR_H, 0.0, Role::SurfaceContainer);
-    let iw = w / m.dests.len().max(1) as f32;
-    for (i, d) in m.dests.iter().enumerate() {
+    let on_bar = || m.dests.iter().filter(|d| d.bar);
+    let iw = w / on_bar().count().max(1) as f32;
+    for (i, d) in on_bar().enumerate() {
         item(ui, (i as f32 * iw, y, iw, NAV_BAR_H), d, m.many);
     }
 }

@@ -54,12 +54,6 @@ impl State {
         (state, effects)
     }
 
-    /// Home's state.
-    #[must_use]
-    pub fn home(&self) -> &faraday_home::State {
-        &self.home
-    }
-
     /// The power feature's state.
     #[must_use]
     pub fn power(&self) -> &faraday_power::State {

@@ -34,6 +34,14 @@ fn words_in(text: &str, find: &str) -> bool {
         .all(|word| hay.contains(&fold(word)))
 }
 
+/// What the bar's search field shows, told to the parent after each edit of it (03 §6).
+fn search(state: &State) -> Effects<Msg, Out> {
+    Effects::none().out(Out::Search {
+        typed: faraday_text::Text::of(state.typed()),
+        focused: state.focused(),
+    })
+}
+
 impl Feature for Home {
     type State = State;
     type Msg = Msg;
@@ -48,11 +56,11 @@ impl Feature for Home {
         match msg {
             Msg::Press(Press::Focus) => {
                 state.focus();
-                Effects::none()
+                search(state)
             }
             Msg::Press(Press::Clear) => {
                 state.clear();
-                Effects::none()
+                search(state)
             }
             Msg::Press(Press::Make) => Effects::none().out(Out::CreateWallet),
             Msg::Press(Press::Restore) => Effects::none().out(Out::RestoreWallet),
@@ -61,12 +69,12 @@ impl Feature for Home {
             Msg::Typed(c) => {
                 state.type_char(c);
                 state.set_found(found(state.typed()));
-                Effects::none()
+                search(state)
             }
             Msg::Erase => {
                 state.erase();
                 state.set_found(found(state.typed()));
-                Effects::none()
+                search(state)
             }
         }
     }

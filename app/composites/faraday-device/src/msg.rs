@@ -51,6 +51,11 @@ pub enum Out {
     Sample(SampleAsk),
     /// A lock, an end, a broadcast.
     Top(Top),
+    /// Home's search field changed: the words typed and whether the typing goes to it.
+    Search {
+        typed: faraday_text::Text,
+        focused: bool,
+    },
 }
 
 /// What a press on a child's page sends.

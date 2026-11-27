@@ -16,6 +16,7 @@ use faraday_molecules::words::WordGridModel;
 use faraday_molecules::{flow_text, row, status};
 use faraday_tokens::dims::{BODY_M, BODY_S, GAP, GAP_SMALL};
 use faraday_tokens::palette::Role;
+use faraday_tokens::type_roles::sheet_head;
 
 use crate::board::BoardModel;
 use crate::chart::{ChartModel, WalletCardModel};
@@ -29,6 +30,9 @@ pub struct Content<'s, A>(pub Vec<Block<'s, A>>);
 
 pub enum Block<'s, A> {
     Heading(Shown<'s>),
+    /// A headline: a dialog's head in Material's headline (headline small, title large on a
+    /// small panel), for a feature that says "headline" without naming a type role.
+    Headline(Shown<'s>),
     /// Bold and plain runs.
     Para(FlowText<'s>),
     Fact {
@@ -96,6 +100,11 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
         Block::Heading(s) => ui.showing(*s, |ui| {
             ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, s.as_str());
             ui.advance_as(BODY_S, 22.0)
+        }),
+        Block::Headline(s) => ui.showing(*s, |ui| {
+            let role = sheet_head(ui.compact);
+            let h = ui.wrap_as((x, y, w), role, Role::OnSurface, s.as_str());
+            h + GAP
         }),
         Block::Para(m) => flow_text::draw(m, ui, at),
         Block::Fact { label, value, mono } => fact(ui, at, (*label, *value, *mono)),

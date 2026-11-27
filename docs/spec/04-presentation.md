@@ -178,7 +178,9 @@ over it are the product crate's `Body` and `Over` enums, one variant per page mo
 pub struct ScreenModel<'s, B, O, R: Pressed> {
     /// Which page: the motion store's scope (§8) and the page turn's.
     pub page: Anchor,
-    /// The screen template's model: navigation, top app bar, pills, busy line (§12.4).
+    /// The screen template's model: navigation, top app bar, pills, busy line (§12.4). The top
+    /// bar's `power` is the Power control a device app shows (a press and its label); a bar
+    /// without one leaves it `None`.
     pub frame: kit::screen::FrameModel<'s, R>,
     /// The page under the sheets: one variant per page the root holds.
     pub body: B,

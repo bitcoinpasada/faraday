@@ -815,6 +815,9 @@ ordinary output (R4); the runtime has no hook for them.
 impl<R: Root> Runtime<R> {
     /// What the last frame shows and keeps, and what the last event did.
     pub fn seen(&self) -> Seen<'_>;
+    /// The last frame's hit list: each press drawn with its message kind and layer. The tour
+    /// root reads it to press by kind (`Pressed::kind`, 07 §5.2).
+    pub fn hits(&self) -> &[Hit<R::Press>];
     /// Turn the ink record on (04 V21). The tour root's, the leak crate's and test support's
     /// only (clippy `disallowed-methods`).
     pub fn record_ink(&mut self, on: bool);
@@ -830,6 +833,8 @@ pub enum Mark { LockBegun, Hidden, Hides, ModelDropped, ModelBuilt }
 pub struct KeptImage<'a> { pub id: ComponentId, pub taken_at: u64, pub secret: bool, pub pixels: &'a [u8] }
 ```
 
+- `Seen::kept` is empty until a feature keeps an image: nothing built yet keeps a sheet's frost
+  or a fade's frame.
 - The ink record keeps every string the frame drew with its box, secret text too, marked secret
   (04 §11), so the screens check reads both. It is a wiping list, replaced at the next frame and
   dropped at a lock.
@@ -841,9 +846,10 @@ pub struct KeptImage<'a> { pub id: ComponentId, pub taken_at: u64, pub secret: b
   `Notice::Left` is sent inside the app by its navigation and the runtime does not see it (but the
   one it sends at the Starter's Close, §2.3); leaving a page or a sheet is a change of `page` or `sheets` between two frames, which the check reads
   instead.
-- A leak flow runs with `Workers::Threads`. After a lock that ends the process, `phase()` is
-  `Ended` once the scope is dropped and every job has returned (R16), and the scan runs then, over
-  the root's thread and the lane threads, which live on but hold nothing of the dropped scope.
+- A leak flow runs with `Workers::Inline` (decided 2026-11-27: a runtime lane is a thread the
+  scan cannot arm, so a flow's jobs run on the flow's own thread, which the scan lists). After a
+  lock that ends the process, `phase()` is `Ended` once the scope is dropped and every job has
+  returned (R16), and the scan runs then, over the flow's thread.
   After a lock in Faraday Demo or the Starter, the scan runs again once `ModelBuilt` is marked;
   after the Starter's Close, once `ModelDropped` is.
 - **Rule R25.** `seen` is read-only and present in every build. Held by its signature (`&self`)

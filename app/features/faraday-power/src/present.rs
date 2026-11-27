@@ -84,7 +84,7 @@ impl Present for Power {
                 vec![on(s.idle_warn_keep_working, Style::Filled, Press::Away)],
             ),
         };
-        let mut blocks = vec![Block::Heading(Shown::plain(title))];
+        let mut blocks = vec![Block::Headline(Shown::plain(title))];
         if !then.is_empty() {
             blocks.push(Block::Heading(Shown::plain(then)));
         }

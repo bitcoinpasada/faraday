@@ -63,6 +63,7 @@ pub(crate) fn home_out(out: faraday_home::Out) -> Route<Msg, Out> {
         ))),
         H::SpendBackup => Route::Up(Out::Open(Page::Signing(faraday_signing_area::Page::Spend))),
         H::GuideWord(_) => Route::Up(Out::Front(Some(FrameSheet::Guide))),
+        H::Search { typed, focused } => Route::Up(Out::Search { typed, focused }),
     }
 }
 

@@ -35,6 +35,10 @@ impl Feature for App {
                 let _left = state.parts().1.nav_mut().open(page);
                 Effects::none()
             }
+            Msg::Find { typed, focused } => {
+                state.set_find(typed, focused);
+                Effects::none()
+            }
             Msg::Press(AppPress::Back) => back(state, cx),
             Msg::Press(AppPress::Forward) => {
                 let _left = state.parts().1.nav_mut().forward();
@@ -91,6 +95,7 @@ fn out(out: faraday_device::Out) -> Route<Msg, Top> {
         Out::Open(page) => Route::To(Msg::Open(Page::Device(page))),
         Out::Front(sheet) => Route::To(Msg::Front(sheet)),
         Out::Top(top) => Route::Up(top),
+        Out::Search { typed, focused } => Route::To(Msg::Find { typed, focused }),
         // Nothing built sends a scan, a camera hold or a sample yet.
         Out::Leave(_) | Out::Camera(_) | Out::Sample(_) => todo!(),
     }

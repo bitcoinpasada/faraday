@@ -351,7 +351,9 @@ frame showed one and that is still kept after the event is a hit. A hit fails th
   between two frames (leaving a page, a sheet closed). A hiding press (an eye, Show pressed
   again) is one whose variant of the page's press type carries `#[hides]`, read through
   `#[derive(Pressed)]`. `Notice::Left` is sent inside the app by its navigation and is not
-  visible to the check; the change of page stands for it. Reason: `main` found a hide by words in
+  visible to the check; the change of page stands for it. `Pressed::kind()` gives a press's
+  message kind (`"<crate>.<Variant>"`, from the derive), by which the tour root presses and
+  `HitLook.message` names a hit. Reason: `main` found a hide by words in
   the action's name; a mark on the variant is the page's own statement. Held by the check and the
   derive.
 
@@ -432,8 +434,9 @@ test binary of its own, never in a binary of update tests.
 on the runtime, the device composite, the shared owners and the tour root's fixture adapters (a
 library, section 06), which a tool may (section 01, T1). A flow plants a test secret through the
 app's input, runs the screens that handle it, and ends with a lock the runtime carries out
-(`hide`, `at_lock`, the model dropped); the scan then runs over the thread's live blocks and over
-the worker's. A flow for a Demo or Starter lock, which rebuilds the model in process, scans after
+(`hide`, `at_lock`, the model dropped); the scan then runs over the thread's live blocks. The flows run with `Workers::Inline`
+(decided 2026-11-27): a runtime lane is a thread the scan cannot arm, so a job runs on the flow's
+own thread, which the scan lists. A flow for a Demo or Starter lock, which rebuilds the model in process, scans after
 the rebuild as well. Reason: only the runtime drops a model as a lock does, and a scan of live
 blocks after that drop is the in-scope rule exactly. Turned down: leak flows inside each feature's
 update tests, which would put the allocator in every feature's test binary and end without the

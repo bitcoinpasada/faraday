@@ -125,6 +125,8 @@ fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> Fram
             current: here == Some(dest),
             badge: Badge::None,
             flows: 0,
+            // The bar keeps five destinations; Check and Settings are the rail's (`main`).
+            bar: !matches!(dest, Dest_::Check | Dest_::Settings),
         }
     })
     .collect();
@@ -138,12 +140,11 @@ fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> Fram
         Some(Dest_::Settings) => s.compact_settings,
         None => "",
     };
-    let home = app.device().home();
     let search = (shown == Page::Device(faraday_device::Page::Home)).then(|| BarSearch {
         field: SearchBarModel {
-            typed: Shown::plain(home.find()),
+            typed: Shown::plain(app.find()),
             hint: Shown::plain(s.home_search_hint),
-            focused: home.focused(),
+            focused: app.find_focused(),
             here: Press::App(AppPress::Device(faraday_device::Press::Home(
                 faraday_home::Press::Focus,
             ))),

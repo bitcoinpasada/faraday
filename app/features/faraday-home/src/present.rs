@@ -73,8 +73,9 @@ fn something_loaded(view: &View<'_>) -> bool {
     view.session.keys().all().next().is_some() || !view.session.wallets().is_empty()
 }
 
-/// Nothing loaded: the lead (Make a new wallet, the first job when none other waits) and the
-/// three first actions. Wallet cards and the other jobs are not built here.
+/// Nothing loaded: the three first actions, the first of them Make a new wallet. No lead stands
+/// above them: on the bar's and the rail's windows Make a new wallet is the first action and
+/// nothing leads (`main`'s Home §2). Wallet cards and the other jobs are not built here.
 fn first_run<'s>(state: &State, view: &View<'s>, show: &Show<'s>) -> Vec<Section<'s, Press>> {
     if something_loaded(view) {
         return Vec::new();
@@ -88,25 +89,14 @@ fn first_run<'s>(state: &State, view: &View<'s>, show: &Show<'s>) -> Vec<Section
         tags: Vec::new(),
         offered: gate(state, view, press),
     };
-    vec![
-        Section {
-            label: None,
-            body: Body::Tiles(vec![face(
-                Icon::Wallet,
-                s.home_lead_make_a_new,
-                s.home_lead_single_key,
-                Press::Make,
-            )]),
-        },
-        Section {
-            label: Some(Shown::plain(s.home_ways_start)),
-            body: Body::Tiles(vec![
-                face(Icon::Flag, s.home_ways_make_a_new, "", Press::Make),
-                face(Icon::Wallet, s.home_ways_restore_wallet, "", Press::Restore),
-                face(Icon::Sign, s.home_ways_spend_backup, "", Press::SpendBackup),
-            ]),
-        },
-    ]
+    vec![Section {
+        label: None,
+        body: Body::Tiles(vec![
+            face(Icon::Flag, s.home_ways_make_a_new, "", Press::Make),
+            face(Icon::Wallet, s.home_ways_restore_wallet, "", Press::Restore),
+            face(Icon::Sign, s.home_ways_spend_backup, "", Press::SpendBackup),
+        ]),
+    }]
 }
 
 /// The guide words the typed words found, each a row whose press opens the guide at it, or the

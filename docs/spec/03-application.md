@@ -502,6 +502,11 @@ composite, handled before the next event (A15).
   and its `AtLock` is the derive over its children's states (each `#[lock(...)]` field a child).
   Held by A11.
 
+A product builds its own `frame_model`: a destination's press names the app's page, owner pages
+included, which the composite's `frame_model` cannot serve for two apps. What the bar shows of a
+child (Home's typed words) reaches the product as that child's out, which the product keeps in its
+own state (S13); the product reads no child's state.
+
 ### 6.1 Worked example: Make a new wallet, then Back up
 
 Inventory `features/create-wallet.md` and `features/wallet-backup.md`: Continue on Check marks the

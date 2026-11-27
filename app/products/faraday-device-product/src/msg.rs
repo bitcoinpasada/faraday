@@ -12,6 +12,11 @@ pub enum Msg {
     Front(Option<FrameSheet>),
     /// A page is shown (06 §4.3), from a destination or a child's `Out::Open`.
     Open(Page),
+    /// Home's search field changed (from the composite's `Out::Search`): the bar shows it.
+    Find {
+        typed: faraday_text::Text,
+        focused: bool,
+    },
 }
 
 impl From<AppPress> for Msg {

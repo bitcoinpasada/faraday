@@ -27,6 +27,11 @@ pub enum Out {
     SpendBackup,
     /// Open the guide at the glossary word in this place of `faraday_guide::glossary`.
     GuideWord(u32),
+    /// The words typed in the search and whether the typing goes to it: the bar shows them.
+    Search {
+        typed: faraday_text::Text,
+        focused: bool,
+    },
 }
 
 /// What a press on this feature's page sends.
