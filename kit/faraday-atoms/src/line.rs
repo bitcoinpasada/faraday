@@ -388,6 +388,15 @@ impl<A: Pressed> Ui<'_, A> {
         )
     }
 
+    /// Where `s` in `role` wrapped `max` wide breaks: the byte its first line ends at.
+    pub fn first_line_end(&self, role: TypeRole, s: &str, max: f32) -> usize {
+        let role = self.stepped(role);
+        let face = self.face(role.size, role.face.into());
+        text::wrap(&face, s, self.px(max))
+            .first()
+            .map_or(s.len(), |&(_, end)| end)
+    }
+
     /// The lines [`Ui::wrapped_as`] breaks `s` into at `width`.
     pub fn wrap_ranges(
         &self,

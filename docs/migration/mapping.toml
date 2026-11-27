@@ -2949,9 +2949,10 @@ changed = ["split by part; qr_code takes its secret-wiping from kit/faraday-draw
 
 [[module]]
 main = "faraday/faraday-ui/src/roles.rs"
-fate = "copy"
-next = ["kit/faraday-molecules/src/flow_text.rs"]
-changed = ["text roles and the size set's text field and list item"]
+fate = "port"
+next = ["kit/faraday-atoms/src/line.rs", "kit/faraday-molecules/src/row.rs"]
+feature = ["ui-controls"]
+changed = ["text roles and the size set's text field are the atoms' line helpers; the list item is the row molecule"]
 
 [[module]]
 main = "faraday/faraday-ui/src/tabs.rs"
@@ -2976,9 +2977,9 @@ changed = ["the switch moves to the atoms as a model and Ui::switch_with; its pr
 [[module]]
 main = "faraday/faraday-ui/src/flow.rs"
 fate = "port"
-next = ["kit/faraday-molecules/src/buttons.rs", "kit/faraday-molecules/src/pads.rs"]
+next = ["kit/faraday-molecules/src/flow_text.rs"]
 feature = ["flow-container"]
-changed = ["the flow's chrome pieces; the flow container itself is kit/faraday-templates/src/flow.rs"]
+changed = ["the bold-run paragraph is the flow text molecule; the flow container itself is kit/faraday-templates/src/flow.rs"]
 
 [[module]]
 main = "faraday/faraday-ui/src/sheet.rs"
@@ -3057,9 +3058,9 @@ changed = ["one file for the nav organism"]
 [[module]]
 main = "faraday/faraday-ui/src/nav/chip.rs"
 fate = "port"
-next = ["kit/faraday-molecules/src/chips.rs"]
+next = ["kit/faraday-molecules/src/status.rs"]
 feature = ["ui-navigation"]
-changed = ["09 §3.1 puts nav::chip at the molecules"]
+changed = ["the status chip is the status molecule (04 §12.1); chip sets are chips.rs"]
 
 [[module]]
 main = "faraday/faraday-ui/src/pal/mod.rs"
@@ -4864,8 +4865,9 @@ feature = ["settings-time", "menu-pages"]
 [[module]]
 main = "faraday/faraday-core/src/screens/sheets.rs"
 fate = "port"
-next = ["kit/faraday-organisms/src/sheet.rs", "app/features/faraday-power/src/present.rs", "app/features/faraday-power/src/model.rs"]
+next = ["kit/faraday-organisms/src/sheet.rs", "kit/faraday-molecules/src/guide_block.rs", "app/features/faraday-power/src/present.rs", "app/features/faraday-power/src/model.rs"]
 feature = ["sheets-parts"]
+changed = ["the guide page's text (guide_body, guide_page, guide_contents) is the guide block molecule"]
 
 [[module]]
 main = "faraday/faraday-core/src/screens/sidebar.rs"

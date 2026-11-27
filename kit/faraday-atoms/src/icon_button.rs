@@ -55,6 +55,12 @@ impl<A: Pressed> Ui<'_, A> {
         }
     }
 
+    /// Marks the box (x, y, w, h), units, as an icon-only control `owner` that a plain tooltip
+    /// names: `label` is the action, a word or two, never an explanation.
+    pub fn tip_plain(&mut self, r: (f32, f32, f32, f32), owner: &A, label: &str) {
+        self.tip_anchor(r, owner, label);
+    }
+
     /// The tooltip anchors this frame drew, in the order drawn.
     pub fn take_tips(&mut self) -> Vec<TipAnchor<A>> {
         std::mem::take(&mut self.tips)

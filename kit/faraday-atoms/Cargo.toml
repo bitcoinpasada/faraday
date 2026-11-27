@@ -13,6 +13,10 @@ faraday-port = { path = "../../core/faraday-port" }
 faraday-text = { path = "../../core/faraday-text" }
 faraday-codec = { path = "../../core/faraday-codec" }
 
+[features]
+# The frame helpers the tests of the levels above use (`ui::testing`).
+testing = []
+
 [lints]
 workspace = true
 

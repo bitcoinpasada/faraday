@@ -220,18 +220,19 @@ impl<A: Pressed> Ui<'_, A> {
     }
 
     /// [`Ui::button`] `h` tall as given, its label broken onto the
-    /// centred `lines` ([`sheet::buttons`] where it does not fit one).
+    /// centred `lines` (a row of buttons where it does not fit one); it takes `action` when there is
+    /// one, and is drawn dimmed when there is none.
     pub fn button_wrapped(
         &mut self,
         (x, y, w, h): (f32, f32, f32, f32),
         lines: &[&str],
         style: Look,
-        action: A,
+        action: Option<A>,
     ) {
         let size = faraday_tokens::dims::LABEL_L.size;
         let r = faraday_tokens::dims::shape_full(h);
         let at = (x, y, Some(w), h, r);
-        self.button_drawn(at, size, "", style, Some(action), None, None, false, lines);
+        self.button_drawn(at, size, "", style, action, None, None, false, lines);
     }
 
     /// [`Ui::button`] with `icon` before its label, as Material's

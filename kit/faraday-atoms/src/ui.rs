@@ -153,6 +153,8 @@ pub struct Ui<'f, A: Pressed> {
     pub(crate) answering: bool,
     /// The hits taken this frame whose box ran past the side of their clip.
     pub cut: Vec<Rect>,
+    /// The screen's back link and where in `hits` its own press is ([`Ui::back`]).
+    pub(crate) back: Option<(A, usize)>,
     pub(crate) press: PhantomData<fn(A)>,
 }
 
@@ -219,6 +221,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             around: false,
             answering: false,
             cut: Vec::new(),
+            back: None,
             press: PhantomData,
         }
     }
@@ -231,6 +234,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             reach: self.tab,
             page: self.page,
             sheets: self.sheets,
+            back: self.back,
             anchors: self.anchors,
             regions: self.regions,
             laid: self.laid,
@@ -297,6 +301,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             around: false,
             answering: false,
             cut: Vec::new(),
+            back: None,
             press: PhantomData,
         };
         f(&mut child);
@@ -318,6 +323,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             fab_at,
             tips,
             cut,
+            back,
             ..
         } = child;
         let base = self.hits.len();
@@ -354,6 +360,9 @@ impl<'f, A: Pressed> Ui<'f, A> {
                 text: t.text,
             }));
         self.cut.extend(cut);
+        if self.back.is_none() {
+            self.back = back.map(|(a, i)| (lift(a), base + i));
+        }
     }
 
     /// A place a later Reveal or glide names. Stable across frames.
@@ -401,6 +410,31 @@ impl<'f, A: Pressed> Ui<'f, A> {
             caret: self.edit.caret,
             anchor: self.edit.anchor,
         }
+    }
+
+    /// Records the screen's back link: drawn, it is what the mouse's back button does. Only the
+    /// page itself (layer 0) has one; the press is the last one taken.
+    pub fn back(&mut self, action: A) {
+        if self.layer == 0 {
+            self.back = Some((action, self.hits.len().saturating_sub(1)));
+        }
+    }
+
+    /// The top app bar's fill with the page `offset` units under it: surface, and
+    /// surface-container once the page is a quarter of an edge fade's depth under it, mixed
+    /// between the two on the way. The tint is quick, as Material's is, so that a page
+    /// scrolled on past it moves rows and does not redraw the bar with each step.
+    pub fn bar_tone(&self, offset: f32) -> Color {
+        use faraday_tokens::dims::{APP_BAR_TINT_SHARE, EDGE_FADE, EDGE_FADE_COMPACT};
+        let depth = if self.compact {
+            EDGE_FADE_COMPACT
+        } else {
+            EDGE_FADE
+        };
+        self.col(Role::Surface).mix(
+            self.col(Role::SurfaceContainer),
+            offset / (depth * APP_BAR_TINT_SHARE),
+        )
     }
 
     /// Whether the press given is the one the keyboard is on.
@@ -950,8 +984,9 @@ impl<A: Pressed> Ui<'_, A> {
     }
 }
 
-#[cfg(test)]
-pub(crate) mod testing {
+/// A frame to draw in and read back, for the tests of this crate and of the kit's levels above it.
+#[cfg(any(test, feature = "testing"))]
+pub mod testing {
     use super::*;
     use crate::hold::HoldTone;
     use crate::tag::Status;

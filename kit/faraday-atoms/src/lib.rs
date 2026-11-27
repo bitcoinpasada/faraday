@@ -21,6 +21,7 @@ pub mod hold;
 pub mod icon_button;
 pub mod line;
 pub mod mark;
+pub mod measured;
 pub mod motion;
 pub mod offered;
 pub mod pill;

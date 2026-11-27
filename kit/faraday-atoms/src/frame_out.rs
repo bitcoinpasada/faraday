@@ -18,6 +18,8 @@ pub struct FrameOut<R: Pressed> {
     pub page: Anchor,
     /// The sheets drawn over it, lowest first, set by the same.
     pub sheets: Vec<Anchor>,
+    /// The screen's back link and the index in `hits` of its own press: the mouse's back button.
+    pub back: Option<(R, usize)>,
     pub anchors: Vec<(Anchor, Rect)>,
     /// Id, view, extent: what a wheel or a finger moves.
     pub regions: Vec<Scrolled>,
