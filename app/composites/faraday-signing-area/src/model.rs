@@ -1,0 +1,19 @@
+use core::marker::PhantomData;
+use faraday_kernel::Never;
+
+/// The page under the sheets: one variant per page.
+pub enum Body<'s> {
+    Spend(faraday_spend::Model<'s>),
+    Decode(faraday_decode::Model<'s>),
+    NonceCheck(faraday_decode::Model<'s>),
+    SignerCheck(faraday_decode::Model<'s>),
+    Message(faraday_messages::Model<'s>),
+    CheckMessage(faraday_messages::Model<'s>),
+}
+
+/// The sheets over a page.
+pub enum Over<'s> {
+    // Spec: 09 §4.6 gives this composite an `Over` and no sheet of its own to hold.
+    #[doc(hidden)]
+    None(Never, PhantomData<&'s ()>),
+}

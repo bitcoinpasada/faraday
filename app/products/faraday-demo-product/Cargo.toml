@@ -17,6 +17,8 @@ faraday-port = { path = "../../../core/faraday-port" }
 faraday-strings = { path = "../../../core/faraday-strings" }
 faraday-organisms = { path = "../../../kit/faraday-organisms" }
 faraday-templates = { path = "../../../kit/faraday-templates" }
+faraday-bip = { path = "../../../core/faraday-bip" }
+faraday-tokens = { path = "../../../kit/faraday-tokens" }
 
 [dev-dependencies]
 faraday-app-test = { path = "../../../tools/faraday-app-test" }

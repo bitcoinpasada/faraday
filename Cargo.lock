@@ -390,6 +390,7 @@ name = "faraday-demo-product"
 version = "0.0.0"
 dependencies = [
  "faraday-app-test",
+ "faraday-bip",
  "faraday-fixture-adapters",
  "faraday-kernel",
  "faraday-online",
@@ -401,6 +402,7 @@ dependencies = [
  "faraday-settings",
  "faraday-strings",
  "faraday-templates",
+ "faraday-tokens",
  "faraday-vaults",
 ]
 
@@ -445,6 +447,7 @@ name = "faraday-device-product"
 version = "0.0.0"
 dependencies = [
  "faraday-app-test",
+ "faraday-bip",
  "faraday-device",
  "faraday-fixture-adapters",
  "faraday-kernel",
@@ -1471,6 +1474,7 @@ name = "faraday-starter-product"
 version = "0.0.0"
 dependencies = [
  "faraday-app-test",
+ "faraday-bip",
  "faraday-fixture-adapters",
  "faraday-kernel",
  "faraday-online",
@@ -1483,6 +1487,7 @@ dependencies = [
  "faraday-starter",
  "faraday-strings",
  "faraday-templates",
+ "faraday-text",
  "faraday-vaults",
 ]
 
