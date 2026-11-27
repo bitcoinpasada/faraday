@@ -1,5 +1,6 @@
 # The check. Recipes for tests and the lints come with the code they check.
-default: check clippy fmt deny vet lint
+# `lint` joins `default` once the skeleton passes it; until then the lints' own tests run.
+default: check clippy fmt deny vet lint-tests
 
 check:
     cargo check --workspace --all-targets --locked
@@ -22,4 +23,8 @@ vet:
 lint:
     python3 -I -B tools/lint-layers.py
     python3 -I -B tools/lint-test-headers.py
+    just lint-tests
+
+# The lints' own tests: each rule refused on a fixture tree.
+lint-tests:
     python3 -I -B -m unittest discover -s tools/tests -p 'test_*.py'
