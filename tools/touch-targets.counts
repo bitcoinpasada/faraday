@@ -1,0 +1,3 @@
+# The touch-target ratchet (docs/spec/07-tests.md section 5.2): one line a size, screen and message
+# kind, with the number of targets under the Material 3 floor. A count only falls; a raise is a
+# commit that says why. Read by `faraday-snapshot --ratchet tools/touch-targets.counts`.

@@ -54,6 +54,7 @@ pub struct Fixtures {
     kept: Option<Carry>,
     settings: Option<Text>,
     ended: bool,
+    size: Option<(u16, u16, u16)>,
 }
 
 impl Fixtures {
@@ -115,7 +116,14 @@ impl Fixtures {
             kept: None,
             settings: None,
             ended: false,
+            size: None,
         }
+    }
+
+    /// The display the run starts on: its width and height in pixels and its dpi, in place of the
+    /// product's own. Set before the first `poll`.
+    pub fn display_of(&mut self, width: u16, height: u16, dpi: u16) {
+        self.size = Some((width, height, dpi));
     }
 
     /// Queues a script of input, in order.
@@ -173,10 +181,11 @@ impl Fixtures {
         } else {
             (1280, 800)
         };
+        let (width, height, dpi) = self.size.unwrap_or((width, height, 96));
         Display {
             width,
             height,
-            dpi: 96,
+            dpi,
             orientation: Orientation::Landscape,
             rotation_offered: None,
             external: false,

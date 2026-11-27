@@ -1892,11 +1892,13 @@ version = "0.0.0"
 dependencies = [
  "faraday-demo-product",
  "faraday-device-product",
+ "faraday-draw",
  "faraday-fixture-adapters",
  "faraday-port",
  "faraday-runtime",
  "faraday-starter-product",
  "faraday-testkit",
+ "faraday-tokens",
 ]
 
 [[package]]

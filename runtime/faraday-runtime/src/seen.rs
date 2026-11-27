@@ -1,6 +1,6 @@
 //! What a check reads from the runtime (05 §9).
 
-use faraday_atoms::{Anchor, ComponentId};
+use faraday_atoms::{Anchor, ComponentId, Hit};
 use faraday_draw::canvas::Ink;
 
 use crate::root::Root;
@@ -19,6 +19,12 @@ impl<R: Root> Runtime<R> {
             sheets: out.map_or(&[], |out| out.sheets.as_slice()),
             marks: &self.marks,
         }
+    }
+
+    /// The press targets the last frame drew, in drawing order: what the tour root's touch-target
+    /// walk reads (07 §5.2). Read-only, like `seen`.
+    pub fn hits(&self) -> &[Hit<R::Press>] {
+        self.frame.last().map_or(&[], |out| out.hits.as_slice())
     }
 
     /// Turn the ink record on (04 V21). The tour root's, the leak crate's and test support's

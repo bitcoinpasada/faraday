@@ -11,6 +11,8 @@ faraday-demo-product = { path = "../../app/products/faraday-demo-product" }
 faraday-starter-product = { path = "../../app/products/faraday-starter-product" }
 faraday-runtime = { path = "../../runtime/faraday-runtime" }
 faraday-port = { path = "../../core/faraday-port" }
+faraday-draw = { path = "../../kit/faraday-draw" }
+faraday-tokens = { path = "../../kit/faraday-tokens" }
 faraday-fixture-adapters = { path = "../../tools/faraday-fixture-adapters" }
 faraday-testkit = { path = "../../tools/faraday-testkit" }
 

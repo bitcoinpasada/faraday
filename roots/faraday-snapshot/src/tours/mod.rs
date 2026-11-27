@@ -208,12 +208,17 @@ pub const TOURS: &[(&str, TourFn)] = &[
 /// The names of the tours, as the usage line lists them.
 #[must_use]
 pub fn names() -> String {
-    todo!()
+    let named: Vec<&str> = TOURS.iter().map(|(n, _)| *n).collect();
+    format!("default boot {}", named.join(" "))
 }
 
 /// The tour named `name`, run; `None` for a name no tour has.
-pub fn run_named(_t: &mut Tour, _name: &str) -> Option<Result<(), String>> {
-    todo!()
+pub fn run_named(t: &mut Tour, name: &str) -> Option<Result<(), String>> {
+    match name {
+        "default" => Some(run_default(t)),
+        "boot" => Some(run_boot(t)),
+        _ => TOURS.iter().find(|(n, _)| *n == name).map(|(_, run)| run(t)),
+    }
 }
 
 /// The tour that runs when no name is given.
