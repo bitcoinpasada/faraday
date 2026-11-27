@@ -1393,6 +1393,7 @@ version = "0.0.0"
 dependencies = [
  "faraday-atoms",
  "faraday-codec",
+ "faraday-draw",
  "faraday-guide",
  "faraday-molecules",
  "faraday-strings",

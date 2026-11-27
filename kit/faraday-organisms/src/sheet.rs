@@ -119,15 +119,45 @@ fn body_of<A: Pressed>(
 fn framed<A: Pressed>(
     m: &SheetModel<'_, A>,
     ui: &mut Ui<'_, A>,
+    place: (f32, f32),
+    frame: (f32, f32, f32),
+    how: (bool, Role),
+) {
+    let body = |ui: &mut Ui<'_, A>, at| body_of(m.head.as_ref(), &m.body, ui, at);
+    let held = Held {
+        foot: &m.foot,
+        beside: m.beside.as_ref(),
+        scroll: m.scroll,
+    };
+    framed_by(&body, &held, ui, place, frame, how);
+}
+
+/// What draws a sheet's body from (x, y, w): its height.
+pub(crate) type Body<'a, A> = dyn Fn(&mut Ui<'_, A>, (f32, f32, f32)) -> f32 + 'a;
+
+/// What a sheet keeps outside its body: the buttons at its foot, the press beside it and the
+/// scroll's key.
+pub(crate) struct Held<'a, 's, A> {
+    pub foot: &'a ButtonsModel<'s, A>,
+    pub beside: Option<&'a A>,
+    pub scroll: Anchor,
+}
+
+/// [`framed`] for a body that is drawn by `body` from (x, y, w) and returns its height: the
+/// compact menu's lines are one.
+pub(crate) fn framed_by<A: Pressed>(
+    body: &Body<'_, A>,
+    held: &Held<'_, '_, A>,
+    ui: &mut Ui<'_, A>,
     (sx, sw): (f32, f32),
     (h, margin, pad): (f32, f32, f32),
     (end, fill): (bool, Role),
 ) {
     let (ix, iw) = (sx + pad, sw - 2.0 * pad);
     // Measured first, drawing nothing: the body's height and the buttons'.
-    let ch = ui.measured(|ui| body_of(m.head.as_ref(), &m.body, ui, (ix, 0.0, iw)));
-    let has_foot = !m.foot.items.is_empty();
-    let bh = buttons::height_as(&m.foot, end, ui, iw);
+    let ch = ui.measured(|ui| body(ui, (ix, 0.0, iw)));
+    let has_foot = !held.foot.items.is_empty();
+    let bh = buttons::height_as(held.foot, end, ui, iw);
     // The buttons' row, a pad above it and one below, is outside what scrolls: a control of the
     // body cut at the scroll's edge is a pad from the buttons, and leaves each button its whole
     // touch target. What scrolls is the body with a pad above it, and below it where there are
@@ -136,7 +166,7 @@ fn framed<A: Pressed>(
     let content = ch + if has_foot { pad } else { 2.0 * pad };
     let sh = (content + foot).min(h - 2.0 * margin);
     let sy = ((h - sh) / 2.0).max(margin);
-    if let Some(a) = &m.beside {
+    if let Some(a) = held.beside {
         ui.press_plain((sx, sy, sw, sh), faraday_atoms::Plain::Beside, a.clone());
     }
     // Material's dialog and sheet: extra-large corners.
@@ -158,8 +188,8 @@ fn framed<A: Pressed>(
     };
     let clip = ui.rect(sx, sy, sw, room);
     // Its edges fade into its own container (`docs/THEMES.md` §7).
-    ui.region(Region::new(m.scroll, clip).on(fill), |ui| {
-        body_of(m.head.as_ref(), &m.body, ui, (ix, sy + pad, iw));
+    ui.region(Region::new(held.scroll, clip).on(fill), |ui| {
+        body(ui, (ix, sy + pad, iw));
         max
     });
     if has_foot {
@@ -173,7 +203,7 @@ fn framed<A: Pressed>(
                 Role::OutlineVariant,
             );
         }
-        buttons::draw_as(&m.foot, end, ui, (ix, sy + view + pad, iw));
+        buttons::draw_as(held.foot, end, ui, (ix, sy + view + pad, iw));
     }
 }
 

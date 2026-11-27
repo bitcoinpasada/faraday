@@ -171,6 +171,12 @@ impl<A: Pressed> Ui<'_, A> {
         }
     }
 
+    /// How far the region `id` of the page drawn is scrolled, units: what a bar over it reads to
+    /// tint itself by. None while no entry is there.
+    pub fn scroll_of(&self, id: Anchor) -> f32 {
+        self.region_motion(id).0
+    }
+
     /// Draws a scrolled region: the content `content` draws is clipped to the region's view, and
     /// the region is reported once it is drawn. The content returns how far it goes past the
     /// view, units.

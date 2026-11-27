@@ -15,6 +15,7 @@ faraday-codec = { path = "../../core/faraday-codec" }
 faraday-text = { path = "../../core/faraday-text" }
 
 [dev-dependencies]
+faraday-draw = { path = "../faraday-draw" }
 faraday-atoms = { path = "../faraday-atoms", features = ["testing"] }
 
 [lints]

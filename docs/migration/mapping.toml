@@ -4701,7 +4701,7 @@ feature = ["wallet-backup"]
 [[module]]
 main = "faraday/faraday-core/src/screens/bar_search.rs"
 fate = "port"
-next = ["kit/faraday-templates/src/screen.rs", "kit/faraday-organisms/src/menu.rs"]
+next = ["kit/faraday-templates/src/screen.rs", "kit/faraday-organisms/src/menu.rs", "kit/faraday-organisms/src/nav.rs"]
 feature = ["menu-pages"]
 
 [[module]]
