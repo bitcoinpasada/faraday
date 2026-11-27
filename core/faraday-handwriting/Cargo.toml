@@ -1,13 +1,24 @@
 [package]
 name = "faraday-handwriting"
-version = "0.0.0"
+version = "0.2.0"
+description = "Reads handwritten BIP39 words: the Haller word and detector networks in integer arithmetic, and the dictionary decoder"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
+# The 2048 words the decoder scores.
 faraday-bip = { path = "../faraday-bip" }
+# The words the scores name: text that wipes itself.
 faraday-text = { path = "../faraday-text" }
+# The images, ink maps, logits, scores and words are wiped (docs/deps/zeroize.md).
+zeroize = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+# The vectors' hashes.
+sha2 = { workspace = true }
 
 [lints]
 workspace = true

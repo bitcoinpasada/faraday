@@ -1,0 +1,1768 @@
+//! FAT as other implementations see it (`docs/STICK-IDENTITY.md`): volumes made by
+//! `mkfs.fat`, files put there by mtools and read here, files written
+//! here and read by mtools, labels and serials written here read by
+//! dosfstools' `fatlabel` and labels it wrote read here, and every volume
+//! written here passed by `fsck.fat -n`.
+//!
+//! The tools are found in `FARADAY_FATTOOLS` (a directory holding
+//! `mkfs.fat`, `fsck.fat`, `fatlabel`, `mcopy`, `mmd` and `mdir`), in `/usr/sbin` or
+//! `/sbin`, or on PATH; a machine without them says so and skips.
+
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use faraday_fat::{
+    BadName, BootSector, Disk, Error, FAT_PIECE, Fault, Kind, MAX_ROOT_BYTES, Volume, Wiped,
+    boot_sector_label, boot_sector_serial, label_bytes,
+};
+
+fn tool(name: &str) -> PathBuf {
+    if let Some(dir) = std::env::var_os("FARADAY_FATTOOLS") {
+        return Path::new(&dir).join(name);
+    }
+    // Debian puts mkfs.fat and fsck.fat in /usr/sbin, which a shell that
+    // is not a login one may not have on PATH.
+    ["/usr/sbin", "/sbin"]
+        .iter()
+        .map(|d| Path::new(d).join(name))
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| PathBuf::from(name))
+}
+
+fn have_tools() -> bool {
+    let ok = Command::new(tool("mkfs.fat"))
+        .arg("--help")
+        .output()
+        .is_ok()
+        && Command::new(tool("mcopy")).arg("-V").output().is_ok();
+    if !ok {
+        eprintln!("mkfs.fat or mtools is not installed: the FAT checks are skipped");
+        if std::env::var_os("FARADAY_JUDGES_REQUIRED").is_some() {
+            panic!("FARADAY_JUDGES_REQUIRED is set and mkfs.fat or mtools is not installed");
+        }
+    }
+    ok
+}
+
+/// A test's own scratch tree; removed when it drops.
+struct Scratch(PathBuf);
+
+impl Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn scratch(name: &str) -> Scratch {
+    let dir = std::env::temp_dir().join(format!("faraday-fat-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    Scratch(dir)
+}
+
+/// A fresh volume from `mkfs.fat` with these arguments, `kib` long.
+fn mkfs(dir: &Path, args: &[&str], kib: u32) -> PathBuf {
+    let img = dir.join("vol.img");
+    let _ = std::fs::remove_file(&img);
+    let out = Command::new(tool("mkfs.fat"))
+        .arg("-C")
+        .args(args)
+        .arg(&img)
+        .arg(kib.to_string())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    img
+}
+
+fn mtools(cmd: &str, args: &[&str]) -> (bool, Vec<u8>) {
+    let out = Command::new(tool(cmd))
+        .env("MTOOLS_SKIP_CHECK", "1")
+        .args(args)
+        .output()
+        .unwrap();
+    (out.status.success(), out.stdout)
+}
+
+fn fsck_clean(img: &Path) {
+    let out = Command::new(tool("fsck.fat"))
+        .args(["-n", "-v"])
+        .arg(img)
+        .output()
+        .unwrap();
+    let text =
+        String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "fsck.fat found faults:\n{text}");
+}
+
+fn open(img: &Path) -> Volume<Vec<u8>> {
+    Volume::open(std::fs::read(img).unwrap()).unwrap()
+}
+
+fn save(v: Volume<Vec<u8>>, img: &Path) {
+    std::fs::write(img, v.into_disk()).unwrap();
+}
+
+/// Bytes that differ along their length, so a cluster out of place shows.
+fn pattern(n: usize, seed: u8) -> Vec<u8> {
+    (0..n)
+        .map(|i| (i as u32 * 31 + u32::from(seed)) as u8)
+        .collect()
+}
+
+fn volumes() -> Vec<(&'static str, Vec<&'static str>, u32, Kind)> {
+    vec![
+        (
+            "fat16",
+            vec!["-F", "16", "-n", "FARADAYDATA"],
+            32 * 1024,
+            Kind::Fat16,
+        ),
+        (
+            "fat32",
+            vec!["-F", "32", "-s", "1", "-n", "FARADAY"],
+            40 * 1024,
+            Kind::Fat32,
+        ),
+    ]
+}
+
+#[test]
+fn files_mtools_wrote_read_back_the_same() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, kind) in volumes() {
+        let dir = scratch(&format!("read-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let i = img.to_str().unwrap();
+        let files = [
+            ("savings-unsigned.psbt", pattern(1_234, 1)),
+            ("README.TXT", pattern(40, 2)),
+            (
+                "A long name with spaces and ünïcode.txt",
+                pattern(70_000, 3),
+            ),
+            ("empty.txt", Vec::new()),
+        ];
+        for (n, bytes) in &files {
+            let src = dir.join("src");
+            std::fs::write(&src, bytes).unwrap();
+            let (ok, _) = mtools(
+                "mcopy",
+                &["-i", i, src.to_str().unwrap(), &format!("::{n}")],
+            );
+            assert!(ok, "mcopy {n}");
+        }
+        let (ok, _) = mtools("mmd", &["-i", i, "::Photos"]);
+        assert!(ok);
+
+        let mut v = open(&img);
+        assert_eq!(v.kind(), kind, "{name}");
+        assert_eq!(v.label().as_deref(), Some(args[args.len() - 1]), "{name}");
+        let list = v.list().unwrap();
+        for (n, bytes) in &files {
+            let e = list
+                .iter()
+                .find(|e| e.name == *n)
+                .unwrap_or_else(|| panic!("{name}: {n} not listed: {list:?}"));
+            assert_eq!(e.size as usize, bytes.len());
+            assert!(!e.dir);
+            assert_eq!(&v.read(n, 1 << 20).unwrap(), bytes, "{name}: {n}");
+        }
+        assert!(list.iter().any(|e| e.name == "Photos" && e.dir));
+        assert_eq!(v.read("savings-unsigned.psbt", 100), Err(Error::TooLarge));
+        assert_eq!(v.read("Photos", 100), Err(Error::NotFound));
+    }
+}
+
+#[test]
+fn files_written_here_pass_fsck_and_read_back_in_mtools() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("write-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let i = img.to_str().unwrap();
+        // One file there already, from mtools.
+        let before = dir.join("before");
+        std::fs::write(&before, pattern(5_000, 9)).unwrap();
+        assert!(
+            mtools(
+                "mcopy",
+                &["-i", i, before.to_str().unwrap(), "::wallet.txt"]
+            )
+            .0
+        );
+
+        let mut v = open(&img);
+        let files = [
+            ("vault.kdbx", pattern(262_144 * 4 + 64, 4)),
+            ("SIGNED.PSB", pattern(900, 5)),
+            ("savings-unsigned-signed.psbt", pattern(3_000, 6)),
+            ("café.txt", pattern(10, 7)),
+            ("nothing.txt", Vec::new()),
+        ];
+        for (n, bytes) in &files {
+            v.create(n, bytes)
+                .unwrap_or_else(|e| panic!("{name}: {n}: {e:?}"));
+        }
+        assert_eq!(v.create("VAULT.KDB", b"x"), Err(Error::Exists));
+        // The write-back pattern: a new file, renamed over the old one.
+        v.create("wallet.txt.new", &pattern(6_000, 8)).unwrap();
+        v.delete("wallet.txt").unwrap();
+        v.rename("wallet.txt.new", "wallet.txt").unwrap();
+        v.delete("nothing.txt").unwrap();
+        assert_eq!(v.delete("nothing.txt"), Err(Error::NotFound));
+        save(v, &img);
+
+        fsck_clean(&img);
+        let out = dir.join("out");
+        for (n, bytes) in files.iter().filter(|(n, _)| *n != "nothing.txt") {
+            let _ = std::fs::remove_file(&out);
+            let (ok, _) = mtools(
+                "mcopy",
+                &["-n", "-i", i, &format!("::{n}"), out.to_str().unwrap()],
+            );
+            assert!(ok, "{name}: mtools could not read {n}");
+            assert_eq!(&std::fs::read(&out).unwrap(), bytes, "{name}: {n}");
+        }
+        let _ = std::fs::remove_file(&out);
+        assert!(
+            mtools(
+                "mcopy",
+                &["-n", "-i", i, "::wallet.txt", out.to_str().unwrap()]
+            )
+            .0
+        );
+        assert_eq!(std::fs::read(&out).unwrap(), pattern(6_000, 8));
+        let (_, listing) = mtools("mdir", &["-i", i, "-b", "::"]);
+        let listing = String::from_utf8_lossy(&listing);
+        assert!(!listing.contains("nothing.txt"), "{listing}");
+        assert!(!listing.contains("wallet.txt.new"), "{listing}");
+    }
+}
+
+#[test]
+fn a_fat32_root_grows_past_its_first_cluster() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("grow");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    // 512-byte clusters hold 16 entries; each of these names takes 3.
+    for k in 0..120 {
+        v.create(
+            &format!("a file with a long name number {k}.txt"),
+            &[k as u8],
+        )
+        .unwrap();
+    }
+    assert_eq!(v.list().unwrap().len(), 120);
+    save(v, &img);
+    fsck_clean(&img);
+    let (_, listing) = mtools("mdir", &["-i", img.to_str().unwrap(), "-b", "::"]);
+    assert_eq!(String::from_utf8_lossy(&listing).lines().count(), 120);
+}
+
+#[test]
+fn a_full_fat16_root_is_refused_and_left_whole() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("full");
+    let img = mkfs(&dir, &["-F", "16", "-r", "16"], 32 * 1024);
+    let mut v = open(&img);
+    let mut made = 0;
+    let err = loop {
+        match v.create(&format!("name-{made}.psbt"), &pattern(2_000, 1)) {
+            Ok(()) => made += 1,
+            Err(e) => break e,
+        }
+    };
+    assert_eq!(err, Error::DirFull);
+    assert!(made > 0);
+    save(v, &img);
+    fsck_clean(&img);
+}
+
+#[test]
+fn what_is_not_fat16_or_fat32_is_refused() {
+    assert!(matches!(
+        Volume::open(vec![0x5a_u8; 1 << 20]),
+        Err(Error::NotFat(_))
+    ));
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("refuse");
+    let img = mkfs(&dir, &["-F", "12"], 2 * 1024);
+    assert!(matches!(
+        Volume::open(std::fs::read(&img).unwrap()),
+        Err(Error::Fat12)
+    ));
+    // A volume that claims more sectors than its partition has.
+    let img = mkfs(&dir, &["-F", "16"], 32 * 1024);
+    let mut bytes = std::fs::read(&img).unwrap();
+    bytes.truncate(bytes.len() / 2);
+    assert!(matches!(Volume::open(bytes), Err(Error::NotFat(_))));
+}
+
+#[test]
+fn a_chain_that_loops_is_refused() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("loop");
+    let img = mkfs(&dir, &["-F", "16"], 32 * 1024);
+    let mut v = open(&img);
+    v.create("looped.bin", &pattern(20_000, 3)).unwrap();
+    let mut bytes = v.into_disk();
+    // FAT16's root is outside the data area, so the file starts at
+    // cluster 2. Point its second cluster back at its first.
+    let reserved = u16::from_le_bytes([bytes[14], bytes[15]]) as usize;
+    let fat = reserved * 512;
+    bytes[fat + 3 * 2..fat + 3 * 2 + 2].copy_from_slice(&2u16.to_le_bytes());
+    let mut v = Volume::open(bytes).unwrap();
+    assert!(matches!(
+        v.read("looped.bin", 1 << 20),
+        Err(Error::Corrupt(_))
+    ));
+}
+
+#[test]
+fn the_boot_partitions_label_is_read_from_its_first_sector() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("label");
+    for (args, kib) in [
+        (vec!["-F", "32", "-n", "FARADAYBOOT"], 48 * 1024),
+        (vec!["-F", "16", "-n", "FARADAYBOOT"], 32 * 1024),
+    ] {
+        let img = mkfs(&dir, &args, kib);
+        let bytes = std::fs::read(&img).unwrap();
+        assert_eq!(boot_sector_label(&bytes[..512]), Some(*b"FARADAYBOOT"));
+    }
+}
+
+/// The volume serial number that tells two sticks apart
+/// (`docs/VAULT.md` §6) is the one `mkfs.fat -i` wrote, on FAT16
+/// and FAT32, and a volume copied sector for sector has the same.
+#[test]
+fn the_volume_serial_is_read_from_the_boot_sector() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("serial");
+    for (fat, kib) in [("32", 48 * 1024), ("16", 32 * 1024)] {
+        let img = mkfs(&dir, &["-F", fat, "-i", "1a2b3c4d", "-n", "STICK"], kib);
+        let bytes = std::fs::read(&img).unwrap();
+        assert_eq!(
+            boot_sector_serial(&bytes[..512]),
+            Some(0x1a2b_3c4d),
+            "FAT{fat}"
+        );
+        assert_eq!(Volume::open(bytes).unwrap().serial(), Some(0x1a2b_3c4d));
+        let other = mkfs(&dir, &["-F", fat, "-i", "5e6f7a8b", "-n", "STICK"], kib);
+        let bytes = std::fs::read(&other).unwrap();
+        assert_eq!(
+            boot_sector_serial(&bytes[..512]),
+            Some(0x5e6f_7a8b),
+            "FAT{fat}"
+        );
+    }
+}
+
+/// The boot sector's fields are what `mkfs.fat` was told and what
+/// `format32` made, on FAT16 and FAT32, and a short sector has none.
+#[test]
+fn the_boot_sector_fields_match_the_volumes_made() {
+    let made = faraday_fat::format32(100 * 1024 * 2, 2048, 0x1234_5678, None).unwrap();
+    let mut disk = vec![0u8; made.volume_bytes() as usize];
+    made.write(&mut disk).unwrap();
+    let b = BootSector::parse(&disk[..512]).unwrap();
+    assert_eq!(b.bytes_per_sector, 512);
+    assert_eq!(b.sectors_per_cluster as u32, made.cluster_sectors());
+    assert_eq!((b.fats, b.root_entries, b.root_cluster), (2, 0, 2));
+    assert!(b.fat32 && b.reserved != 0 && b.fat_size != 0);
+    assert_eq!(b.serial, Some(0x1234_5678));
+    assert_eq!(b.serial_at, 67);
+    let backup = usize::from(b.backup_boot) * 512;
+    assert_eq!(
+        BootSector::parse(&disk[backup..backup + 512]).unwrap(),
+        b,
+        "the backup boot sector is a copy"
+    );
+    assert!(BootSector::parse(&disk[..511]).is_none());
+
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("bootsector");
+    let img = mkfs(
+        &dir,
+        &[
+            "-F", "32", "-s", "4", "-R", "20", "-f", "2", "-i", "1a2b3c4d",
+        ],
+        48 * 1024,
+    );
+    let bytes = std::fs::read(&img).unwrap();
+    let b = BootSector::parse(&bytes[..512]).unwrap();
+    assert_eq!((b.bytes_per_sector, b.sectors_per_cluster), (512, 4));
+    assert_eq!((b.reserved, b.fats, b.root_entries), (20, 2, 0));
+    assert_eq!(
+        (b.root_cluster, b.fat32, b.serial),
+        (2, true, Some(0x1a2b_3c4d))
+    );
+    let img = mkfs(
+        &dir,
+        &["-F", "16", "-r", "512", "-i", "5e6f7a8b"],
+        32 * 1024,
+    );
+    let bytes = std::fs::read(&img).unwrap();
+    let b = BootSector::parse(&bytes[..512]).unwrap();
+    assert_eq!((b.bytes_per_sector, b.root_entries, b.fats), (512, 512, 2));
+    assert!(!b.fat32 && b.fat_size != 0);
+    assert_eq!((b.serial, b.serial_at), (Some(0x5e6f_7a8b), 39));
+}
+
+/// A stick's bytes are its maker's to choose: a volume with bytes changed
+/// in its boot sector, FATs or root directory is refused or read, never a
+/// panic, and nothing written to it reaches past the partition.
+#[test]
+fn damaged_volumes_are_refused_without_a_panic() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("damage");
+    let mut seed = 0x9e37_79b9_7f4a_7c15u64;
+    let mut next = move || {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        seed
+    };
+    // A small FAT16 takes most of the damage; FAT32 cannot be smaller
+    // than 33 MB, so its copies are fewer.
+    let cases: [(&str, Vec<&str>, u32, usize); 2] = [
+        ("fat16", vec!["-F", "16", "-s", "1"], 4 * 1024, 2_000),
+        ("fat32", vec!["-F", "32", "-s", "1"], 40 * 1024, 150),
+    ];
+    for (name, args, kib, rounds) in cases {
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        for k in 0..6 {
+            v.create(
+                &format!("file number {k}.psbt"),
+                &pattern(3_000 * k, k as u8),
+            )
+            .unwrap();
+        }
+        let base = v.into_disk();
+        // Where the structures are: the first 256 KiB holds the boot
+        // sector, both FATs and the root directory on both volumes.
+        let hot = base.len().min(256 * 1024);
+        for _ in 0..rounds {
+            let mut bytes = base.clone();
+            for _ in 0..(1 + next() % 8) {
+                let at = (next() % hot as u64) as usize;
+                bytes[at] = next() as u8;
+            }
+            let Ok(mut v) = Volume::open(bytes) else {
+                continue;
+            };
+            let _ = v.label();
+            if let Ok(list) = v.list() {
+                for e in list.iter().take(64) {
+                    let _ = v.read(&e.name, 1 << 20);
+                }
+            }
+            if v.create("new.txt", b"faraday").is_ok() {
+                let _ = v.rename("new.txt", "renamed.txt");
+                let _ = v.delete("renamed.txt");
+            }
+            assert_eq!(v.into_disk().len(), base.len(), "{name}");
+        }
+    }
+}
+
+/// A FAT32 volume smaller than the specification's 65525 clusters, as
+/// mtools makes one on a small stick: read and written like any other.
+#[test]
+fn a_small_fat32_from_mtools_reads_and_writes() {
+    if !have_tools() || Command::new(tool("mformat")).arg("-V").output().is_err() {
+        return;
+    }
+    let dir = scratch("small32");
+    let img = dir.join("small.img");
+    std::fs::write(&img, vec![0u8; 63_488 * 512]).unwrap();
+    let ok = Command::new(tool("mformat"))
+        .env("MTOOLS_SKIP_CHECK", "1")
+        .args(["-i", img.to_str().unwrap(), "-F", "-v", "TESTSTICK", "::"])
+        .status()
+        .unwrap();
+    assert!(ok.success());
+    let src = dir.join("src");
+    std::fs::write(&src, pattern(3_000, 1)).unwrap();
+    assert!(
+        mtools(
+            "mcopy",
+            &[
+                "-i",
+                img.to_str().unwrap(),
+                src.to_str().unwrap(),
+                "::wallet.txt"
+            ]
+        )
+        .0
+    );
+    let mut v = open(&img);
+    assert_eq!(v.kind(), Kind::Fat32);
+    assert_eq!(v.read("wallet.txt", 1 << 20).unwrap(), pattern(3_000, 1));
+    v.create("signed.psbt", &pattern(900, 2)).unwrap();
+    save(v, &img);
+    fsck_clean(&img);
+}
+
+/// Whether `needle` is anywhere in `hay`.
+fn holds(hay: &[u8], needle: &[u8]) -> bool {
+    hay.windows(needle.len()).any(|w| w == needle)
+}
+
+/// A file deleted with zeros: neither its bytes nor its name are left
+/// anywhere in the volume, the files beside it read back the same, and
+/// the volume passes fsck.
+#[test]
+fn a_wiped_file_leaves_neither_its_bytes_nor_its_name() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("wipe-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let secret: Vec<u8> = b"abandon ability able about above absent "
+            .iter()
+            .copied()
+            .cycle()
+            .take(9_000)
+            .collect();
+        let mut v = open(&img);
+        v.create("seed-words.txt", &secret).unwrap();
+        v.create("wallet.txt", &pattern(5_000, 3)).unwrap();
+        save(v, &img);
+        let before = std::fs::read(&img).unwrap();
+        assert!(holds(&before, b"abandon ability"), "{name}: written");
+
+        let mut v = open(&img);
+        v.wipe("seed-words.txt").unwrap();
+        assert_eq!(v.wipe("seed-words.txt"), Err(Error::NotFound));
+        assert_eq!(v.read("wallet.txt", 1 << 20).unwrap(), pattern(5_000, 3));
+        save(v, &img);
+
+        let after = std::fs::read(&img).unwrap();
+        assert!(
+            !holds(&after, b"abandon ability"),
+            "{name}: its bytes are left"
+        );
+        let long: Vec<u8> = "seed-words"
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        assert!(!holds(&after, &long), "{name}: its long name is left");
+        assert!(!holds(&after, b"SEED-W"), "{name}: its short name is left");
+        fsck_clean(&img);
+        let (_, listing) = mtools("mdir", &["-i", img.to_str().unwrap(), "-b", "::"]);
+        let listing = String::from_utf8_lossy(&listing);
+        assert!(!listing.contains("seed-words"), "{name}: {listing}");
+        assert!(listing.contains("wallet.txt"), "{name}: {listing}");
+    }
+}
+
+/// Bytes that mark one file, repeated to `n`.
+fn marked(mark: &[u8], n: usize) -> Vec<u8> {
+    mark.iter().copied().cycle().take(n).collect()
+}
+
+/// A file put on the volume by mtools.
+fn mput(dir: &Path, img: &Path, name: &str, bytes: &[u8]) {
+    let src = dir.join("src");
+    std::fs::write(&src, bytes).unwrap();
+    let ok = mtools(
+        "mcopy",
+        &[
+            "-o",
+            "-i",
+            img.to_str().unwrap(),
+            src.to_str().unwrap(),
+            &format!("::{name}"),
+        ],
+    )
+    .0;
+    assert!(ok, "mcopy {name}");
+}
+
+/// Zeroing the free space in small steps: what mtools deleted, its name
+/// and its bytes, including those left in the tail of a later file's
+/// last cluster, is gone; the files kept read back the same, and the
+/// volume passes fsck.
+#[test]
+fn the_free_space_zeroed_keeps_the_files_and_nothing_deleted() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("zero-free-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let i = img.to_str().unwrap();
+        mput(&dir, &img, "keep-one.txt", &pattern(7_000, 1));
+        mput(
+            &dir,
+            &img,
+            "gone-words.txt",
+            &marked(b"gone words gone words ", 20_000),
+        );
+        mput(&dir, &img, "keep-two.txt", &pattern(3_000, 2));
+        assert!(mtools("mdel", &["-i", i, "::gone-words.txt"]).0);
+        // A small file over the deleted one's first cluster: what is past
+        // its end there is the deleted file's.
+        mput(&dir, &img, "small.txt", b"small");
+        let before = std::fs::read(&img).unwrap();
+        assert!(
+            holds(&before, b"gone words"),
+            "{name}: deleted, still there"
+        );
+
+        let mut v = open(&img);
+        let mut from = 2;
+        let mut steps = 0;
+        loop {
+            let z = v.zero_free(from, 16 * 1024).unwrap();
+            steps += 1;
+            if z.done {
+                break;
+            }
+            assert!(z.next > from, "{name}: a step moved on");
+            from = z.next;
+        }
+        assert!(steps > 1, "{name}: in steps");
+        save(v, &img);
+
+        let after = std::fs::read(&img).unwrap();
+        assert!(!holds(&after, b"gone words"), "{name}: deleted bytes left");
+        let long: Vec<u8> = "gone-words"
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        assert!(!holds(&after, &long), "{name}: a deleted name left");
+        fsck_clean(&img);
+        let mut v = open(&img);
+        assert_eq!(v.read("keep-one.txt", 1 << 20).unwrap(), pattern(7_000, 1));
+        assert_eq!(v.read("keep-two.txt", 1 << 20).unwrap(), pattern(3_000, 2));
+        assert_eq!(v.read("small.txt", 1 << 20).unwrap(), b"small");
+    }
+}
+
+/// The whole partition zeroed: made empty with its layout and label, then
+/// every cluster zeroed; no file's bytes are left, mtools lists nothing,
+/// and the volume passes fsck and takes a new file.
+#[test]
+fn the_whole_partition_zeroed_is_an_empty_volume_with_its_label() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("zero-all-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let i = img.to_str().unwrap();
+        mput(
+            &dir,
+            &img,
+            "vault.kdbx",
+            &marked(b"sealed vault bytes ", 50_000),
+        );
+        mput(&dir, &img, "notes.txt", &marked(b"plain notes ", 4_000));
+        let mut v = open(&img);
+        let label = v.label();
+        v.make_empty().unwrap();
+        let mut from = 2;
+        while !v
+            .zero_free(from, 1 << 20)
+            .map(|z| {
+                from = z.next;
+                z.done
+            })
+            .unwrap()
+        {}
+        assert_eq!(v.label(), label, "{name}: the label kept");
+        assert!(v.list().unwrap().is_empty(), "{name}: files left");
+        save(v, &img);
+
+        let after = std::fs::read(&img).unwrap();
+        assert!(
+            !holds(&after, b"sealed vault"),
+            "{name}: a vault's bytes left"
+        );
+        assert!(
+            !holds(&after, b"plain notes"),
+            "{name}: a note's bytes left"
+        );
+        fsck_clean(&img);
+        let (_, listing) = mtools("mdir", &["-i", i, "-b", "::"]);
+        assert!(
+            listing.is_empty(),
+            "{name}: {}",
+            String::from_utf8_lossy(&listing)
+        );
+        let mut v = open(&img);
+        v.create("new.txt", b"after").unwrap();
+        save(v, &img);
+        fsck_clean(&img);
+    }
+}
+
+/// A partition that remembers the most it was asked to read at once: what
+/// the disk process holds in memory for it.
+struct Watched {
+    bytes: Vec<u8>,
+    largest: usize,
+}
+
+impl Disk for Watched {
+    fn size(&self) -> u64 {
+        self.bytes.len() as u64
+    }
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), Error> {
+        self.largest = self.largest.max(buf.len());
+        self.bytes.read_at(offset, buf)
+    }
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), Error> {
+        self.bytes.write_at(offset, buf)
+    }
+}
+
+/// A FAT32 volume's root directory chained through `clusters` clusters,
+/// in every copy of the FAT.
+fn long_root(base: &[u8], clusters: u32) -> Vec<u8> {
+    let mut bytes = base.to_vec();
+    let le16 = |at: usize| u16::from_le_bytes([bytes[at], bytes[at + 1]]) as usize;
+    let le32 = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let bps = le16(11);
+    let fat = le16(14) * bps;
+    let fat_bytes = le32(36) as usize * bps;
+    let copies = bytes[16] as usize;
+    let root = le32(44);
+    for k in 0..copies {
+        let at = fat + k * fat_bytes;
+        for c in root..root + clusters {
+            let next = if c + 1 == root + clusters {
+                0x0FFF_FFFF
+            } else {
+                c + 1
+            };
+            let e = at + c as usize * 4;
+            bytes[e..e + 4].copy_from_slice(&next.to_le_bytes());
+        }
+    }
+    bytes
+}
+
+/// A stick can make a FAT32 root directory's chain as long as its
+/// partition. It is read only as far as a FAT directory can reach; one
+/// longer is refused as damaged, and nothing on the way reads more than
+/// a piece of the disk at once.
+#[test]
+fn a_fat32_root_longer_than_fat_allows_is_refused() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("longroot");
+    // 512-byte clusters: the most a directory holds is 4096 of them.
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let base = std::fs::read(&img).unwrap();
+    let most = (MAX_ROOT_BYTES / 512) as u32;
+
+    let mut v = Volume::open(Watched {
+        bytes: long_root(&base, most + 1),
+        largest: 0,
+    })
+    .unwrap();
+    assert!(matches!(v.list(), Err(Error::Corrupt(_))));
+    assert!(matches!(
+        v.read("anything.txt", 1 << 20),
+        Err(Error::Corrupt(_))
+    ));
+    assert!(matches!(
+        v.create("new.txt", b"faraday"),
+        Err(Error::Corrupt(_))
+    ));
+    assert!(v.into_disk().largest <= FAT_PIECE);
+
+    // As long as a directory may be: read, and written to.
+    let mut v = Volume::open(long_root(&base, most)).unwrap();
+    assert!(v.list().unwrap().is_empty());
+    v.create("new.txt", b"faraday").unwrap();
+    assert_eq!(v.read("new.txt", 1 << 20).unwrap(), b"faraday");
+}
+
+/// Counting the free space and finding room for a file read the FAT a
+/// piece at a time, however large the volume's FAT is.
+#[test]
+fn the_fat_is_read_a_piece_at_a_time() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("fatpiece");
+    // About 80,000 clusters: a FAT of over 300 KiB.
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let bytes = std::fs::read(&img).unwrap();
+    let mut v = Volume::open(Watched { bytes, largest: 0 }).unwrap();
+    let (free, total) = v.space().unwrap();
+    v.create("one.psbt", &pattern(3_000, 1)).unwrap();
+    v.create("two.psbt", &pattern(700, 2)).unwrap();
+    let (after, same) = v.space().unwrap();
+    assert_eq!(same, total);
+    // 3,000 bytes take six clusters and 700 two.
+    assert_eq!(free - after, 8 * 512);
+    assert_eq!(v.read("two.psbt", 1 << 20).unwrap(), pattern(700, 2));
+    let w = v.into_disk();
+    assert!(w.largest <= FAT_PIECE, "{}", w.largest);
+    std::fs::write(&img, w.bytes).unwrap();
+    fsck_clean(&img);
+}
+
+/// A partition that stops taking writes after `left` of them, as a stick
+/// pulled part way.
+struct Pulled {
+    bytes: Vec<u8>,
+    left: usize,
+}
+
+impl Disk for Pulled {
+    fn size(&self) -> u64 {
+        self.bytes.len() as u64
+    }
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), Error> {
+        self.bytes.read_at(offset, buf)
+    }
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), Error> {
+        if self.left == 0 {
+            return Err(Error::Io);
+        }
+        self.left -= 1;
+        self.bytes.write_at(offset, buf)
+    }
+}
+
+/// A rename interrupted at any write never loses the file (it is under
+/// the old name, the new, or both, and each reads whole); where both are
+/// there, removing one leaves the other whole. One that finishes leaves
+/// the new name.
+#[test]
+fn a_rename_cut_part_way_never_loses_the_file() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("rename-cut-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        v.create("wallet.txt.new", &pattern(5_000, 9)).unwrap();
+        let base = v.into_disk();
+        let mut finished = false;
+        for left in 0..40 {
+            let mut v = Volume::open(Pulled {
+                bytes: base.clone(),
+                left,
+            })
+            .unwrap();
+            let done = v.rename("wallet.txt.new", "wallet.txt").is_ok();
+            let mut v = Volume::open(v.into_disk().bytes).unwrap();
+            let names: Vec<faraday_text::Text> =
+                v.list().unwrap().into_iter().map(|e| e.name).collect();
+            assert!(
+                (1..=2).contains(&names.len()),
+                "{name}: cut after {left}: {names:?}"
+            );
+            for n in &names {
+                assert_eq!(v.read(n, 1 << 20).unwrap(), pattern(5_000, 9), "{name}");
+            }
+            if let [first, second] = &names[..] {
+                v.delete(first).unwrap();
+                assert_eq!(
+                    v.read(second, 1 << 20).unwrap(),
+                    pattern(5_000, 9),
+                    "{name}: cut after {left}"
+                );
+            }
+            if done {
+                assert_eq!(names, ["wallet.txt"], "{name}");
+                finished = true;
+                break;
+            }
+        }
+        assert!(finished, "{name}");
+    }
+}
+
+/// A name that differs only in case is a rename too.
+#[test]
+fn a_rename_that_changes_only_the_case_works() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("rename-case-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        v.create("README.TXT", b"hello").unwrap();
+        v.rename("README.TXT", "readme.txt").unwrap();
+        let names: Vec<faraday_text::Text> =
+            v.list().unwrap().into_iter().map(|e| e.name).collect();
+        assert_eq!(names, ["readme.txt"], "{name}");
+        assert_eq!(v.read("readme.txt", 1 << 20).unwrap(), b"hello");
+    }
+}
+
+/// What is past a file's end in its last cluster, and in clusters its
+/// chain holds beyond its size, is zeroed with the free space: the
+/// file's last cluster is the one its size says, not the chain's last.
+#[test]
+fn bytes_past_a_files_end_are_zeroed_by_its_size_not_by_its_chain() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("zero-tail-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        mput(&dir, &img, "LEFT.TXT", &marked(b"past-the-end ", 20_000));
+        let mut bytes = std::fs::read(&img).unwrap();
+        // The size in its entry cut to 1,300 bytes, as a file truncated
+        // by a program that left the chain as it was.
+        let at = bytes.windows(11).position(|w| w == b"LEFT    TXT").unwrap();
+        bytes[at + 28..at + 32].copy_from_slice(&1_300u32.to_le_bytes());
+        let count = |b: &[u8]| b.windows(13).filter(|w| *w == b"past-the-end ").count();
+        let before = count(&bytes);
+        let mut v = Volume::open(bytes).unwrap();
+        v.zero_free(2, 1 << 30).unwrap();
+        let after = count(&v.into_disk());
+        // Only the file's first 1,300 bytes keep the text.
+        assert!(before > 1_000, "{name}: {before}");
+        assert!(after <= 1_300 / 13 + 1, "{name}: {after} left of {before}");
+    }
+}
+
+/// A file whose size is whole clusters, in a chain that runs longer than
+/// its size needs: the clusters past its size are zeroed with the free
+/// space too.
+#[test]
+fn clusters_past_a_whole_cluster_size_are_zeroed_too() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("zero-whole-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        mput(&dir, &img, "LEFT.TXT", &marked(b"past-the-end ", 20_000));
+        let mut bytes = std::fs::read(&img).unwrap();
+        let at = bytes.windows(11).position(|w| w == b"LEFT    TXT").unwrap();
+        // Two whole clusters, whatever the volume's cluster size is.
+        let cb = u32::from(u16::from_le_bytes([bytes[11], bytes[12]])) * u32::from(bytes[13]);
+        bytes[at + 28..at + 32].copy_from_slice(&(2 * cb).to_le_bytes());
+        let count = |b: &[u8]| b.windows(13).filter(|w| *w == b"past-the-end ").count();
+        let before = count(&bytes);
+        let mut v = Volume::open(bytes).unwrap();
+        v.zero_free(2, 1 << 30).unwrap();
+        let after = count(&v.into_disk());
+        assert!(before > 1_000, "{name}: {before}");
+        assert!(
+            after <= (2 * cb as usize) / 13 + 1,
+            "{name}: {after} of {before}"
+        );
+    }
+}
+
+/// The Starter's signed boot file (`docs/STARTER.md` §4.5): a boot
+/// partition made as the stick's is (`genimage.cfg`: FAT32, 512-byte
+/// clusters, `EFI/BOOT/BOOTX64.EFI` put there by mtools) has that file
+/// read and written over in its folder, longer and then shorter, and
+/// mtools and `fsck.fat` read the result as the new file and nothing
+/// else changed.
+#[test]
+fn a_file_in_a_folder_is_read_and_written_over_where_it_is() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("rewrite");
+    let img = mkfs(
+        &dir,
+        &["-F", "32", "-s", "1", "-n", "FARADAYBOOT"],
+        64 * 1024,
+    );
+    let i = img.to_str().unwrap();
+    for folder in ["::EFI", "::EFI/BOOT"] {
+        assert!(mtools("mmd", &["-i", i, folder]).0, "mmd {folder}");
+    }
+    let src = dir.join("src");
+    let boot = pattern(30_000, 1);
+    std::fs::write(&src, &boot).unwrap();
+    assert!(
+        mtools(
+            "mcopy",
+            &["-i", i, src.to_str().unwrap(), "::EFI/BOOT/BOOTX64.EFI"]
+        )
+        .0
+    );
+    std::fs::write(&src, pattern(700, 2)).unwrap();
+    assert!(mtools("mcopy", &["-i", i, src.to_str().unwrap(), "::cmdline.txt"]).0);
+    let path = ["EFI", "BOOT", "BOOTX64.EFI"];
+
+    let mut v = open(&img);
+    assert_eq!(v.read_in(&path, 1 << 20).unwrap(), boot);
+    assert_eq!(v.read_in(&path, 100), Err(Error::TooLarge));
+    assert_eq!(v.read_in(&["EFI", "BOOT"], 1 << 20), Err(Error::NotFound));
+    assert_eq!(
+        v.read_in(&["EFI", "BOOT", "BOOTIA32.EFI"], 1 << 20),
+        Err(Error::NotFound)
+    );
+    let (free_before, _) = v.space().unwrap();
+    // Longer by a signature: 1,800 bytes past the old end, four clusters.
+    let mut longer = boot.clone();
+    longer[100] ^= 0xFF;
+    longer.extend_from_slice(&pattern(1_800, 3));
+    v.rewrite_in(&path, &longer).unwrap();
+    assert_eq!(v.read_in(&path, 1 << 20).unwrap(), longer);
+    let (free_after, _) = v.space().unwrap();
+    assert_eq!(free_before - free_after, 4 * 512);
+    save(v, &img);
+    fsck_clean(&img);
+    let out = dir.join("out");
+    let read_out = |name: &str| {
+        let _ = std::fs::remove_file(&out);
+        assert!(
+            mtools("mcopy", &["-n", "-i", i, name, out.to_str().unwrap()]).0,
+            "{name}"
+        );
+        std::fs::read(&out).unwrap()
+    };
+    assert_eq!(read_out("::EFI/BOOT/BOOTX64.EFI"), longer);
+    assert_eq!(read_out("::cmdline.txt"), pattern(700, 2));
+
+    // Shorter again: the clusters it no longer needs are free.
+    let mut v = open(&img);
+    v.rewrite_in(&path, &boot).unwrap();
+    assert_eq!(v.space().unwrap().0, free_before);
+    save(v, &img);
+    fsck_clean(&img);
+    assert_eq!(read_out("::EFI/BOOT/BOOTX64.EFI"), boot);
+}
+
+/// What dosfstools' `fatlabel` says of a volume: its label, or with `-i`
+/// its serial, as it prints them.
+fn fatlabel(img: &Path, args: &[&str]) -> String {
+    let out = Command::new(tool("fatlabel"))
+        .args(args)
+        .arg(img)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "fatlabel: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+/// A name given to a data partition (`docs/STICK-IDENTITY.md` §6), on
+/// FAT16 and FAT32, with files on it or none: `fatlabel`, which Faraday
+/// did not write, reads it back as written, in capitals, and `fsck.fat`
+/// finds the volume whole, its backup boot sector included; a label
+/// `fatlabel` wrote reads back the same here.
+#[test]
+fn a_name_given_here_reads_back_in_fatlabel_and_one_fatlabel_gave_reads_here() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("naming");
+    for (name, args, kib, _) in volumes() {
+        for with_files in [false, true] {
+            let img = mkfs(&dir, &args, kib);
+            if with_files {
+                let src = dir.join("note.txt");
+                std::fs::write(&src, pattern(3_000, 2)).unwrap();
+                let i = format!("{}", img.display());
+                let (ok, _) = mtools("mcopy", &["-i", &i, &format!("{}", src.display()), "::"]);
+                assert!(ok, "{name}: mcopy");
+            }
+            let mut v = open(&img);
+            v.set_label(label_bytes("Coffee 1").unwrap()).unwrap();
+            assert_eq!(v.volume_label().unwrap().as_deref(), Some("COFFEE 1"));
+            save(v, &img);
+            assert_eq!(
+                fatlabel(&img, &[]),
+                "COFFEE 1",
+                "{name}, files {with_files}"
+            );
+            fsck_clean(&img);
+            // Named again, over the entry it has now.
+            let mut v = open(&img);
+            v.set_label(label_bytes("SPARE").unwrap()).unwrap();
+            save(v, &img);
+            assert_eq!(fatlabel(&img, &[]), "SPARE", "{name}, files {with_files}");
+            fsck_clean(&img);
+            if with_files {
+                assert!(
+                    open(&img)
+                        .list()
+                        .unwrap()
+                        .iter()
+                        .any(|e| e.name.eq_ignore_ascii_case("note.txt"))
+                );
+            }
+
+            let out = Command::new(tool("fatlabel"))
+                .arg(&img)
+                .arg("ROOM 2")
+                .output()
+                .unwrap();
+            assert!(out.status.success(), "{name}: fatlabel");
+            assert_eq!(
+                open(&img).volume_label().unwrap().as_deref(),
+                Some("ROOM 2")
+            );
+        }
+    }
+}
+
+/// An empty name takes the label away: the volume then reads as
+/// `mkfs.fat` makes one with no label, in `fatlabel` and here.
+#[test]
+fn an_empty_name_leaves_no_label() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("unnamed");
+    for (name, args, kib, _) in volumes() {
+        let plain: Vec<&str> = args.iter().copied().take_while(|a| *a != "-n").collect();
+        let none = mkfs(&dir, &plain, kib);
+        let expected = fatlabel(&none, &[]);
+        assert_eq!(open(&none).volume_label().unwrap(), None);
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        assert_eq!(label_bytes("  ").unwrap(), None);
+        v.set_label(None).unwrap();
+        assert_eq!(v.volume_label().unwrap(), None);
+        save(v, &img);
+        assert_eq!(fatlabel(&img, &[]), expected, "{name}");
+        fsck_clean(&img);
+    }
+}
+
+/// A name FAT cannot hold is refused before anything is written.
+#[test]
+fn a_name_fat_cannot_hold_is_refused() {
+    assert_eq!(label_bytes("ABCDEFGHIJKL"), Err(Error::Name(BadName::Long)));
+    for bad in ["A.B", "A*", "A/B", "Ä"] {
+        assert_eq!(
+            label_bytes(bad),
+            Err(Error::Name(BadName::Character)),
+            "{bad}"
+        );
+    }
+    assert_eq!(label_bytes("photos").unwrap(), Some(*b"PHOTOS     "));
+}
+
+/// A stick's own serial (`docs/STICK-IDENTITY.md` §7): written here, it is
+/// the one `fatlabel -i` reads, and `fsck.fat` finds the backup boot
+/// sector the same as the boot sector.
+#[test]
+fn a_serial_written_here_is_the_one_fatlabel_reads() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("serial-set");
+    for (name, args, kib, _) in volumes() {
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        v.set_serial(0x1A2B_3C4D).unwrap();
+        assert_eq!(v.serial(), Some(0x1A2B_3C4D));
+        save(v, &img);
+        assert_eq!(fatlabel(&img, &["-i"]).to_lowercase(), "1a2b3c4d", "{name}");
+        assert_eq!(open(&img).serial(), Some(0x1A2B_3C4D));
+        fsck_clean(&img);
+    }
+}
+
+/// A stick prepared elsewhere with a file whose first cluster its FAT
+/// marks free: a vault saved there afterwards takes that cluster, and
+/// zeroing the free space, which keeps the files, leaves the vault's
+/// bytes as they were (or refuses and zeroes nothing).
+#[test]
+fn a_vault_saved_over_a_free_marked_cluster_survives_zeroing_the_free_space() {
+    vault_over_a_free_marked_cluster(false);
+}
+
+/// The same stick with the file's entry given a long name "." whose
+/// checksum matches: the vault is kept all the same.
+#[test]
+fn a_vault_over_a_free_marked_cluster_survives_when_its_file_is_named_dot() {
+    vault_over_a_free_marked_cluster(true);
+}
+
+fn vault_over_a_free_marked_cluster(dotted: bool) {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("zero-shared-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        mput(&dir, &img, "NOTES.TXT", b"n");
+        let mut bytes = std::fs::read(&img).unwrap();
+        // The entry pointed at the next cluster, which nothing holds.
+        let at = bytes.windows(11).position(|w| w == b"NOTES   TXT").unwrap();
+        let lo = u16::from_le_bytes([bytes[at + 26], bytes[at + 27]]);
+        let hi = u16::from_le_bytes([bytes[at + 20], bytes[at + 21]]);
+        let next = ((u32::from(hi) << 16) | u32::from(lo)) + 1;
+        bytes[at + 26..at + 28].copy_from_slice(&(next as u16).to_le_bytes());
+        bytes[at + 20..at + 22].copy_from_slice(&((next >> 16) as u16).to_le_bytes());
+        if dotted {
+            dot_named(&mut bytes, at);
+        }
+        let mut v = Volume::open(bytes).unwrap();
+        if !dotted {
+            // Its last cluster is marked free: the read is refused.
+            assert!(
+                matches!(v.read("NOTES.TXT", 1 << 20), Err(Error::Corrupt(_))),
+                "{name}"
+            );
+            // And so is a piece of it.
+            assert!(
+                matches!(
+                    v.read_part("NOTES.TXT", 0, 1, 1 << 20),
+                    Err(Error::Corrupt(_))
+                ),
+                "{name}: a piece"
+            );
+        }
+
+        let vault = pattern(6_000, 7);
+        v.create("vault.kdbx", &vault).unwrap();
+        assert_eq!(v.read("vault.kdbx", 1 << 20).unwrap(), vault, "{name}");
+
+        let mut from = 2;
+        let refused = loop {
+            match v.zero_free(from, 1 << 30) {
+                Ok(z) if z.done => break false,
+                Ok(z) => from = z.next,
+                Err(_) => break true,
+            }
+        };
+        assert_eq!(
+            v.read("vault.kdbx", 1 << 20).unwrap(),
+            vault,
+            "{name}: the vault's bytes changed (zeroing refused: {refused})"
+        );
+    }
+}
+
+/// The directory slot at `at` made a long-name slot for ".", its checksum
+/// that of the 11-byte short name in the entry, which moves to the next
+/// slot (free): a crafted entry that reads as named ".".
+fn dot_named(bytes: &mut [u8], at: usize) {
+    let entry: Vec<u8> = bytes[at..at + 32].to_vec();
+    let mut sum = 0u8;
+    for &b in &entry[..11] {
+        sum = ((sum & 1) << 7) | (sum >> 1);
+        sum = sum.wrapping_add(b);
+    }
+    bytes[at + 32..at + 64].copy_from_slice(&entry);
+    let mut lfn = [0xFFu8; 32];
+    lfn[0] = 0x41;
+    lfn[1..3].copy_from_slice(&u16::from(b'.').to_le_bytes());
+    lfn[3..5].copy_from_slice(&0u16.to_le_bytes());
+    lfn[11] = 0x0F;
+    lfn[12] = 0;
+    lfn[13] = sum;
+    lfn[26..28].copy_from_slice(&0u16.to_le_bytes());
+    bytes[at..at + 32].copy_from_slice(&lfn);
+}
+
+/// A file that a crafted entry named "." (a long name whose checksum
+/// matches) shares its clusters with: wiping it by name leaves the bytes,
+/// as for any other file two entries claim.
+#[test]
+fn a_file_shared_with_an_entry_named_dot_is_wiped_by_name_only() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("wipe-dot-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        mput(&dir, &img, "NOTES.TXT", &marked(b"shared notes ", 300));
+        let mut bytes = std::fs::read(&img).unwrap();
+        let at = bytes.windows(11).position(|w| w == b"NOTES   TXT").unwrap();
+        // A second entry for the same bytes, as "." (its short name differs).
+        let mut twin = bytes[at..at + 32].to_vec();
+        twin[..11].copy_from_slice(b"OTHER   TXT");
+        bytes[at + 32..at + 64].copy_from_slice(&twin);
+        dot_named(&mut bytes, at + 32);
+        let mut v = Volume::open(bytes).unwrap();
+        assert_eq!(v.wipe("NOTES.TXT"), Ok(Wiped::NameOnly), "{name}");
+        assert!(holds(&v.into_disk(), b"shared notes"), "{name}: zeroed");
+    }
+}
+
+/// A root file whose chain runs past its size into the first cluster of
+/// a file inside a folder: zeroing the free space leaves that file as it
+/// was (or refuses and zeroes nothing).
+#[test]
+fn a_folders_file_in_a_root_files_chain_past_its_size_survives_zeroing() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, kind) in volumes() {
+        let dir = scratch(&format!("zero-folder-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let i = img.to_str().unwrap();
+        assert!(mtools("mmd", &["-i", i, "::SUB"]).0);
+        let inner = marked(b"folder file ", 600);
+        mput(&dir, &img, "SUB/INNER.TXT", &inner);
+        mput(&dir, &img, "ROOT.TXT", b"r");
+        let mut bytes = std::fs::read(&img).unwrap();
+        let u16at = |b: &[u8], o: usize| usize::from(u16::from_le_bytes([b[o], b[o + 1]]));
+        let bps = u16at(&bytes, 11);
+        let cb = bps * usize::from(bytes[13]);
+        let fats = usize::from(bytes[16]);
+        let fat_sectors = match kind {
+            Kind::Fat16 => u16at(&bytes, 22),
+            Kind::Fat32 => u32::from_le_bytes(bytes[36..40].try_into().unwrap()) as usize,
+        };
+        let fat0 = u16at(&bytes, 14) * bps;
+        let root = match kind {
+            Kind::Fat16 => u16at(&bytes, 17) * 32,
+            Kind::Fat32 => 0,
+        };
+        let data = fat0 + fats * fat_sectors * bps + root;
+        let inner_at = bytes
+            .windows(12)
+            .position(|w| w == b"folder file ")
+            .unwrap();
+        let f1 = (inner_at - data) / cb + 2;
+        let at = bytes.windows(11).position(|w| w == b"ROOT    TXT").unwrap();
+        let r1 = (u16at(&bytes, at + 20) << 16) | u16at(&bytes, at + 26);
+        // The FAT entry of the root file's cluster now leads to the folder
+        // file's first cluster.
+        for k in 0..fats {
+            let base = fat0 + k * fat_sectors * bps;
+            match kind {
+                Kind::Fat16 => {
+                    bytes[base + r1 * 2..base + r1 * 2 + 2]
+                        .copy_from_slice(&(f1 as u16).to_le_bytes());
+                }
+                Kind::Fat32 => {
+                    let o = base + r1 * 4;
+                    let keep = bytes[o + 3] & 0xF0;
+                    let mut w = (f1 as u32).to_le_bytes();
+                    w[3] = (w[3] & 0x0F) | keep;
+                    bytes[o..o + 4].copy_from_slice(&w);
+                }
+            }
+        }
+        let mut v = Volume::open(bytes).unwrap();
+        assert_eq!(
+            v.read_in(&["SUB", "INNER.TXT"], 1 << 20).unwrap(),
+            inner,
+            "{name}"
+        );
+        let mut from = 2;
+        loop {
+            match v.zero_free(from, 1 << 30) {
+                Ok(z) if z.done => break,
+                Ok(z) => from = z.next,
+                Err(_) => break,
+            }
+        }
+        assert_eq!(
+            v.read_in(&["SUB", "INNER.TXT"], 1 << 20).unwrap(),
+            inner,
+            "{name}: the folder's file changed"
+        );
+    }
+}
+
+/// A partition that counts the reads made of it.
+struct Reads {
+    bytes: Vec<u8>,
+    reads: usize,
+}
+
+impl Disk for Reads {
+    fn size(&self) -> u64 {
+        self.bytes.len() as u64
+    }
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), Error> {
+        self.reads += 1;
+        self.bytes.read_at(offset, buf)
+    }
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), Error> {
+        self.bytes.write_at(offset, buf)
+    }
+}
+
+/// A FAT32 volume's entry for cluster `c`, in every copy of the FAT.
+fn set_fat32(bytes: &mut [u8], c: u32, v: u32) {
+    let le16 = |at: usize| u16::from_le_bytes([bytes[at], bytes[at + 1]]) as usize;
+    let le32 = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let bps = le16(11);
+    let fat = le16(14) * bps;
+    let fat_bytes = le32(36) as usize * bps;
+    for k in 0..bytes[16] as usize {
+        let e = fat + k * fat_bytes + c as usize * 4;
+        bytes[e..e + 4].copy_from_slice(&v.to_le_bytes());
+    }
+}
+
+#[test]
+fn zeroing_the_free_space_of_a_thousand_entries_on_one_looping_chain_reads_a_bounded_number_of_times()
+ {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("zero-loops");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("ONE.BIN", &pattern(600, 1)).unwrap();
+    let mut bytes = v.into_disk();
+    // One file whose chain runs on from its end into a loop of three
+    // clusters, and a thousand entries naming it.
+    let at = bytes.windows(11).position(|w| w == b"ONE     BIN").unwrap();
+    let lo = u16::from_le_bytes([bytes[at + 26], bytes[at + 27]]);
+    let hi = u16::from_le_bytes([bytes[at + 20], bytes[at + 21]]);
+    let first = (u32::from(hi) << 16) | u32::from(lo);
+    set_fat32(&mut bytes, first + 1, first + 2);
+    set_fat32(&mut bytes, first + 2, first + 3);
+    set_fat32(&mut bytes, first + 3, first + 1);
+    set_fat32(&mut bytes, first, first + 1);
+    let entry: Vec<u8> = bytes[at..at + 32].to_vec();
+    for i in 1..1000usize {
+        let mut e = entry.clone();
+        e[0] = b'A' + (i % 26) as u8;
+        e[1] = b'0' + (i / 26 % 10) as u8;
+        e[2] = b'0' + (i / 260 % 10) as u8;
+        e[3] = b'0' + (i / 2600 % 10) as u8;
+        e[11] = 0x20;
+        e[28..32].copy_from_slice(&600u32.to_le_bytes());
+        bytes[at + i * 32..at + (i + 1) * 32].copy_from_slice(&e);
+    }
+    let mut v = Volume::open(Reads { bytes, reads: 0 }).unwrap();
+    let mut from = 2;
+    let mut done = false;
+    for _ in 0..50 {
+        match v.zero_free(from, 1 << 30) {
+            Ok(z) if z.done => {
+                done = true;
+                break;
+            }
+            Ok(z) => from = z.next,
+            Err(_) => break,
+        }
+    }
+    let reads = v.into_disk().reads;
+    assert!(done, "the free space was not zeroed to its end");
+    assert!(
+        reads < 20_000,
+        "{reads} reads to zero the free space of a thousand entries"
+    );
+}
+
+#[test]
+fn entries_past_the_end_of_the_directory_are_not_shown_by_a_write_beside_them() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("hidden");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("REAL.TXT", b"real").unwrap();
+    let mut bytes = v.into_disk();
+    // Past the end of the directory, an entry no listing shows.
+    let at = bytes.windows(11).position(|w| w == b"REAL    TXT").unwrap();
+    let mut hidden = bytes[at..at + 32].to_vec();
+    hidden[..11].copy_from_slice(b"HIDDEN  TXT");
+    bytes[at + 64..at + 96].copy_from_slice(&hidden);
+    let mut v = Volume::open(bytes).unwrap();
+    assert_eq!(v.list().unwrap().len(), 1);
+    let made = v.create("NEW.TXT", b"new");
+    assert!(
+        matches!(made, Err(Error::Corrupt(Fault::HiddenEntries))),
+        "{made:?}"
+    );
+    let mut after: Vec<_> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+    after.sort();
+    assert_eq!(after, ["REAL.TXT"]);
+}
+
+#[test]
+fn a_name_with_a_control_character_is_listed_without_it() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("printable");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1", "-n", "FARADAY"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("evil.txt", b"x").unwrap();
+    let mut bytes = v.into_disk();
+    let at = bytes.windows(11).position(|w| w == b"EVIL    TXT").unwrap();
+    bytes[at + 1] = 0x01;
+    bytes[at + 2] = 0x85;
+    let mut v = Volume::open(bytes).unwrap();
+    let names: Vec<_> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(names.len(), 1);
+    assert!(
+        names[0].chars().all(|c| !c.is_control()),
+        "{:?} listed",
+        names[0]
+    );
+}
+
+#[test]
+fn the_fuzz_targets_fat32_seed_is_a_volume_that_opens_and_lists() {
+    let seed = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fuzz/faraday/corpus/fat/fat32-two-files.img");
+    let mut v = Volume::open(std::fs::read(seed).unwrap()).unwrap();
+    assert_eq!(v.kind(), Kind::Fat32);
+    assert_eq!(v.read("HELLO.TXT", 1 << 20).unwrap(), b"hello");
+    v.create("new.txt", b"faraday").unwrap();
+    assert_eq!(v.read("new.txt", 1 << 20).unwrap(), b"faraday");
+}
+
+#[test]
+fn two_files_whose_names_differ_only_in_hidden_characters_stay_two_files() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("hidden-twins");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1", "-n", "FARADAY"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("aaa.txt", b"one").unwrap();
+    v.create("aab.txt", b"two").unwrap();
+    let mut bytes = v.into_disk();
+    for (name, c) in [(b"AAA     TXT", 0x01u8), (b"AAB     TXT", 0x02u8)] {
+        let at = bytes.windows(11).position(|w| w == name).unwrap();
+        bytes[at + 1] = c;
+        bytes[at + 2] = b'X';
+    }
+    let mut v = Volume::open(bytes).unwrap();
+    let names: Vec<_> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(names.len(), 2);
+    assert_eq!(names[0], names[1], "shown the same");
+    v.delete("A\u{1}X.TXT").unwrap();
+    let left = v.list().unwrap();
+    assert_eq!(left.len(), 1);
+    assert_eq!(v.read("A\u{2}X.TXT", 1 << 20).unwrap(), b"two");
+}
+
+#[test]
+fn a_long_name_with_a_direction_mark_is_listed_without_it() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("lfn-marks");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("longname_for_lfn.txt", b"x").unwrap();
+    let mut bytes = v.into_disk();
+    // The first long-name slot: its fourth and sixth characters.
+    let at = (0..bytes.len() - 32)
+        .step_by(32)
+        .find(|&o| bytes[o + 11] == 0x0F && bytes[o] & 0x1F == 1)
+        .unwrap();
+    bytes[at + 7..at + 9].copy_from_slice(&0x202Eu16.to_le_bytes());
+    bytes[at + 14..at + 16].copy_from_slice(&0x200Eu16.to_le_bytes());
+    let mut v = Volume::open(bytes).unwrap();
+    let names: Vec<_> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(names.len(), 1);
+    assert!(
+        !names[0].contains(['\u{202E}', '\u{200E}']),
+        "{:?} listed",
+        names[0]
+    );
+}
+
+#[test]
+fn a_volume_label_with_control_characters_is_drawn_without_them() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("label-controls");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1", "-n", "FARADAY"], 40 * 1024);
+    let mut v = open(&img);
+    v.set_label(Some(*b"FAR\x01\x85\x1bADAY ")).unwrap();
+    let label = v.volume_label().unwrap().unwrap();
+    assert!(label.chars().all(|c| !c.is_control()), "{label:?}");
+}
+
+#[test]
+fn a_name_two_files_share_by_case_is_acted_on_for_neither() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("case-twins");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("mine.kdbx", b"vault").unwrap();
+    v.create("mind.kdbx", b"decoy").unwrap();
+    let mut bytes = v.into_disk();
+    // The second's long name becomes MINE.KDBX, beside the first's mine.kdbx.
+    let at = (0..bytes.len() - 32)
+        .step_by(32)
+        .find(|&o| bytes[o + 11] == 0x0F && bytes[o + 1] == b'm' && bytes[o + 7] == b'd')
+        .unwrap();
+    for (k, c) in b"MINE.KDBX".iter().enumerate() {
+        let units = [1, 3, 5, 7, 9, 14, 16, 18, 20];
+        bytes[at + units[k]] = *c;
+    }
+    let mut v = Volume::open(bytes).unwrap();
+    assert_eq!(v.list().unwrap().len(), 2);
+    assert!(v.read("mine.kdbx", 1 << 20).is_err());
+    assert!(v.wipe("mine.kdbx").is_err());
+    assert!(v.delete("mine.kdbx").is_err());
+    assert_eq!(v.list().unwrap().len(), 2, "nothing was deleted");
+    // Another name onto the twins, and a write of the name they share, are
+    // refused too, and both files stay.
+    v.create("other.kdbx", b"o").unwrap();
+    assert!(matches!(
+        v.rename("other.kdbx", "mine.kdbx"),
+        Err(Error::Exists)
+    ));
+    assert!(matches!(v.create("mine.kdbx", b"new"), Err(Error::Exists)));
+    assert!(matches!(v.create("MINE.kdbx", b"new"), Err(Error::Exists)));
+    assert_eq!(v.list().unwrap().len(), 3, "both files stay");
+    assert_eq!(v.read("other.kdbx", 1 << 20).unwrap(), b"o");
+}
+
+#[test]
+fn saving_a_vault_under_a_name_two_folders_share_by_case_is_refused() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("folder-twins");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let i = img.to_str().unwrap();
+    assert!(mtools("mmd", &["-i", i, "::vault.kdbx"]).0);
+    assert!(mtools("mmd", &["-i", i, "::vaulu.kdbx"]).0);
+    let mut bytes = std::fs::read(&img).unwrap();
+    // The second folder's long name becomes VAULT.KDBX, beside vault.kdbx.
+    let at = (0..bytes.len() - 32)
+        .step_by(32)
+        .find(|&o| bytes[o + 11] == 0x0F && bytes[o + 1] == b'v' && bytes[o + 9] == b'u')
+        .unwrap();
+    for (k, c) in b"VAULT.KDBX".iter().enumerate() {
+        let units = [1, 3, 5, 7, 9, 14, 16, 18, 20, 22];
+        bytes[at + units[k]] = *c;
+    }
+    let mut v = Volume::open(bytes).unwrap();
+    assert_eq!(v.list().unwrap().len(), 2);
+    assert!(matches!(
+        v.create("vault.kdbx", b"vault"),
+        Err(Error::Exists)
+    ));
+    v.create("temp.kdbx", b"vault").unwrap();
+    assert!(matches!(
+        v.rename("temp.kdbx", "vault.kdbx"),
+        Err(Error::Exists)
+    ));
+    let names: Vec<_> = v
+        .list()
+        .unwrap()
+        .into_iter()
+        .map(|e| (e.name, e.dir))
+        .collect();
+    assert_eq!(
+        names.len(),
+        3,
+        "both folders stay and nothing joins them: {names:?}"
+    );
+    assert_eq!(v.read("temp.kdbx", 1 << 20).unwrap(), b"vault");
+}
+
+#[test]
+fn a_name_two_files_share_by_what_is_shown_is_acted_on_for_neither() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("shown-twins");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1", "-n", "FARADAY"], 40 * 1024);
+    let mut v = open(&img);
+    v.create("aaa.txt", b"one").unwrap();
+    v.create("aab.txt", b"two").unwrap();
+    let mut bytes = v.into_disk();
+    for (name, c) in [(b"AAA     TXT", 0x01u8), (b"AAB     TXT", 0x02u8)] {
+        let at = bytes.windows(11).position(|w| w == name).unwrap();
+        bytes[at + 1] = c;
+        bytes[at + 2] = b'X';
+    }
+    let mut v = Volume::open(bytes).unwrap();
+    let shown = v.list().unwrap()[0].name.clone();
+    assert!(v.read(&shown, 1 << 20).is_err());
+    assert!(v.delete(&shown).is_err());
+    assert!(v.wipe(&shown).is_err());
+    v.create("other.txt", b"o").unwrap();
+    assert!(matches!(v.rename("other.txt", &shown), Err(Error::Exists)));
+    assert!(matches!(v.create(&shown, b"new"), Err(Error::Exists)));
+    assert_eq!(v.list().unwrap().len(), 3, "nothing was added or deleted");
+}
+
+#[test]
+fn zeroing_the_free_space_with_a_folder_whose_chain_loops_ends_and_leaves_the_volume_usable() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("zero-folder-loop");
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let i = img.to_str().unwrap();
+    assert!(mtools("mmd", &["-i", i, "::SUB"]).0);
+    let keep = pattern(900, 3);
+    mput(&dir, &img, "KEEP.BIN", &keep);
+    let mut bytes = std::fs::read(&img).unwrap();
+    let at = bytes.windows(11).position(|w| w == b"SUB        ").unwrap();
+    let lo = u16::from_le_bytes([bytes[at + 26], bytes[at + 27]]);
+    let hi = u16::from_le_bytes([bytes[at + 20], bytes[at + 21]]);
+    let first = (u32::from(hi) << 16) | u32::from(lo);
+    // The folder's one cluster is followed by itself.
+    set_fat32(&mut bytes, first, first);
+    let mut v = Volume::open(Reads { bytes, reads: 0 }).unwrap();
+    let mut from = 2;
+    let mut done = false;
+    for _ in 0..50 {
+        match v.zero_free(from, 1 << 30) {
+            Ok(z) if z.done => {
+                done = true;
+                break;
+            }
+            Ok(z) => from = z.next,
+            // The loop is refused, not walked.
+            Err(Error::Corrupt(_)) => {
+                done = true;
+                break;
+            }
+            Err(e) => panic!("{e:?}"),
+        }
+    }
+    assert!(done, "zeroing did not end");
+    assert_eq!(v.read("KEEP.BIN", 1 << 20).unwrap(), keep);
+}

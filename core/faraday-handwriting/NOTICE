@@ -1,0 +1,160 @@
+Faraday's weights and test vectors are those of Haller, converted to flat
+little-endian files by faraday/faraday-handwriting/tools/weights.py. The
+decoder, the image clean-up and the log-add code follow seedsigner-haller
+(SeedSigner, MIT). Three texts follow, each whole: Haller's licence, Haller's
+NOTICE.md (which must accompany any copy of the weights), and the SeedSigner
+licence.
+
+----------------------------------------------------------------------------
+
+Haller (github.com/haller-project/haller), LICENSE:
+
+MIT License
+
+Copyright (c) 2026 pizza-bitcoiner
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+----------------------------------------------------------------------------
+
+Haller (github.com/haller-project/haller, commit
+8ae7296a4d33703ec661848ad927079e3fbe9eaf), NOTICE.md:
+
+# Notices and third-party data
+
+Haller (code, documentation, and the weights published with each release) is
+licensed under the MIT License, see [`LICENSE`](LICENSE). The weights are
+trained on, and some files of `recipes/` are derived from, the third-party
+material listed below, which keeps its own license. This file must accompany
+any copy of the weights.
+
+## Summary
+
+| Material | License or terms | Used for | Redistributed here |
+|---|---|---|---|
+| GNHK (GoodNotes Handwriting Kollection) | CC BY 4.0 | real word images: training of all three networks, detector pages, Emuru styles | no raw image; derived files, see below |
+| EMNIST (from NIST Special Database 19) | no license stated; citation requested by the authors; NIST asks to be acknowledged as the source | letters of the synthetic words and pages | nothing; the simulated evaluation strips derived from the test split are regenerated from the official archive by `recipes/haller-1/evalsim/regenerate.sh` |
+| Google Fonts, 294 font files | SIL Open Font License 1.1 | rendering of synthetic words and pages | no font file |
+| Google Fonts, 18 font files | Apache License 2.0 | rendering of synthetic words and pages | no font file |
+| Emuru model (`blowing-up-groundhogs/emuru`) | MIT | generation of BIP39 words in the style of GNHK writers (lowercase expert) | generated word images in `recipes/haller-1/data/emuru_*.npz`; the model's code, `haller/emuru_model.py` (copyright notice and license in the file) |
+| Qwen3-VL-4B-Instruct | Apache License 2.0 | check of the generated words (accept or reject) | nothing |
+| BIP39 word lists | as distributed with the MIT-licensed reference implementation (`trezor/python-mnemonic`) and `embit` | labels, dictionary decoding, non-target words | `data/bip39_english.txt`, `data/other_words.txt` (accents removed) |
+| SeedSigner | MIT | page detection and normalization code imported at data generation, C library for inference, printed seed card templates | `data/cards/card12.png`, `data/cards/card24.png` (fronts of the 12- and 24-word cards); `recipes/haller-1/evalsim/preprocess.py` (normalization code of the time) |
+| Printed seed card templates of other makers and projects (25 templates, `recipes/haller-1-detector/data/card_templates.json`; 7 under MIT, 18 without a stated license) | each template's own terms (column `license`) | detector: blank templates drawn on simulated pages | no template file; their word boxes (`recipes/haller-1-detector/gen/data/modeles_cartes/cases.json`) and digests |
+| Photos of blank supports and blank printed cards taken for Haller | MIT (datasets of the Haller-1 release) | detector: real backgrounds and real cards under simulated handwriting | as datasets of the release, not in the git history; exception: the drawings, logos and trademarks of the third-party cards shown remain the property of their holders and are not covered by the MIT License |
+
+Not used by Haller-1: the Kaggle "Handwriting Recognition" names (CC0,
+`haller/names.py`, used only by experiments), and the generated photos of
+the gpt-image-2 datasets published with the release (training data of later
+versions).
+
+## Attributions
+
+**Third-party card designs in the photos.** The photos of the datasets
+`haller-blank-cards` and `haller-1-detector-inputs` show blank seed backup
+cards of SeedSigner and of other makers and projects. The drawings, logos,
+trademarks and printed designs of these cards remain the property of their
+respective holders and are not covered by the MIT License; each keeps its
+own terms (`recipes/haller-1-detector/data/card_templates.json`, README of
+each dataset). The MIT License covers the photographs, masks, annotations,
+labels and indexes. A holder who wants its design removed can ask, and the
+photos concerned will be withdrawn.
+
+**Files derived from GNHK** keep the CC BY 4.0 License of GNHK, not the MIT
+License of this repository: `recipes/haller-1/data/emuru_c31.npz`,
+`emuru_c32.npz`, `emuru_c33.npz`, `emuru_train.npz` (words generated in the
+hands of GNHK writers) and `recipes/haller-1/data/gnhk_train_f.mask.npy`
+(filter of the GNHK training words).
+
+**GNHK.** Alex W. C. Lee, Jonathan Chung, Marco Lee, "GNHK: A Dataset for
+English Handwriting in the Wild", ICDAR 2021. Dataset by GoodNotes,
+https://github.com/GoodNotes/GNHK-dataset, licensed under the Creative
+Commons Attribution 4.0 International License
+(https://creativecommons.org/licenses/by/4.0/). Changes: word images were
+cropped from the pages, straightened, binarized and normalized to a height of
+32 pixels; pages were reduced and annotated with word boxes for the detector;
+for the lowercase expert, samples were filtered by a model and used as style
+references for generated words. No warranty is given by the licensor.
+
+**EMNIST.** Gregory Cohen, Saeed Afshar, Jonathan Tapson, André van Schaik,
+"EMNIST: an extension of MNIST to handwritten letters", 2017,
+arXiv:1702.05373. Derived from NIST Special Database 19, Handprinted Forms
+and Characters, National Institute of Standards and Technology. Changes:
+letters were resized, slanted, joined into words and pages and rendered as
+photographs. No EMNIST image, and no image derived from one, is distributed
+with Haller: the simulated evaluation strips of Haller-1, written with letters
+of the EMNIST test split, are regenerated by the user from the official NIST
+archive (`recipes/haller-1/evalsim/regenerate.sh`, checked against digests).
+
+**Fonts.** Each font is downloaded by `haller.fonts` from the google/fonts
+repository at a pinned commit, checked against `data/fonts.sha256` and
+`data/fonts_cursive.sha256`; the license of each font and the URL of its
+license text are written to `LICENSES.json` next to the downloaded files. The
+font files are not redistributed; images rendered with them are not Font
+Software under the OFL.
+
+**Emuru.** Vittorio Pippi, Fabio Quattrini, Silvia Cascianelli, Alessio
+Tonioni, Rita Cucchiara, "Zero-Shot Styled Text Image Generation, but Make It
+Autoregressive", CVPR 2025. Model `blowing-up-groundhogs/emuru`, MIT License,
+Copyright (c) 2025 AImageLab; its code (configuration_emuru.py and
+modeling_emuru.py at commit c75b78dd6ea0306123ad5a12b18b9ae4a927e149) is copied
+into `haller/emuru_model.py`.
+The generated words take the handwriting style of GNHK pages (see GNHK above).
+
+**SeedSigner.** https://github.com/SeedSigner/seedsigner, MIT License. The
+card templates of `data/cards/` are the fronts of
+`docs/seed_qr/printable_templates/trading_card_21x21_w12words.pdf` and
+`trading_card_25x25_w24words.pdf`, rendered at 400 dpi (`pdftoppm -r 400`),
+converted to grayscale and cropped to the card (pixels 696-1700 x 400-1801).
+
+## Not redistributed
+
+Datasets are downloaded by the user with the commands of the README. Photos
+taken by users of the SeedSigner reader are never included in this
+repository or in a release. The photos of a test set in use are not
+published; only the manifest of the set is (see the data publication policy
+of `RELEASING.md`). Photos published later, as training data or as a replaced
+test set, are listed here with their terms.
+
+----------------------------------------------------------------------------
+
+SeedSigner (github.com/haller-project/seedsigner-haller, commit
+ee63ab365642a516037aab06e1e0c45636bca5f6), LICENSE.md:
+
+MIT License
+
+Copyright (c) 2021 SeedSigner
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
