@@ -1592,13 +1592,13 @@ feature = ["menu-pages"]
 [[module]]
 main = "faraday/faraday-core/src/compact/mod.rs"
 fate = "port"
-next = ["kit/faraday-templates/src/screen.rs"]
+next = ["kit/faraday-templates/src/screen.rs", "kit/faraday-templates/src/flow/compact.rs"]
 feature = ["small-panel"]
 
 [[module]]
 main = "faraday/faraday-core/src/compact/screen.rs"
 fate = "port"
-next = ["kit/faraday-templates/src/screen.rs", "kit/faraday-templates/src/menu_page.rs"]
+next = ["kit/faraday-templates/src/screen.rs", "kit/faraday-templates/src/menu_page.rs", "kit/faraday-templates/src/flow/compact.rs"]
 feature = ["small-panel"]
 
 [[module]]

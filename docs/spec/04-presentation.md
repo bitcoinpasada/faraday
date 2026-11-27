@@ -293,6 +293,8 @@ Cancel while a step runs, 03 A29) is never drawn live:
 | `busy` | the `Running` of the flow's job kinds in `view.running` and `running()` (03 §8.2) |
 | `width` | `width(at())`, the kernel's `Width` mapped to the template's |
 | `step` | `at()` and its place in `steps()`: the anchor of the fade through (§8) |
+| `words` | the wording's "Your choices", Back and Cancel |
+| `forward` | the step's forward action: its buttons, kept out of `card`, so the small panel pins them |
 
 The template's model, in `faraday-templates`' `flow` module:
 
@@ -310,8 +312,16 @@ pub struct FlowModel<'s, A> {
     pub busy: Option<BusyModel<'s>>,
     pub width: Width,
     pub step: Anchor,                    // the anchor of the fade through
+    pub words: FlowWords<'s>,            // Your choices, Back, Cancel: the template names no strings crate
+    pub lead: Option<ChoiceRow<'s, A>>,  // the wallet or key the flow is on: Your choices' first row
+    pub chip: Option<Chip<'s, A>>,       // at the head of the card: where the flow goes next
+    pub note: Option<Shown<'s>>,         // under the chip, a primary bar at its left
+    pub forward: Option<ButtonsModel<'s, A>>, // at the card's end; on the small panel the pin bar's
+    pub instead: Option<Instead<'s, A>>, // a pick or the take-away, in the pane in place of Your choices
 }
-pub struct ChoiceRow<'s, A> { pub title: Shown<'s>, pub answer: Shown<'s>, pub offered: Offered<A> }
+pub struct ChoiceRow<'s, A> { pub title: Shown<'s>, pub answer: Shown<'s>, pub offered: Offered<A>,
+                              pub current: bool, pub mono: bool }
+pub struct FlowWords<'s> { pub your_choices: Shown<'s>, pub back: Shown<'s>, pub cancel: Shown<'s> }
 pub enum Width { Column, Wide, Full }
 ```
 
@@ -328,12 +338,20 @@ has and the optional parts (choices, under, cancel, asking, refused, busy) are n
 hand. Turned down: public fields (nothing stops a feature building the model); a `new` taking all
 twelve fields (the same as public ones).
 
+**Decision: the words the template draws are a `FlowWords` that `FlowModel::new` takes, and the
+forward action is a field (`with_forward`), not the card's last block.** Reason: the kit names no
+strings crate, so the fill gives the words; the pin bar must know which buttons to hold at the
+small panel's foot without reading the card's blocks, and a flow whose forward action stands in
+its card would be pinned by accident. Turned down: the template reading the words from the
+strings crate; pinning a card's last `Block::Buttons`.
+
 - **Rule V12.** Every step flow's model is filled by the one blanket impl; a flow writes only
   `ShowFlow`. Held by `lint-layers`, which refuses an `impl Present for` a type that implements
   `StepFlow` (so no `Page` either, `Present` being its supertrait), by `FlowModel`'s
   private fields (built only by `FlowModel::new`, which takes the fields every flow has: heading,
-  title, card, back, width and the step anchor, and the consuming `with_choices`, `with_under`,
-  `with_cancel`, `with_asking`, `with_refused` and `with_busy` for the optional parts), by those
+  title, card, back, width, the step anchor and the words, and the consuming `with_choices`,
+  `with_under`, `with_cancel`, `with_asking`, `with_refused`, `with_busy`, `with_forward`,
+  `with_lead`, `with_chip`, `with_note`, `with_pick` and `with_take` for the optional parts), by those
   methods in `disallowed-methods` (in `kit/clippy.toml` and `app/clippy.toml`, the two files whose
   crates can name the template) with the fill carrying one `#[allow(clippy::disallowed_methods)]`,
   and by K8 (the step-flow template takes only `FlowModel`).
@@ -839,6 +857,7 @@ pub enum Style { Filled, Tonal, Outlined, Text, Elevated, Error }
   Demo's host strip and the "Demo only" card (`practice-demo.md`). A new one is a kit change and a
   row of DESIGN §4.
 - Built: the keyboard (its layouts and keys), the ways in, the viewfinder, the QR copy grid and a row's details (`kit/faraday-organisms/src/{keyboard,ways_in,viewfinder,qr_grid,row_details}.rs`), each a model and a `draw` over its box.
+- Built: the step-flow template (`kit/faraday-templates/src/flow.rs`, `flow/compact.rs`): the chip and note, the heading and title, the card, the forward action (at the card's end; on the small panel in the pin bar, `FLOW_PIN_H`), Your choices with the lead row and the current row's tint (beside the card where the room holds the pair, else under it), a pick or the take-away in the pane's place, `under`, the foot (refusal, busy line held still under Reduce motion, Back and Cancel), the asking dialog over the page room, the raised card (outlined at High contrast alone), and on the small panel the page per step. Not built: Your choices as the bar's button and sheet on the small panel; Back and Cancel in the top bar and the dialog over the whole window are the screen frame's to take over.
 
 ### 12.4 The templates
 

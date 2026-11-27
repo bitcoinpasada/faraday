@@ -1133,9 +1133,14 @@ pub mod testing {
 
     /// A canvas of 640 × 480 pixels at `dpi`.
     pub fn canvas(dpi: u16) -> Canvas {
+        canvas_sized(dpi, (640, 480))
+    }
+
+    /// A canvas of `width` × `height` pixels at `dpi`.
+    pub fn canvas_sized(dpi: u16, (width, height): (u16, u16)) -> Canvas {
         Canvas::new(&Display {
-            width: 640,
-            height: 480,
+            width,
+            height,
             dpi,
             orientation: Orientation::Portrait,
             rotation_offered: None,
