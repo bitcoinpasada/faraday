@@ -67,6 +67,11 @@ name: `no_std` (D2), `boundary` (§2.3 there), `wording` (§2.2 there), `owner` 
 `offline` (S8), `ships` (S5), `checks` (07 TS13), `process` (S2), `values` (P4) and `reexports`
 (K7). The tables below give each crate's values; a key not given is absent.
 
+It also holds `main`'s profiles as they are: `[profile.release]` with `panic = "abort"`, and
+`overflow-checks = true` for `faraday-fat`, `faraday-bip`, `faraday-codec` and `faraday-psbt`,
+whose arithmetic on lengths read from untrusted input must stop the app on a wrap rather than read
+on at a wrong bound; the per-package speed settings come with the packages they name.
+
 ### 1.4 The clippy configuration of each directory
 
 Clippy reads the nearest `clippy.toml` and nothing above it, so each file below holds every set it
@@ -87,7 +92,7 @@ the domain's tests and examples name these paths to read fixtures and to time, a
 
 | Directory | `clippy.toml` holds | Notes |
 |---|---|---|
-| `core/` | mint, keys | the port included (P6); io is `lint-layers`' (D1). A domain crate with a file of its own refuses `Compute::new` alone: its tests mint with `Compute::unchecked` throughout, which clippy cannot allow for tests alone, and the `unchecked` feature, enabled only by dev-dependencies, keeps it out of shipped code |
+| `core/` | mint, keys | the port included (P6); io is `lint-layers`' (D1). A domain crate with a file of its own refuses `Compute::new` alone: its tests mint with `Compute::unchecked` throughout (or with `Compute::new` under `#[expect]`, as kef's do), which clippy cannot allow for tests alone, and the `unchecked` feature, enabled only by dev-dependencies, keeps it out of shipped code |
 | `core/faraday-{bip,crypto,entropy,keys,vault,pgp,sb,kef}/` | `Compute::new`, and `main`'s own file of that crate | `main`'s per-crate copies |
 | `core/faraday-{psbt,codec,selftest}/` | `Compute::new` | below `faraday-keys`, so the keys set names nothing they can call |
 | `kit/` | io, mint, keys | |
@@ -805,7 +810,7 @@ of the app's.
 | `faraday-disk` | `process` | the disk process | boot, crypto, fat, files, strings, text | none | as it is, but its freed-memory test `tests/leak.rs`, not carried (07 §6.1, F336) |
 | `faraday-grant` | `process` | the grant helper | boot | none | as it is |
 | `faraday-stick-adapter` | | framebuffer, evdev and touch, held-back input, the arrow, turns, sticks attached, the clean marker, the read-only root, the dev reports, the capture thread (`ReadMode::Reduced`) | port, storage, camera, v4l2, scanner, crypto, boot, paper, text, tokens | leak-scan | `shells/stick/src/` but `main.rs`'s loop |
-| `faraday-desktop-adapter` | `online` | sticks as folders (the folder `Place` from `faraday-files`), `ToggleStick`, Downloads, opening, the print folder, the camera list | port, storage, files, fat, crypto, text | none | `shells/demo`'s adapter part, `faraday-storage`'s `Dirs` |
+| `faraday-desktop-adapter` | `online` | sticks as folders (the folder `Place` from `faraday-files`), `ToggleStick`, Downloads, opening, the print folder, the camera list | port, storage, files, fat, crypto, strings, text | codec (the folder `Place`'s moved test builds a vault file's head) | `shells/demo`'s adapter part, `faraday-storage`'s `Dirs` |
 | `faraday-window` | `online` | the window, mouse, touch, keys, clipboard, `MovesWindow`, OS randomness, the lens (`ReadMode::Full`) | port, text, camera, scanner, tokens, v4l2 (Linux), mediafoundation (Windows) | none | `shells/window`, ~~core~~, ~~host~~ |
 | `faraday-os-adapter` | `online` | `SystemAsk`, `SystemFact`, `settings.txt`, the colour scheme, writing a stick (02 §4.10) | port, boot, crypto, fat, payload, sb, text; build: payload | sb | `shells/starter/src/` but `main.rs` |
 | `faraday-camera` | | frames, NV12, scaling, the list | none | none | `shells/camera` |
