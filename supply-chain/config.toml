@@ -42,12 +42,26 @@ criteria = "safe-to-deploy"
 version = "1.5.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.crypto-primes]]
+version = "0.7.2"
+criteria = "safe-to-deploy"
+notes = "F71: not reviewed by a person; read by an AI model (docs/deps/crypto-primes.md); its publisher is not one F71 trusts"
+
+[[exemptions.flagset]]
+version = "0.4.7"
+criteria = "safe-to-deploy"
+notes = "Mozilla's audit covers 0.4.3 (F71: an exemption)"
+
 [[exemptions.flate2]]
 version = "1.1.10"
 criteria = "safe-to-deploy"
 
 [[exemptions.hex_lit]]
 version = "0.1.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.lzma-rust2]]
+version = "0.22.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.miniz_oxide]]

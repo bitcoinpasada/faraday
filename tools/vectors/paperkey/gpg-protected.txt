@@ -1,0 +1,37 @@
+# Secret portions of key DBA4AF1787A098FB07AD679BC479EDCFB954B2E6
+# Base16 data extracted Mon Oct 26 19:33:53 2026
+# Created with paperkey 1.6 by David Shaw
+#
+# File format:
+# a) 1 octet:  Version of the paperkey format (currently 0).
+# b) 1 octet:  OpenPGP key or subkey version (currently 4)
+# c) n octets: Key fingerprint (20 octets for a version 4 key or subkey)
+# d) 2 octets: 16-bit big endian length of the following secret data
+# e) n octets: Secret data: a partial OpenPGP secret key or subkey packet as
+#              specified in RFC 4880, starting with the string-to-key usage
+#              octet and continuing until the end of the packet.
+# Repeat fields b through e as needed to cover all subkeys.
+# 
+# To recover a secret key without using the paperkey program, use the
+# key fingerprint to match an existing public key packet with the
+# corresponding secret data from the paper key.  Next, append this secret
+# data to the public key packet.  Finally, switch the public key packet tag
+# from 6 to 5 (14 to 7 for subkeys).  This will recreate the original secret
+# key or secret subkey packet.  Repeat as needed for all public key or subkey
+# packets in the public key.  All other packets (user IDs, signatures, etc.)
+# may simply be copied from the public key.
+#
+# Each base16 line ends with a CRC-24 of that line.
+# The entire block of data ends with a CRC-24 of the entire block of data.
+
+  1: 00 04 DB A4 AF 17 87 A0 98 FB 07 AD 67 9B C4 79 ED CF B9 54 B2 E6 C98A60
+  2: 00 53 FE 07 03 02 A4 D6 1D 76 7F 69 F2 33 FF 15 36 47 21 9D 53 1F F9C070
+  3: 15 31 C5 DE BA F5 07 64 14 B4 52 EF 7E 14 E1 B6 5A 51 0C D3 36 16 25CC48
+  4: 76 48 7A 16 66 F0 56 C1 7F 25 E2 25 8F 54 55 3B 7B FA C6 94 81 F4 D8C864
+  5: 49 4C 88 05 2D 94 21 06 CE F6 FF FF F0 05 28 63 97 5F 82 04 6A 49 DA6B25
+  6: 9E EC 02 A4 A0 64 16 59 D7 2E C4 98 42 ED 79 D9 C4 41 00 53 FE 07 795245
+  7: 03 02 02 F8 1A 17 0F D8 6D 22 FF 30 2F 6B 92 8C EB BB 64 85 7E C0 401895
+  8: 13 EE 55 3A D6 5B 1D D8 FE FC 12 88 F8 C1 03 A9 94 5F 42 F1 0E 77 B489B1
+  9: FC 3E B5 75 29 96 B5 32 FE A6 9D DB EA B7 24 2A 1F 21 D7 7D 92 EE 30596F
+ 10: C2 12 E2 DB EB AF 1A 4F ED 38 CE 05 66 2F 1A D01281
+ 11: CD639B

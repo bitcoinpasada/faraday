@@ -1,0 +1,33 @@
+# Secret portions of key 846AF8B7D8B862ED05A47A1BB9E86C4571ECB9E2
+# Base16 data extracted Mon Oct 26 19:33:53 2026
+# Created with paperkey 1.6 by David Shaw
+#
+# File format:
+# a) 1 octet:  Version of the paperkey format (currently 0).
+# b) 1 octet:  OpenPGP key or subkey version (currently 4)
+# c) n octets: Key fingerprint (20 octets for a version 4 key or subkey)
+# d) 2 octets: 16-bit big endian length of the following secret data
+# e) n octets: Secret data: a partial OpenPGP secret key or subkey packet as
+#              specified in RFC 4880, starting with the string-to-key usage
+#              octet and continuing until the end of the packet.
+# Repeat fields b through e as needed to cover all subkeys.
+# 
+# To recover a secret key without using the paperkey program, use the
+# key fingerprint to match an existing public key packet with the
+# corresponding secret data from the paper key.  Next, append this secret
+# data to the public key packet.  Finally, switch the public key packet tag
+# from 6 to 5 (14 to 7 for subkeys).  This will recreate the original secret
+# key or secret subkey packet.  Repeat as needed for all public key or subkey
+# packets in the public key.  All other packets (user IDs, signatures, etc.)
+# may simply be copied from the public key.
+#
+# Each base16 line ends with a CRC-24 of that line.
+# The entire block of data ends with a CRC-24 of the entire block of data.
+
+  1: 00 04 84 6A F8 B7 D8 B8 62 ED 05 A4 7A 1B B9 E8 6C 45 71 EC B9 E2 AF45D4
+  2: 00 25 00 00 FE 2C 37 0E 9E 98 51 28 5C 98 9B A5 01 21 88 A9 01 04 759829
+  3: A7 47 44 49 B5 DD C1 1C CF 3C 50 4D B3 5C 27 0D 72 04 7F 20 5A 42 13A0C7
+  4: 4C 49 A7 BF 31 0E A2 A5 50 B3 C0 77 F3 69 1C 02 00 25 00 00 FE 36 616E88
+  5: DC C5 3F 66 03 25 A2 1B A0 56 62 16 4A EE 45 01 F7 5E D2 91 27 5C 145CF4
+  6: C8 82 90 AE 69 AC 49 0B 9C 0F 13 0D6069
+  7: 1E3BC7

@@ -1,0 +1,52 @@
+# Replacing Faraday on a stick
+
+**Kind:** Reference
+**Status:** Checked against the app
+
+## What it does
+
+Make a Faraday stick → Replace Faraday, keep data writes a new Faraday over the stick's boot partition, reads it back and compares. The data partition, with its vaults and settings file, is not read and not written.
+
+This is how a Faraday stick is upgraded: Faraday itself writes no boot partition. The new Faraday is checked against the release's manifest before it is written. A stick that already holds the same build is not written. Writing an older Faraday over a newer one is marked on Confirm and can still be done. A stick whose boot partition is smaller than the new one's has to be written whole, which empties its data partition.
+
+## The stick's size
+
+A Faraday stick or Pi card needs a USB stick or SD card of 256 MB or larger. Faraday's own boot file takes about 14 MB of the stick's 64 MiB boot partition, and the Pi card's boot files about 16 MB of its 64 MiB; the rest is room for later versions to grow. The data partition holds vaults, PSBTs and anything else brought to the device: on a stick the Starter makes, all the rest of the stick; on a stick written with `dd` or another tool, the image's 128 MiB.
+
+## With Secure Boot on
+
+The release's boot file, `BOOTX64.EFI`, carries no signature. A computer that starts Faraday with Secure Boot on, with your own db key enrolled, needs the boot file signed with that key. Sign the new release's boot program on Faraday: download the release's `faraday-X.Y.Z-BOOTX64.EFI`, `SHA256SUMS` and `SHA256SUMS.asc` onto a stick's data partition, copy the three in, sign `faraday-X.Y.Z-BOOTX64.EFI` (Vaults, the vault holding the keys, Secure Boot, Owner keys, then Sign or check an image) and write the signed file back. Faraday signs it only when the signature over `SHA256SUMS` verifies with the release key built into Faraday, `SHA256SUMS` lists the file, and the release is at least as new as that Faraday.
+
+## Writing the signed file
+
+Put the signed file in this computer's Downloads folder. On What to write, under Boot file, choose One I signed, then the file; dropping the file on the window chooses it too.
+
+## What Faraday Starter accepts
+
+Faraday Starter takes the file only when it is this release's own program with a signature that holds: the program is compared with the release's while the signature is left out, so a file of another release, or with one byte changed, is refused, whoever signed it. It does not judge whose key signed it; the computer does that when it starts. What to write and Confirm show the name on the signing certificate and its SHA-256: the name is whatever the file's maker chose, so compare the SHA-256 with your db key's. Only the signature is taken from the file; what is written is the release's own program with that signature, in place of the release's file, and everything else on the boot partition is the release's.
+
+## Without the Starter
+
+Once the stick holds the new release, copy the signed file over `EFI/BOOT/BOOTX64.EFI` on its boot partition, the first one, labelled `EFI`. On Linux and macOS it mounts as any FAT partition. On Windows it is an EFI system partition, which gets no drive letter: in `diskpart`, run as administrator, `select disk` the stick, `select partition 1` and `assign letter=S`, copy the file to `S:\EFI\BOOT\BOOTX64.EFI`, then `remove letter=S`.
+
+## What the computer can see
+
+A Faraday stick has the names an ordinary stick has: its boot partition is an EFI system partition labelled EFI, and its data partition has no label, so a file manager, AutoPlay and the computer's record of the drives it has seen show it as any other stick. You may give the data partition a name when the stick is made, or on the device with Rename stick.
+
+Someone who opens the stick's files can still tell what it is: the settings file is named faraday-settings.txt, and the boot file carries Faraday's name and version.
+
+## Plugging the stick in
+
+Each stick the Starter writes has its own IDs; a stick written with another tool, such as dd or Raspberry Pi Imager, has the image's, and Faraday gives its data partition a serial of its own at its first start. Write a stick with the Starter for it to have IDs of its own throughout.
+
+Plugging the stick into this computer exposes its data partition, whatever Faraday Starter does. The computer can read and write it, and Windows gives it a drive letter. The vaults there are encrypted with their passphrases; the settings file is not. A program on this computer could read the settings file, and could change or delete anything on the data partition.
+
+## Keeping the boot stick offline
+
+The boot partition holds Faraday's kernel and application. A program running on an online computer the stick is plugged into can change it: on Linux with no prompt, on Windows probably only with administrator rights, and on a Pi card it is plain files. Faraday then starts what it finds. Faraday Starter will check the boot partition against the release each time it sees the stick, which catches a stick changed on another computer, not one changed by malware on the computer doing the check.
+
+If you want the boot stick kept offline, plug it only into the computer that starts Faraday, after it is made. Take files to and from the device on a second, plain USB stick (Files formats and writes one), or by QR code. Signing the boot file with your own Secure Boot key, above, is another option; it is never required.
+
+## Where this comes from
+
+Faraday's own design: the Starter's specification (sections 3.2, 4.4 and 4.5) and decisions F2, F5, F11, F80, F128, F133 and F174, in Faraday's repository, as of 2026-10-30.

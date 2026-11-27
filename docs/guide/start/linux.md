@@ -1,0 +1,54 @@
+# Starting a Linux computer from the stick
+
+**Kind:** Reference
+**Status:** Checked against the app
+
+## Before you start
+
+If the disk is unlocked by the TPM (a line with tpm2-device in /etc/crypttab), have its passphrase or recovery key ready: Linux asks for it at the next start after Secure Boot is turned off. Faraday Starter checks this first. A disk unlocked by a passphrase alone, or not encrypted, has nothing to do here.
+
+## Steps
+
+1. Plug the stick in.
+
+2. Open the BIOS with Faraday Starter's Restart into the BIOS.
+
+By hand, in a terminal: systemctl reboot --firmware-setup. If that does not work: restart and press the maker's key at power-on, often Esc, Delete, F1, F2, F10, F11 or F12.
+
+3. Find Secure Boot, usually on the Security, Boot or Authentication tab, and set it to Disabled. Save changes and exit.
+
+Leave the Secure Boot keys as they are. Do not delete or clear them.
+
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.
+
+## Choosing the stick
+
+4. Saving restarts the computer. Press the maker's boot menu key at power-on and choose the stick. If it is listed twice, choose the one that starts with UEFI.
+
+The stick is listed under the name printed on it (SanDisk, Kingston…), often after "UEFI:", not as Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
+
+Without a boot menu key: choose the stick in the BIOS's boot override list. If the stick is not listed: see "If something is different" below.
+
+## Afterwards
+
+5. Turn the computer off from Faraday and pull the stick out.
+
+6. Turn Secure Boot back on: open the BIOS, set Secure Boot back to Enabled, save and exit. Do it before the computer's own system starts.
+
+If Secure Boot cannot be enabled, load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
+
+## If something is different
+
+If the stick is not in the boot menu, the BIOS's Fast Boot may be making the computer skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
+
+systemctl reboot --firmware-setup works only on a computer started in UEFI mode whose BIOS offers it. The screen at power-on often names the maker's key.
+
+Secure Boot goes off because the Faraday on the stick is not signed with Microsoft's keys, so a computer starts it only with Secure Boot off.
+
+## The disk unlocked by the TPM
+
+Such a disk was set up with systemd-cryptenroll --tpm2-pcrs=7, or bound to PCR 7 another way, and Faraday Starter shows this first when /etc/crypttab names a tpm2-device. PCR 7 holds the Secure Boot state: it changes when Secure Boot is turned on or off and when its keys change, and the TPM releases the disk's key only for the state it was bound to. With Secure Boot back on and its keys as they were, the TPM unlocks the disk again.
+
+## Sources
+
+systemd's manual pages systemctl(1), systemd-cryptenroll(1) and crypttab(5), from systemd's repository on GitHub (man/). Microsoft: "Boot to UEFI Mode or Legacy BIOS mode" and "Disabling Secure Boot" (learn.microsoft.com, Windows hardware manufacturing), for the firmware steps every maker shares. ASUS: booting from a USB flash drive (FAQ 1013017). Dell: booting an external device over USB Type-C (knowledge base 000131221). All read 2026-10-12. No maker's computer has been tried with these steps yet.

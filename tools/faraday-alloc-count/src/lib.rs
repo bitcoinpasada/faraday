@@ -1,18 +1,101 @@
-//! A tool or test-support crate: the counting allocator (09 §8).
+//! A global allocator that counts the allocations each thread makes, for
+//! faraday-core's frame budgets (`docs/SPEED.md` §7): a test binary
+//! declares it as its allocator, and a test reads [`allocations`] before
+//! and after a frame. Every call goes to the system allocator; the count
+//! is a thread-local add, so tests running side by side in one process do
+//! not see each other's.
+//!
+//! ```
+//! #[global_allocator]
+//! static ALLOC: faraday_alloc_count::Counting = faraday_alloc_count::Counting;
+//!
+//! let before = faraday_alloc_count::allocations();
+//! let v = vec![1u8; 64];
+//! assert!(faraday_alloc_count::allocations() > before);
+//! drop(v);
+//! ```
 
-/// A global allocator that counts what it hands out.
-pub struct Counting {
-    _private: (),
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
+
+thread_local! {
+    static COUNT: Cell<u64> = const { Cell::new(0) };
+    static LIVE: Cell<isize> = const { Cell::new(0) };
+    static LARGEST: Cell<usize> = const { Cell::new(0) };
 }
 
-impl Counting {
-    /// The allocations made since the last reset.
-    #[must_use]
-    pub fn allocations() -> u64 {
-        todo!()
+fn largest_note(n: usize) {
+    let _ = LARGEST.try_with(|c| c.set(c.get().max(n)));
+}
+
+fn live_add(n: isize) {
+    let _ = LIVE.try_with(|c| c.set(c.get().wrapping_add(n)));
+}
+
+/// The allocator: the system's, counting each allocation and
+/// reallocation on the thread that asks.
+pub struct Counting;
+
+fn note() {
+    // `try_with`: a thread being torn down still allocates, after its
+    // count is gone.
+    let _ = COUNT.try_with(|c| c.set(c.get().wrapping_add(1)));
+}
+
+#[allow(unsafe_code)]
+// SAFETY: every call is passed to `System` unchanged; the count touches
+// no memory the caller owns and allocates nothing itself.
+unsafe impl GlobalAlloc for Counting {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        note();
+        largest_note(layout.size());
+        live_add(layout.size() as isize);
+        // SAFETY: the caller's contract for `alloc` is `System`'s.
+        unsafe { System.alloc(layout) }
     }
 
-    pub fn reset() {
-        todo!()
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        note();
+        largest_note(layout.size());
+        live_add(layout.size() as isize);
+        // SAFETY: as `alloc`.
+        unsafe { System.alloc_zeroed(layout) }
     }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        live_add(-(layout.size() as isize));
+        // SAFETY: `ptr` came from `System` through this allocator.
+        unsafe { System.dealloc(ptr, layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        note();
+        largest_note(new_size);
+        live_add(new_size as isize - layout.size() as isize);
+        // SAFETY: `ptr` came from `System` through this allocator.
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+}
+
+/// The allocations and reallocations this thread has made so far.
+pub fn allocations() -> u64 {
+    COUNT.try_with(Cell::get).unwrap_or(0)
+}
+
+/// The bytes this thread has allocated and not freed, so far (memory freed
+/// on another thread than it was allocated on counts against that one): the
+/// difference across a call is what the call keeps.
+pub fn live_bytes() -> isize {
+    LIVE.try_with(Cell::get).unwrap_or(0)
+}
+
+/// Forgets the largest single allocation seen on this thread.
+pub fn reset_largest_allocation() {
+    let _ = LARGEST.try_with(|c| c.set(0));
+}
+
+/// The largest single allocation or reallocation, in bytes, this thread
+/// has asked for since [`reset_largest_allocation`] (or the start).
+pub fn largest_allocation() -> usize {
+    LARGEST.try_with(Cell::get).unwrap_or(0)
 }

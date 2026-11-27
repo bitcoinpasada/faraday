@@ -1,12 +1,24 @@
 [package]
 name = "faraday-alloc-count"
-version = "0.0.0"
+version = "0.2.0"
+description = "A global allocator that counts each thread's allocations, for faraday-core's frame budgets; tests only"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [lints.rust]
+# Not `workspace = true`: an allocator is `unsafe` to implement
+# (`GlobalAlloc`), so this crate denies `unsafe_code` and allows it on
+# that one impl, as faraday-crypto's `pinned.rs` does; the other workspace
+# lint is repeated by hand.
 unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+# The workspace's: a function over the complexity threshold carries an expect.
+cognitive_complexity = "warn"
 
 [package.metadata.faraday]
 layer = "tool"
