@@ -135,16 +135,21 @@ impl<R: Root> Runtime<R> {
         if self.phase == Phase::Ended {
             return Vec::new();
         }
-        self.settle(event)
+        let mut effects = self.settle(event);
+        effects.extend(self.run_inline());
+        effects
     }
 
     /// The waker woke the loop: worker answers and progress (§5).
     pub fn woken(&mut self) -> Vec<port::Effect> {
+        self.pool.clock(self.clock.now_ms);
         self.running = self.pool.running();
         let mut effects = Vec::new();
         for answer in self.pool.answers() {
             effects.extend(self.settle_with(|runtime| runtime.job_answered(answer)));
         }
+        self.running = self.pool.running();
+        effects.extend(self.run_inline());
         effects
     }
 

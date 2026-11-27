@@ -1,7 +1,9 @@
 //! `Ctx`, `View`, the facts, `Show`, the memo and `Derived` (03 §5; 04 §3, §6, §13).
 
+use core::any::{Any, TypeId};
 use core::cell::RefCell;
 use core::hash::Hash;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use faraday_bip::keys::Network;
@@ -182,7 +184,35 @@ pub struct NoteUp<'a> {
 
 /// Entries keyed by (slot, the value's type, key); interior mutability, the runtime its only
 /// owner.
-pub struct Memo(RefCell<()>);
+pub struct Memo(RefCell<Store>);
+
+/// One bucket for each (slot, value type, key type), so a key of any type is kept as itself.
+type Store = HashMap<(Slot, TypeId, TypeId), Box<dyn Bucket>>;
+
+trait Bucket {
+    /// Drops the entries no frame used since the last call, and marks the rest unused.
+    fn end_frame(&mut self);
+    fn as_any(&mut self) -> &mut dyn Any;
+    fn is_empty(&self) -> bool;
+}
+
+struct Entries<K, V> {
+    map: HashMap<K, (Rc<V>, bool)>,
+}
+
+impl<K: Eq + Hash + 'static, V: 'static> Bucket for Entries<K, V> {
+    fn end_frame(&mut self) {
+        self.map.retain(|_, (_, used)| core::mem::take(used));
+    }
+
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+}
 
 /// "<feature>.<what>", a constant of the feature's crate.
 #[derive(Public, Copy, PartialEq, Eq, Hash)]
@@ -195,40 +225,82 @@ impl Memo {
         reason = "only the runtime makes the memo (01 R1)"
     )]
     pub fn new() -> Memo {
-        Memo(RefCell::new(()))
+        Memo(RefCell::new(HashMap::new()))
     }
 
     /// The runtime's only, at a frame's end: every entry that frame did not use is dropped.
     pub fn end_frame(&self) {
-        todo!()
+        let mut store = self.0.borrow_mut();
+        for bucket in store.values_mut() {
+            bucket.end_frame();
+        }
+        store.retain(|_, bucket| !bucket.is_empty());
     }
 
     /// The runtime's only, at every lock and every end: every entry dropped.
     pub fn clear(&self) {
-        todo!()
+        self.0.borrow_mut().clear();
     }
 
     /// The value kept for (`slot`, `V`, `key`), or `fill(input)` kept and returned. `fill` is a
     /// function, not a closure: it sees only what `input` gives it.
     #[cfg(not(debug_assertions))]
-    pub fn get<K, I, V>(&self, _slot: Slot, _key: K, _input: I, _fill: fn(I) -> V) -> Rc<V>
+    pub fn get<K, I, V>(&self, slot: Slot, key: K, input: I, fill: fn(I) -> V) -> Rc<V>
     where
         K: Public + Eq + Hash,
         I: Public,
         V: Public + 'static,
     {
-        todo!()
+        if let Some(kept) = self.hit::<K, V>(slot, &key) {
+            return kept;
+        }
+        self.keep(slot, key, fill(input))
     }
 
     /// In debug builds `get` fills again on every call and asserts the value equals the kept one.
     #[cfg(debug_assertions)]
-    pub fn get<K, I, V>(&self, _slot: Slot, _key: K, _input: I, _fill: fn(I) -> V) -> Rc<V>
+    pub fn get<K, I, V>(&self, slot: Slot, key: K, input: I, fill: fn(I) -> V) -> Rc<V>
     where
         K: Public + Eq + Hash,
         I: Public,
         V: Public + PartialEq + 'static,
     {
-        todo!()
+        match self.hit::<K, V>(slot, &key) {
+            Some(kept) => {
+                assert!(
+                    *kept == fill(input),
+                    "memo entry {slot:?} is not what its input fills"
+                );
+                kept
+            }
+            None => self.keep(slot, key, fill(input)),
+        }
+    }
+
+    /// The kept value, marked used.
+    fn hit<K: Eq + Hash + 'static, V: 'static>(&self, slot: Slot, key: &K) -> Option<Rc<V>> {
+        let mut store = self.0.borrow_mut();
+        let bucket = store.get_mut(&(slot, TypeId::of::<V>(), TypeId::of::<K>()))?;
+        let entries = bucket.as_any().downcast_mut::<Entries<K, V>>()?;
+        let (value, used) = entries.map.get_mut(key)?;
+        *used = true;
+        Some(Rc::clone(value))
+    }
+
+    fn keep<K: Eq + Hash + 'static, V: 'static>(&self, slot: Slot, key: K, value: V) -> Rc<V> {
+        let value = Rc::new(value);
+        let mut store = self.0.borrow_mut();
+        let bucket = store
+            .entry((slot, TypeId::of::<V>(), TypeId::of::<K>()))
+            .or_insert_with(|| {
+                Box::new(Entries::<K, V> {
+                    map: HashMap::new(),
+                })
+            });
+        if let Some(entries) = bucket.as_any().downcast_mut::<Entries<K, V>>() {
+            entries.map.insert(key, (Rc::clone(&value), true));
+        }
+        value
     }
 }
 

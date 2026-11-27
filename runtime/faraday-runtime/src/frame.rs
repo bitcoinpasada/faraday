@@ -304,6 +304,7 @@ impl<R: Root> Runtime<R> {
         frame.fresh = true;
         let display = &facts.facts.display;
         frame.paint(display.width, display.height);
+        self.memo_frame_end();
         if send { pending } else { Vec::new() }
     }
 

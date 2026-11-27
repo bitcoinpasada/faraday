@@ -47,6 +47,9 @@ enum Msg {
     Look,
     Loop,
     Job,
+    Hold,
+    Stop,
+    Held(u32),
     Share,
     Open,
 }
@@ -284,6 +287,19 @@ impl<P: Place> Feature for Probe<P> {
             }
             Msg::Loop => Effects::none().then(Msg::Loop),
             Msg::Job => Effects::none().job(Job::new(JobKind("test.job"), 0_u8, |_, _| Msg::Fan)),
+            Msg::Hold => Effects::none().job(Job::new(JobKind("test.hold"), 0_u8, |_, compute| {
+                compute.progress(2, 5);
+                let began = std::time::Instant::now();
+                while !compute.stop_asked() && began.elapsed().as_secs() < 10 {
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+                Msg::Held(u32::from(compute.stop_asked()))
+            })),
+            Msg::Stop => Effects::none().stop(JobKind("test.hold")),
+            Msg::Held(stopped) => {
+                log(format!("{name}:Held({stopped})"));
+                Effects::none()
+            }
             Msg::Share => Effects::none().out(Top::Shared(shared::Changed::Settings(
                 settings::Changed::Choices,
             ))),
@@ -684,4 +700,145 @@ fn a_scope_that_is_locking_gets_only_what_serves_the_lock() {
     assert_eq!(take_log(), Vec::<String>::new());
     runtime.event(Event::Answer(outside[0], Answer::Memory(Some(2))));
     assert_eq!(take_log(), ["outside:Mem(4, Some(2))"]);
+}
+
+/// Counts the wakes the lanes make.
+struct Counting(std::sync::atomic::AtomicU32);
+
+impl port::Waker for Counting {
+    fn wake(&self) {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::Release);
+    }
+}
+
+fn started_on_threads() -> Runtime<Device> {
+    let mut runtime = Runtime::new(
+        Device::new(),
+        Arc::new(Counting(Default::default())),
+        Workers::Threads,
+    );
+    runtime.frame.skip = true;
+    runtime.event(start_event());
+    take_log();
+    runtime
+}
+
+/// Waits for the lanes, handling what they answer, until `done` holds or five seconds pass.
+fn woken_until(runtime: &mut Runtime<Device>, done: impl Fn(&Runtime<Device>) -> bool) {
+    let began = std::time::Instant::now();
+    while !done(runtime) && began.elapsed().as_secs() < 5 {
+        runtime.woken();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+
+/// Invariant: A job's answer reaches the top state that started it as the next event, the same on the root's thread and on a lane.
+/// Regression: An inline arm that answers in another order than the lanes, or a lane whose answer goes to no one, makes a tour render other than the device runs.
+/// Owner: runtime
+#[test]
+fn a_job_answers_the_scope_that_started_it_inline_and_on_a_lane() {
+    let mut inline = started(Device::new());
+    send(&mut inline, Addr::App(Msg::Job));
+    let on_inline = take_log();
+    assert_eq!(on_inline.first().map(String::as_str), Some("app:Fan"));
+
+    let mut threads = started_on_threads();
+    send(&mut threads, Addr::App(Msg::Job));
+    woken_until(&mut threads, |_| LOG.with(|log| !log.borrow().is_empty()));
+    assert_eq!(take_log(), on_inline);
+}
+
+/// Invariant: A job's answer of a generation that is neither 0 nor the built scope's is dropped unread, and what it carries wipes as it drops.
+/// Regression: A runtime that delivers a stale scope's answer hands a locked scope's job output to the scope built after it (R15).
+/// Owner: runtime
+#[test]
+fn a_job_answer_of_another_scope_is_dropped() {
+    use crate::pool::{Answered, JobId};
+    use crate::queue::Part;
+    let mut runtime = started(Device::new());
+    let generation = runtime.generation;
+    let answer = |generation: u32| Answered {
+        id: JobId { generation, n: 9 },
+        part: Part::App,
+        seal: false,
+        message: Box::new(Addr::<Device>::App(Msg::Fan)),
+    };
+    runtime.settle_with(|runtime| runtime.job_answered(answer(generation + 4)));
+    assert_eq!(take_log(), Vec::<String>::new());
+    runtime.settle_with(|runtime| runtime.job_answered(answer(generation)));
+    assert_eq!(take_log().first().map(String::as_str), Some("app:Fan"));
+}
+
+/// Invariant: A job asked to stop sees the stop, and an answer it returns is handled as any answer; a job not yet started is dropped and answers nothing.
+/// Regression: A stop that sets no flag leaves a long job running to its end; one that leaves the queued job in place answers a screen that asked for nothing.
+/// Owner: runtime
+#[test]
+fn stopping_a_job_stops_it_and_a_queued_one_never_answers() {
+    let mut runtime = started_on_threads();
+    send(&mut runtime, Addr::App(Msg::Hold));
+    send(&mut runtime, Addr::App(Msg::Hold));
+    woken_until(&mut runtime, |runtime| {
+        runtime.pool.running().iter().any(|r| r.done == 2)
+    });
+    let running = runtime.pool.running();
+    assert_eq!((running.len(), running[0].done, running[0].of), (1, 2, 5));
+    send(&mut runtime, Addr::App(Msg::Stop));
+    woken_until(&mut runtime, |_| LOG.with(|log| !log.borrow().is_empty()));
+    assert_eq!(take_log(), ["app:Held(1)"]);
+    woken_until(&mut runtime, |_| false);
+    assert_eq!(take_log(), Vec::<String>::new());
+    assert!(runtime.pool.running().is_empty());
+}
+
+/// Invariant: A camera fact of a stream that is not the running one never reaches the root; the running stream's does until `CameraOff`.
+/// Regression: A frame of a stopped stream reaching a feature shows a camera the person turned off, and its bytes outlive it.
+/// Owner: runtime
+#[test]
+fn a_camera_fact_of_another_stream_is_dropped() {
+    use port::event::CameraFact;
+    let mut runtime = started(Device::new());
+    let running = AskId {
+        generation: 1,
+        n: 3,
+    };
+    runtime.scope.stream = Some(running);
+    let ended = |stream| CameraFact::Ended {
+        stream,
+        why: port::camera::Failure::Unavailable,
+    };
+    assert!(!runtime.stream_check(&ended(AskId {
+        generation: 1,
+        n: 4
+    })));
+    assert!(runtime.stream_check(&ended(running)));
+    assert!(!runtime.stream_check(&ended(running)));
+}
+
+thread_local! {
+    static FILLS: core::cell::Cell<u32> = const { core::cell::Cell::new(0) };
+}
+
+fn fill_plus_one(input: u32) -> u32 {
+    FILLS.with(|fills| fills.set(fills.get() + 1));
+    input + 1
+}
+
+/// Invariant: A memo entry is kept while a frame uses it, dropped at the end of the first frame that does not, and every entry is dropped by `clear`.
+/// Regression: A memo that never forgets keeps a value of a screen long gone; one that forgets at once refills every frame.
+/// Owner: runtime
+#[test]
+fn a_memo_entry_lives_one_frame_unless_used_and_clear_empties_it() {
+    use faraday_kernel::Slot;
+    let mut runtime = started(Device::new());
+    let slot = Slot("test.memo");
+    let get =
+        |runtime: &Runtime<Device>, input| *runtime.memo.get(slot, 1_u32, input, fill_plus_one);
+    assert_eq!(get(&runtime, 1), 2);
+    runtime.memo_frame_end();
+    assert_eq!(get(&runtime, 1), 2);
+    runtime.memo_frame_end();
+    runtime.memo_frame_end();
+    assert_eq!(get(&runtime, 10), 11);
+    runtime.memo_empty();
+    assert_eq!(get(&runtime, 20), 21);
 }
