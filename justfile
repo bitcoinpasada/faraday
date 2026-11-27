@@ -1,6 +1,5 @@
 # The check. Recipes for tests and the lints come with the code they check.
-# `lint` joins `default` once the skeleton passes it; until then the lints' own tests run.
-default: check clippy fmt deny vet lint-tests
+default: check clippy fmt deny vet lint
 
 check:
     cargo check --workspace --all-targets --locked
