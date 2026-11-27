@@ -10,8 +10,9 @@ use faraday_tokens::dims;
 use faraday_tokens::palette::Color;
 
 use crate::canvas::Canvas;
-use crate::geom::{Dp, Rect, Scale, SizeClass};
+use crate::geom::{Dp, Rect, Scale};
 use crate::text::{Font, TextAlign};
+use faraday_tokens::dims::SizeClass;
 
 /// The picture's width in pixels, whatever the code's size: the code is
 /// scaled to it in whole pixels a module, and the label is set at one

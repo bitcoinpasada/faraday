@@ -7,7 +7,7 @@
 
 use faraday_port::values::Display;
 pub use faraday_port::values::Point;
-pub use faraday_tokens::dims::{SizeClass, Window, WindowClass};
+use faraday_tokens::dims::{SizeClass, Window};
 
 /// A length in density-independent pixels: 1 dp is 1/160 inch.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]

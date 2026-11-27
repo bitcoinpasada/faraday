@@ -16,7 +16,9 @@ mod skia;
 pub mod text;
 
 pub use canvas::{BlendBand, Canvas};
-pub use faraday_tokens::motion::{Easing, EasingPath};
-pub use faraday_tokens::palette::Color;
-pub use geom::{Dp, Edges, Point, Rect, Scale, Size, SizeClass};
+use faraday_tokens::motion::{Easing, EasingPath};
+// The colour type the tests paint with (any colour, not a token's value).
+#[cfg(test)]
+use faraday_tokens::palette::Color;
+pub use geom::{Dp, Edges, Point, Rect, Scale, Size};
 pub use text::{Font, TextAlign};
