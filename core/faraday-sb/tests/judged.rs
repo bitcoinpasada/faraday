@@ -1,0 +1,979 @@
+//! What Faraday's Secure Boot files are, judged by other tools
+//! (`docs/FLOWS.md` "Secure Boot"): `openssl` reads the certificates and verifies the
+//! PKCS #7 signature in each `.auth` update; `sbverify` (sbsigntool)
+//! verifies a signed image against the db certificate; and Faraday's own
+//! check tells a signed image from an altered one and from one signed by
+//! another key. `certtool` (GnuTLS) reads every certificate made;
+//! `pesigcheck` (pesign, over NSS) verifies the
+//! real signed binaries of `tools/reference/signed-efi/`, whose signer and
+//! image hash `pesign` names too; python3-pefile reads the checksum and
+//! certificate-table entry of an image. A tool not on PATH (`sbverify`
+//! also as `FARADAY_SBVERIFY`) fails the test: nothing here is skipped
+//! (docs/DEVELOPING.md names the packages).
+
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use faraday_sb::rng::Stream;
+use faraday_sb::{Check, Keys, Policy, efi, enrolment, make, pe};
+use sha2::{Digest, Sha256};
+
+const NOW: u64 = 1_791_000_000;
+
+fn keys() -> Keys {
+    make(&[0x42; 32], "Test", NOW).unwrap()
+}
+
+/// The DER encoding of signedData, id-signedData (1.2.840.113549.1.7.2).
+const SIGNED_DATA_OID: [u8; 11] = [
+    0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x02,
+];
+
+/// One DER element: `tag`, the length and `content`.
+fn tlv(tag: u8, content: &[u8]) -> Vec<u8> {
+    let mut out = vec![tag];
+    match content.len() {
+        n if n < 0x80 => out.push(n as u8),
+        n if n < 0x100 => out.extend([0x81, n as u8]),
+        n => out.extend([0x82, (n >> 8) as u8, n as u8]),
+    }
+    out.extend_from_slice(content);
+    out
+}
+
+/// The stream that blinds a test's signing.
+fn blind() -> Stream {
+    faraday_sb::rng::stream(&[0x43; 32], 0)
+}
+
+/// A test's own scratch tree; removed when it drops.
+struct Scratch(PathBuf);
+
+impl Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn scratch(name: &str) -> Scratch {
+    let dir = std::env::temp_dir().join(format!("faraday-sb-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    Scratch(dir)
+}
+
+/// Whether an outside judge this file added after openssl and sbverify is
+/// installed (ESTABLISHED §9.2, rule 4): its tests skip with a note under
+/// plain `just` and fail without it under `just crosscheck`.
+fn judge_present(name: &str, cmd: &str, args: &[&str]) -> bool {
+    let ok = Command::new(cmd)
+        .args(args)
+        .output()
+        .is_ok_and(|o| o.status.success());
+    if !ok {
+        eprintln!("{name} is not installed: its checks are skipped");
+        if std::env::var_os("FARADAY_JUDGES_REQUIRED").is_some() {
+            panic!("FARADAY_JUDGES_REQUIRED is set and {name} is not installed");
+        }
+    }
+    ok
+}
+
+fn run(cmd: &str, args: &[&str]) -> Option<(bool, String)> {
+    let out = Command::new(cmd).args(args).output().unwrap_or_else(|e| {
+        panic!("{cmd} is not installed ({e}); these tests need openssl and sbverify, see docs/DEVELOPING.md")
+    });
+    Some((
+        out.status.success(),
+        String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr),
+    ))
+}
+
+fn pem(dir: &Path, name: &str, der: &[u8]) -> Option<String> {
+    let d = dir.join(format!("{name}.der"));
+    let p = dir.join(format!("{name}.pem"));
+    std::fs::write(&d, der).unwrap();
+    let (ok, _) = run(
+        "openssl",
+        &[
+            "x509",
+            "-inform",
+            "DER",
+            "-in",
+            d.to_str()?,
+            "-out",
+            p.to_str()?,
+        ],
+    )?;
+    ok.then(|| p.to_str().unwrap().to_string())
+}
+
+#[test]
+fn microsoft_certificates_are_what_was_recorded() {
+    for m in faraday_sb::MICROSOFT {
+        let got: String = Sha256::digest(m.der)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(got, m.sha256, "{}", m.name);
+        assert_eq!(faraday_sb::common_name(m.der).as_deref(), Some(m.name));
+    }
+}
+
+#[test]
+fn openssl_verifies_the_certificates_and_the_auth_signatures() {
+    let dir = scratch("openssl");
+    let k = keys();
+    let pk = pem(&dir, "pk", &k.pk.cert).expect("openssl reads the PK certificate");
+    let kek = pem(&dir, "kek", &k.kek.cert).unwrap();
+    for c in [&pk, &kek] {
+        let (ok, said) = run("openssl", &["verify", "-check_ss_sig", "-CAfile", c, c]).unwrap();
+        assert!(ok, "{said}");
+    }
+    let files = enrolment(&mut blind(), &k, Policy::Windows, NOW).unwrap();
+    for (name, vendor, signer) in [
+        ("PK", efi::GLOBAL_VARIABLE, &pk),
+        ("KEK", efi::GLOBAL_VARIABLE, &pk),
+        ("db", efi::IMAGE_SECURITY_DATABASE, &kek),
+    ] {
+        let auth = &files
+            .iter()
+            .find(|(n, _)| *n == format!("{name}.auth"))
+            .unwrap()
+            .1;
+        let esl = &files
+            .iter()
+            .find(|(n, _)| *n == format!("{name}.esl"))
+            .unwrap()
+            .1;
+        let len = u32::from_le_bytes(auth[16..20].try_into().unwrap()) as usize;
+        let signed_data = &auth[16 + 24..16 + len];
+        assert_eq!(&auth[16 + len..], esl.as_slice());
+        // What the firmware hashes: name, vendor, attributes, time, data.
+        let mut content: Vec<u8> = name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        content.extend_from_slice(&vendor);
+        content.extend_from_slice(&0x27u32.to_le_bytes());
+        content.extend_from_slice(&auth[..16]);
+        content.extend_from_slice(esl);
+        // openssl reads a ContentInfo around the SignedData: wrapped here
+        // around the .auth's own bytes, not re-encoded by Faraday's code.
+        let wrapped = tlv(
+            0x30,
+            &[SIGNED_DATA_OID.to_vec(), tlv(0xa0, signed_data)].concat(),
+        );
+        let sig = dir.join(format!("{name}.p7"));
+        let data = dir.join(format!("{name}.bin"));
+        std::fs::write(&sig, &wrapped).unwrap();
+        std::fs::write(&data, &content).unwrap();
+        let out = dir.join("out");
+        let (ok, said) = run(
+            "openssl",
+            &[
+                "cms",
+                "-verify",
+                "-binary",
+                "-inform",
+                "DER",
+                "-in",
+                sig.to_str().unwrap(),
+                "-content",
+                data.to_str().unwrap(),
+                "-CAfile",
+                signer,
+                "-purpose",
+                "any",
+                "-out",
+                out.to_str().unwrap(),
+            ],
+        )
+        .unwrap();
+        assert!(ok, "{name}.auth:\n{said}");
+    }
+}
+
+/// A minimal PE32+ EFI application: headers and one section of code.
+fn tiny_pe() -> Vec<u8> {
+    let mut pe = vec![0u8; 0x400];
+    let put16 =
+        |pe: &mut Vec<u8>, at: usize, v: u16| pe[at..at + 2].copy_from_slice(&v.to_le_bytes());
+    let put32 =
+        |pe: &mut Vec<u8>, at: usize, v: u32| pe[at..at + 4].copy_from_slice(&v.to_le_bytes());
+    pe[0..2].copy_from_slice(b"MZ");
+    put32(&mut pe, 0x3c, 0x40);
+    pe[0x40..0x44].copy_from_slice(b"PE\0\0");
+    let coff = 0x44;
+    put16(&mut pe, coff, 0x8664);
+    put16(&mut pe, coff + 2, 1);
+    put16(&mut pe, coff + 16, 240);
+    put16(&mut pe, coff + 18, 0x22);
+    let opt = coff + 20;
+    put16(&mut pe, opt, 0x20b);
+    put32(&mut pe, opt + 16, 0x1000); // AddressOfEntryPoint
+    put32(&mut pe, opt + 32, 0x1000); // SectionAlignment
+    put32(&mut pe, opt + 36, 0x200); // FileAlignment
+    put32(&mut pe, opt + 56, 0x2000); // SizeOfImage
+    put32(&mut pe, opt + 60, 0x200); // SizeOfHeaders
+    put16(&mut pe, opt + 68, 10); // an EFI application
+    put32(&mut pe, opt + 108, 16); // NumberOfRvaAndSizes
+    let sec = opt + 240;
+    pe[sec..sec + 5].copy_from_slice(b".text");
+    put32(&mut pe, sec + 8, 0x10);
+    put32(&mut pe, sec + 12, 0x1000);
+    put32(&mut pe, sec + 16, 0x200);
+    put32(&mut pe, sec + 20, 0x200);
+    put32(&mut pe, sec + 36, 0x6000_0020);
+    pe[0x200] = 0xc3;
+    pe
+}
+
+#[test]
+fn a_signed_image_checks_and_an_altered_one_does_not() {
+    let dir = scratch("image");
+    let k = keys();
+    let mut images = vec![("tiny", tiny_pe())];
+    if let Ok(path) = std::env::var("FARADAY_EFI") {
+        images.push(("efi", std::fs::read(path).unwrap()));
+    }
+    let sbverify = std::env::var("FARADAY_SBVERIFY").unwrap_or_else(|_| "sbverify".to_string());
+    let db = pem(&dir, "db", &k.db.cert).expect("openssl reads the db certificate");
+    for (name, image) in images {
+        assert_eq!(pe::check(&image, &k.db.cert).unwrap(), Check::Unsigned);
+        let signed = pe::sign(&mut blind(), &image, &k.db).unwrap();
+        assert_eq!(
+            pe::check(&signed, &k.db.cert).unwrap(),
+            Check::Valid,
+            "{name}"
+        );
+        assert_eq!(
+            pe::check(&signed, &k.kek.cert).unwrap(),
+            Check::OtherSigner,
+            "{name}"
+        );
+        // Signing again replaces the signature rather than adding one.
+        let again = pe::sign(&mut blind(), &signed, &k.db).unwrap();
+        assert_eq!(again.len(), signed.len(), "{name}");
+        let mut altered = signed.clone();
+        altered[0x200] ^= 1;
+        assert_eq!(
+            pe::check(&altered, &k.db.cert).unwrap(),
+            Check::Altered,
+            "{name}"
+        );
+        {
+            let path = dir.join(format!("{name}.signed.efi"));
+            std::fs::write(&path, &signed).unwrap();
+            let (ok, said) = run(&sbverify, &["--cert", &db, path.to_str().unwrap()]).unwrap();
+            assert!(ok, "sbverify {name}:\n{said}");
+            let bad = dir.join(format!("{name}.altered.efi"));
+            std::fs::write(&bad, &altered).unwrap();
+            let (ok, _) = run(&sbverify, &["--cert", &db, bad.to_str().unwrap()]).unwrap();
+            assert!(!ok, "sbverify took an altered {name}");
+        }
+    }
+}
+
+/// A signed image whose certificate table says it is shorter than its own
+/// 8-byte header is not read as a signature, and checking it does not
+/// stop the program (a stick's file is anyone's to damage).
+#[test]
+fn an_image_whose_signature_table_is_shorter_than_its_header_reads_as_unreadable() {
+    let k = keys();
+    let mut image = pe::sign(&mut blind(), &tiny_pe(), &k.db).unwrap();
+    // The security data directory is entry 4 of the optional header's 16:
+    // its file offset is where the certificate table starts.
+    let entry = 0x44 + 20 + 112 + 4 * 8;
+    let table = u32::from_le_bytes(image[entry..entry + 4].try_into().unwrap()) as usize;
+    assert_ne!(table, 0, "the signed image has a certificate table");
+    for length in [0u32, 4, 7] {
+        image[table..table + 4].copy_from_slice(&length.to_le_bytes());
+        assert_eq!(
+            pe::check(&image, &k.db.cert).unwrap(),
+            Check::Unreadable,
+            "length {length}"
+        );
+    }
+}
+
+/// An image whose certificate table is said to start inside its own
+/// headers is not an image: it is not hashed, checked or signed, and
+/// signing it does not stop the program (the release fuzz run's pe_image
+/// crash: signing cut the image there and then wrote the directory entry
+/// past its end).
+#[test]
+fn an_image_whose_signature_table_starts_inside_its_headers_is_refused() {
+    let k = keys();
+    let entry = 0x44 + 20 + 112 + 4 * 8;
+    for image in [
+        tiny_pe(),
+        pe::sign(&mut blind(), &tiny_pe(), &k.db).unwrap(),
+    ] {
+        for at in [0x4du32, 0x40, entry as u32 + 8, 0x1ff] {
+            let mut image = image.clone();
+            image[entry..entry + 4].copy_from_slice(&at.to_le_bytes());
+            image[entry + 4..entry + 8].copy_from_slice(&16u32.to_le_bytes());
+            assert!(pe::image_hash(&image).is_err(), "at {at:#x}");
+            assert!(pe::check(&image, &k.db.cert).is_err(), "at {at:#x}");
+            assert!(pe::sign(&mut blind(), &image, &k.db).is_err(), "at {at:#x}");
+        }
+    }
+}
+
+/// Blinding changes how the key's operation runs, never its result:
+/// PKCS #1 v1.5 signatures are deterministic, so a signature made under
+/// any blinding stream is the very bytes RustCrypto's unblinded signer
+/// gives, and `openssl` gives, for the same key and message; and a signed
+/// image is the same file whatever stream blinded it.
+#[test]
+fn blinding_leaves_the_signature_as_it_was() {
+    use rsa::pkcs1v15::SigningKey;
+    use rsa::pkcs8::DecodePrivateKey;
+    use rsa::signature::{SignatureEncoding, Signer};
+
+    let k = keys();
+    let message = b"Faraday signs this with its db key";
+    let a = faraday_sb::x509::sign(
+        &mut faraday_sb::rng::stream(&[1; 32], 0),
+        &k.db.key,
+        message,
+    )
+    .unwrap();
+    let b = faraday_sb::x509::sign(
+        &mut faraday_sb::rng::stream(&[2; 32], 7),
+        &k.db.key,
+        message,
+    )
+    .unwrap();
+    let plain = SigningKey::<Sha256>::new(rsa::RsaPrivateKey::from_pkcs8_der(&k.db.key).unwrap())
+        .sign(message)
+        .to_vec();
+    assert_eq!(a.len(), 256);
+    assert_eq!(a, plain);
+    assert_eq!(b, plain);
+
+    let dir = scratch("blinding");
+    let key = dir.join("db.key.der");
+    let msg = dir.join("message");
+    std::fs::write(&key, &k.db.key[..]).unwrap();
+    std::fs::write(&msg, message).unwrap();
+    let out = Command::new("openssl")
+        .args([
+            "dgst",
+            "-sha256",
+            "-keyform",
+            "DER",
+            "-sign",
+            key.to_str().unwrap(),
+            msg.to_str().unwrap(),
+        ])
+        .output();
+    match out {
+        Ok(o) if o.status.success() => assert_eq!(o.stdout, plain),
+        Ok(o) => panic!("openssl: {}", String::from_utf8_lossy(&o.stderr)),
+        Err(e) => panic!("openssl is not installed ({e}); see docs/DEVELOPING.md"),
+    }
+
+    let image = tiny_pe();
+    let one = pe::sign(&mut faraday_sb::rng::stream(&[3; 32], 0), &image, &k.db).unwrap();
+    let two = pe::sign(&mut faraday_sb::rng::stream(&[4; 32], 0), &image, &k.db).unwrap();
+    assert_eq!(one, two);
+}
+
+/// What the Starter reads from a boot file a person signed
+/// (`docs/STARTER.md` §4.5): the image hash it had before it was signed,
+/// whatever its length, and the certificate whose key signed it, read
+/// from the signature itself.
+#[test]
+fn a_signed_image_names_its_signer_and_keeps_the_image_hash_it_had_unsigned() {
+    let k = keys();
+    // One whose length is a multiple of eight, and one signing pads.
+    let mut odd = tiny_pe();
+    odd.extend_from_slice(&[0x11, 0x22, 0x33]);
+    for image in [tiny_pe(), odd] {
+        let signed = pe::sign(&mut blind(), &image, &k.db).unwrap();
+        assert_eq!(
+            pe::image_hash(&signed).unwrap(),
+            pe::hash_as_signed(&image).unwrap()
+        );
+        assert_eq!(
+            pe::signer(&signed).unwrap(),
+            pe::Signer::By(k.db.cert.clone())
+        );
+        // Signed again with another key: the same program, another signer.
+        let other = pe::sign(&mut blind(), &signed, &k.kek).unwrap();
+        assert_eq!(
+            pe::image_hash(&other).unwrap(),
+            pe::hash_as_signed(&image).unwrap()
+        );
+        assert_eq!(
+            pe::signer(&other).unwrap(),
+            pe::Signer::By(k.kek.cert.clone())
+        );
+        assert_eq!(pe::signer(&image).unwrap(), pe::Signer::Unsigned);
+        // A byte of its code changed after signing: the signature no
+        // longer holds, and the image hash is another program's.
+        let mut altered = signed.clone();
+        altered[0x200] ^= 1;
+        assert_eq!(pe::signer(&altered).unwrap(), pe::Signer::Broken);
+        assert_ne!(
+            pe::image_hash(&altered).unwrap(),
+            pe::hash_as_signed(&image).unwrap()
+        );
+    }
+    assert_eq!(pe::signer(b"not an image"), Err(faraday_sb::Error::Image));
+}
+
+/// The security directory entry: its file offset, then its size.
+const CERT_DIR: usize = 0x44 + 20 + 112 + 4 * 8;
+
+fn set_dir(image: &mut [u8], at: usize, size: usize) {
+    image[CERT_DIR..CERT_DIR + 4].copy_from_slice(&(at as u32).to_le_bytes());
+    image[CERT_DIR + 4..CERT_DIR + 8].copy_from_slice(&(size as u32).to_le_bytes());
+}
+
+fn dir(image: &[u8]) -> (usize, usize) {
+    let n = |at: usize| u32::from_le_bytes(image[at..at + 4].try_into().unwrap()) as usize;
+    (n(CERT_DIR), n(CERT_DIR + 4))
+}
+
+/// The release's image with a signed copy's signature on it, built from
+/// the release's bytes: taken only when the copy is the same program
+/// with one signature alone at its end.
+#[test]
+fn a_signature_is_moved_onto_the_releases_bytes_only_when_it_is_alone_at_the_end() {
+    let k = keys();
+    let release = tiny_pe();
+    let signed = pe::sign(&mut blind(), &release, &k.db).unwrap();
+    let built = pe::transplant(&release, &signed).unwrap();
+    assert_eq!(built, signed);
+    // sbverify takes the moved signature on the release's bytes, and not
+    // on the release's bytes with one code byte changed.
+    let tmp = scratch("transplant");
+    let sbverify = std::env::var("FARADAY_SBVERIFY").unwrap_or_else(|_| "sbverify".to_string());
+    let db = pem(&tmp, "db", &k.db.cert).expect("openssl reads the db certificate");
+    let path = tmp.join("moved.efi");
+    std::fs::write(&path, &built).unwrap();
+    let (ok, said) = run(&sbverify, &["--cert", &db, path.to_str().unwrap()]).unwrap();
+    assert!(ok, "sbverify the moved signature:\n{said}");
+    let mut changed = built.clone();
+    changed[0x200] ^= 1;
+    std::fs::write(&path, &changed).unwrap();
+    let (ok, _) = run(&sbverify, &["--cert", &db, path.to_str().unwrap()]).unwrap();
+    assert!(
+        !ok,
+        "sbverify took the moved signature on a changed program"
+    );
+    assert_eq!(
+        pe::signer(&built).unwrap(),
+        pe::Signer::By(k.db.cert.clone())
+    );
+    assert_eq!(
+        pe::transplant(&release, &release),
+        Err(pe::Transplant::Unsigned)
+    );
+    let mut other = release.clone();
+    other[0x200] = 0x90;
+    let other = pe::sign(&mut blind(), &other, &k.db).unwrap();
+    assert_eq!(pe::transplant(&release, &other), Err(pe::Transplant::Other));
+    assert_eq!(
+        pe::transplant(&release, b"not an image"),
+        Err(pe::Transplant::Other)
+    );
+
+    // Bytes appended after the table.
+    let mut appended = signed.clone();
+    appended.extend_from_slice(&[0u8; 16]);
+    assert_eq!(
+        pe::transplant(&release, &appended),
+        Err(pe::Transplant::Layout)
+    );
+    // Two signatures in the table: the test db key's and another key's.
+    let (at, size) = dir(&signed);
+    let second = pe::sign(&mut blind(), &release, &k.kek).unwrap();
+    let (at2, size2) = dir(&second);
+    let mut two = signed.clone();
+    two.extend_from_slice(&second[at2..at2 + size2]);
+    set_dir(&mut two, at, size + size2);
+    assert_eq!(pe::transplant(&release, &two), Err(pe::Transplant::Layout));
+    // The table not where the program ends: bytes put before it.
+    let mut moved = signed[..at].to_vec();
+    moved.extend_from_slice(&[0u8; 8]);
+    moved.extend_from_slice(&signed[at..]);
+    set_dir(&mut moved, at + 8, size);
+    assert!(pe::transplant(&release, &moved).is_err());
+    // A table that does not end the file, its entry pointing short.
+    let mut short = signed.clone();
+    set_dir(&mut short, at, size - 8);
+    assert!(pe::transplant(&release, &short).is_err());
+}
+
+/// Images signed by other implementations (`tests/vectors/make.sh`:
+/// sbsigntool's sbsign and osslsigncode, under a test key whose
+/// certificate is `cert.der`) are read as theirs: the image hash Faraday
+/// gives the unsigned program, the signer named, the signature checked,
+/// and the signature moved onto the unsigned program's bytes gives the
+/// same file.
+#[test]
+fn images_signed_by_sbsign_and_osslsigncode_are_read_and_their_signer_named() {
+    let tiny = include_bytes!("vectors/tiny.efi");
+    let cert = include_bytes!("vectors/cert.der");
+    assert_eq!(&tiny[..], tiny_pe().as_slice());
+    assert_eq!(
+        faraday_sb::common_name(cert).as_deref(),
+        Some("Test sbsign db")
+    );
+    for (tool, signed) in [
+        ("sbsign", &include_bytes!("vectors/tiny.sbsign.efi")[..]),
+        (
+            "osslsigncode",
+            &include_bytes!("vectors/tiny.osslsigncode.efi")[..],
+        ),
+    ] {
+        assert_eq!(
+            pe::image_hash(signed).unwrap(),
+            pe::hash_as_signed(tiny).unwrap(),
+            "{tool}"
+        );
+        assert_eq!(pe::check(signed, cert).unwrap(), Check::Valid, "{tool}");
+        assert_eq!(
+            pe::signer(signed).unwrap(),
+            pe::Signer::By(cert.to_vec()),
+            "{tool}"
+        );
+        assert_eq!(pe::transplant(tiny, signed).unwrap(), signed, "{tool}");
+        let mut altered = signed.to_vec();
+        altered[0x200] ^= 1;
+        assert_eq!(pe::signer(&altered).unwrap(), pe::Signer::Broken, "{tool}");
+    }
+}
+
+/// The generator's first bytes are the ChaCha20 keystream of RFC 8439
+/// Appendix A.1, test vector 1 (all-zero key, counter 0, zero nonce),
+/// and one seed gives different streams for different names.
+#[test]
+fn the_generator_gives_the_keystream_of_rfc_8439() {
+    use rand_core::TryRng;
+    let mut ours = [0u8; 64];
+    faraday_sb::rng::stream(&[0; 32], 0)
+        .try_fill_bytes(&mut ours)
+        .unwrap();
+    let expected = [
+        0x76u8, 0xb8, 0xe0, 0xad, 0xa0, 0xf1, 0x3d, 0x90, 0x40, 0x5d, 0x6a, 0xe5, 0x53, 0x86, 0xbd,
+        0x28, 0xbd, 0xd2, 0x19, 0xb8, 0xa0, 0x8d, 0xed, 0x1a, 0xa8, 0x36, 0xef, 0xcc, 0x8b, 0x77,
+        0x0d, 0xc7, 0xda, 0x41, 0x59, 0x7c, 0x51, 0x57, 0x48, 0x8d, 0x77, 0x24, 0xe0, 0x3f, 0xb8,
+        0xd8, 0x4a, 0x37, 0x6a, 0x43, 0xb8, 0xf4, 0x15, 0x18, 0xa1, 0x1c, 0xc3, 0x87, 0xb6, 0x69,
+        0xb2, 0xee, 0x65, 0x86,
+    ];
+    assert_eq!(ours, expected);
+    let seed: [u8; 32] = core::array::from_fn(|i| i as u8);
+    let mut one = [0u8; 32];
+    let mut two = [0u8; 32];
+    faraday_sb::rng::stream(&seed, 1)
+        .try_fill_bytes(&mut one)
+        .unwrap();
+    faraday_sb::rng::stream(&seed, 2)
+        .try_fill_bytes(&mut two)
+        .unwrap();
+    assert_ne!(one, two);
+}
+
+/// Every private key made is one `openssl pkey -check` accepts: p and q
+/// prime, n = pq, and d the inverse of e.
+#[test]
+fn openssl_checks_every_private_key_made() {
+    let dir = scratch("pkey");
+    let k = keys();
+    for (name, pair) in [("pk", &k.pk), ("kek", &k.kek), ("db", &k.db)] {
+        let path = dir.join(format!("{name}.key.der"));
+        std::fs::write(&path, &pair.key[..]).unwrap();
+        let (ok, said) = run(
+            "openssl",
+            &[
+                "pkey",
+                "-inform",
+                "DER",
+                "-in",
+                path.to_str().unwrap(),
+                "-check",
+                "-noout",
+            ],
+        )
+        .unwrap();
+        assert!(ok, "{name}: {said}");
+        assert!(said.contains("valid"), "{name}: {said}");
+    }
+}
+
+#[test]
+fn certtool_reads_every_certificate_made() {
+    if !judge_present("certtool (gnutls-bin)", "certtool", &["--version"]) {
+        return;
+    }
+    let dir = scratch("certtool");
+    let k = keys();
+    for (name, pair) in [("pk", &k.pk), ("kek", &k.kek), ("db", &k.db)] {
+        let path = dir.join(format!("{name}.der"));
+        std::fs::write(&path, &pair.cert).unwrap();
+        let (ok, said) = run(
+            "certtool",
+            &["-i", "--inder", "--infile", path.to_str().unwrap()],
+        )
+        .unwrap();
+        assert!(ok, "certtool {name}:\n{said}");
+        let cn = faraday_sb::common_name(&pair.cert).unwrap();
+        assert!(said.contains(&format!("CN={}", &*cn)), "{name}:\n{said}");
+        assert!(said.contains("RSA-SHA256"), "{name}:\n{said}");
+        // Self-signed: its own signature holds under its own key.
+        let pem = pem(&dir, name, &pair.cert).unwrap();
+        let (ok, said) = run(
+            "certtool",
+            &["--verify", "--load-ca-certificate", &pem, "--infile", &pem],
+        )
+        .unwrap();
+        assert!(ok && said.contains("Verified"), "certtool {name}:\n{said}");
+    }
+}
+
+/// Two binaries as a distribution ships them (Ubuntu's shim-signed
+/// 1.59+15.8-0ubuntu2, `tools/reference/signed-efi/README.md`): signed by
+/// Microsoft and by Canonical.
+const REAL: [(&str, &str); 2] = [
+    ("shimx64.efi", "Microsoft Windows UEFI Driver Publisher"),
+    ("fbx64.efi", "Canonical Ltd. Secure Boot Signing (2022 v1)"),
+];
+
+fn real_path(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tools/reference/signed-efi")
+        .join(name)
+}
+
+#[test]
+fn real_signed_binaries_are_read_and_their_signer_named_as_pesign_names_it() {
+    if !judge_present("pesign", "pesign", &["--help"]) {
+        return;
+    }
+    let dir = scratch("real");
+    for (name, signer) in REAL {
+        let path = real_path(name);
+        let image = std::fs::read(&path).unwrap();
+        assert!(image.len() < 2 << 20, "{name}");
+        let pe::Signer::By(cert) = pe::signer(&image).unwrap() else {
+            panic!("{name}: Faraday does not read its signature");
+        };
+        assert_eq!(
+            faraday_sb::common_name(&cert).as_deref(),
+            Some(signer),
+            "{name}"
+        );
+        assert_eq!(pe::check(&image, &cert).unwrap(), Check::Valid, "{name}");
+        let (ok, said) = run("pesign", &["-S", "-i", path.to_str().unwrap()]).unwrap();
+        assert!(ok, "{said}");
+        let line = format!("The signer's common name is {signer}");
+        assert!(said.lines().any(|l| l == line), "{name}:\n{said}");
+        // The image hash pesign works out is Faraday's.
+        let (ok, said) = run("pesign", &["-h", "-i", path.to_str().unwrap()]).unwrap();
+        assert!(ok, "{said}");
+        let hash: String = pe::image_hash(&image)
+            .unwrap()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(
+            said.split_whitespace().next(),
+            Some(hash.as_str()),
+            "{name}"
+        );
+        // pesigcheck accepts it under the certificate Faraday named.
+        let der = dir.join(format!("{name}.cert.der"));
+        std::fs::write(&der, &cert).unwrap();
+        let (ok, said) = run(
+            "pesigcheck",
+            &[
+                "-n",
+                "1",
+                "-c",
+                der.to_str().unwrap(),
+                "-i",
+                path.to_str().unwrap(),
+            ],
+        )
+        .unwrap();
+        assert!(ok, "pesigcheck {name}:\n{said}");
+        let mut altered = image.clone();
+        altered[0x400] ^= 1;
+        assert_eq!(pe::signer(&altered).unwrap(), pe::Signer::Broken, "{name}");
+    }
+}
+
+/// An image's checksum field, certificate-table entry and the checksum
+/// pefile works out for it, as pefile reads them.
+fn pefile_fields(path: &Path) -> (u32, u32, u32, u32) {
+    let (ok, said) = run(
+        "python3",
+        &[
+            "-I",
+            "-c",
+            "import sys, pefile\n\
+             pe = pefile.PE(sys.argv[1])\n\
+             d = pe.OPTIONAL_HEADER.DATA_DIRECTORY[4]\n\
+             print(pe.OPTIONAL_HEADER.CheckSum, d.VirtualAddress, d.Size, pe.generate_checksum())",
+            path.to_str().unwrap(),
+        ],
+    )
+    .unwrap();
+    assert!(ok, "python3-pefile:\n{said}");
+    let n: Vec<u32> = said
+        .split_whitespace()
+        .map(|w| w.parse().unwrap())
+        .collect();
+    (n[0], n[1], n[2], n[3])
+}
+
+#[test]
+fn pefile_finds_the_certificate_table_where_faraday_put_it_and_the_moved_checksum_is_right() {
+    if !judge_present("python3-pefile", "python3", &["-c", "import pefile"]) {
+        return;
+    }
+    let dir = scratch("pefile");
+    let k = keys();
+    let tiny = include_bytes!("vectors/tiny.efi");
+    // Faraday's own signing appends the table after the image, padded to
+    // eight bytes, and the table runs to the end of the file.
+    let signed = pe::sign(&mut blind(), tiny, &k.db).unwrap();
+    let path = dir.join("signed.efi");
+    std::fs::write(&path, &signed).unwrap();
+    let (_, at, size, _) = pefile_fields(&path);
+    assert_eq!(at as usize, tiny.len().div_ceil(8) * 8);
+    assert_eq!(at as usize + size as usize, signed.len());
+    // A signed copy's checksum and entry go onto the release's bytes: they
+    // are the signed copy's, and the checksum is the one pefile works out.
+    for (tool, copy) in [
+        ("sbsign", &include_bytes!("vectors/tiny.sbsign.efi")[..]),
+        (
+            "osslsigncode",
+            &include_bytes!("vectors/tiny.osslsigncode.efi")[..],
+        ),
+    ] {
+        let from = dir.join(format!("{tool}.efi"));
+        let moved = dir.join(format!("moved-{tool}.efi"));
+        std::fs::write(&from, copy).unwrap();
+        std::fs::write(&moved, pe::transplant(tiny, copy).unwrap()).unwrap();
+        let (sum, at, size, _) = pefile_fields(&from);
+        let (moved_sum, moved_at, moved_size, worked_out) = pefile_fields(&moved);
+        assert_eq!((moved_sum, moved_at, moved_size), (sum, at, size), "{tool}");
+        assert_eq!(moved_sum, worked_out, "{tool}");
+    }
+}
+
+/// The signed tiny image with its section table moved to `table` (up to
+/// the optional header's reach) and holding `sections` (file offset,
+/// size), padded to `len` bytes, its headers grown to hold the table,
+/// its signature copied after: a file a stick can hold, whose signature
+/// reads.
+fn with_sections(table: usize, sections: &[(u32, u32)], len: usize) -> Vec<u8> {
+    let signed = pe::sign(&mut blind(), &tiny_pe(), &keys().db).unwrap();
+    let (cat, csize) = dir(&signed);
+    let certs = signed[cat..cat + csize].to_vec();
+    let mut image = signed[..cat].to_vec();
+    let coff = 0x44;
+    let opt = coff + 20;
+    image.resize(
+        (table + sections.len() * 40).max(len).next_multiple_of(8),
+        0,
+    );
+    image[coff + 2..coff + 4].copy_from_slice(&(sections.len() as u16).to_le_bytes());
+    image[coff + 16..coff + 18].copy_from_slice(&((table - opt) as u16).to_le_bytes());
+    let headers = headers_len(&image).max((table + sections.len() * 40).next_multiple_of(0x200));
+    image[opt + 60..opt + 64].copy_from_slice(&(headers as u32).to_le_bytes());
+    for (i, (at, size)) in sections.iter().enumerate() {
+        let s = table + i * 40;
+        image[s + 16..s + 20].copy_from_slice(&size.to_le_bytes());
+        image[s + 20..s + 24].copy_from_slice(&at.to_le_bytes());
+    }
+    let at = image.len();
+    image.extend_from_slice(&certs);
+    set_dir(&mut image, at, csize);
+    image
+}
+
+/// A section said to start near the end of the address space, its end
+/// past the file: the image is refused, by Check and the image hash
+/// alike, and never stops the program, on a 32-bit build too.
+#[test]
+fn a_section_said_to_start_near_the_end_of_the_address_space_is_refused() {
+    let k = keys();
+    let mut image = pe::sign(&mut blind(), &tiny_pe(), &k.db).unwrap();
+    let sec = 0x44 + 20 + 240;
+    image[sec + 16..sec + 20].copy_from_slice(&0x20u32.to_le_bytes());
+    image[sec + 20..sec + 24].copy_from_slice(&0xFFFF_FFF0u32.to_le_bytes());
+    assert!(pe::image_hash(&image).is_err());
+    assert!(pe::check(&image, &k.db.cert).is_err());
+}
+
+/// A certificate table said to start near the end of the address space
+/// is refused by the image hash and Check, and never stops the program,
+/// on a 32-bit build too.
+#[test]
+fn a_signature_table_said_to_start_near_the_end_of_the_address_space_is_refused() {
+    let k = keys();
+    let mut image = tiny_pe();
+    set_dir(&mut image, 0xFFFF_FFF8, 0x10);
+    assert!(pe::image_hash(&image).is_err());
+    assert!(pe::check(&image, &k.db.cert).is_err());
+}
+
+/// The size of an image's headers, as its optional header says.
+fn headers_len(image: &[u8]) -> usize {
+    let at = 0x44 + 20 + 60;
+    u32::from_le_bytes(image[at..at + 4].try_into().unwrap()) as usize
+}
+
+/// An image whose section table lists the same bytes twice, or two
+/// sections that share some bytes, is not an image: Check and the image
+/// hash refuse it.
+#[test]
+fn an_image_whose_sections_list_the_same_bytes_twice_is_refused() {
+    let k = keys();
+    for sections in [
+        [(0x200, 0x200), (0x200, 0x200)],
+        [(0x200, 0x100), (0x280, 0x100)],
+    ] {
+        let image = with_sections(0x148, &sections, 0x2000);
+        assert_eq!(headers_len(&image), 0x200, "the table fits in the headers");
+        assert!(pe::image_hash(&image).is_err(), "{sections:?}");
+        assert!(pe::check(&image, &k.db.cert).is_err(), "{sections:?}");
+    }
+}
+
+/// An image whose section table lies past its headers is not an image.
+#[test]
+fn an_image_whose_section_table_lies_past_its_headers_is_refused() {
+    let k = keys();
+    let mut image = with_sections(0x1000, &[(0x1200, 0x200)], 0x2000);
+    let at = 0x44 + 20 + 60;
+    image[at..at + 4].copy_from_slice(&0x200u32.to_le_bytes());
+    assert!(pe::image_hash(&image).is_err());
+    assert!(pe::check(&image, &k.db.cert).is_err());
+}
+
+/// Check on an image whose 65,535 sections each list the whole file
+/// after its headers comes back at once (it is refused), rather than
+/// hashing the file 65,535 times while the screen stands still.
+#[test]
+fn check_on_an_image_whose_sections_each_list_the_whole_file_comes_back_at_once() {
+    let len = 4 << 20;
+    let table: usize = 0x1_0000;
+    let headers = (table + 65_535 * 40).next_multiple_of(0x200);
+    let sections = vec![(headers as u32, (len - headers) as u32); 65_535];
+    let image = with_sections(table, &sections, len);
+    assert_eq!(
+        headers_len(&image),
+        headers,
+        "the table fits in the headers"
+    );
+    assert!(image.len() < 18 << 20, "a file the Inbox takes");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(pe::check(&image, &keys().db.cert));
+    });
+    let checked = rx
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .expect("Check did not come back within 30 s");
+    assert!(checked.is_err(), "{checked:?}");
+}
+
+/// A DER length field for `n` bytes of content.
+fn der_len(n: usize) -> Vec<u8> {
+    if n < 0x80 {
+        return vec![n as u8];
+    }
+    let bytes: Vec<u8> = n
+        .to_be_bytes()
+        .into_iter()
+        .skip_while(|b| *b == 0)
+        .collect();
+    [vec![0x80 | bytes.len() as u8], bytes].concat()
+}
+
+/// The tag, the header's length and the content's length of the DER
+/// element at the start of `b`.
+fn der_head(b: &[u8]) -> (u8, usize, usize) {
+    if b[1] < 0x80 {
+        return (b[0], 2, b[1] as usize);
+    }
+    let n = (b[1] & 0x7f) as usize;
+    let len = b[2..2 + n]
+        .iter()
+        .fold(0usize, |a, x| (a << 8) | *x as usize);
+    (b[0], 2 + n, len)
+}
+
+/// A signed image carrying a million two-byte certificates before its own
+/// has its signer read at once, and still named: the Starter reads every
+/// file picked on the online computer, and decoding the signature again
+/// and hashing the image again for each certificate made the screen stand
+/// still.
+#[test]
+fn a_signed_image_carrying_a_million_tiny_certificates_names_its_signer_at_once() {
+    let k = keys();
+    let signed = pe::sign(&mut blind(), &tiny_pe(), &k.db).unwrap();
+    let (at, size) = dir(&signed);
+    let ci = &signed[at + 8..at + size];
+    // ContentInfo { OID, [0] { SignedData { version, digests, content,
+    // [0] certificates, signer infos } } }.
+    let (_, h0, _) = der_head(ci);
+    let explicit = &ci[h0 + SIGNED_DATA_OID.len()..];
+    let (_, h1, _) = der_head(explicit);
+    let sd = &explicit[h1..];
+    let (_, h2, sd_len) = der_head(sd);
+    let body = &sd[h2..h2 + sd_len];
+    let mut pos = 0;
+    let (before, certs, after) = loop {
+        let (tag, h, n) = der_head(&body[pos..]);
+        if tag == 0xa0 {
+            break (
+                &body[..pos],
+                &body[pos + h..pos + h + n],
+                &body[pos + h + n..],
+            );
+        }
+        pos += h + n;
+    };
+    let tiny = [0x05, 0x00].repeat(1_000_000);
+    let new_certs = [tiny, certs.to_vec()].concat();
+    let new_body = [
+        before.to_vec(),
+        [vec![0xa0], der_len(new_certs.len()), new_certs].concat(),
+        after.to_vec(),
+    ]
+    .concat();
+    let new_sd = [vec![0x30], der_len(new_body.len()), new_body].concat();
+    let new_explicit = [vec![0xa0], der_len(new_sd.len()), new_sd].concat();
+    let inner = [SIGNED_DATA_OID.to_vec(), new_explicit].concat();
+    let new_ci = [vec![0x30], der_len(inner.len()), inner].concat();
+    let mut table = [vec![0u8; 8], new_ci].concat();
+    table.resize(table.len().next_multiple_of(8), 0);
+    let total = table.len() as u32;
+    table[0..4].copy_from_slice(&total.to_le_bytes());
+    table[4..8].copy_from_slice(&[0, 2, 2, 0]);
+    let mut image = signed[..at].to_vec();
+    set_dir(&mut image, at, table.len());
+    image.extend_from_slice(&table);
+    assert!(image.len() < 18 << 20, "a file the Inbox takes");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(pe::signer(&image));
+    });
+    let signer = rx
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("the signer was not read within 10 s");
+    assert_eq!(signer.unwrap(), pe::Signer::By(k.db.cert.clone()));
+}

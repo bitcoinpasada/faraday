@@ -1,13 +1,35 @@
 [package]
 name = "faraday-pgp"
-version = "0.0.0"
+version = "0.2.0"
+description = "The OpenPGP subset Faraday makes: v4 Ed25519 keys, certificates, detached signatures, revocations, paperkey, and a key restored from its paperkey and certificate (docs/FLOWS.md, docs/GPG-PAPERKEY.md)"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
-faraday-crypto = { path = "../faraday-crypto" }
+zeroize = { workspace = true, features = ["alloc"] }
+# Heap text that wipes itself, for a certificate's text.
 faraday-text = { path = "../faraday-text" }
+subtle.workspace = true
+base16ct = { workspace = true }
+# Ed25519 signatures, the only public-key algorithm this crate writes.
+ed25519-dalek = { version = "3", default-features = false, features = ["zeroize"] }
+# Version-4 fingerprints are SHA-1 of the key; it is used for nothing else.
+sha1 = { version = "0.11", default-features = false }
+# The signature hashes: SHA-256 and SHA-512.
+sha2 = { workspace = true }
+# The date of a key's creation, in the certificate's text.
+faraday-crypto = { path = "../faraday-crypto" }
+# A certificate's armor is base64.
+base64ct.workspace = true
+
+[dev-dependencies]
+# Signatures of shapes Faraday never writes, made in the tests to be
+# refused (tests/verify_refusals.rs): the same crates as above.
+ed25519-dalek = { version = "3", default-features = false, features = ["zeroize"] }
+sha2 = { workspace = true }
 
 [lints]
 workspace = true

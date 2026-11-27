@@ -1,13 +1,36 @@
 [package]
 name = "faraday-kef"
-version = "0.0.0"
+version = "0.2.0"
+description = "Krux's encrypted code (KEF): all twelve versions read and versions 20 and 5 written, over AES and PBKDF2 (docs/KEF.md)"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
-faraday-codec = { path = "../faraday-codec" }
+zeroize = { workspace = true, features = ["alloc"] }
+# The envelope and the text forms (docs/KEF.md §11.2); the PBKDF2 that can
+# stop and the Compute token.
+faraday-codec = { path = "../faraday-codec", default-features = false }
 faraday-crypto = { path = "../faraday-crypto" }
+# The constant-time compare of the two SHA-256 checks.
+subtle = { workspace = true }
+# The two SHA-256 checks.
+sha2 = { workspace = true }
+# AES-256 and its modes (docs/KEF.md §11): ECB is a loop over the block
+# cipher, CBC, CTR and GCM are RustCrypto's.
+aes = { workspace = true }
+cbc = { version = "0.2", default-features = false }
+ctr = { workspace = true }
+aes-gcm = { workspace = true }
+# Raw inflate, for the compressed versions Faraday reads and does not write.
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
+# A passphrase read in NFC and NFD as well as as typed.
+unicode-normalization = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

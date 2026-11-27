@@ -1,0 +1,245 @@
+//! An image's signature is checked over the signed attributes as they are
+//! written in the file (RFC 5652 5.4), whatever order DER would put them
+//! in; an image with two signers is not read.
+
+use faraday_sb::{Check, make, pe, rng, x509};
+
+const NOW: u64 = 1_700_000_000;
+
+/// One DER element: `tag`, the length and `content`.
+fn tlv(tag: u8, content: &[u8]) -> Vec<u8> {
+    let mut out = vec![tag];
+    match content.len() {
+        n if n < 0x80 => out.push(n as u8),
+        n if n < 0x100 => out.extend([0x81, n as u8]),
+        n => out.extend([0x82, (n >> 8) as u8, n as u8]),
+    }
+    out.extend_from_slice(content);
+    out
+}
+
+/// The elements one after another in `bytes`, each whole.
+fn elements(mut bytes: &[u8]) -> Vec<&[u8]> {
+    let mut out = Vec::new();
+    while !bytes.is_empty() {
+        let (head, len) = match bytes[1] {
+            n if n < 0x80 => (2, n as usize),
+            0x81 => (3, bytes[2] as usize),
+            _ => (4, usize::from(bytes[2]) << 8 | usize::from(bytes[3])),
+        };
+        out.push(&bytes[..head + len]);
+        bytes = &bytes[head + len..];
+    }
+    out
+}
+
+/// What is inside one element.
+fn inside(element: &[u8]) -> &[u8] {
+    let head = match element[1] {
+        n if n < 0x80 => 2,
+        0x81 => 3,
+        _ => 4,
+    };
+    &element[head..]
+}
+
+/// An image signed by the db key, then written again with its signed
+/// attributes in DER order or `reversed`, signed as written, and
+/// with `signers` the SignerInfos of the SET OF, in the order given.
+fn rewritten(reversed: bool, signers: impl Fn(&[u8]) -> Vec<Vec<u8>>) -> (Vec<u8>, Vec<u8>) {
+    rewritten_attrs(reversed, |attrs| attrs, signers)
+}
+
+/// [`rewritten`] with the signed attributes (each whole) passed through
+/// `edit` before they are written and signed.
+fn rewritten_attrs(
+    reversed: bool,
+    edit: impl Fn(Vec<Vec<u8>>) -> Vec<Vec<u8>>,
+    signers: impl Fn(&[u8]) -> Vec<Vec<u8>>,
+) -> (Vec<u8>, Vec<u8>) {
+    let keys = make(&[3u8; 32], "Attributes", NOW).unwrap();
+    let tiny = include_bytes!("vectors/tiny.efi");
+    let mut blind = rng::stream(&[5u8; 32], 0);
+    let signed = pe::sign(&mut blind, tiny, &keys.db).unwrap();
+    let at = tiny.len().div_ceil(8) * 8;
+    let table = &signed[at..];
+    let content_info = &table[8..];
+    // ContentInfo { OID, [0] { SignedData } }.
+    let explicit = elements(inside(content_info))[1];
+    let signed_data = elements(inside(explicit))[0];
+    let parts = elements(inside(signed_data));
+    let info = elements(inside(parts[4]))[0];
+    let fields = elements(inside(info));
+    let attrs = elements(inside(fields[3]));
+    assert!(attrs.len() > 1);
+    let mut ordered = edit(attrs.iter().map(|a| a.to_vec()).collect());
+    if reversed {
+        ordered.reverse();
+    }
+    let written: Vec<u8> = ordered.concat();
+    let as_signed = tlv(0x31, &written);
+    let sig = x509::sign(&mut blind, &keys.db.key, &as_signed).unwrap();
+    let new_info = tlv(
+        0x30,
+        &[
+            fields[0],
+            fields[1],
+            fields[2],
+            &tlv(0xa0, &written),
+            fields[4],
+            &tlv(0x04, &sig),
+        ]
+        .concat(),
+    );
+    let new_set = tlv(0x31, &signers(&new_info).concat());
+    let new_data = tlv(
+        0x30,
+        &[parts[0], parts[1], parts[2], parts[3], &new_set].concat(),
+    );
+    let new_ci = tlv(
+        0x30,
+        &[elements(inside(content_info))[0], &tlv(0xa0, &new_data)].concat(),
+    );
+    let length = (8 + new_ci.len()).div_ceil(8) * 8;
+    let mut image = signed[..at].to_vec();
+    image.extend_from_slice(&(length as u32).to_le_bytes());
+    image.extend_from_slice(&[0x00, 0x02, 0x02, 0x00]);
+    image.extend_from_slice(&new_ci);
+    image.resize(at + length, 0);
+    // The certificate-table entry: offset and length.
+    let entry: Vec<u8> = [
+        (at as u32).to_le_bytes(),
+        (table.len() as u32).to_le_bytes(),
+    ]
+    .concat();
+    let place = signed[..at]
+        .windows(8)
+        .position(|w| w == entry)
+        .expect("the entry names the table");
+    image[place + 4..place + 8].copy_from_slice(&(length as u32).to_le_bytes());
+    assert_eq!(
+        pe::image_hash(&image).unwrap(),
+        pe::image_hash(&signed).unwrap(),
+        "hash"
+    );
+    assert_eq!(
+        pe::check(&signed, &keys.db.cert).unwrap(),
+        Check::Valid,
+        "orig"
+    );
+    (image, keys.db.cert)
+}
+
+#[test]
+fn a_signature_over_attributes_written_out_of_der_order_is_valid() {
+    // In DER order, as Faraday writes them.
+    let (image, cert) = rewritten(false, |i| vec![i.to_vec()]);
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Valid);
+    // In reverse, and signed as written.
+    let (image, cert) = rewritten(true, |i| vec![i.to_vec()]);
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Valid);
+}
+
+#[test]
+fn an_image_with_a_second_signer_is_not_read() {
+    // Firmware judges every signer: with two, this check does not say.
+    let (image, cert) = rewritten(false, |good| {
+        let mut other = good.to_vec();
+        let last = other.len() - 1;
+        other[last] = other[last].wrapping_add(1);
+        if other.as_slice() > good {
+            other[last] = good[last].wrapping_sub(1);
+        }
+        assert!(other.as_slice() < good);
+        vec![good.to_vec(), other]
+    });
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::NotRead);
+}
+
+#[test]
+fn a_changed_image_with_a_second_signer_is_changed() {
+    // Firmware refuses the changed hash before it reads the signers, so
+    // two signers do not hide a change.
+    let (image, cert) = rewritten(false, |good| {
+        let mut other = good.to_vec();
+        let last = other.len() - 1;
+        other[last] = other[last].wrapping_add(1);
+        vec![good.to_vec(), other]
+    });
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::NotRead);
+    let at = include_bytes!("vectors/tiny.efi").len().div_ceil(8) * 8;
+    let mut changed = image.clone();
+    changed[at - 1] ^= 1;
+    assert_eq!(pe::check(&changed, &cert).unwrap(), Check::Altered);
+    assert_eq!(pe::signer(&changed).unwrap(), pe::Signer::Broken);
+}
+
+#[test]
+fn a_signature_whose_content_type_attribute_is_another_type_is_unreadable() {
+    let (image, cert) = rewritten_attrs(
+        false,
+        |mut attrs| {
+            let oid = [
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x03,
+            ];
+            let at = attrs
+                .iter()
+                .position(|a| inside(a).starts_with(&oid))
+                .expect("a content type attribute");
+            // id-data in place of SPC_INDIRECT_DATA.
+            let data = [
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01,
+            ];
+            attrs[at] = tlv(0x30, &[&oid[..], &tlv(0x31, &data[..])].concat());
+            attrs
+        },
+        |i| vec![i.to_vec()],
+    );
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Unreadable);
+}
+
+/// The index of the message digest attribute in `attrs`.
+fn digest_attr(attrs: &[Vec<u8>]) -> usize {
+    let oid = [
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x04,
+    ];
+    attrs
+        .iter()
+        .position(|a| inside(a).starts_with(&oid))
+        .expect("a message digest attribute")
+}
+
+#[test]
+fn a_signature_with_two_message_digest_attributes_is_unreadable() {
+    let (image, cert) = rewritten_attrs(
+        false,
+        |mut attrs| {
+            let at = digest_attr(&attrs);
+            attrs.push(attrs[at].clone());
+            attrs
+        },
+        |i| vec![i.to_vec()],
+    );
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Unreadable);
+}
+
+#[test]
+fn a_message_digest_attribute_with_two_values_is_unreadable() {
+    let (image, cert) = rewritten_attrs(
+        false,
+        |mut attrs| {
+            let at = digest_attr(&attrs);
+            let parts = elements(inside(&attrs[at]));
+            let value = elements(inside(parts[1]))[0].to_vec();
+            // A second value that sorts after the digest.
+            let mut extra = value.clone();
+            extra[1] += 1;
+            extra.push(0);
+            let set = tlv(0x31, &[value, extra].concat());
+            attrs[at] = tlv(0x30, &[parts[0], &set].concat());
+            attrs
+        },
+        |i| vec![i.to_vec()],
+    );
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Unreadable);
+}

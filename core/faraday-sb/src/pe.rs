@@ -1,0 +1,508 @@
+//! Authenticode for a PE/COFF image such as `BOOTX64.EFI` (Microsoft's
+//! "Windows Authenticode Portable Executable Signature Format"): the image
+//! hash, a SHA-256 signature by the db key appended as the certificate
+//! table, and checking an existing signature against a db certificate.
+//!
+//! An image whose section table lies outside its headers, or whose
+//! sections start inside the headers or share bytes, is refused as not an
+//! image. Firmware refuses the first two; it would load sections that
+//! share bytes, but no toolchain makes them, so this fails closed.
+
+#![deny(clippy::arithmetic_side_effects)]
+
+use alloc::vec::Vec;
+
+use sha2::{Digest, Sha256};
+
+use der::asn1::Any;
+use der::{Decode, Encode, SliceReader};
+
+use crate::Error;
+use crate::cms::{self, ContentInfo, SignedData, SignerInfo};
+use crate::x509;
+
+/// Where the parts Authenticode needs are in an image.
+struct Layout {
+    checksum: usize,
+    cert_dir: usize,
+    size_of_headers: usize,
+    sections: Vec<(usize, usize)>,
+    /// Where the last section ends (the headers' end when there is none).
+    sections_end: usize,
+    /// The certificate table's offset and size, when there is one.
+    certs: Option<(usize, usize)>,
+}
+
+fn u16_at(b: &[u8], at: usize) -> Option<usize> {
+    Some(u16::from_le_bytes(b.get(at..at.checked_add(2)?)?.try_into().ok()?) as usize)
+}
+
+fn u32_at(b: &[u8], at: usize) -> Option<usize> {
+    Some(u32::from_le_bytes(b.get(at..at.checked_add(4)?)?.try_into().ok()?) as usize)
+}
+
+fn layout(pe: &[u8]) -> Result<Layout, Error> {
+    let bad = Error::Image;
+    if pe.get(0..2) != Some(b"MZ") {
+        return Err(bad);
+    }
+    let nt = u32_at(pe, 0x3c).ok_or(bad)?;
+    if pe.get(nt..nt.checked_add(4).ok_or(bad)?) != Some(b"PE\0\0") {
+        return Err(bad);
+    }
+    let coff = nt.checked_add(4).ok_or(bad)?;
+    let sections = u16_at(pe, coff.checked_add(2).ok_or(bad)?).ok_or(bad)?;
+    let opt_size = u16_at(pe, coff.checked_add(16).ok_or(bad)?).ok_or(bad)?;
+    let opt = coff.checked_add(20).ok_or(bad)?;
+    let field = |n: usize| opt.checked_add(n).ok_or(bad);
+    let (dirs, count) = match u16_at(pe, opt).ok_or(bad)? {
+        0x20b => (field(112)?, u32_at(pe, field(108)?).ok_or(bad)?),
+        0x10b => (field(96)?, u32_at(pe, field(92)?).ok_or(bad)?),
+        _ => return Err(bad),
+    };
+    if count < 5 {
+        return Err(bad);
+    }
+    let cert_dir = dirs.checked_add(4 * 8).ok_or(bad)?;
+    let cert_at = u32_at(pe, cert_dir).ok_or(bad)?;
+    let cert_size = u32_at(pe, cert_dir.checked_add(4).ok_or(bad)?).ok_or(bad)?;
+    let size_of_headers = u32_at(pe, field(60)?).ok_or(bad)?;
+    if size_of_headers > pe.len() || cert_dir.checked_add(8).ok_or(bad)? > size_of_headers {
+        return Err(bad);
+    }
+    // The section table lies inside the headers, and no section starts
+    // inside them or inside another: every byte is hashed once, so the
+    // work is bounded by the file's size.
+    let table = opt.checked_add(opt_size).ok_or(bad)?;
+    let table_end = sections
+        .checked_mul(40)
+        .and_then(|n| table.checked_add(n))
+        .ok_or(bad)?;
+    if table_end > size_of_headers {
+        return Err(bad);
+    }
+    let mut secs = Vec::new();
+    for i in 0..sections {
+        let s = table
+            .checked_add(i.checked_mul(40).ok_or(bad)?)
+            .ok_or(bad)?;
+        let size = u32_at(pe, s.checked_add(16).ok_or(bad)?).ok_or(bad)?;
+        let at = u32_at(pe, s.checked_add(20).ok_or(bad)?).ok_or(bad)?;
+        if size > 0 {
+            if at.checked_add(size).ok_or(bad)? > pe.len() {
+                return Err(bad);
+            }
+            secs.push((at, size));
+        }
+    }
+    secs.sort_unstable();
+    let mut end = size_of_headers;
+    for (at, size) in &secs {
+        if *at < end {
+            return Err(bad);
+        }
+        end = at.checked_add(*size).ok_or(bad)?;
+    }
+    let certs = (cert_at != 0 && cert_size != 0).then_some((cert_at, cert_size));
+    // The certificate table follows the headers (it is appended to the
+    // image); one that starts inside them would overlap the very fields
+    // signing rewrites.
+    if let Some((a, n)) = certs
+        && (a < size_of_headers || a.checked_add(n).ok_or(bad)? > pe.len())
+    {
+        return Err(bad);
+    }
+    Ok(Layout {
+        checksum: field(64)?,
+        cert_dir,
+        size_of_headers,
+        sections: secs,
+        sections_end: end,
+        certs,
+    })
+}
+
+impl Layout {
+    /// Whether the certificate table is where firmware hashes an image
+    /// with one: after the last section, on an 8-byte boundary, and
+    /// ending the file, so that no byte after the sections goes
+    /// unhashed. True when there is no table.
+    fn table_ends_file(&self, len: usize) -> bool {
+        match self.certs {
+            None => true,
+            Some((at, size)) => {
+                at >= self.sections_end && at.is_multiple_of(8) && at.checked_add(size) == Some(len)
+            }
+        }
+    }
+}
+
+/// The Authenticode SHA-256 of an image: everything but its checksum, its
+/// certificate-table entry and the certificate table.
+///
+/// An image whose certificate table does not end the file, start on an
+/// 8-byte boundary or follow the last section is refused: firmware hashes
+/// the bytes after such a table, which this hash leaves out.
+pub fn image_hash(pe: &[u8]) -> Result<[u8; 32], Error> {
+    let l = layout(pe)?;
+    if !l.table_ends_file(pe.len()) {
+        return Err(Error::Image);
+    }
+    hash(pe, &l)
+}
+
+/// [`image_hash`] of an image laid out as `l`, wherever its table is.
+fn hash(pe: &[u8], l: &Layout) -> Result<[u8; 32], Error> {
+    let bad = Error::Image;
+    let part = |from: usize, to: usize| pe.get(from..to).ok_or(bad);
+    let mut h = Sha256::new();
+    h.update(part(0, l.checksum)?);
+    h.update(part(l.checksum.checked_add(4).ok_or(bad)?, l.cert_dir)?);
+    h.update(part(
+        l.cert_dir.checked_add(8).ok_or(bad)?,
+        l.size_of_headers,
+    )?);
+    let mut hashed = l.size_of_headers;
+    for (at, size) in &l.sections {
+        let to = at.checked_add(*size).ok_or(bad)?;
+        h.update(part(*at, to)?);
+        hashed = hashed.checked_add(*size).ok_or(bad)?;
+    }
+    let end = l.certs.map_or(pe.len(), |(a, _)| a);
+    if end > hashed {
+        h.update(part(hashed, end)?);
+    }
+    Ok(h.finalize().into())
+}
+
+/// The image as signing takes it: any certificate table dropped, its
+/// entry zeroed, and padded with zeros to a multiple of eight bytes.
+fn unsigned(pe: &[u8]) -> Result<(Layout, Vec<u8>), Error> {
+    let l = layout(pe)?;
+    let mut image = pe.to_vec();
+    if let Some((at, _)) = l.certs {
+        image.truncate(at);
+    }
+    image
+        .get_mut(l.cert_dir..l.cert_dir.checked_add(8).ok_or(Error::Image)?)
+        .ok_or(Error::Image)?
+        .fill(0);
+    while !image.len().is_multiple_of(8) {
+        image.push(0);
+    }
+    Ok((l, image))
+}
+
+/// Costs a SHA-256 of the image: the image hash it has once signed, by
+/// Faraday's signing or any signer that pads it to eight bytes as Authenticode
+/// does. Equal to [`image_hash`] of every signed copy of the same program,
+/// whoever signed it; a byte changed anywhere it covers gives another.
+pub fn hash_as_signed(pe: &[u8]) -> Result<[u8; 32], Error> {
+    image_hash(&unsigned(pe)?.1)
+}
+
+/// Costs an RSA signature. Any image signed by `signer`, with no release
+/// behind it: for this crate's tests and examples, the Starter's tests and
+/// the fuzz targets, under the `sign-any` feature, which no shipped binary
+/// turns on. The app signs through [`crate::release::sign`] (F134).
+#[cfg(feature = "sign-any")]
+pub fn sign(
+    rng: &mut crate::rng::Stream,
+    pe: &[u8],
+    signer: &x509::Pair,
+) -> Result<Vec<u8>, Error> {
+    sign_image(rng, pe, signer)
+}
+
+/// Costs an RSA signature. The image signed by `signer` (the db key):
+/// any certificate table it had is dropped, the image is padded to eight
+/// bytes, and the signature goes after it as the new table. `rng` blinds
+/// the signing. Reached only through [`crate::release::sign`], or
+/// `sign` under `sign-any`.
+pub(crate) fn sign_image(
+    rng: &mut crate::rng::Stream,
+    pe: &[u8],
+    signer: &x509::Pair,
+) -> Result<Vec<u8>, Error> {
+    let (l, mut image) = unsigned(pe)?;
+    let digest = image_hash(&image)?;
+    let content = Any::encode_from(&cms::spc_content(&digest)?)?;
+    let content_digest: [u8; 32] = Sha256::digest(content.value()).into();
+    let attrs = cms::image_attributes(&content_digest)?;
+    let sig = x509::sign(rng, &signer.key, &attrs.to_der()?)?;
+    let info = x509::signer_info(&signer.cert, Some(attrs), &sig)?;
+    let signed_data = SignedData::new(cms::SPC_INDIRECT_DATA, Some(content), &signer.cert, &info)?;
+    let content_info = ContentInfo(signed_data).to_der()?;
+    let mut table = Vec::new();
+    let length = content_info
+        .len()
+        .checked_add(8)
+        .ok_or(Error::Image)?
+        .div_ceil(8)
+        .checked_mul(8)
+        .ok_or(Error::Image)?;
+    table.extend_from_slice(&(length as u32).to_le_bytes());
+    table.extend_from_slice(&0x0200u16.to_le_bytes());
+    table.extend_from_slice(&0x0002u16.to_le_bytes());
+    table.extend_from_slice(&content_info);
+    table.resize(length, 0);
+    let at = image.len();
+    image.extend_from_slice(&table);
+    let entry = image
+        .get_mut(l.cert_dir..l.cert_dir.checked_add(8).ok_or(Error::Image)?)
+        .ok_or(Error::Image)?;
+    entry[..4].copy_from_slice(&(at as u32).to_le_bytes());
+    entry[4..].copy_from_slice(&(length as u32).to_le_bytes());
+    Ok(image)
+}
+
+/// What checking an image's signature against a db certificate found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Check {
+    /// No signature.
+    Unsigned,
+    /// Signed by this certificate's key, over this image.
+    Valid,
+    /// Signed, by another key.
+    OtherSigner,
+    /// The signature names a hash that is not this image's.
+    Altered,
+    /// The signature could not be read.
+    Unreadable,
+    /// Signed in a way firmware may read and this check does not: another
+    /// digest or signature algorithm than SHA-256 and RSA PKCS #1 v1.5,
+    /// or more than one signer.
+    NotRead,
+}
+
+/// Why [`transplant`] took no signature from a signed copy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Transplant {
+    /// The release's own image is not one this crate reads.
+    Release,
+    /// The signed copy is not the release's program: not an image, or its
+    /// image hash is another's.
+    Other,
+    /// The signed copy carries no certificate table.
+    Unsigned,
+    /// Its certificate table is not one signature alone at its end:
+    /// bytes after it, a table that does not end the file, or more than
+    /// one entry in it.
+    Layout,
+}
+
+/// Costs two Authenticode image hashes: the release's image, prepared as
+/// signing prepares it (padded to eight bytes, no table), with the
+/// checksum and certificate-table entry of `signed` and then `signed`'s
+/// certificate table, when `signed` is the same program with one
+/// signature appended and nothing else. Every byte the signature does
+/// not cover is then the release's by construction; whether the
+/// signature holds is [`signer`]'s to say, on the result.
+pub fn transplant(release: &[u8], signed: &[u8]) -> Result<Vec<u8>, Transplant> {
+    let (l, mut image) = unsigned(release).map_err(|_| Transplant::Release)?;
+    let s = layout(signed).map_err(|_| Transplant::Other)?;
+    let ours = image_hash(&image).map_err(|_| Transplant::Release)?;
+    if hash(signed, &s).map_err(|_| Transplant::Other)? != ours
+        || s.checksum != l.checksum
+        || s.cert_dir != l.cert_dir
+    {
+        return Err(Transplant::Other);
+    }
+    let Some((at, size)) = s.certs else {
+        return Err(Transplant::Unsigned);
+    };
+    // One WIN_CERTIFICATE, its length rounded to eight the whole table,
+    // the table where the release's image ends and ending the file.
+    let first = u32_at(signed, at).ok_or(Transplant::Layout)?;
+    if at != image.len()
+        || at.checked_add(size) != Some(signed.len())
+        || first < 8
+        || first.div_ceil(8).checked_mul(8) != Some(size)
+    {
+        return Err(Transplant::Layout);
+    }
+    // Both layouts passed `layout`, so these ranges lie inside each image.
+    let copy = |image: &mut Vec<u8>, to: usize, from: usize, n: usize| -> Option<()> {
+        let src = signed.get(from..from.checked_add(n)?)?;
+        image.get_mut(to..to.checked_add(n)?)?.copy_from_slice(src);
+        Some(())
+    };
+    copy(&mut image, l.checksum, s.checksum, 4).ok_or(Transplant::Layout)?;
+    copy(&mut image, l.cert_dir, s.cert_dir, 8).ok_or(Transplant::Layout)?;
+    image.extend_from_slice(signed.get(at..).ok_or(Transplant::Layout)?);
+    Ok(image)
+}
+
+/// Who signed an image, as the signature itself says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Signer {
+    /// No signature.
+    Unsigned,
+    /// A signature that no certificate it carries checks: unreadable,
+    /// over another image, or by a key it does not carry or name.
+    Broken,
+    /// Signed in a way this crate does not read: another digest or
+    /// signature algorithm than SHA-256 and RSA PKCS #1 v1.5, or more than
+    /// one signer.
+    NotRead,
+    /// Signed over this image by the key of this certificate (DER),
+    /// which the signature carries.
+    By(Vec<u8>),
+}
+
+/// Costs an RSA verification per certificate the signature carries: the
+/// certificate, of those carried in the image's first signature, whose
+/// key made that signature over this image. Says nothing of whether a
+/// computer trusts it: that is its db's to say.
+pub fn signer(pe: &[u8]) -> Result<Signer, Error> {
+    let l = layout(pe)?;
+    let Some((at, size)) = l.certs else {
+        return Ok(Signer::Unsigned);
+    };
+    let carried = carried_certs(pe, at, size).unwrap_or_default();
+    // The signature is decoded and the image hashed once, however many
+    // certificates it carries.
+    let signature = match read_signature(pe, at, size) {
+        Some(Ok(signature)) => signature,
+        Some(Err(Check::NotRead)) => return Ok(Signer::NotRead),
+        _ => return Ok(Signer::Broken),
+    };
+    for cert in carried {
+        if signature.verify(&cert) == Some(true) {
+            return Ok(Signer::By(cert));
+        }
+    }
+    Ok(Signer::Broken)
+}
+
+/// The SignedData of the first signature, read from the certificate
+/// table: its 8-byte header, then a ContentInfo, then padding.
+fn signed_data(pe: &[u8], at: usize, size: usize) -> Option<SignedData> {
+    let table = pe.get(at..at.checked_add(size)?)?;
+    if u16_at(table, 6)? != 0x0002 {
+        return None;
+    }
+    // The table's own length field may be under the 8-byte header.
+    let ci = table.get(8..u32_at(table, 0)?.min(table.len()))?;
+    let mut reader = SliceReader::new(ci).ok()?;
+    ContentInfo::decode(&mut reader).ok().map(|c| c.0)
+}
+
+/// The certificates the first signature carries: SignedData's
+/// `[0] certificates`, each whole.
+fn carried_certs(pe: &[u8], at: usize, size: usize) -> Option<Vec<Vec<u8>>> {
+    let sd = signed_data(pe, at, size)?;
+    sd.certs.iter().map(|c| c.to_der().ok()).collect()
+}
+
+/// Checks the first signature in an image against `cert`.
+pub fn check(pe: &[u8], cert: &[u8]) -> Result<Check, Error> {
+    let l = layout(pe)?;
+    let Some((at, size)) = l.certs else {
+        return Ok(Check::Unsigned);
+    };
+    Ok(match read_signature(pe, at, size) {
+        None => Check::Unreadable,
+        Some(Err(answer)) => answer,
+        Some(Ok(signature)) => match signature.verify(cert) {
+            None => Check::Unreadable,
+            Some(true) => Check::Valid,
+            Some(false) => Check::OtherSigner,
+        },
+    })
+}
+
+/// The first signature of an image, read and found to name the image:
+/// what is left is to check it against a certificate.
+struct Signature {
+    info: SignerInfo,
+    /// The signed attributes as they are signed, found once for every
+    /// certificate checked; `None` when they cannot be read.
+    attrs: Option<Vec<u8>>,
+}
+
+impl Signature {
+    /// Whether `cert` made the signature: its issuer and serial number are
+    /// the signer's, as the signature names it, and its key verifies;
+    /// `None` when the signed attributes cannot be read.
+    fn verify(&self, cert: &[u8]) -> Option<bool> {
+        let attrs = self.attrs.as_ref()?;
+        let Some(c) = x509::read(cert) else {
+            return Some(false);
+        };
+        let named = c.tbs_certificate().issuer() == &self.info.sid.issuer
+            && c.tbs_certificate().serial_number() == &self.info.sid.serial;
+        Some(named && x509::verify_read(&c, attrs, self.info.signature.as_bytes()))
+    }
+}
+
+/// Reads the first signature: `Err` is the check's answer when it is known
+/// without a certificate. As firmware reads one: exactly one signer, the
+/// content type SPC_INDIRECT_DATA in the content and in the signed
+/// attributes, SHA-256 and RSA PKCS #1 v1.5 throughout; another algorithm
+/// is [`Check::NotRead`], not a change to the file.
+fn read_signature(pe: &[u8], at: usize, size: usize) -> Option<Result<Signature, Check>> {
+    let sd = signed_data(pe, at, size)?;
+    if sd.content_type != cms::SPC_INDIRECT_DATA {
+        return None;
+    }
+    // The content is Authenticode's SpcIndirectDataContent.
+    let spc = sd.content.as_ref()?;
+    let content: cms::SpcIndirectData = Decode::from_der(&spc.to_der().ok()?).ok()?;
+    // Firmware hashes the image with the content's own algorithm and
+    // refuses a different hash whatever the signers say, so a changed
+    // image is one however the signers are written.
+    if content.message_digest.algorithm.oid == cms::SHA256
+        && content.message_digest.digest.as_bytes() != image_hash(pe).ok()?
+    {
+        return Some(Err(Check::Altered));
+    }
+    // No signer is no signature; two are ones firmware judges too.
+    let signer = match sd.signer_infos.as_slice() {
+        [] => return None,
+        [signer] => signer,
+        _ => return Some(Err(Check::NotRead)),
+    };
+    let info_der = signer.to_der().ok()?;
+    let info = SignerInfo::from_der(&info_der).ok()?;
+    if content.message_digest.algorithm.oid != cms::SHA256
+        || info.digest_algorithm != cms::SHA256
+        || !matches!(info.signature_algorithm, cms::RSA | cms::SHA256_WITH_RSA)
+    {
+        return Some(Err(Check::NotRead));
+    }
+    let attrs = info.signed_attrs.as_ref()?;
+    // RFC 5652 11.1: exactly one content type attribute, with one value,
+    // and it is the content's type.
+    let mut types = attrs.iter().filter(|a| a.oid == cms::CONTENT_TYPE);
+    let (Some(kind), None) = (types.next(), types.next()) else {
+        return None;
+    };
+    let mut values = kind.values.iter();
+    match (values.next(), values.next()) {
+        (Some(v), None)
+            if v.header().tag() == der::Tag::ObjectIdentifier
+                && v.value() == cms::SPC_INDIRECT_DATA.as_bytes() => {}
+        _ => return None,
+    }
+    // RFC 5652 11.2: exactly one message digest attribute, with one value,
+    // and it must name the content.
+    let content_digest: [u8; 32] = Sha256::digest(spc.value()).into();
+    let mut digests = attrs.iter().filter(|a| a.oid == cms::MESSAGE_DIGEST);
+    let named_digest = match (digests.next(), digests.next()) {
+        (Some(a), None) => {
+            let mut values = a.values.iter();
+            match (values.next(), values.next()) {
+                (Some(v), None) => v.value() == content_digest,
+                _ => return None,
+            }
+        }
+        (Some(_), Some(_)) => return None,
+        _ => false,
+    };
+    if !named_digest {
+        return Some(Err(Check::Altered));
+    }
+    let attrs = cms::signed_attrs_bytes(&info_der);
+    Some(Ok(Signature { info, attrs }))
+}
