@@ -108,16 +108,18 @@ For example, `storage::Read { stick, name }` has `type Answer = Result<Bytes, Fa
 `camera::On { camera }` has `type Answer = Result<camera::Started, camera::Failure>`.
 
 The context of a request (which item, which flow step, which stick) is kept on the app's side, in
-the runtime, and never travels to an adapter. The kernel's shape for it (section 03 owns the
-kernel; this is the port's requirement):
+the runtime, and never travels to an adapter. The kernel's shape for it (section 03 §4.2 gives it
+in full; this is the port's requirement):
 
 ```rust
 /// In the kernel. A reply is a function, not a closure, and its context
 /// is Public: what waits in the runtime for an answer can hold no secret.
-pub struct AskFor<M> { /* request: port::Ask, reply: erased (C, fn(C, R::Answer) -> M) */ }
+pub struct AskFor<M> { /* request: port::Ask, reply: erased, built from a Public context and fn pointers */ }
 
 impl<M: Message> AskFor<M> {
     pub fn new<R: Request, C: Public>(request: R, context: C, reply: fn(C, R::Answer) -> M) -> Self;
+    pub fn map<N: Message>(self, f: fn(M) -> N) -> AskFor<N>;   // a composite lifts a child's ask
+    pub fn into_parts(self) -> (Ask, Reply<M>);                // the runtime's only (A16)
 }
 ```
 
@@ -449,10 +451,15 @@ to its ask by `AskId` (`features/storage.md`, `features/stick-visit.md`,
 `Unrenamed` and `NameRefused` are the port's own: `faraday-files`, which defines the disk side's,
 is not `no_std`, and the storage adapter maps one to the other.
 
-- **Rule P11.** A write is read back and compared before it is answered `Wrote`; a vault's
-  write-back replaces only a file whose SHA-256 is one of `copies` or the `Over` hash; a write
-  never goes over a file unless `replace` or `Over` says so. Held by the storage adapter over
-  `faraday-files`' rules, as on `main`, and by an adapter test (section 07).
+- **Rule P11.** A write is written whole or not at all (section 03, A34): the storage and host
+  adapters write every file under a temporary name in the same folder, read it back and compare
+  it, and only then rename it to its name and answer `Wrote`. A write that fails removes what it
+  wrote before it answers, zeroing it first on FAT, where a removed file's bytes stay on the
+  stick; when the temporary file cannot be removed, the answer is `Failure::LeftBehind` with its
+  name, so the app can name it. A vault's write-back replaces only a file whose SHA-256 is one of
+  `copies` or the `Over` hash; a write never goes over a file unless `replace` or `Over` says so.
+  Held by the storage and host adapters over `faraday-files`' rules, and by an adapter test of a
+  write that fails part-way (section 07).
 - **Rule P12.** The app checks a file's size against the domain's limits before it asks
   (`faraday-codec`'s `MAX_READ`, a vault's `MAX_FILE_LEN`), and the adapter checks again as it
   reads (`accept_part`'s rules on `main`); the answer is `Failure::TooLarge`, never a cut file.
@@ -730,6 +737,7 @@ pub enum Failure {
     Empty,            // the clipboard held nothing usable
     Declined,         // the person declined an elevation or a prompt
     Adapter,          // P9: the wrong answer for the ask
+    LeftBehind(Text), // P11: a failed write's temporary file, by name, that could not be removed
     Os(OsError),      // the operating system's code, for diagnostics
 }
 ```
@@ -883,7 +891,7 @@ Not carried, each with its reason:
 | P5, P6 | one `no_std` crate of types, no I/O, no wording | `lint-layers`; the attribute; `clippy.toml`; `lint-strings` |
 | P7, P8 | an answer returns as the asker's message; its context is `Public` and its reply a `fn` | the compiler (the kernel's signature) |
 | P9, P10 | stale and wrong answers; ids echoed | an update test of the runtime |
-| P11, P12 | writes read back; sizes checked twice | the storage adapter; adapter and update tests |
+| P11, P12 | writes whole or not at all, read back; sizes checked twice | the storage and host adapters; adapter and update tests |
 | P13 | the frame and its copies wipe | buffer types; a stick adapter test |
 | P14, P16 | payloads wipe and are not `Clone`; `Debug` prints no secret | the compiler; `lint-secrets` |
 | P15 | only kinds are `Public` and logged | the compiler (sealed `Public`) |

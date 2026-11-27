@@ -42,6 +42,7 @@ crate carries
 layer = "domain"     # domain | port | kit | app | runtime | adapter | root | tool
 level = "organisms"  # kit only: tokens | atoms | molecules | organisms | templates
 role  = "feature"    # app only: kernel | part | feature | composite
+owner = true         # app only: the crate of a shared owner (section 03 §7, A24)
 ```
 
 `lint-layers` reads `cargo metadata --format-version 1 --no-deps --locked`, refuses a workspace
@@ -152,22 +153,36 @@ pub trait Feature {
     type Msg: Message;
     /// What the feature tells its parent; the parent routes it (§4.3).
     type Out: Message;
+    /// Why a message is refused before `update` sees it (section 03 §2.2).
+    type Refusal: Refused;
+    fn start(carried: &mut Carried, cx: &Ctx<'_>) -> (Self::State, Effects<Self::Msg, Self::Out>);
     fn update(state: &mut Self::State, msg: Self::Msg, cx: &Ctx<'_>) -> Effects<Self::Msg, Self::Out>;
+    fn notice(state: &mut Self::State, notice: &Notice<'_>, cx: &Ctx<'_>) -> Effects<Self::Msg, Self::Out>;
+    fn refuses(state: &Self::State, msg: &Self::Msg, view: &View<'_>) -> Option<Self::Refusal>;
 }
 
-pub struct Effects<M, O> {
-    pub port: Vec<port::Order>,   // to the adapters, through the root; not answered
-    pub asks: Vec<AskFor<M>>,     // answered: the runtime keeps each reply (section 02 §2)
-    pub jobs: Vec<Job<M>>,        // to the runtime's worker pool
-    pub out: Vec<O>,              // to the parent
+/// One ordered list: P18 keeps the order across kinds (section 03 §4.1).
+pub struct Effects<M, O>(Vec<Fx<M, O>>);
+pub enum Fx<M, O> {
+    Order(port::Order),    // to the adapters, through the root; not answered
+    Ask(AskFor<M>),        // answered: the runtime keeps each reply (section 02 §2)
+    Change(ChangeFor<M>),  // to a shared owner (section 03 §7)
+    Done(ChangeId, shared::Done), // only an owner: the answer to a change
+    Job(Job<M>),           // to the runtime's worker pool
+    Stop(JobKind),         // stop this feature's running job of this kind
+    Then(M),               // to this same feature, before the next event
+    Out(O),                // to the parent
+    Note(Note),            // a short typed line the frame shows
 }
 
 /// A worker job: it owns its inputs (a secret moved in, never copied)
 /// and its answer is a message carrying its own context.
 pub struct Job<M>(Box<dyn FnOnce(&Compute) -> M + Send>);
 
-/// Read-only: what every update may read. Built by the root.
-pub struct Ctx<'a> { /* compute: &'a Compute, the session's view, the clock, the mode, ... */ }
+/// Read-only: what `present` reads (section 03 §5). Built by the root.
+pub struct View<'a> { /* the shared owners' reads, the port facts, the mode, the clock, ... */ }
+/// What `update` reads: the view, and the token for costly work.
+pub struct Ctx<'a> { pub view: View<'a>, pub compute: &'a Compute }
 
 pub trait Message: Send {}
 /// Sealed: implemented only by the kernel's derive, which requires every
@@ -175,7 +190,11 @@ pub trait Message: Send {}
 pub trait Public: Message {}
 
 /// What a lock wipes, declared by every state (as `AtLock` on main).
-pub trait AtLock { fn at_lock(&mut self); }
+pub trait AtLock {
+    fn holds(&self) -> Holds;   // what it holds now: the clean marker, the Lock sheet, the idle lock
+    fn hide(&mut self);         // every secret on show off the screen, what was typed kept
+    fn at_lock(&mut self);      // wipe; called before the model is dropped
+}
 ```
 
 - **Rule A1.** The kernel holds no feature's types, and a type two features both need (a key's
@@ -213,9 +232,12 @@ value. It never routes, never names a feature and never returns an `Out`.
   the compiler, and by `lint-layers`, which refuses a `pub` field on a type that implements
   `AtLock` outside the kernel.
 - **Rule A8.** What features share to read (the keys and wallets the session holds, the sticks
-  attached, the mode, the clock) reaches them only through `Ctx`, which is a set of shared
-  borrows. A change to it is a message the root routes to the feature that owns it. Held by the
-  compiler (`&Ctx` gives no `&mut`).
+  attached, the mode, the clock) reaches them only through `Ctx` and `View`, which are sets of
+  shared borrows. Three shared owners hold what is shared: the session, the vault composite and
+  the settings, each held by the root beside its app composite (never a child of it) and read
+  through `View`'s kernel traits. A change to one is a `ChangeFor` effect the runtime serves to
+  that owner, answered once (section 03 §7). Held by the compiler (`&Ctx` gives no `&mut`) and by
+  `lint-layers` (`owner = true`).
 
 **Decision: features are crates.** Reason: the compiler then holds "a feature reaches another only
 through its parent", which `main` held by no rule (inventory `features/session-pane.md`,
@@ -252,7 +274,7 @@ Each feature crate has these modules. The module split is the presentation layer
 
 | Module | Holds | May name | Never names |
 |---|---|---|---|
-| `state`, `msg`, `update` | the feature's state, messages, update | kernel, parts, port, domain | `present`, `model`, `page`, any kit crate |
+| `state`, `msg`, `update` | the feature's state, messages, update | kernel, parts, port, domain | `present`, `model`, `page`, any kit crate, `faraday_strings` (section 03, A30) |
 | `model` | the feature's `ScreenModel` and the kit models it fills | kit model types (§6.5), domain value types, wording | `state`, `update`, the kit's drawing |
 | `present` | `present(&State, &View) -> ScreenModel` | `state`, `model`, kernel, domain, wording | `update`, `page`, the kit's drawing, `Compute` |
 | `page` | `draw(&ScreenModel, &mut Ui<Msg>)` | `model`, `msg`, the kit's templates and organisms | `state`, `update`, `present`, the kit below organisms |
