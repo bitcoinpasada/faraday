@@ -2,12 +2,12 @@
 
 use core::borrow::Borrow;
 
+use faraday_atoms::MotionStore;
 use faraday_crypto::work::Compute;
 use faraday_kernel::{
     AtLock, Carried, Clock, Ctx, Effects, End, Facts, Feature, Holds, Line, Lock, Mode, Note,
     Public, Running, Show, Started, Worded, shared, vaults,
 };
-use faraday_atoms::MotionStore;
 use faraday_port as port;
 
 use crate::facts::{Lent, build_view, default_settings};
@@ -149,9 +149,8 @@ impl<R: Root> Runtime<R> {
         }
         let id = self.change_id_own();
         self.scope.close = Some(id);
-        let close = shared::AnyChange::Vaults(vaults::Change::Close(vaults::Close {
-            seal: lock.seal,
-        }));
+        let close =
+            shared::AnyChange::Vaults(vaults::Change::Close(vaults::Close { seal: lock.seal }));
         self.scope.lock = Some((lock, Step::Seal));
         self.queue.push(Item::Owed(Addr::Vaults(
             <R::Vaults as shared::Owner>::given(id, close),

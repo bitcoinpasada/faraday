@@ -13,8 +13,8 @@ use faraday_bip::keys::Network;
 use faraday_kernel::settings;
 use faraday_kernel::shared::{self, AnyChange, ChangeId, Done, Empty, Owner};
 use faraday_kernel::{
-    AtLock, Carried, CarryName, CarryValue, Ctx, Edits, Effects, End, Feature, Holds, Job,
-    JobKind, Lock, Message, Mode, Notice, Public, Show, Top, View, session, vaults,
+    AtLock, Carried, CarryName, CarryValue, Ctx, Edits, Effects, End, Feature, Holds, Job, JobKind,
+    Lock, Message, Mode, Notice, Public, Show, Top, View, session, vaults,
 };
 use faraday_port as port;
 use faraday_port::event::{Event, Start, Time};

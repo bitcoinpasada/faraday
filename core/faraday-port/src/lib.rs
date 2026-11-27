@@ -23,8 +23,8 @@ pub mod values;
 
 pub use ask::{Answer, Ask, AskId, Failure, Request};
 pub use event::Event;
-pub use frame::Frame;
 pub use faraday_text::Text;
+pub use frame::Frame;
 pub use order::{Exit, Order};
 
 use core::fmt;

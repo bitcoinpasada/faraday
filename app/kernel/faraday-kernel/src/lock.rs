@@ -104,7 +104,8 @@ impl Carried {
     /// An entry under `name`; one already under that name is replaced.
     pub fn put<V: CarryValue>(&mut self, name: CarryName, value: &V) {
         let bytes = value.encode();
-        self.entries.retain(|entry| entry.name.as_str() != name.name);
+        self.entries
+            .retain(|entry| entry.name.as_str() != name.name);
         self.entries.push(Entry {
             name: Text::of(name.name),
             first: name.first,
