@@ -9,6 +9,7 @@
 
 mod model;
 mod msg;
+mod page;
 mod present;
 mod state;
 mod update;
@@ -16,7 +17,7 @@ mod update;
 use faraday_kernel::{CarryName, JobKind, Public};
 use faraday_port::values::Anchor;
 
-pub use model::{Body, Over};
+pub use model::{Body, Model, Over};
 pub use msg::{Msg, Out, Press};
 pub use present::{body, over};
 pub use state::State;
@@ -26,7 +27,6 @@ pub use update::Refusal;
 pub struct Starter;
 
 /// Its screens (06 §4.2).
-// Spec: 06 §4.2 gives `Tools` and `About` as pages and names no feature that holds `Tools`.
 #[derive(Public, Copy, PartialEq, Eq)]
 pub enum Page {
     Home,

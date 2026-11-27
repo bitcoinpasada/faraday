@@ -9,6 +9,7 @@
 
 mod model;
 mod msg;
+mod page;
 mod present;
 mod state;
 mod update;

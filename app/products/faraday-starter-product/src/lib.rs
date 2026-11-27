@@ -11,6 +11,7 @@
 mod l1;
 mod model;
 mod msg;
+mod page;
 mod present;
 mod starter;
 mod state;

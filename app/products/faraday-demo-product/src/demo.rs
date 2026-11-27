@@ -3,7 +3,7 @@ use faraday_kernel::{Carried, Facts, Mode, Public, Show, View};
 use faraday_organisms::Ui;
 use faraday_port::event::Input;
 use faraday_runtime::{Addr, Nothing, Root, Stream, Tops};
-use faraday_tokens::TextSize;
+use faraday_templates::TextSize;
 
 use crate::Press;
 
