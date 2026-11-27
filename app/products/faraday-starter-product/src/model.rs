@@ -5,7 +5,7 @@ use crate::Press;
 /// The page under the sheets: the Starter's own, or the Demo's whole screen (06 §4.2).
 pub enum Body<'s> {
     Starter(faraday_starter::Body<'s>),
-    Demo(DemoScreen<'s>),
+    Demo(Box<DemoScreen<'s>>),
 }
 
 /// The sheets over it (06 §4.2).
