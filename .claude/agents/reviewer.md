@@ -52,6 +52,33 @@ Read for the area a change is in; no trailer attests it.
 - A dependency has its `docs/deps/` page and passes `cargo vet --locked`; builds and checks pass `--locked`.
 - A parser of untrusted input has its fuzz target in the same change.
 
+**Standards, cryptography and KEF** (main's items, at next's crates: 09's crate table says where each went)
+
+- Unpublished or unreviewed work stays in the repository, compiled out of the app; a new kind of key or signature is a decision.
+- `faraday-secrets`' text check (the Send text, My seed's Compare, a wallet's name) refuses a secret through the device's own classifier; a secret kind added to the classifier's `Kind` is refused by it too, and bare hex stays the one case let through.
+- No text calls a check outside where the implementation it compares with is Faraday's own, or calls such a check not independent: it is not checked against an outside source.
+- A cross-check judge is others' code of another lineage than what it judges (a port, or another version of the same library for the maths they share, is not); Faraday's second version of a part is retired where such a judge covers the same inputs; every judge `just crosscheck` names is required there and is a DEVELOPING prerequisite; a switch lands with its cross-check change (07 TS20).
+- A function that costs more than a lookup says "Costs" in the first line of its doc.
+- What Faraday says of KEF (`faraday-kef`, the Krux feature `faraday-krux`) is what it does: all twelve versions read, only versions 20 and 5 written, Krux's refusals kept when writing, seeds.json and a passphrase that is a code left out, and the claim says it was checked against Krux's code and not on a device. The first of KEF's code on next is read against the claim in `docs/KEF.md`, and the commit that adds it names the paths in the claim's rule.
+
+**Keys, vaults and QR** (`faraday-keys`, `faraday-vault`, `faraday-pgp`, the vault features `faraday-vault-*`, `faraday-totp`, `faraday-gpg`, the keys and signing features)
+
+- A key form is a row of the forms registry (`faraday-forms`) and of `docs/KEY-FORMS.md`, a way in to a key is `faraday-ways-in`, and a typed passphrase is held and filtered only by `faraday-pass-field`, with no field or key filter of its own.
+- A crate that starts to hold secrets is under `lint-secrets` (K-2); one it cannot name is added to its exceptions with why.
+- An entry in the leak crate's list, or a form its flows look for, is added only in a commit that says why, with the flow, form, place, reason and the fix it waits for; a copy live after Lock has no entry (TS18, TS19).
+- A change to how a secret is held in a local, indexed by or compared is read for the stack temporaries and secret-indexed loads the leak tests cannot see.
+- That a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password.
+- A kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line, or on the read card for a TOTP setup code with no vault open.
+- A GPG key's paperkey reaches a code only as one static code of its base16 lines on the QR sheet marked Secret: no format choice, no parts, no picture, no file, made at the press through the existing reveal.
+- A change to what opening or sealing a file vault holds in memory keeps the one function that checks it first true, and its factor only falls by a measurement.
+- A file vault's seal writes a file that needs what the copy opened needed: a key file's key and a YubiKey's secret go with the passphrase through every path that seals, and one function makes the composite key.
+- A KDBX file's contents never refuse it: a damaged or ambiguous item is Unreadable and kept as read, and only the format limits, a wrong passphrase, damage and XML not well formed refuse a file.
+- A vault write goes over a file nothing proves only after the person's hold on the dialog, naming the SHA-256 of the file shown; a proved copy is replaced with no dialog, and no hash of an earlier seal is kept inside a vault.
+- A vault whose passphrase was just set ends locked and is unlocked once with it (F301).
+- A field a signer adds to a returned PSBT (`faraday-spend`, `faraday-decode`, `faraday-psbt`) is stated only when its content is checked in full against the unchanged transaction or Sent, never Returned's own copy, and is a finding otherwise; the words state it without "change" or "mine".
+- A fee bump is said only when every rule of COMPARE §3.2 holds, a rule that cannot be worked out is Cannot tell, the result never stops signing, and the comparison's differences carry no tone; a change to a rule is a decision.
+- A page that shows a secret the person chose to show holds it while shown, wipes it when hidden, on leaving the page and at a lock.
+
 **The layers** (`docs/spec/01-layers.md`; `lint-layers` holds the edges, the rest is read)
 
 - An edge `lint-layers` allows is still read: a feature that reaches state through `Ctx` or `View` should not, when the state is another area's and a message to its owner (an `Out` a composite routes, or a `ChangeFor` effect, 01 §4.3 A6, A8) would carry the same thing.
