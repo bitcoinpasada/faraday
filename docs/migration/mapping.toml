@@ -186,19 +186,26 @@ changed = []
 main = "faraday/faraday-handwriting"
 fate = "copy"
 next = ["core/faraday-handwriting"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+]
 
 [[module]]
 main = "faraday/faraday-boot"
 fate = "copy"
 next = ["core/faraday-boot"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+]
 
 [[module]]
 main = "faraday/faraday-payload"
 fate = "copy"
 next = ["core/faraday-payload"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`tests/stage_release.rs`: the script's path to `tools/stage-release.sh`",
+]
 
 [[module]]
 main = "faraday/faraday-keys"
@@ -216,25 +223,37 @@ changed = []
 main = "faraday/faraday-pgp"
 fate = "copy"
 next = ["core/faraday-pgp"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`tests/verify.rs`: the release key's path to `build/release-key.asc`",
+]
 
 [[module]]
 main = "faraday/faraday-sb"
 fate = "copy"
 next = ["core/faraday-sb"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`src/release.rs`, `tests/release.rs`: the release key's path to `build/release-key.asc`",
+]
 
 [[module]]
 main = "faraday/faraday-kef"
 fate = "copy"
 next = ["core/faraday-kef"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`tests/kef.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`",
+]
 
 [[module]]
 main = "faraday/faraday-ots"
 fate = "copy"
 next = ["core/faraday-ots"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`tests/ots.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`",
+]
 
 [[module]]
 main = "faraday/faraday-plan"
@@ -246,13 +265,18 @@ changed = []
 main = "faraday/faraday-fat"
 fate = "copy"
 next = ["core/faraday-fat"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`tests/judged.rs`: the fixture's path to `fuzz/faraday/corpus/fat/`",
+]
 
 [[module]]
 main = "faraday/faraday-sqlite"
 fate = "copy"
 next = ["core/faraday-sqlite"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+]
 
 [[module]]
 main = "faraday/faraday-core-wallet"
@@ -264,13 +288,21 @@ changed = []
 main = "faraday/faraday-qr"
 fate = "copy"
 next = ["core/faraday-qr"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout; the `faraday-alloc-count` path to `tools/faraday-alloc-count`",
+    "`tests/formats.rs`, `tests/interop.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`",
+]
 
 [[module]]
 main = "faraday/faraday-files"
 fate = "copy"
 next = ["core/faraday-files"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`src/lib.rs`: the folder `Place` (`Dir`) and its `io_text` leave for `faraday-desktop-adapter` (`FolderPlace`); the module comment says so",
+    "`tests/names.rs`, `tests/pieces.rs`: the tests over `Dir` leave for `faraday-desktop-adapter/tests/folder.rs`, with headers (`a_folder_refuses_in_the_apps_words`, `a_vault_longer_than_a_frame_is_read_in_pieces_and_comes_whole`, `a_file_that_is_not_a_vault_is_not_read_past_a_frame_in_pieces_either`); `tests/names.rs` keeps the empty-name half as `an_empty_name_is_refused_in_the_apps_words`",
+    "`tests/crafted_save_cost.rs`, `foreign.rs`, `head.rs`, `oversized.rs`, `picture.rs`, `replace.rs`, `torn_vault_write.rs`, `vault_by_contents.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`",
+]
 
 [[module]]
 main = "faraday/faraday-intake"
@@ -296,19 +328,26 @@ changed = []
 main = "faraday/faraday-paper"
 fate = "copy"
 next = ["core/faraday-paper"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout; `faraday-draw` becomes `faraday-tokens`",
+    "`src/pdf.rs`: the sheet dimensions are read from `faraday_tokens::dims` (their values copied from `faraday-draw`'s `tokens.rs` into `kit/faraday-tokens/src/dims.rs`)",
+]
 
 [[module]]
 main = "faraday/faraday-strings"
 fate = "copy"
 next = ["core/faraday-strings"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+]
 
 [[module]]
 main = "faraday/faraday-guide"
 fate = "copy"
 next = ["core/faraday-guide"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+]
 
 [[module]]
 main = "faraday/faraday-samples"
@@ -409,6 +448,16 @@ why = "10 §7.2 (MG9): it compares the samples with `faraday_core::testkit::demo
 
 # ----------------------------------------------------------------------
 # adapters/: the process adapters, the capture adapters and the stick shell's I/O files (09 §6)
+
+[[module]]
+main = "faraday/faraday-scanner"
+fate = "copy"
+next = ["adapters/faraday-scanner"]
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; `faraday-draw` becomes `faraday-tokens`, the workspace crates' dependency paths to `core/`'s layout",
+    "`src/scan.rs`: the preview maximum is read from `faraday_tokens::dims::PREVIEW_MAX` (its value copied from `faraday-draw`'s `tokens.rs`); the two tests carry their headers",
+    "`src/lib.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`; the tests carry their headers",
+]
 
 [[module]]
 main = "faraday/faraday-disk"
@@ -638,7 +687,9 @@ changed = []
 main = "faraday/tools/alloc-count"
 fate = "copy"
 next = ["tools/faraday-alloc-count"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block",
+]
 
 [[module]]
 main = "faraday/tools/leak-scan"
