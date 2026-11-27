@@ -1,9 +1,8 @@
-use faraday_kernel::{Ending, Gate, Message, ScanFor};
+use faraday_kernel::{Ending, Gate, Message, SampleAsk, ScanFor};
 use faraday_organisms::Pressed;
 use faraday_present::FlowPress;
 
 use crate::Page;
-use crate::SampleAsk;
 
 #[derive(Message)]
 pub enum Msg {
@@ -46,9 +45,9 @@ pub enum Press {
     Restore(FlowPress<faraday_restore::Step, faraday_restore::Press>),
     Seeds(faraday_seeds::Press),
     PublicFiles(faraday_public_files::Press),
-    CoreImport(faraday_core_import::Press),
+    CoreImport(FlowPress<faraday_core_import::Step, faraday_core_import::Press>),
     Addresses(faraday_addresses::Press),
-    Silent(faraday_silent::Press),
+    Silent(FlowPress<faraday_silent::Step, faraday_silent::Press>),
     Backup(FlowPress<faraday_backup::Step, faraday_backup::Press>),
     BackupFlow(FlowPress<faraday_backup_flow::Step, faraday_backup_flow::Press>),
     BackupsList(faraday_backups_list::Press),

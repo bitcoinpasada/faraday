@@ -34,9 +34,8 @@ pub(crate) struct Signal {
     pub(crate) of: AtomicU32,
 }
 
-/// A job as the pool holds it. `Job<M>` (kernel) gives no way to read its parts.
-// Spec: 03 §4 gives `Job` no accessor for the runtime; the pool needs kind, lane, quiet, seal
-// and the work to run.
+/// A job as the pool holds it: the `JobParts` of `Job::into_parts`, its work's answer erased to
+/// the top state that started it.
 pub(crate) struct Queued {
     pub(crate) id: JobId,
     pub(crate) part: Part,

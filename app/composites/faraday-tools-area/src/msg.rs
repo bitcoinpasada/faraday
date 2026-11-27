@@ -1,8 +1,8 @@
-use faraday_kernel::{Message, ScanFor, Tool};
+use faraday_kernel::{Ending, Message, SampleAsk, ScanFor, Tool};
 use faraday_organisms::Pressed;
+use faraday_present::FlowPress;
 
 use crate::Page;
-use crate::SampleAsk;
 
 #[derive(Message)]
 pub enum Msg {
@@ -22,6 +22,7 @@ impl From<Press> for Msg {
 #[derive(Message)]
 pub enum Out {
     Open(Page),
+    Leave(Ending),
     Scan(ScanFor),
     Sample(SampleAsk),
     Go(Tool),
@@ -33,5 +34,5 @@ pub enum Press {
     Catalog(Tool),
     Calculators(faraday_calculators::Press),
     Lightning(faraday_lightning::Press),
-    OtsCheck(faraday_ots_check::Press),
+    OtsCheck(FlowPress<faraday_ots_check::Step, faraday_ots_check::Press>),
 }

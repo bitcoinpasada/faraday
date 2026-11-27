@@ -439,7 +439,15 @@ crate from any crate but another owner, a product and a tool.
 
 Each owner exports, beside the feature shape: `impl shared::Owner`, its `Change` and `Done`
 variants (they are the kernel's `session::Change`, `vaults::Change`, `settings::Change`, 03 §7.3),
-and its `Press` and `Page`.
+and its `Press`. The vault composite and the settings owner re-export their `Page`, which is the
+kernel's (`shared::vaults::Page`, `shared::settings::Page`, 06 §4.2); the session and the vault
+composite's children have no page of the app's and no `Page`.
+
+```rust
+// faraday-kernel, shared
+pub enum vaults::Page { Vaults, CreateVault, Unlock, Contents, Codes }   // the vault area's screens
+pub enum settings::Page { Settings, SetTime }
+```
 
 ### 4.6 The device composite and its children
 
@@ -529,18 +537,27 @@ Its normal edges: the feature base, its eleven direct children's crates. Dev: ap
 | `faraday-starter-start` | `app/features/` | feature, `online` | `starter-start.md` | codec, crypto, guide |
 
 `faraday-online` exports `State`, `Msg`, `Out`, `Press`, `Page` (06 §4.2), `Body<'s>`, `Over<'s>`,
-`Screen<'s>` (the Demo's whole screen model, for the Starter's `Body::Demo`), and the online app:
+`FrameSheetModel` (the device composite's, re-exported), and the online app. An owner's page is
+the product's to present (06 §4.2), so `Body` has no owner variant and the composite names no
+owner and no `Tops`:
 
 ```rust
 pub struct OnlineApp { online: State, frame: Frame<Page> }   // 06 §4.1
 pub struct Online;                                           // Feature<State = OnlineApp, Out = Top>
-pub fn frame(app: &OnlineApp, tops: TopsView<'_>, view: &View<'_>, show: &Show<'_>,
-             ui: &mut Ui<'_, Press>);
-```
+pub enum Page { Device(device::Page), Transfer, Vaults(vaults::Page), Settings(settings::Page),
+                SelfTestFailed }                             // the owners' pages: the kernel's types
+pub enum Body<'s> { Device(device::Body<'s>), Transfer(transfer::Model<'s>),
+                    SelfTestFailed(device::FailedModel<'s>) }
+pub enum Over<'s> { Device(device::Over<'s>), Strip(strip::Model<'s>), Frame(FrameSheetModel<'s>) }
+#[derive(Pressed)]
+pub enum Press { Device(device::Press), Strip(strip::Press), Transfer(transfer::Press), Open(Page), Back }
 
-`TopsView` is the kernel's read of the three owners' states for an owner's page (asked of section
-05 below: `Root::frame` gets `Tops<R>`, a runtime type the online composite cannot name; the
-products pass it on as the kernel's `TopsView`).
+pub fn shown(app: &OnlineApp) -> Page;
+pub fn frame_model<'s, R: Pressed>(app: &'s OnlineApp, view: &View<'s>, show: &Show<'s>,
+                                   lift: fn(Press) -> R) -> FrameModel<'s, R>;
+pub fn body<'s>(app: &'s OnlineApp, view: &View<'s>, show: &Show<'s>) -> Option<Body<'s>>; // None: an owner's
+pub fn over<'s>(app: &'s OnlineApp, view: &View<'s>, show: &Show<'s>) -> Vec<(Anchor, Over<'s>)>;
+```
 
 `faraday-starter` exports `State`, `Msg`, `Out`, `Press`, `Page` (06 §4.2), `Body<'s>`, `Over<'s>`.
 

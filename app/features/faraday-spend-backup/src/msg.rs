@@ -1,4 +1,4 @@
-use faraday_kernel::{Ending, FlowMsg, Gate, Message, WalletId};
+use faraday_kernel::{Ending, FlowMsg, Gate, Message, SampleAsk, WalletId};
 use faraday_organisms::Pressed;
 
 use crate::Step;
@@ -40,9 +40,3 @@ impl core::convert::From<Press> for Own {
         todo!()
     }
 }
-
-/// A published sample to load.
-// Spec: 09 §4.4 names `SampleAsk` without a shape; it belongs to the kernel, which no
-// feature may widen, so each feature that asks holds its own.
-#[derive(Message)]
-pub enum SampleAsk {}

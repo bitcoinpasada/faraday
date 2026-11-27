@@ -19,9 +19,8 @@ impl From<Press> for Msg {
 
 pub use faraday_kernel::Top as Out;
 
-/// What a press on the online app's page sends.
-// Spec: 06 §4.2 has the owners' presses beside this in the product's `Press`; this composite
-// names no owner, so they are not here. `Open` and `Back` are the frame's.
+/// What a press on the online app's frame or page sends: the owners' presses are the product's
+/// (06 §4.2). `Open` is a destination, `Back` the top bar's.
 #[derive(Clone, PartialEq, Pressed)]
 pub enum Press {
     Device(faraday_device::Press),

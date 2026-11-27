@@ -1,6 +1,6 @@
 //! The lock order, the carry in hand, the scope's build (05 §7).
 
-use faraday_kernel::{Carried, Lock, shared};
+use faraday_kernel::{Carried, Line, Lock, Public, Show, Worded, shared};
 use faraday_port as port;
 
 use crate::root::Root;
@@ -34,6 +34,17 @@ pub(crate) struct Scope {
     stream: Option<port::AskId>,
 }
 
+/// The note a scope rebuilt after a wrong answer to `Keep` puts up: what was carried was lost
+/// (§7.6). Nothing is retried.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub(crate) struct KeepLost;
+
+impl Worded for KeepLost {
+    fn words(&self, _show: &Show<'_>) -> Line {
+        todo!()
+    }
+}
+
 impl<R: Root> Runtime<R> {
     /// §7.2: the nine steps, in order, by every way a lock is asked (R19).
     pub(crate) fn begin_lock(&mut self, _lock: Lock) {
@@ -60,7 +71,8 @@ impl<R: Root> Runtime<R> {
         todo!()
     }
 
-    /// §7.6: `Answer::Kept`, a failure handing the carry back.
+    /// §7.6: `Answer::Kept`, a failure handing the carry back; a wrong answer is a failed keep
+    /// whose carry is lost, and a rebuilt scope then puts up `KeepLost`.
     pub(crate) fn kept(&mut self, _answer: port::Answer) {
         todo!()
     }

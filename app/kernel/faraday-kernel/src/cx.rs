@@ -49,14 +49,6 @@ pub enum Started {
     Rebuilt,
 }
 
-/// The three owners' states read for an owner's page, built by the runtime from its `Tops`;
-/// `None` outside the Starter's lock scope.
-pub struct TopsView<'a> {
-    pub settings: &'a Settings,
-    pub session: Option<&'a dyn session::Read>,
-    pub vaults: Option<&'a dyn vaults::Read>,
-}
-
 /// What `update` reads: the view, and the token for costly work.
 pub struct Ctx<'a> {
     pub view: View<'a>,
@@ -197,6 +189,22 @@ pub struct Memo(RefCell<()>);
 pub struct Slot(pub &'static str);
 
 impl Memo {
+    /// The runtime's only: the one store, empty. No `Default`, which would make one anywhere.
+    #[expect(clippy::new_without_default, reason = "only the runtime makes the memo (01 R1)")]
+    pub fn new() -> Memo {
+        todo!()
+    }
+
+    /// The runtime's only, at a frame's end: every entry that frame did not use is dropped.
+    pub fn end_frame(&self) {
+        todo!()
+    }
+
+    /// The runtime's only, at every lock and every end: every entry dropped.
+    pub fn clear(&self) {
+        todo!()
+    }
+
     /// The value kept for (`slot`, `V`, `key`), or `fill(input)` kept and returned. `fill` is a
     /// function, not a closure: it sees only what `input` gives it.
     #[cfg(not(debug_assertions))]

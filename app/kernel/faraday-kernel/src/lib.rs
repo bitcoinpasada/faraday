@@ -26,16 +26,17 @@ pub mod __private {
 
 pub use cx::{
     Clock, Ctx, Derived, Downloads, Edits, Facts, FactsChanged, Memo, Mode, NoteUp, Running,
-    SelfTest, Show, Slot, Started, Sticks, SystemFacts, TopsView, View,
+    SelfTest, Show, Slot, Started, Sticks, SystemFacts, View,
 };
 pub use effects::{
-    AskFor, ChangeFor, ChangeReply, Effects, Fault, Fx, Job, JobKind, Note, Reply, Route, ViewOrder,
+    AskFor, ChangeFor, ChangeReply, Effects, Fault, Fx, Job, JobKind, JobParts, Note, Reply, Route,
+    ViewOrder,
 };
 pub use feature::{End, Feature, Lock, Notice, Top, route};
 pub use flow::{
     Back, CancelOffer, Ending, Flow, FlowFx, FlowMsg, FlowRefusal, StepFlow, Steps, Width,
 };
-pub use handle::{FileId, Gate, KeyId, ScanFor, Ticket, Tool, Waiting, WalletId};
+pub use handle::{FileId, Gate, KeyId, SampleAsk, ScanFor, Ticket, Tool, Waiting, WalletId};
 pub use lock::{AtLock, Carried, CarryName, CarryValue, FileBox, Holds, Loss};
 pub use message::{Message, Never, Public, Withheld};
 pub use nav::{Frame, FrameSheet, Holder, Nav};

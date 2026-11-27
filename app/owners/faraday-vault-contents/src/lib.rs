@@ -1,6 +1,6 @@
 //! A shared owner (feature): inside a vault, KeePass export.
 //! Section 09 §4.4 and §4.5: the feature's shape, `impl shared::Owner` where it is a top state,
-//! its `Press` and its `Page`.
+//! its `Press`; the vaults and the settings re-export the kernel's `Page`.
 
 #![expect(dead_code, reason = "the fields are read once the bodies are written")]
 
@@ -11,7 +11,7 @@ mod present;
 mod state;
 mod update;
 
-use faraday_kernel::{CarryName, JobKind, Public};
+use faraday_kernel::{CarryName, JobKind};
 use faraday_port::values::Anchor;
 
 pub use model::Model;
@@ -22,12 +22,6 @@ pub use update::Refusal;
 /// The feature: `Feature`, `Present` and `faraday_present::Page`.
 pub struct VaultContents;
 
-/// Its screens (06 §4.2).
-// Spec: 09 §4.5 says each owner exports its `Page` and names no variants.
-#[derive(Public, Copy, PartialEq, Eq)]
-pub enum Page {
-    Contents,
-}
 
 pub const JOBS: &[JobKind] = &[];
 pub const CARRY: &[CarryName] = &[];

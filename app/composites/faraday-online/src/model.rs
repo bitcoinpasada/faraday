@@ -1,14 +1,8 @@
-use faraday_present::ScreenModel;
-
-use crate::{OwnerPage, Press};
-
-/// The page under the sheets: one variant per page.
+/// The page under the sheets: one variant per page this composite presents. An owner's page is
+/// the product's to present (06 §4.2), so it has no variant here.
 pub enum Body<'s> {
     Device(faraday_device::Body<'s>),
     Transfer(faraday_transfer::Model<'s>),
-    // Spec: see `Page`: an owner's page is presented by the product, from its `Tops`.
-    Vaults(OwnerPage),
-    Settings(OwnerPage),
     SelfTestFailed(faraday_device::FailedModel<'s>),
 }
 
@@ -18,6 +12,3 @@ pub enum Over<'s> {
     Strip(faraday_strip::Model<'s>),
     Frame(faraday_device::frame::FrameSheetModel<'s>),
 }
-
-/// The Demo's whole screen model, for the Starter's `Body::Demo`.
-pub type Screen<'s> = ScreenModel<'s, Body<'s>, Over<'s>, Press>;

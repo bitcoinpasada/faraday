@@ -15,7 +15,7 @@ use faraday_port::values::Anchor;
 
 pub use frame::FailedModel;
 pub use model::{Body, Over};
-pub use msg::{Msg, Out, Press, SampleAsk};
+pub use msg::{Msg, Out, Press};
 pub use present::{body, over};
 pub use state::State;
 pub use update::Refusal;

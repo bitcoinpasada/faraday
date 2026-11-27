@@ -1,4 +1,4 @@
-# The runtime: io-rt, mint, keys and app but into_parts. Compute::new is under #[expect] at the two mint sites.
+# The runtime: io-rt, mint, keys and app but the runtime's own (into_parts, into_list, Memo's). Compute::new is under #[expect] at the two mint sites.
 # Clippy reads the nearest clippy.toml and nothing above it, so this file holds every set the
 # directory needs (docs/spec/09-manifest.md section 1.4). tools/clippy.py checks the copies.
 
