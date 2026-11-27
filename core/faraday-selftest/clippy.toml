@@ -1,0 +1,13 @@
+# The domain crate's clippy.toml: the mint set of docs/spec/09-manifest.md section 1.4, but for
+# `Compute::unchecked`: the domain's own tests mint with it throughout (the `unchecked` feature
+# keeps it out of shipped code), and clippy cannot allow it for tests alone. Clippy reads the
+# nearest clippy.toml, so `core/clippy.toml`'s keys set does not apply here: `main` has none for
+# this crate.
+
+disallowed-methods = [
+    { path = "faraday_crypto::work::Compute::new", reason = "a mint: only at the entry points of the runtime, under #[expect]" },
+]
+
+# A function over this cognitive complexity carries an expect with its reason
+# (docs/STRUCTURE-PASS.md section 7.2); the same number is in core/clippy.toml.
+cognitive-complexity-threshold = 35

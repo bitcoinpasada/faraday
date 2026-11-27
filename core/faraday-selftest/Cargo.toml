@@ -1,8 +1,11 @@
 [package]
 name = "faraday-selftest"
-version = "0.0.0"
+version = "0.1.0"
+description = "The start-up self-test: published vectors for BIP-39, BIP-32, ECDSA, BIP-340 and the KDFs, run before any key is accepted"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
@@ -13,6 +16,10 @@ faraday-text = { path = "../faraday-text" }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+# A token that counts nothing, for the tests (docs/COMPUTE.md §3).
+faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }
 
 [package.metadata.faraday]
 layer = "domain"
