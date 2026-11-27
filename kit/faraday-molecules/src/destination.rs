@@ -5,8 +5,8 @@ use faraday_atoms::hits::Shape;
 use faraday_atoms::{Glyph, Offered, Pressed, Shown, Ui};
 use faraday_draw::canvas::InkKind;
 use faraday_tokens::dims::{
-    BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, GAP_SMALL, LABEL_M, NAV_ICON,
-    NAV_LABEL_GAP, NAV_PILL_H, NAV_PILL_W,
+    BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, GAP_SMALL, LABEL_M, NAV_ICON, NAV_LABEL_GAP,
+    NAV_PILL_H, NAV_PILL_W,
 };
 use faraday_tokens::palette::{BADGE, ON_BADGE, Paint, Role};
 
@@ -68,7 +68,15 @@ fn count_pill<A: Pressed>(
     let w = count_width(ui, label);
     ui.fill(x, y, w, h, h / 2.0, fill);
     let tw = ui.measure(BADGE_LABEL, faraday_atoms::W::S, label);
-    ui.text_mid(x + (w - tw) / 2.0, y, h, BADGE_LABEL, faraday_atoms::W::S, ink, label);
+    ui.text_mid(
+        x + (w - tw) / 2.0,
+        y,
+        h,
+        BADGE_LABEL,
+        faraday_atoms::W::S,
+        ink,
+        label,
+    );
 }
 
 /// Draws the badge on an icon glyph whose box is `glyph` (x, y, side): the dot on its top
@@ -113,7 +121,12 @@ fn flow_pill<A: Pressed>(
         Badge::Count(n) => corner + count_width(ui, &count_label(m, n)) + GAP_SMALL,
     };
     let at = (x, gy - BADGE_LARGE / 2.0);
-    count_pill(ui, at, &count_label(m, m.flows), (Role::Primary.paint(), Role::OnPrimary.paint()));
+    count_pill(
+        ui,
+        at,
+        &count_label(m, m.flows),
+        (Role::Primary.paint(), Role::OnPrimary.paint()),
+    );
 }
 
 /// The height a destination's pill and label take together, its label's line at the text size.
@@ -130,7 +143,14 @@ pub fn draw<A: Pressed>(
     let top = y + ((h - content(ui)) / 2.0).max(0.0);
     let px = x + (w - NAV_PILL_W) / 2.0;
     if m.current {
-        ui.fill(px, top, NAV_PILL_W, NAV_PILL_H, NAV_PILL_H / 2.0, Role::SecondaryContainer);
+        ui.fill(
+            px,
+            top,
+            NAV_PILL_W,
+            NAV_PILL_H,
+            NAV_PILL_H / 2.0,
+            Role::SecondaryContainer,
+        );
     }
     let (icon_fg, fg) = if m.current {
         (Role::OnSecondaryContainer, Role::OnSurface)
@@ -153,7 +173,11 @@ pub fn draw<A: Pressed>(
         flow_pill(m, ui, glyph);
     });
     // Material's label medium, the current destination's heavier.
-    let role = if m.current { LABEL_M } else { LABEL_M.regular() };
+    let role = if m.current {
+        LABEL_M
+    } else {
+        LABEL_M.regular()
+    };
     // A one-line slot: fitted down to Standard (`docs/TEXT-SIZE.md` §3).
     let room = w - 2.0 * GAP_SMALL;
     let label = m.label.as_str();
@@ -161,7 +185,12 @@ pub fn draw<A: Pressed>(
         let lw = ui.text_fit_width(role, label, room);
         let ly = top + NAV_PILL_H + NAV_LABEL_GAP;
         // The band its own line tall, so the label's top is at `ly`.
-        let band = (x + (w - lw) / 2.0, ly, ui.line(role.size, role.face.into()), room);
+        let band = (
+            x + (w - lw) / 2.0,
+            ly,
+            ui.line(role.size, role.face.into()),
+            room,
+        );
         ui.text_fit_as(band, role, fg, label);
     });
 }

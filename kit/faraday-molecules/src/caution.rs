@@ -23,7 +23,11 @@ pub struct CautionModel<'s> {
 }
 
 /// Draws the caution at (x, y), `w` wide, wrapped. Returns its height, no gap under it.
-pub fn draw<A: Pressed>(m: &CautionModel<'_>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(
+    m: &CautionModel<'_>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
     let role = match m.size {
         Size::Label => LABEL_L,
         Size::Body => BODY_M,
@@ -51,7 +55,9 @@ mod tests {
         let mut ui: Ui<'_, P> = Ui::new(&mut c, Theme::default(), 1.0, &mut store, &pointer, true);
         ui.clear(Role::Surface);
         let m = CautionModel {
-            text: Shown::plain("Some keys of this wallet are not checked, so its addresses may not be yours"),
+            text: Shown::plain(
+                "Some keys of this wallet are not checked, so its addresses may not be yours",
+            ),
             size: Size::Label,
         };
         let h = draw(&m, &mut ui, (16.0, 16.0, 200.0));

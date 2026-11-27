@@ -39,7 +39,12 @@ pub fn code<A: Pressed>(ui: &mut Ui<'_, A>, m: &QrMatrix, (x, y): (f32, f32), si
     let r = ui.rect(x, y, side, side);
     let ox = r.x + (r.w - used) / 2;
     let oy = r.y + (r.h - used) / 2;
-    ui.c.fill_cells((ox, oy), (n, module_px), |col, row| m.module(col, row), Color::BLACK);
+    ui.c.fill_cells(
+        (ox, oy),
+        (n, module_px),
+        |col, row| m.module(col, row),
+        Color::BLACK,
+    );
 }
 
 /// Draws the code from (x, y), at most `w` wide, and under it its caption wrapped to `w`.
@@ -52,7 +57,12 @@ pub fn draw<A: Pressed>(m: &QrModel<'_>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f3
     }
     let cy = y + side + CAPTION_GAP;
     let h = ui.showing(&m.caption, |ui| {
-        ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurfaceVariant, m.caption.as_str())
+        ui.wrap_as(
+            (x, cy, w),
+            BODY_S.mono(),
+            Role::OnSurfaceVariant,
+            m.caption.as_str(),
+        )
     });
     side + CAPTION_GAP + h
 }

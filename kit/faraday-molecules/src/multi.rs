@@ -55,7 +55,12 @@ pub fn draw<A: Pressed>(
             })
         });
         if i + 1 < m.rows.len() {
-            ui.rule(x + LIST_INDENT, ry + rh, w - LIST_INDENT, Role::OutlineVariant);
+            ui.rule(
+                x + LIST_INDENT,
+                ry + rh,
+                w - LIST_INDENT,
+                Role::OutlineVariant,
+            );
         }
     }
     m.rows.len() as f32 * rh
@@ -68,10 +73,19 @@ fn row<A: Pressed>(
     (x, ry, w, rh): (f32, f32, f32, f32),
     enabled: bool,
 ) {
-    ui.checkbox(x + MULTI_CHECK_X, ry + (rh - ICON_GLYPH_BUTTON) / 2.0, r.on, enabled);
+    ui.checkbox(
+        x + MULTI_CHECK_X,
+        ry + (rh - ICON_GLYPH_BUTTON) / 2.0,
+        r.on,
+        enabled,
+    );
     let label = ui.fit_as(BODY_L, r.label.as_str(), w - LIST_RESERVE);
     let dim: Paint = Role::OnSurface.at(DISABLED_CONTENT);
-    let fg = if enabled { Role::OnSurface.paint() } else { dim };
+    let fg = if enabled {
+        Role::OnSurface.paint()
+    } else {
+        dim
+    };
     if r.value.as_str().is_empty() {
         ui.text_mid_as((x + LIST_INDENT, ry, rh), BODY_L, fg, &label);
         return;
@@ -80,7 +94,11 @@ fn row<A: Pressed>(
     let top = ry + (rh - lh - vh) / 2.0;
     ui.text_mid_as((x + LIST_INDENT, top, lh), BODY_L, fg, &label);
     let value = ui.fit_as(BODY_M, r.value.as_str(), w - LIST_RESERVE);
-    let vc = if enabled { Role::OnSurfaceVariant.paint() } else { dim };
+    let vc = if enabled {
+        Role::OnSurfaceVariant.paint()
+    } else {
+        dim
+    };
     ui.text_mid_as((x + LIST_INDENT, top + lh, vh), BODY_M, vc, &value);
 }
 
@@ -106,7 +124,10 @@ mod tests {
             offered,
         };
         let m = MultiModel {
-            rows: vec![row("Passphrase", Offered::Yes(P(1))), row("Hidden", Offered::No)],
+            rows: vec![
+                row("Passphrase", Offered::Yes(P(1))),
+                row("Hidden", Offered::No),
+            ],
         };
         let h = draw(&m, &mut ui, (0.0, 0.0, 300.0));
         let hits = ui.finish().hits;

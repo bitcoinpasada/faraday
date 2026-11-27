@@ -33,7 +33,11 @@ pub fn code_box<A: Pressed>(ui: &mut Ui<'_, A>, (x, y): (f32, f32), size: f32, t
 
 /// Draws the lead and the code in its box, the box on the next line where it does not fit
 /// beside the lead in `w`. Returns the height.
-pub fn draw<A: Pressed>(m: &CodeBoxModel<'_>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(
+    m: &CodeBoxModel<'_>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
     let size = m.role.size;
     ui.showing(&m.lead, |ui| {
         ui.showing(&m.code, |ui| {

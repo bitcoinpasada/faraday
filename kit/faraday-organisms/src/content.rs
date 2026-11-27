@@ -131,18 +131,9 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
             faraday_molecules::pass::draw(m, ui);
             0.0
         }
-        Block::Words(m) => {
-            faraday_molecules::words::draw(m, ui);
-            0.0
-        }
-        Block::Pad(m) => {
-            faraday_molecules::pads::draw(m, ui);
-            0.0
-        }
-        Block::Code(m) => {
-            faraday_molecules::qr::draw(m, ui);
-            0.0
-        }
+        Block::Words(m) => faraday_molecules::words::draw(m, ui, at),
+        Block::Pad(m) => faraday_molecules::pads::draw(m, ui, at),
+        Block::Code(m) => faraday_molecules::qr::draw(m, ui, at),
         Block::Address(_) => 0.0,
         Block::Part(o) => {
             part(o, ui);

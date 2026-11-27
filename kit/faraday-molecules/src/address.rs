@@ -31,9 +31,7 @@ pub fn draw<A: Pressed>(
 ) -> f32 {
     ui.showing(&m.label, |ui| {
         ui.showing(&m.address, |ui| {
-            ui.offered(offered, |ui, press, _| {
-                lines(m, ui, (x, y, w), press)
-            })
+            ui.offered(offered, |ui, press, _| lines(m, ui, (x, y, w), press))
         })
     })
 }
@@ -54,7 +52,11 @@ fn lines<A: Pressed>(
     } else {
         (BESIDE, 0.0, LINE_LEAST)
     };
-    let room = if press.is_some() { ROW_CHEVRON_ROOM } else { 0.0 };
+    let room = if press.is_some() {
+        ROW_CHEVRON_ROOM
+    } else {
+        0.0
+    };
     let laid = ui.wrapped_as(BODY_M.mono(), address, w - ax - room);
     let natural = ay + laid.h.max(least);
     // A row that opens a code is a touch target tall, its text in its middle.

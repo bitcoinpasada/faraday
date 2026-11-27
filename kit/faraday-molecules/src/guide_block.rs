@@ -80,7 +80,12 @@ pub struct GuideBlockModel<'s, A> {
 }
 
 /// `text` in `role` wrapped to `w` from (x, y), only the lines in view drawn. Returns the height.
-fn one<A: Pressed>(ui: &mut Ui<'_, A>, (x, y, w): (f32, f32, f32), role: TypeRole, text: &str) -> f32 {
+fn one<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+    role: TypeRole,
+    text: &str,
+) -> f32 {
     let laid = ui.wrapped_as(role, text, w);
     ui.draw_wrapped_seen((x, y), Role::OnSurface, &laid)
 }
@@ -99,7 +104,11 @@ fn paragraph<A: Pressed>(ui: &mut Ui<'_, A>, at: (f32, f32, f32), p: &FlowText<'
 }
 
 /// Draws the block from (x, y), `w` wide. Returns the height.
-pub fn draw<A: Pressed>(m: &GuideBlockModel<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(
+    m: &GuideBlockModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    at: (f32, f32, f32),
+) -> f32 {
     draw_found(m, ui, at).0
 }
 
@@ -142,8 +151,12 @@ pub fn draw_found<A: Pressed>(
         GuideBody::Contents { groups, none } => {
             for g in groups {
                 if !g.heading.as_str().is_empty() {
-                    cy += ui.wrap_as((x, cy, w), look.heading, Role::OnSurface, g.heading.as_str())
-                        + after_heading;
+                    cy += ui.wrap_as(
+                        (x, cy, w),
+                        look.heading,
+                        Role::OnSurface,
+                        g.heading.as_str(),
+                    ) + after_heading;
                 }
                 for r in &g.rows {
                     cy += row::draw(r, ui, (x, cy, w));
@@ -152,12 +165,25 @@ pub fn draw_found<A: Pressed>(
             }
             if let Some(n) = none {
                 // An empty result carries its way on: the button that empties the field.
-                cy += ui.wrap_as((x, cy, w), look.body, Role::OnSurfaceVariant, n.line.as_str());
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    look.body,
+                    Role::OnSurfaceVariant,
+                    n.line.as_str(),
+                );
                 cy += after_heading;
                 let bw = ui.button_width(n.clear.as_str(), Look::Secondary);
                 ui.offered(&n.offered, |ui, press, _| {
                     if let Some(a) = press {
-                        ui.button(x, cy, Some(bw), BUTTON_H, n.clear.as_str(), Look::Secondary, a);
+                        ui.button(
+                            x,
+                            cy,
+                            Some(bw),
+                            BUTTON_H,
+                            n.clear.as_str(),
+                            Look::Secondary,
+                            a,
+                        );
                     }
                 });
                 cy += BUTTON_H + after_section;

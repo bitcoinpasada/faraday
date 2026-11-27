@@ -757,6 +757,8 @@ container (`flow.rs`, `flow/`) and `screens/menu_page.rs`, and the frame of `scr
 `layout-rules.md`, `sheets-parts.md`). `docs/DESIGN.md` §4 lists the components under these
 levels once it is carried (08 §4.4).
 
+- Built: the address, caution, code box, destination, guide block, kind rows, multi-select, pad, QR and word molecules (`kit/faraday-molecules/src/`), each a model and a `draw` over its box.
+
 - **Rule K13.** A sheet of `main`'s `screens/sheets.rs` (Lock, Power, Idle, Devices, Scan, QR, New
   input, Guide, secret out, wallet confirm) is a page of the feature that owns it, drawn on the
   sheet organism. The kit holds the sheet, not what a sheet says. Held by K3.

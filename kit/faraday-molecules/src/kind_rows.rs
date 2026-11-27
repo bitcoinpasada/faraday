@@ -106,7 +106,10 @@ fn row<A: Pressed>(r: &KindRow<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32,
             let left = x + INSET;
             let inner = w - 2.0 * INSET;
             let (names, lines) = if ui.compact {
-                (lines_of(ui, TITLE_S, name, inner), lines_of(ui, BODY_S, line, inner))
+                (
+                    lines_of(ui, TITLE_S, name, inner),
+                    lines_of(ui, BODY_S, line, inner),
+                )
             } else {
                 (Vec::new(), Vec::new())
             };
@@ -117,7 +120,14 @@ fn row<A: Pressed>(r: &KindRow<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32,
             } else {
                 TOUCH
             };
-            ui.fill(x, y, w, h, RADIUS, selected_or(r.on, Role::SurfaceContainerHighest));
+            ui.fill(
+                x,
+                y,
+                w,
+                h,
+                RADIUS,
+                selected_or(r.on, Role::SurfaceContainerHighest),
+            );
             ui.stroke(x, y, w, h, RADIUS, selected_or(r.on, Role::OutlineVariant));
             ui.offered(&r.offered, |ui, press, _| {
                 if let Some(a) = press {
