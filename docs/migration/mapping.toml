@@ -1353,3 +1353,3429 @@ why = "10 §10: how `main` was built stays at the tag and at the tag `history/do
 main = "docs/history/SIMPLIFY.md"
 fate = "drop"
 why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+# ---- rows from the map reader 43-map-R1 ----
+# faraday-core, part R1: main's faraday/faraday-core/src/ modules a to r (10 §4). Rows written by ticket #43.
+
+
+# ----------------------------------------------------------------------
+# faraday-core: modules a to r (main's faraday/faraday-core/src/), the app's screens and state; no row is a copy: the crate is application logic (10 §2)
+
+[[module]]
+main = "faraday/faraday-core/src/lib.rs"
+fate = "rewrite"
+next = ["app/products/faraday-device-product/src", "app/products/faraday-demo-product/src", "app/products/faraday-starter-product/src", "app/kernel/faraday-kernel/src/lib.rs"]
+feature = ["app-shell"]
+contract = "03 §6 and 06 §4.2: the `Faraday` struct, its `impl` glue and its dispatch become the kernel, the composites and the product crates"
+
+[[module]]
+main = "faraday/faraday-core/src/action.rs"
+fate = "rewrite"
+next = ["app/kernel/faraday-kernel/src/message.rs", "app/composites/faraday-device/src/msg.rs", "app/composites/faraday-device/src/update.rs"]
+feature = ["app-shell"]
+contract = "04 §2.1 and 03 §3: the one `Action` enum becomes each feature's own `Press` and `Msg`"
+
+[[module]]
+main = "faraday/faraday-core/src/out.rs"
+fate = "rewrite"
+next = ["app/kernel/faraday-kernel/src/effects.rs", "runtime/faraday-runtime/src/dispatch.rs"]
+feature = ["app-shell", "motion"]
+contract = "03 §4 and 05 §3: what the core hands the shell becomes the ordered effects the runtime serves"
+
+[[module]]
+main = "faraday/faraday-core/src/compute.rs"
+fate = "rewrite"
+next = ["app/kernel/faraday-kernel/src/cx.rs", "runtime/faraday-runtime/src/pool.rs"]
+feature = ["drawing-compute"]
+contract = "03 §5 and 05 §2.4: the token is handed by `Ctx`, never fetched from the app"
+
+[[module]]
+main = "faraday/faraday-core/src/at_lock.rs"
+fate = "port"
+next = ["app/kernel/faraday-kernel/src/lock.rs", "runtime/faraday-runtime/src/lock.rs"]
+feature = ["lock"]
+
+[[module]]
+main = "faraday/faraday-core/src/memory/mod.rs"
+fate = "rewrite"
+next = ["runtime/faraday-runtime/src/lock.rs", "app/owners/faraday-session/src/state.rs"]
+feature = ["lock"]
+contract = "05 §7.3: what the app keeps across a lock is `Carried`, not a store outside the process kept by the app"
+
+[[module]]
+main = "faraday/faraday-core/src/memory/nonces.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/state.rs", "app/features/faraday-decode/src/update.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/idle.rs"
+fate = "port"
+next = ["runtime/faraday-runtime/src/lock.rs", "app/features/faraday-power/src/state.rs", "app/features/faraday-power/src/update.rs"]
+feature = ["lock"]
+
+[[module]]
+main = "faraday/faraday-core/src/held.rs"
+fate = "port"
+next = ["app/owners/faraday-session/src/state.rs", "app/owners/faraday-session/src/update.rs"]
+feature = ["lock", "spend-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/in_progress.rs"
+fate = "port"
+next = ["app/kernel/faraday-kernel/src/flow.rs", "app/kernel/faraday-present/src/flow.rs", "app/composites/faraday-device/src/state.rs"]
+feature = ["flow-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/demo.rs"
+fate = "port"
+next = ["app/features/faraday-strip/src/state.rs", "app/features/faraday-strip/src/update.rs", "kit/faraday-organisms/src/demo_only.rs"]
+feature = ["practice-demo"]
+
+[[module]]
+main = "faraday/faraday-core/src/modes/mod.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/state.rs", "app/owners/faraday-settings/src/update.rs", "app/features/faraday-strip/src/state.rs"]
+feature = ["settings-time", "practice-demo"]
+
+[[module]]
+main = "faraday/faraday-core/src/modes/screen.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/model.rs", "app/owners/faraday-settings/src/present.rs", "kit/faraday-organisms/src/nav.rs", "kit/faraday-organisms/src/sheet.rs"]
+feature = ["settings-time", "practice-demo"]
+
+[[module]]
+main = "faraday/faraday-core/src/medium.rs"
+fate = "port"
+next = ["core/faraday-port/src/values.rs", "core/faraday-strings/src/lib.rs"]
+feature = ["app-shell"]
+
+[[module]]
+main = "faraday/faraday-core/src/names.rs"
+fate = "port"
+next = ["app/features/faraday-install/src/state.rs"]
+feature = ["app-shell", "starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-core/src/leaks.rs"
+fate = "drop"
+next = []
+why = "test hooks that read the frame's ink for the tours (07 §6); on `next` the leak flows are `faraday-leaks`' tests over `faraday_draw::Ink` (09 §8), and the tour root's screens check reads the ink record (04 §11.1)"
+
+[[module]]
+main = "faraday/faraday-core/src/guide.rs"
+fate = "port"
+next = ["app/features/faraday-guide-sheet/src/state.rs", "app/features/faraday-guide-sheet/src/update.rs"]
+feature = ["guide"]
+
+[[module]]
+main = "faraday/faraday-core/src/catalog.rs"
+fate = "port"
+next = ["app/composites/faraday-tools-area/src/state.rs", "app/composites/faraday-tools-area/src/update.rs", "app/composites/faraday-tools-area/src/model.rs", "app/composites/faraday-tools-area/src/present.rs"]
+feature = ["tools", "menu-pages"]
+
+[[module]]
+main = "faraday/faraday-core/src/row_open/mod.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/menu_page.rs", "app/features/faraday-home/src/update.rs"]
+feature = ["menu-pages"]
+
+[[module]]
+main = "faraday/faraday-core/src/compact/mod.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/screen.rs"]
+feature = ["small-panel"]
+
+[[module]]
+main = "faraday/faraday-core/src/compact/screen.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/screen.rs", "kit/faraday-templates/src/menu_page.rs"]
+feature = ["small-panel"]
+
+[[module]]
+main = "faraday/faraday-core/src/check/mod.rs"
+fate = "port"
+next = ["app/composites/faraday-checks-area/src/state.rs", "app/composites/faraday-checks-area/src/update.rs"]
+feature = ["check-page"]
+
+[[module]]
+main = "faraday/faraday-core/src/check/screen.rs"
+fate = "port"
+next = ["app/composites/faraday-checks-area/src/model.rs", "app/composites/faraday-checks-area/src/present.rs"]
+feature = ["check-page"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core: drawing, motion, the pane and flow containers, the kit's parts the screens used
+
+[[module]]
+main = "faraday/faraday-core/src/drawing.rs"
+fate = "rewrite"
+next = ["runtime/faraday-runtime/src/memo.rs", "runtime/faraday-runtime/src/frame.rs"]
+feature = ["drawing-compute"]
+contract = "04 §6 and 04 §13: what a frame works out once becomes the memo of a `present`; drawing reads and works nothing out"
+
+[[module]]
+main = "faraday/faraday-core/src/drawing"
+fate = "rewrite"
+next = ["runtime/faraday-runtime/src/memo.rs", "kit/faraday-atoms/src/frame_out.rs"]
+feature = ["drawing-compute"]
+contract = "04 §6, §7 and §13: the memo's fills, the values kept for drawing and the owner's exceptions go with the memo and the `Ui`'s frame"
+
+[[module]]
+main = "faraday/faraday-core/src/fade.rs"
+fate = "rewrite"
+next = ["runtime/faraday-runtime/src/frame.rs", "kit/faraday-atoms/src/motion.rs"]
+feature = ["motion"]
+contract = "04 §8.3: fades and kept frames"
+
+[[module]]
+main = "faraday/faraday-core/src/fade/bands.rs"
+fate = "port"
+next = ["runtime/faraday-runtime/src/frame.rs"]
+feature = ["motion"]
+
+[[module]]
+main = "faraday/faraday-core/src/glide.rs"
+fate = "port"
+next = ["kit/faraday-atoms/src/motion.rs", "kit/faraday-tokens/src/motion.rs"]
+feature = ["motion"]
+
+[[module]]
+main = "faraday/faraday-core/src/motion.rs"
+fate = "port"
+next = ["kit/faraday-atoms/src/motion.rs", "runtime/faraday-runtime/src/frame.rs"]
+feature = ["motion"]
+
+[[module]]
+main = "faraday/faraday-core/src/moved.rs"
+fate = "port"
+next = ["kit/faraday-atoms/src/region.rs", "runtime/faraday-runtime/src/frame.rs"]
+feature = ["motion"]
+
+[[module]]
+main = "faraday/faraday-core/src/pointer.rs"
+fate = "rewrite"
+next = ["kit/faraday-atoms/src/hits.rs", "kit/faraday-atoms/src/focus.rs", "kit/faraday-atoms/src/frame_out.rs"]
+feature = ["pointer-touch", "ui-press"]
+contract = "04 §7.1: the hit list is the frame's output, kept by the runtime, not state the core writes while drawing"
+
+[[module]]
+main = "faraday/faraday-core/src/flow.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/flow.rs", "app/kernel/faraday-kernel/src/flow.rs"]
+feature = ["flow-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/flow/act.rs"
+fate = "port"
+next = ["app/kernel/faraday-kernel/src/flow.rs", "kit/faraday-templates/src/flow.rs"]
+feature = ["flow-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/flow/answers.rs"
+fate = "port"
+next = ["app/kernel/faraday-kernel/src/flow.rs"]
+feature = ["flow-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/flow/choices.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/flow.rs", "app/kernel/faraday-present/src/flow.rs"]
+feature = ["flow-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/flow/container.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/flow.rs", "app/kernel/faraday-present/src/flow.rs"]
+feature = ["flow-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/flow/take_away.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/flow.rs", "app/kernel/faraday-present/src/flow.rs"]
+feature = ["flow-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/panes/mod.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs"]
+feature = ["pane-container", "backups-list"]
+
+[[module]]
+main = "faraday/faraday-core/src/panes/screen.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs"]
+feature = ["pane-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/nav/mod.rs"
+fate = "port"
+next = ["app/kernel/faraday-kernel/src/nav.rs", "kit/faraday-organisms/src/nav.rs"]
+feature = ["ui-navigation", "app-shell"]
+
+[[module]]
+main = "faraday/faraday-core/src/nav/screen.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/nav.rs", "kit/faraday-organisms/src/menu.rs"]
+feature = ["ui-navigation"]
+
+[[module]]
+main = "faraday/faraday-core/src/menu.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/menu.rs"]
+feature = ["app-shell", "ui-press"]
+
+[[module]]
+main = "faraday/faraday-core/src/file_menu.rs"
+fate = "port"
+next = ["app/composites/faraday-files-area/src/state.rs", "app/composites/faraday-files-area/src/update.rs", "app/composites/faraday-files-area/src/model.rs", "app/composites/faraday-files-area/src/present.rs"]
+feature = ["files-inbox"]
+
+[[module]]
+main = "faraday/faraday-core/src/picture.rs"
+fate = "port"
+next = ["kit/faraday-draw/src/picture.rs"]
+feature = ["app-shell"]
+
+[[module]]
+main = "faraday/faraday-core/src/qr_view.rs"
+fate = "port"
+next = ["app/features/faraday-scan/src/state.rs", "app/features/faraday-scan/src/update.rs", "kit/faraday-organisms/src/qr_grid.rs"]
+feature = ["scanner-qr"]
+
+[[module]]
+main = "faraday/faraday-core/src/devices.rs"
+fate = "port"
+next = ["app/features/faraday-devices/src/state.rs", "app/features/faraday-devices/src/update.rs"]
+feature = ["devices-inputs"]
+
+[[module]]
+main = "faraday/faraday-core/src/inputs.rs"
+fate = "port"
+next = ["app/features/faraday-devices/src/state.rs", "app/features/faraday-devices/src/update.rs"]
+feature = ["devices-inputs"]
+
+[[module]]
+main = "faraday/faraday-core/src/pass_field/mod.rs"
+fate = "port"
+next = ["app/parts/faraday-pass-field/src/lib.rs"]
+feature = ["secrets", "add-key"]
+
+[[module]]
+main = "faraday/faraday-core/src/pass_field/eye.rs"
+fate = "port"
+next = ["app/parts/faraday-pass-field/src/lib.rs"]
+feature = ["secrets"]
+
+[[module]]
+main = "faraday/faraday-core/src/pass_field/pair.rs"
+fate = "port"
+next = ["app/parts/faraday-pass-field/src/lib.rs"]
+feature = ["secrets", "keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/pass_field/screen.rs"
+fate = "port"
+next = ["kit/faraday-molecules/src/pass.rs", "app/parts/faraday-pass-field/src/lib.rs"]
+feature = ["secrets"]
+
+[[module]]
+main = "faraday/faraday-core/src/edit.rs"
+fate = "port"
+next = ["app/parts/faraday-text-field/src/lib.rs"]
+feature = ["typing"]
+
+[[module]]
+main = "faraday/faraday-core/src/forms.rs"
+fate = "port"
+next = ["app/features/faraday-add-key/src/state.rs", "app/features/faraday-add-key/src/update.rs"]
+feature = ["add-key", "typing"]
+
+[[module]]
+main = "faraday/faraday-core/src/one_line.rs"
+fate = "port"
+next = ["app/features/faraday-add-key/src/update.rs"]
+feature = ["app-shell"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core: the address check and Explore
+
+[[module]]
+main = "faraday/faraday-core/src/address_check/mod.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/state.rs", "app/features/faraday-addresses/src/update.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/address_check/file.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/state.rs", "app/features/faraday-addresses/src/update.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/address_check/pane.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/address_check/screen.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/address_find/mod.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/state.rs", "app/features/faraday-addresses/src/update.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/address_find/accounts.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/state.rs", "app/features/faraday-addresses/src/update.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/address_find/look.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/state.rs", "app/features/faraday-addresses/src/update.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/address_find/card.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/address_find/screen.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/explore/addresses.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/state.rs", "app/features/faraday-addresses/src/update.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/explore/make.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/state.rs", "app/features/faraday-addresses/src/update.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/explore/mod.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/state.rs", "app/features/faraday-addresses/src/update.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/explore/made.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/explore/pages.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/explore/pane.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/explore/screen.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+[[module]]
+main = "faraday/faraday-core/src/explore/shown.rs"
+fate = "port"
+next = ["app/features/faraday-addresses/src/model.rs", "app/features/faraday-addresses/src/present.rs"]
+feature = ["address-check-explore"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core: the backup flow, the board, the plan and the backups list
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/mod.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/state.rs", "app/features/faraday-backup-flow/src/update.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/area.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/state.rs", "app/features/faraday-backup-flow/src/update.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/steps.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/state.rs", "app/features/faraday-backup-flow/src/update.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/place.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/state.rs", "app/features/faraday-backup-flow/src/update.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/layout.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/state.rs", "app/features/faraday-backup-flow/src/update.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/seed_names.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/state.rs", "app/features/faraday-backup-flow/src/update.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/action.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/msg.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/screen.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/model.rs", "app/features/faraday-backup-flow/src/present.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/figures.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/model.rs", "app/features/faraday-backup-flow/src/present.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/stick_sheet.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/model.rs", "app/features/faraday-backup-flow/src/present.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/wallet.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["wallet-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/wallet_files.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["wallet-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/wallet_screen.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/model.rs", "app/features/faraday-backup/src/present.rs"]
+feature = ["wallet-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/gpg_restore.rs"
+fate = "port"
+next = ["app/owners/faraday-gpg/src/state.rs", "app/owners/faraday-gpg/src/update.rs"]
+feature = ["gpg-keys"]
+
+[[module]]
+main = "faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs"
+fate = "port"
+next = ["app/owners/faraday-gpg/src/model.rs", "app/owners/faraday-gpg/src/present.rs"]
+feature = ["gpg-keys"]
+
+[[module]]
+main = "faraday/faraday-core/src/quiz.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/state.rs", "app/features/faraday-backup-flow/src/update.rs"]
+feature = ["backup-flow", "keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/receipt.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/state.rs", "app/features/faraday-stick-visit/src/state.rs"]
+feature = ["backup-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/backups/mod.rs"
+fate = "port"
+next = ["app/features/faraday-backups-list/src/state.rs", "app/features/faraday-backups-list/src/update.rs"]
+feature = ["backups-list"]
+
+[[module]]
+main = "faraday/faraday-core/src/backups/screen.rs"
+fate = "port"
+next = ["app/features/faraday-backups-list/src/model.rs", "app/features/faraday-backups-list/src/present.rs"]
+feature = ["backups-list"]
+
+[[module]]
+main = "faraday/faraday-core/src/board/mod.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/board/lines.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/board/parts.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/board/plans.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/board/codex32.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["backup-board", "codex-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/board/screen.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/model.rs", "app/features/faraday-backup/src/present.rs", "kit/faraday-organisms/src/board.rs"]
+feature = ["backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/board/view.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/board.rs", "app/features/faraday-backup/src/model.rs"]
+feature = ["backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/plan/mod.rs"
+fate = "drop"
+next = []
+why = "a re-export of the `faraday-plan` crate under the app's old names; `next` crates name `faraday-plan` directly (09 §2.1), so there is nothing to carry"
+
+[[module]]
+main = "faraday/faraday-core/src/plan/cards.rs"
+fate = "port"
+next = ["app/features/faraday-backup-flow/src/model.rs", "app/features/faraday-backup-flow/src/present.rs"]
+feature = ["backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/plan/ready.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32_backup/mod.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+feature = ["codex-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32_backup/screen.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/model.rs", "app/features/faraday-backup/src/present.rs"]
+feature = ["codex-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/copy_check.rs"
+fate = "port"
+next = ["app/features/faraday-seed-checks/src/state.rs", "app/features/faraday-seed-checks/src/update.rs"]
+feature = ["seed-checks", "secrets"]
+
+[[module]]
+main = "faraday/faraday-core/src/public_files.rs"
+fate = "port"
+next = ["app/features/faraday-public-files/src/state.rs", "app/features/faraday-public-files/src/update.rs"]
+feature = ["public-files"]
+
+[[module]]
+main = "faraday/faraday-core/src/public_kind.rs"
+fate = "port"
+next = ["app/features/faraday-public-files/src/state.rs", "app/features/faraday-public-files/src/update.rs"]
+feature = ["public-files"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core: the boot import, the files area and the Inbox
+
+[[module]]
+main = "faraday/faraday-core/src/boot_import/mod.rs"
+fate = "port"
+next = ["app/features/faraday-boot-import/src/state.rs", "app/features/faraday-boot-import/src/update.rs"]
+feature = ["boot-import"]
+
+[[module]]
+main = "faraday/faraday-core/src/boot_import/text_ask.rs"
+fate = "port"
+next = ["app/features/faraday-boot-import/src/state.rs", "app/features/faraday-boot-import/src/update.rs"]
+feature = ["boot-import"]
+
+[[module]]
+main = "faraday/faraday-core/src/boot_import/screen.rs"
+fate = "port"
+next = ["app/features/faraday-boot-import/src/model.rs", "app/features/faraday-boot-import/src/present.rs"]
+feature = ["boot-import"]
+
+[[module]]
+main = "faraday/faraday-core/src/inbox.rs"
+fate = "port"
+next = ["app/owners/faraday-session/src/state.rs", "app/owners/faraday-session/src/update.rs"]
+feature = ["files-inbox"]
+
+[[module]]
+main = "faraday/faraday-core/src/item.rs"
+fate = "port"
+next = ["app/owners/faraday-session/src/state.rs"]
+feature = ["files-inbox", "vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/items.rs"
+fate = "port"
+next = ["app/composites/faraday-files-area/src/state.rs", "app/composites/faraday-files-area/src/update.rs"]
+feature = ["files-inbox"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core: keys, seeds, codex32, convert, BIP-85, Krux, randomness
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/mod.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/state.rs", "app/features/faraday-keygen/src/update.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/area.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/state.rs", "app/features/faraday-keygen/src/update.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/entries.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/state.rs", "app/features/faraday-keygen/src/update.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/start.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/state.rs", "app/features/faraday-keygen/src/update.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/steps.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/state.rs", "app/features/faraday-keygen/src/update.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/on_card.rs"
+fate = "port"
+next = ["app/parts/faraday-key-making/src/lib.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/screen.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/model.rs", "app/features/faraday-keygen/src/present.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/dice_panel.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/model.rs", "app/features/faraday-keygen/src/present.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/dice_strip.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/model.rs", "app/features/faraday-keygen/src/present.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/keygen/words_so_far.rs"
+fate = "port"
+next = ["app/features/faraday-keygen/src/model.rs", "app/features/faraday-keygen/src/present.rs"]
+feature = ["keygen-flow"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32/mod.rs"
+fate = "port"
+next = ["app/features/faraday-codex-shares/src/state.rs", "app/features/faraday-codex-shares/src/update.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32/screen.rs"
+fate = "port"
+next = ["app/features/faraday-codex-shares/src/model.rs", "app/features/faraday-codex-shares/src/present.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32/dice_screen.rs"
+fate = "port"
+next = ["app/features/faraday-codex-shares/src/model.rs", "app/features/faraday-codex-shares/src/present.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32/input_panel.rs"
+fate = "port"
+next = ["app/features/faraday-codex-shares/src/model.rs", "app/features/faraday-codex-shares/src/present.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32/pane_screen.rs"
+fate = "port"
+next = ["app/features/faraday-codex-shares/src/model.rs", "app/features/faraday-codex-shares/src/present.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32/pan.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/worksheet.rs", "app/features/faraday-codex-shares/src/present.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32/worksheet_screen.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/worksheet.rs", "app/features/faraday-codex-shares/src/present.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32_correct/mod.rs"
+fate = "port"
+next = ["app/features/faraday-codex-shares/src/state.rs", "app/features/faraday-codex-shares/src/update.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/codex32_correct/screen.rs"
+fate = "port"
+next = ["app/features/faraday-codex-shares/src/model.rs", "app/features/faraday-codex-shares/src/present.rs"]
+feature = ["codex-shares"]
+
+[[module]]
+main = "faraday/faraday-core/src/convert/mod.rs"
+fate = "port"
+next = ["app/features/faraday-convert/src/state.rs", "app/features/faraday-convert/src/update.rs"]
+feature = ["convert"]
+
+[[module]]
+main = "faraday/faraday-core/src/convert/set.rs"
+fate = "port"
+next = ["app/features/faraday-convert/src/state.rs", "app/features/faraday-convert/src/update.rs"]
+feature = ["convert"]
+
+[[module]]
+main = "faraday/faraday-core/src/convert/screen.rs"
+fate = "port"
+next = ["app/features/faraday-convert/src/model.rs", "app/features/faraday-convert/src/present.rs"]
+feature = ["convert"]
+
+[[module]]
+main = "faraday/faraday-core/src/bip85/mod.rs"
+fate = "port"
+next = ["app/features/faraday-bip85/src/state.rs", "app/features/faraday-bip85/src/update.rs"]
+feature = ["child-keys"]
+
+[[module]]
+main = "faraday/faraday-core/src/bip85/screen.rs"
+fate = "port"
+next = ["app/features/faraday-bip85/src/model.rs", "app/features/faraday-bip85/src/present.rs"]
+feature = ["child-keys"]
+
+[[module]]
+main = "faraday/faraday-core/src/kef_form/mod.rs"
+fate = "port"
+next = ["app/features/faraday-krux/src/state.rs", "app/features/faraday-krux/src/update.rs"]
+feature = ["krux-codes"]
+
+[[module]]
+main = "faraday/faraday-core/src/kef_form/screen.rs"
+fate = "port"
+next = ["app/features/faraday-krux/src/model.rs", "app/features/faraday-krux/src/present.rs"]
+feature = ["krux-codes"]
+
+[[module]]
+main = "faraday/faraday-core/src/kef_tool/mod.rs"
+fate = "port"
+next = ["app/features/faraday-krux/src/state.rs", "app/features/faraday-krux/src/update.rs"]
+feature = ["krux-codes"]
+
+[[module]]
+main = "faraday/faraday-core/src/kef_tool/screen.rs"
+fate = "port"
+next = ["app/features/faraday-krux/src/model.rs", "app/features/faraday-krux/src/present.rs"]
+feature = ["krux-codes"]
+
+[[module]]
+main = "faraday/faraday-core/src/dice_entry/mod.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/state.rs", "app/features/faraday-randomness/src/update.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/dice_entry/screen.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/model.rs", "app/features/faraday-randomness/src/present.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/fresh.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/state.rs", "app/features/faraday-randomness/src/update.rs", "app/owners/faraday-session/src/state.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/fresh/page.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/model.rs", "app/features/faraday-randomness/src/present.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/fresh/roller/mod.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/state.rs", "app/features/faraday-randomness/src/update.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/fresh/roller/five.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/state.rs", "app/features/faraday-randomness/src/update.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/fresh/roller/screen.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/model.rs", "app/features/faraday-randomness/src/present.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/fresh/roller/five_screen.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/model.rs", "app/features/faraday-randomness/src/present.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/fresh/roller/five_tests.rs"
+fate = "drop"
+next = []
+why = "a test module of the five-dice roller (TS4): `main`'s tests are neither ported nor read; the roller's rules are written as update tests of `faraday-randomness` from the inventory (randomness.md)"
+
+[[module]]
+main = "faraday/faraday-core/src/gpg.rs"
+fate = "port"
+next = ["app/owners/faraday-gpg/src/state.rs", "app/owners/faraday-gpg/src/update.rs"]
+feature = ["gpg-keys"]
+
+[[module]]
+main = "faraday/faraday-core/src/grind.rs"
+fate = "port"
+next = ["app/features/faraday-vanity/src/state.rs", "app/features/faraday-vanity/src/update.rs"]
+feature = ["vanity"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core: wallets, create, restore, spend
+
+[[module]]
+main = "faraday/faraday-core/src/create.rs"
+fate = "port"
+next = ["app/features/faraday-create/src/state.rs", "app/features/faraday-create/src/update.rs"]
+feature = ["create-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/create_from.rs"
+fate = "port"
+next = ["app/features/faraday-create/src/state.rs", "app/features/faraday-create/src/update.rs"]
+feature = ["create-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/create_pick.rs"
+fate = "port"
+next = ["app/features/faraday-create/src/model.rs", "app/features/faraday-create/src/present.rs"]
+feature = ["create-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/cstep.rs"
+fate = "port"
+next = ["app/features/faraday-create/src/state.rs", "app/features/faraday-create/src/update.rs"]
+feature = ["create-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/restore.rs"
+fate = "port"
+next = ["app/features/faraday-restore/src/state.rs", "app/features/faraday-restore/src/update.rs"]
+feature = ["restore-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/chart_edit.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/state.rs", "app/features/faraday-wallets/src/update.rs"]
+feature = ["wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/glance/mod.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/state.rs", "app/features/faraday-wallets/src/update.rs"]
+feature = ["wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/glance/age.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/state.rs", "app/features/faraday-wallets/src/update.rs"]
+feature = ["wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/glance/sheet.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/model.rs", "app/features/faraday-wallets/src/present.rs"]
+feature = ["wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/register.rs"
+fate = "port"
+next = ["app/features/faraday-spend/src/state.rs", "app/features/faraday-spend/src/update.rs"]
+feature = ["spend-signing"]
+
+[[module]]
+main = "faraday/faraday-core/src/review.rs"
+fate = "port"
+next = ["app/features/faraday-spend/src/state.rs", "app/features/faraday-spend/src/update.rs"]
+feature = ["spend-signing"]
+
+[[module]]
+main = "faraday/faraday-core/src/codes/mod.rs"
+fate = "port"
+next = ["app/owners/faraday-totp/src/state.rs", "app/owners/faraday-totp/src/update.rs"]
+feature = ["totp-codes"]
+
+[[module]]
+main = "faraday/faraday-core/src/codes/screen.rs"
+fate = "port"
+next = ["app/owners/faraday-totp/src/model.rs", "app/owners/faraday-totp/src/present.rs"]
+feature = ["totp-codes"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core: Decode, Check a signer, the nonce check, Tools
+
+[[module]]
+main = "faraday/faraday-core/src/decode/mod.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/state.rs", "app/features/faraday-decode/src/update.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/check.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/state.rs", "app/features/faraday-decode/src/update.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/check_others.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/state.rs", "app/features/faraday-decode/src/update.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/flow.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/state.rs", "app/features/faraday-decode/src/update.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/nonce_flow.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/state.rs", "app/features/faraday-decode/src/update.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/check_screen.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/model.rs", "app/features/faraday-decode/src/present.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/check_words.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/model.rs", "app/features/faraday-decode/src/present.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/diff_words.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/model.rs", "app/features/faraday-decode/src/present.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/nonce_pane.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/model.rs", "app/features/faraday-decode/src/present.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/said.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/model.rs", "app/features/faraday-decode/src/present.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/decode/screen.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/model.rs", "app/features/faraday-decode/src/present.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/invoice/mod.rs"
+fate = "port"
+next = ["app/features/faraday-lightning/src/state.rs", "app/features/faraday-lightning/src/update.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/invoice/flow.rs"
+fate = "port"
+next = ["app/features/faraday-lightning/src/state.rs", "app/features/faraday-lightning/src/update.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/invoice/screen.rs"
+fate = "port"
+next = ["app/features/faraday-lightning/src/model.rs", "app/features/faraday-lightning/src/present.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/lightning/mod.rs"
+fate = "port"
+next = ["app/features/faraday-lightning/src/state.rs", "app/features/faraday-lightning/src/update.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/lightning/pane.rs"
+fate = "port"
+next = ["app/features/faraday-lightning/src/model.rs", "app/features/faraday-lightning/src/present.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/lightning/screen.rs"
+fate = "port"
+next = ["app/features/faraday-lightning/src/model.rs", "app/features/faraday-lightning/src/present.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/multisig_check/mod.rs"
+fate = "port"
+next = ["app/features/faraday-seed-checks/src/state.rs", "app/features/faraday-seed-checks/src/update.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/multisig_check/screen.rs"
+fate = "port"
+next = ["app/features/faraday-seed-checks/src/model.rs", "app/features/faraday-seed-checks/src/present.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/core_wallet/mod.rs"
+fate = "port"
+next = ["app/features/faraday-core-import/src/state.rs", "app/features/faraday-core-import/src/update.rs"]
+feature = ["core-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/core_wallet/tool.rs"
+fate = "port"
+next = ["app/features/faraday-core-import/src/state.rs", "app/features/faraday-core-import/src/update.rs"]
+feature = ["core-wallet", "tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/core_wallet/screen.rs"
+fate = "port"
+next = ["app/features/faraday-core-import/src/model.rs", "app/features/faraday-core-import/src/present.rs"]
+feature = ["core-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/ots_check/mod.rs"
+fate = "port"
+next = ["app/features/faraday-ots-check/src/state.rs", "app/features/faraday-ots-check/src/update.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/ots_check/hash.rs"
+fate = "port"
+next = ["app/features/faraday-ots-check/src/state.rs", "app/features/faraday-ots-check/src/update.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/ots_check/screen.rs"
+fate = "port"
+next = ["app/features/faraday-ots-check/src/model.rs", "app/features/faraday-ots-check/src/present.rs"]
+feature = ["tools"]
+
+# ---- rows from the map reader 108-map-R4 ----
+
+# ----------------------------------------------------------------------
+# faraday-starter: src/ (09 §4.7; the pages and rules of starter-app.md, starter-make-stick.md, starter-start.md)
+
+[[module]]
+main = "faraday/faraday-starter/Cargo.toml"
+fate = "drop"
+why = "the manifest of a crate that is gone: the Starter's crates (the composite, its features, the product) have their own manifests from the skeleton (09 §4.7, §4.8), and their edges are held by lint-layers"
+
+[[module]]
+main = "faraday/faraday-starter/src/lib.rs"
+fate = "port"
+next = ["app/composites/faraday-starter/src/state.rs", "app/composites/faraday-starter/src/update.rs", "app/composites/faraday-starter/src/page.rs", "app/composites/faraday-starter/src/msg.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/api.rs"
+fate = "port"
+next = ["core/faraday-port/src/system.rs", "adapters/faraday-os-adapter/src/lib.rs", "app/composites/faraday-starter/src/msg.rs"]
+feature = ["starter-app", "starter-make-stick", "starter-start"]
+
+[[module]]
+main = "faraday/faraday-starter/src/appearance.rs"
+fate = "port"
+next = ["app/features/faraday-starter-appearance/src/state.rs", "app/features/faraday-starter-appearance/src/update.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/boot_file.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/state.rs", "app/features/faraday-make-stick/src/update.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/src/clear.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/state.rs", "app/features/faraday-make-stick/src/update.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/src/concern.rs"
+fate = "port"
+next = ["app/features/faraday-starter-start/src/state.rs", "app/features/faraday-starter-start/src/update.rs"]
+feature = ["starter-start"]
+
+[[module]]
+main = "faraday/faraday-starter/src/decide.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/update.rs", "app/features/faraday-make-stick/src/state.rs", "app/features/faraday-starter-home/src/update.rs", "app/features/faraday-starter-start/src/update.rs"]
+feature = ["starter-make-stick", "starter-start", "starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/demo.rs"
+fate = "port"
+next = ["app/composites/faraday-starter/src/present.rs", "app/composites/faraday-starter/src/update.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/found.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/state.rs", "app/features/faraday-make-stick/src/update.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/src/guide.rs"
+fate = "port"
+next = ["app/features/faraday-starter-guide/src/state.rs", "app/features/faraday-starter-guide/src/update.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/how.rs"
+fate = "port"
+next = ["app/features/faraday-starter-guide/src/state.rs", "app/features/faraday-starter-guide/src/present.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/macs.rs"
+fate = "port"
+next = ["app/features/faraday-starter-start/src/state.rs", "app/features/faraday-starter-start/src/update.rs"]
+feature = ["starter-start"]
+
+[[module]]
+main = "faraday/faraday-starter/src/macs.tsv"
+fate = "copy"
+next = ["app/features/faraday-starter-start/src/macs.tsv"]
+changed = ["moved into the start feature's directory (09 §4.7)"]
+
+[[module]]
+main = "faraday/faraday-starter/src/name.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/state.rs", "app/features/faraday-make-stick/src/update.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/src/notes.rs"
+fate = "port"
+next = ["app/features/faraday-starter-start/src/state.rs", "app/features/faraday-starter-start/src/update.rs"]
+feature = ["starter-start"]
+
+[[module]]
+main = "faraday/faraday-starter/src/scroll.rs"
+fate = "port"
+next = ["app/composites/faraday-starter/src/update.rs", "app/composites/faraday-starter/src/state.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/sheets.rs"
+fate = "port"
+next = ["app/features/faraday-print-templates/src/present.rs", "app/features/faraday-print-templates/src/state.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/sheets/dice.rs"
+fate = "port"
+next = ["app/features/faraday-print-templates/src/present.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/start_guide.rs"
+fate = "port"
+next = ["app/features/faraday-starter-start/src/state.rs", "app/features/faraday-starter-start/src/present.rs"]
+feature = ["starter-start"]
+
+[[module]]
+main = "faraday/faraday-starter/src/start_pages.rs"
+fate = "port"
+next = ["app/features/faraday-starter-start/src/state.rs", "app/features/faraday-starter-guide/src/state.rs"]
+feature = ["starter-start", "starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/template.rs"
+fate = "port"
+next = ["app/features/faraday-print-templates/src/state.rs", "app/features/faraday-print-templates/src/update.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw.rs"
+fate = "port"
+next = ["app/composites/faraday-starter/src/present.rs", "kit/faraday-templates/src/screen.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/appearance.rs"
+fate = "port"
+next = ["app/features/faraday-starter-appearance/src/present.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/boot_file.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/present.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/clear_first.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/present.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/guide.rs"
+fate = "port"
+next = ["app/features/faraday-starter-guide/src/present.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/home.rs"
+fate = "port"
+next = ["app/features/faraday-starter-home/src/present.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/how.rs"
+fate = "port"
+next = ["app/features/faraday-starter-guide/src/present.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/images.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/present.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/name.rs"
+fate = "port"
+next = ["app/features/faraday-make-stick/src/present.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/nav.rs"
+fate = "port"
+next = ["app/composites/faraday-starter/src/present.rs", "kit/faraday-organisms/src/nav.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/src/draw/row.rs"
+fate = "port"
+next = ["kit/faraday-molecules/src/row.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/faraday-starter/examples/snap.rs"
+fate = "port"
+next = ["roots/faraday-snapshot/src"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/faraday-starter/examples/icon.rs"
+fate = "port"
+next = []
+feature = ["starter-app"]
+why = "no destination on next: nothing in 09 names a tool or example that draws the Starter's menu icon from its mark"
+
+
+# ----------------------------------------------------------------------
+# faraday-starter: tests/ (the old tests are not ported or read, 10 §10, TS4)
+
+[[module]]
+main = "faraday/faraday-starter/tests/all"
+fate = "drop"
+why = "10 §10, TS4: the tests of a ported crate are not ported and not read; the Starter's update tests are written fresh from the inventory (07 §4)"
+
+[[module]]
+main = "faraday/faraday-starter/tests/leak.rs"
+fate = "drop"
+why = "10 §10, TS4: not ported; the Starter's leak flows are the product's, in tools/faraday-leaks (07 §6.2)"
+
+
+# ----------------------------------------------------------------------
+# faraday-ui (copied, rearranged by level: 09 §3.1; 04 §11)
+
+[[module]]
+main = "faraday/faraday-ui/Cargo.toml"
+fate = "drop"
+why = "the manifests of the kit's crates come from the skeleton (09 §3.1); their edges are held by lint-layers"
+
+[[module]]
+main = "faraday/faraday-ui/assets/Archivo-OFL.txt"
+fate = "copy"
+next = ["kit/faraday-atoms/assets/Archivo-OFL.txt"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/assets/wordmark.txt"
+fate = "copy"
+next = ["kit/faraday-atoms/assets/wordmark.txt"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/assets/wordmark-suffix.txt"
+fate = "copy"
+next = ["kit/faraday-atoms/assets/wordmark-suffix.txt"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/lib.rs"
+fate = "copy"
+next = ["kit/faraday-atoms/src/lib.rs", "kit/faraday-atoms/src/ui.rs", "kit/faraday-atoms/src/button.rs", "kit/faraday-atoms/src/field.rs", "kit/faraday-atoms/src/fab.rs", "kit/faraday-atoms/src/chip.rs", "kit/faraday-atoms/src/tag.rs", "kit/faraday-atoms/src/frame_out.rs", "kit/faraday-atoms/src/hits.rs", "kit/faraday-atoms/src/focus.rs"]
+changed = ["the 3,000-line frame and its controls split by control and by level; Ui gains the FrameOut of 04 §7"]
+
+[[module]]
+main = "faraday/faraday-ui/src/controls.rs"
+fate = "copy"
+next = ["kit/faraday-atoms/src/check.rs", "kit/faraday-atoms/src/switch.rs", "kit/faraday-atoms/src/segmented.rs", "kit/faraday-atoms/src/stepper.rs", "kit/faraday-atoms/src/progress.rs", "kit/faraday-atoms/src/icon_button.rs", "kit/faraday-atoms/src/pill.rs", "kit/faraday-atoms/src/badge.rs"]
+changed = ["split one control per file"]
+
+[[module]]
+main = "faraday/faraday-ui/src/press.rs"
+fate = "copy"
+next = ["kit/faraday-atoms/src/hits.rs", "kit/faraday-atoms/src/offered.rs"]
+changed = ["press and hit records become Hit/Offered of 04 §7"]
+
+[[module]]
+main = "faraday/faraday-ui/src/region.rs"
+fate = "copy"
+next = ["kit/faraday-atoms/src/region.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/hold.rs"
+fate = "copy"
+next = ["kit/faraday-atoms/src/hold.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/mark.rs"
+fate = "copy"
+next = ["kit/faraday-atoms/src/mark.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/lists.rs"
+fate = "copy"
+next = ["kit/faraday-molecules/src/row.rs", "kit/faraday-molecules/src/options.rs", "kit/faraday-molecules/src/kind_rows.rs"]
+changed = ["split by row kind"]
+
+[[module]]
+main = "faraday/faraday-ui/src/parts.rs"
+fate = "copy"
+next = ["kit/faraday-molecules/src/code_box.rs", "kit/faraday-molecules/src/address.rs", "kit/faraday-molecules/src/words.rs", "kit/faraday-molecules/src/qr.rs", "kit/faraday-molecules/src/caution.rs", "kit/faraday-molecules/src/status.rs"]
+changed = ["split by part; qr_code takes its secret-wiping from kit/faraday-draw (09 §3.1)"]
+
+[[module]]
+main = "faraday/faraday-ui/src/roles.rs"
+fate = "copy"
+next = ["kit/faraday-molecules/src/flow_text.rs"]
+changed = ["text roles and the size set's text field and list item"]
+
+[[module]]
+main = "faraday/faraday-ui/src/tabs.rs"
+fate = "copy"
+next = ["kit/faraday-molecules/src/tabs.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/stick.rs"
+fate = "copy"
+next = ["kit/faraday-molecules/src/stick_pill.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/appearance.rs"
+fate = "copy"
+next = ["kit/faraday-molecules/src/appearance.rs", "kit/faraday-molecules/src/chips.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/flow.rs"
+fate = "copy"
+next = ["kit/faraday-molecules/src/buttons.rs", "kit/faraday-molecules/src/pads.rs"]
+changed = ["the flow's chrome pieces; the flow container itself is kit/faraday-templates/src/flow.rs"]
+
+[[module]]
+main = "faraday/faraday-ui/src/sheet.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/sheet.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/menu.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/menu.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/snackbar.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/snackbar.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/tooltip.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/tooltip.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/keyboard.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/keyboard.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/how.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/guide.rs"]
+changed = ["the How block's list"]
+
+[[module]]
+main = "faraday/faraday-ui/src/demo.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/demo_only.rs"]
+changed = ["what a page offers only in Practice"]
+
+[[module]]
+main = "faraday/faraday-ui/src/nav/mod.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/nav.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/nav/app_bar.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/nav.rs"]
+changed = ["one file for the nav organism"]
+
+[[module]]
+main = "faraday/faraday-ui/src/nav/bar.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/nav.rs"]
+changed = ["one file for the nav organism"]
+
+[[module]]
+main = "faraday/faraday-ui/src/nav/rail.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/nav.rs"]
+changed = ["one file for the nav organism"]
+
+[[module]]
+main = "faraday/faraday-ui/src/nav/chip.rs"
+fate = "copy"
+next = ["kit/faraday-molecules/src/chips.rs"]
+changed = ["09 §3.1 puts nav::chip at the molecules"]
+
+[[module]]
+main = "faraday/faraday-ui/src/pal/mod.rs"
+fate = "copy"
+next = ["kit/faraday-tokens/src/palette.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/pal/schemes.rs"
+fate = "copy"
+next = ["kit/faraday-tokens/src/palette.rs"]
+changed = ["the generated scheme values"]
+
+[[module]]
+main = "faraday/faraday-ui/src/theme.rs"
+fate = "copy"
+next = ["kit/faraday-tokens/src/theme.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ui/src/read_tests.rs"
+fate = "drop"
+why = "10 §10, TS4: a test module of the copied crate; the contrast read of every component in every scheme is rewritten as a test of the kit (07 §5)"
+
+
+# ----------------------------------------------------------------------
+# faraday-draw (copied, split between faraday-tokens and faraday-draw: 09 §3.1)
+
+[[module]]
+main = "core/faraday-draw/Cargo.toml"
+fate = "drop"
+why = "the manifests of the kit's crates come from the skeleton (09 §3.1)"
+
+[[module]]
+main = "core/faraday-draw/README.md"
+fate = "drop"
+why = "the crate's README is replaced by the kit's own page, docs/spec/09 §3 and the crates' doc comments"
+
+[[module]]
+main = "core/faraday-draw/src/lib.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/lib.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/canvas.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/canvas.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/canvas/blend.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/blend.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/canvas/list.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/canvas.rs", "kit/faraday-draw/src/picture.rs"]
+changed = ["the call list stays with the canvas; replay as Picture (04 §7)"]
+
+[[module]]
+main = "core/faraday-draw/src/canvas/list/bands.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/canvas.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/canvas/surface.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/surface.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/color.rs"
+fate = "copy"
+next = ["kit/faraday-tokens/src/palette.rs"]
+changed = ["Colour and the theme's roles, at the tokens level"]
+
+[[module]]
+main = "core/faraday-draw/src/easing.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/ease.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/fonts/mod.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/fonts.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/fonts/generated.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/fonts.rs"]
+changed = ["baked by tools/fontbake, now writing this path"]
+
+[[module]]
+main = "core/faraday-draw/src/geom.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/geom.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/layout.rs"
+fate = "copy"
+next = ["kit/faraday-tokens/src/dims.rs"]
+changed = ["the display facts sizes depend on, as tokens"]
+
+[[module]]
+main = "core/faraday-draw/src/shapes.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/shapes.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/text.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/text.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/tokens.rs"
+fate = "copy"
+next = ["kit/faraday-tokens/src/dims.rs", "kit/faraday-tokens/src/elevation.rs", "kit/faraday-tokens/src/motion.rs", "kit/faraday-tokens/src/type_roles.rs"]
+changed = ["split by token kind"]
+
+[[module]]
+main = "core/faraday-draw/src/widgets/mod.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/icons.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/widgets/icon.rs"
+fate = "copy"
+next = ["kit/faraday-draw/src/icons.rs"]
+changed = []
+
+[[module]]
+main = "core/faraday-draw/src/widgets/keyboard.rs"
+fate = "copy"
+next = ["kit/faraday-organisms/src/keyboard.rs"]
+changed = ["the key geometry moves with the keyboard organism"]
+
+[[module]]
+main = "core/faraday-draw/assets"
+fate = "copy"
+next = ["kit/faraday-draw/assets"]
+changed = []
+
+
+# ----------------------------------------------------------------------
+# faraday-core outside src/ (10 §5.4, §10)
+
+[[module]]
+main = "faraday/faraday-core/Cargo.toml"
+fate = "drop"
+why = "the manifests of faraday-core's successors come from the skeleton (09 §2, §4); the crate is gone"
+
+[[module]]
+main = "faraday/faraday-core/examples/interop.rs"
+fate = "drop"
+why = "10 §6: the example is replaced by the cross-check's import area (TS20), which runs Core on regtest offline; the classify rule it drove is ported into faraday-intake"
+
+[[module]]
+main = "faraday/faraday-core/tests/all"
+fate = "drop"
+why = "10 §10, TS4: the tests of ported crates are not ported and not read; none holds a fixture but core_wallet_pinned.txt, which has its own row"
+
+[[module]]
+main = "faraday/faraday-core/tests/all/core_wallet_pinned.txt"
+fate = "copy"
+next = ["core/faraday-core-wallet/tests/core_wallet_pinned.txt"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-core/tests/all_backup.rs"
+fate = "drop"
+why = "10 §10, TS4: a test binary of a ported crate, not ported"
+
+[[module]]
+main = "faraday/faraday-core/tests/all_codex32.rs"
+fate = "drop"
+why = "10 §10, TS4: a test binary of a ported crate, not ported"
+
+[[module]]
+main = "faraday/faraday-core/tests/all_psbt.rs"
+fate = "drop"
+why = "10 §10, TS4: a test binary of a ported crate, not ported"
+
+[[module]]
+main = "faraday/faraday-core/tests/all_screens.rs"
+fate = "drop"
+why = "10 §10, TS4: a test binary of a ported crate, not ported"
+
+[[module]]
+main = "faraday/faraday-core/tests/all_vault.rs"
+fate = "drop"
+why = "10 §10, TS4: a test binary of a ported crate, not ported"
+
+[[module]]
+main = "faraday/faraday-core/tests/leaks"
+fate = "drop"
+why = "10 §10, TS4: the leak tests are rewritten as flows of tools/faraday-leaks (07 §6.2) and the live ones read the inventory, not these files"
+
+[[module]]
+main = "faraday/faraday-core/tests/v2_memory"
+fate = "drop"
+why = "10 §10, TS4: the memory test of the replaced Faraday struct, not ported"
+
+
+# ----------------------------------------------------------------------
+# faraday/clippy.toml, docs/screenshots, tools/ files without a row
+
+[[module]]
+main = "faraday/clippy.toml"
+fate = "rewrite"
+next = ["core/clippy.toml", "kit/clippy.toml", "app/clippy.toml", "app/owners/clippy.toml", "runtime/clippy.toml", "adapters/clippy.toml", "roots/clippy.toml", "roots/faraday-snapshot/clippy.toml", "tools/clippy.toml"]
+contract = "09 §1.4: the keys set (70 paths) is carried into every directory's clippy.toml with the mint, io and app sets"
+
+[[module]]
+main = "docs/screenshots"
+fate = "copy"
+next = ["docs/screenshots"]
+changed = []
+
+[[module]]
+main = "tools/impact.toml"
+fate = "rewrite"
+next = ["tools/impact.toml"]
+contract = "08 §6.2"
+
+[[module]]
+main = "tools/lint-crypto.counts"
+fate = "copy"
+next = ["tools/lint-crypto.counts"]
+changed = []
+
+[[module]]
+main = "tools/lint-tokens.counts"
+fate = "copy"
+next = ["tools/lint-tokens.counts"]
+changed = []
+
+[[module]]
+main = "tools/op-cost.counts"
+fate = "copy"
+next = ["tools/op-cost.counts"]
+changed = []
+
+[[module]]
+main = "tools/touch-targets.counts"
+fate = "rewrite"
+next = ["tools/touch-targets.counts"]
+contract = "07 §5.2: next's counts file starts empty"
+
+[[module]]
+main = "tools/test_lint_all.py"
+fate = "copy"
+next = ["tools/tests/test_lint_all.py"]
+changed = []
+
+[[module]]
+main = "tools/leak-entries.toml"
+fate = "copy"
+next = ["tools/leak-entries.toml"]
+changed = ["each entry re-judged against the flows of tools/faraday-leaks (07 §6.2)"]
+
+# ---- rows from the map reader 107-map-R3 ----
+# The mapping of `main` at d89dde5de onto `next`, part R3 (ticket #107): faraday/shells/ (but camera, v4l2 and
+# mediafoundation, which the mapping has), faraday-host, faraday-storage, faraday-scanner, tools/testkit.
+# Rows are grouped by `main`'s crate. Merged into docs/migration/mapping.toml by the orchestrator.
+
+
+# ----------------------------------------------------------------------
+# faraday/shells/stick (`faraday-stick`): the device app's shell. The I/O files become `faraday-stick-adapter` (09 §6); the loop becomes the root `faraday-stick` (06 §5.1)
+
+[[module]]
+main = "faraday/shells/stick/Cargo.toml"
+fate = "rewrite"
+next = ["roots/faraday-stick/Cargo.toml", "adapters/faraday-stick-adapter/Cargo.toml"]
+feature = ["stick-shell"]
+contract = "09 §6, 09 §7: the manifests of the root and of the adapter that take this crate's files"
+
+[[module]]
+main = "faraday/shells/stick/src/main.rs"
+fate = "rewrite"
+next = ["roots/faraday-stick/src/main.rs", "roots/faraday-stick/src/options.rs", "adapters/faraday-stick-adapter/src/lib.rs"]
+feature = ["stick-shell", "app-shell", "lock", "motion", "dev-diagnostics", "scanner-qr", "pointer-touch", "devices-inputs"]
+contract = "06 §5.1, 06 §2.1, 02 §1: the shell's main loop to the root and the runtime; the command line to `options.rs`; the device handling to the adapter's `Stick::open`"
+
+[[module]]
+main = "faraday/shells/stick/src/attached.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/attached.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/bootreport.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/bootreport.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/clock.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/clock.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/devnodes.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/devnodes.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/fb.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/fb.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/notice.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/notice.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/pace.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/pace.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/panel.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/panel.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/radios.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/radios.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/system.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/system.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/writer.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/writer.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/refresh.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/refresh.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/camera.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/camera.rs"]
+changed = ["its edges to `faraday-shell-api` and `faraday-draw` become `faraday-port` and `faraday-tokens` (09 §6)"]
+
+[[module]]
+main = "faraday/shells/stick/src/keyboard.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/keyboard.rs"]
+changed = ["its edge to `faraday-shell-api` becomes `faraday-port` (09 §2.3)"]
+
+[[module]]
+main = "faraday/shells/stick/src/cursor.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/cursor.rs"]
+changed = ["its edge to `faraday-shell-api` becomes `faraday-port` (09 §2.3)"]
+
+[[module]]
+main = "faraday/shells/stick/src/orient.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/orient.rs"]
+changed = ["its edge to `faraday-shell-api` becomes `faraday-port` (09 §2.3)"]
+
+[[module]]
+main = "faraday/shells/stick/src/wakechan.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/wakechan.rs"]
+changed = ["its edge to `faraday-shell-api` becomes `faraday-port` (09 §2.3)"]
+
+[[module]]
+main = "faraday/shells/stick/src/pointer.rs"
+fate = "port"
+next = ["adapters/faraday-stick-adapter/src/pointer.rs"]
+feature = ["pointer-touch"]
+
+[[module]]
+main = "faraday/shells/stick/src/present.rs"
+fate = "port"
+next = ["adapters/faraday-stick-adapter/src/present.rs"]
+feature = ["stick-shell"]
+
+[[module]]
+main = "faraday/shells/stick/src/costly.rs"
+fate = "port"
+next = ["adapters/faraday-stick-adapter/src/costly.rs"]
+feature = ["dev-diagnostics"]
+
+[[module]]
+main = "faraday/shells/stick/src/timings.rs"
+fate = "port"
+next = ["adapters/faraday-stick-adapter/src/timings.rs"]
+feature = ["dev-diagnostics"]
+
+[[module]]
+main = "faraday/shells/stick/src/diskwork.rs"
+fate = "port"
+next = ["adapters/faraday-stick-adapter/src/diskwork.rs"]
+feature = ["stick-shell"]
+
+[[module]]
+main = "faraday/shells/stick/src/start_window.rs"
+fate = "port"
+next = ["adapters/faraday-stick-adapter/src/start_window.rs"]
+feature = ["devices-inputs"]
+
+[[module]]
+main = "faraday/shells/stick/src/usb.rs"
+fate = "port"
+next = ["adapters/faraday-stick-adapter/src/usb.rs"]
+feature = ["devices-inputs"]
+
+[[module]]
+main = "faraday/shells/stick/src/work.rs"
+fate = "rewrite"
+next = ["runtime/faraday-runtime/src/pool.rs", "runtime/faraday-runtime/src/queue.rs"]
+feature = ["dev-diagnostics", "app-shell"]
+contract = "05 §1, 06 §2: the core's worker and the main loop's wake-ups are the runtime's pool and queue, which every root shares"
+
+[[module]]
+main = "faraday/shells/stick/src/edid_screens.rs"
+fate = "drop"
+why = "TS4 (10 §10): it drives `Faraday::new` to read what density and layout an EDID gives (TS4); the EDID reading is the stick adapter's `orient`/`panel` code, tested over the kept `tests/edid` fixtures in the adapter's own tests (07 §4), and the layout it reaches is the frame's (04)"
+
+[[module]]
+main = "faraday/shells/stick/src/scroll_tests.rs"
+fate = "drop"
+why = "TS4 (10 §10): it drives `Faraday` through the shell's events (TS4); the scroll's rule is held by the update tests of the pages and by the adapter's pointer tests (07 §4)"
+
+[[module]]
+main = "faraday/shells/stick/src/turned_tests.rs"
+fate = "drop"
+why = "TS4 (10 §10): tests of the shell's turn handling driven through the shell API (TS4); the turn is `orient.rs`'s, tested in the stick adapter (07 §4)"
+
+[[module]]
+main = "faraday/shells/stick/tests/inittab.rs"
+fate = "drop"
+why = "TS4 (10 §10): it runs the shell binary with a stub app against the image's inittab; the restart-or-power-off status is the runtime's end (06 §2.1), held by the stick root's journey test (07 §2.5) and the image build's checks"
+
+[[module]]
+main = "faraday/shells/stick/tests/edid"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/tests/edid"]
+changed = []
+
+
+# ----------------------------------------------------------------------
+# faraday/shells/starter (`faraday-starter-shell`): the Starter's shell. The operating-system side becomes `faraday-os-adapter` (09 §6, 02 §4.10); the window loop becomes the root `faraday-starter-shell` (06 §5.3)
+
+[[module]]
+main = "faraday/shells/starter/Cargo.toml"
+fate = "rewrite"
+next = ["roots/faraday-starter-shell/Cargo.toml", "adapters/faraday-os-adapter/Cargo.toml"]
+feature = ["starter-app"]
+contract = "09 §6, 09 §7: the manifests of the root and of the operating-system adapter"
+
+[[module]]
+main = "faraday/shells/starter/build.rs"
+fate = "port"
+next = ["roots/faraday-starter-shell/build.rs", "adapters/faraday-os-adapter/build.rs"]
+feature = ["starter-make-stick", "app-shell"]
+
+[[module]]
+main = "faraday/shells/starter/assets/icon.png"
+fate = "copy"
+next = ["roots/faraday-starter-shell/assets/icon.png"]
+changed = []
+
+[[module]]
+main = "faraday/shells/starter/src/main.rs"
+fate = "rewrite"
+next = ["roots/faraday-starter-shell/src/main.rs", "roots/faraday-starter-shell/src/options.rs"]
+feature = ["starter-app", "starter-start", "starter-make-stick", "lock", "desktop-shells"]
+contract = "06 §5.3, 06 §2: the window loop to the root and the runtime; the command line to `options.rs`"
+
+[[module]]
+main = "faraday/shells/starter/src/lib.rs"
+fate = "rewrite"
+next = ["adapters/faraday-os-adapter/src/lib.rs"]
+feature = ["starter-app"]
+contract = "02 §4.10, 09 §6: the crate's module list and doc become the adapter's `System`; `faraday_starter::Starter` in a window is the root's"
+
+[[module]]
+main = "faraday/shells/starter/src/platform.rs"
+fate = "rewrite"
+next = ["adapters/faraday-os-adapter/src/lib.rs"]
+feature = ["starter-make-stick"]
+contract = "02 §4.10: the `Platform` seam becomes `SystemAsk` and `SystemFact` answered by `System`, with `Adapters::carry` and `poll`"
+
+[[module]]
+main = "faraday/shells/starter/src/finder.rs"
+fate = "port"
+next = ["adapters/faraday-os-adapter/src/finder.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/shells/starter/src/scheme.rs"
+fate = "port"
+next = ["adapters/faraday-os-adapter/src/scheme.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/shells/starter/src/settings.rs"
+fate = "port"
+next = ["adapters/faraday-os-adapter/src/settings.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/shells/starter/src/gpt.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/gpt.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/ids.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/ids.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/image.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/image.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/signed.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/signed.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/stick.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/stick.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/starter/src/writer.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/writer.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/pdf.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/pdf.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/linux/boot.rs"
+fate = "port"
+next = ["adapters/faraday-os-adapter/src/linux/boot.rs"]
+feature = ["starter-start"]
+
+[[module]]
+main = "faraday/shells/starter/src/linux/install.rs"
+fate = "port"
+next = ["adapters/faraday-os-adapter/src/linux/install.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/shells/starter/src/linux/bus.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/linux/bus.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/starter/src/linux/camera.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/linux/camera.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/linux/devices.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/linux/devices.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/linux/mod.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/linux/mod.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/linux/udisks.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/linux/udisks.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/disks.rs"
+fate = "port"
+next = ["adapters/faraday-os-adapter/src/windows/disks.rs"]
+feature = ["starter-make-stick"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/install.rs"
+fate = "port"
+next = ["adapters/faraday-os-adapter/src/windows/install.rs"]
+feature = ["starter-app"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/win.rs"
+fate = "port"
+next = ["adapters/faraday-os-adapter/src/windows/win.rs"]
+feature = ["starter-app", "starter-start"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/bitlocker.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/bitlocker.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/boot_block.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/boot_block.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/devices.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/devices.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/elevated.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/elevated.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/mod.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/mod.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/starter/src/windows/pipe.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/pipe.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/registry.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/registry.rs"]
+changed = ["its edge to `faraday-starter` becomes the port's types (09 §6)"]
+
+[[module]]
+main = "faraday/shells/starter/src/windows/shortcut.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/shortcut.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/starter/src/windows/sys.rs"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/src/windows/sys.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/starter/tests/all"
+fate = "drop"
+why = "TS4 (10 §10): the tests of a ported crate; each drives the Starter's shell over `faraday-starter`'s api or a fake platform. What each holds (the BitLocker answers, the stick's layout, the writer, the signed boot file, the device list) is re-tested in `faraday-os-adapter`'s tests over the kept fixtures (07 §4) and in the Starter features' update tests"
+
+[[module]]
+main = "faraday/shells/starter/tests/efibootmgr"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/tests/efibootmgr"]
+changed = []
+
+[[module]]
+main = "faraday/shells/starter/tests/udisks"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/tests/udisks"]
+changed = []
+
+[[module]]
+main = "faraday/shells/starter/tests/windows"
+fate = "copy"
+next = ["adapters/faraday-os-adapter/tests/windows"]
+changed = []
+
+
+# ----------------------------------------------------------------------
+# faraday/shells/window (`faraday-window`): the desktop window. Re-pointed at the port; its glue to `faraday-core` and `faraday-host` rewritten (09 §6, 10 §2)
+
+[[module]]
+main = "faraday/shells/window/Cargo.toml"
+fate = "rewrite"
+next = ["adapters/faraday-window/Cargo.toml"]
+feature = ["desktop-shells"]
+contract = "09 §6: the manifest, edges to core and host cut"
+
+[[module]]
+main = "faraday/shells/window/build.rs"
+fate = "copy"
+next = ["adapters/faraday-window/build.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/window/src/lib.rs"
+fate = "rewrite"
+next = ["adapters/faraday-window/src/lib.rs"]
+feature = ["desktop-shells"]
+contract = "02 §1, 06 §2, 06 §5.2: the window's loop and its view hold `Faraday` and `Host`; they become `Window::open` and `paint` over the port's frame, and the host's strip layout is `faraday-strip`'s"
+
+[[module]]
+main = "faraday/shells/window/src/run.rs"
+fate = "rewrite"
+next = ["adapters/faraday-window/src/lib.rs"]
+feature = ["desktop-shells"]
+contract = "02 §1, 06 §2, 06 §5.2: the window's loop and its view hold `Faraday` and `Host`; they become `Window::open` and `paint` over the port's frame, and the host's strip layout is `faraday-strip`'s"
+
+[[module]]
+main = "faraday/shells/window/src/view.rs"
+fate = "rewrite"
+next = ["adapters/faraday-window/src/lib.rs", "adapters/faraday-window/src/view.rs"]
+feature = ["desktop-shells", "dev-diagnostics", "practice-demo"]
+contract = "02 §1, 06 §2, 06 §5.2: the window's loop and its view hold `Faraday` and `Host`; they become `Window::open` and `paint` over the port's frame, and the host's strip layout is `faraday-strip`'s"
+
+[[module]]
+main = "faraday/shells/window/src/input.rs"
+fate = "copy"
+next = ["adapters/faraday-window/src/input.rs"]
+changed = ["its edge to `faraday-shell-api` becomes `faraday-port` (09 §2.3)"]
+
+[[module]]
+main = "faraday/shells/window/src/drag.rs"
+fate = "copy"
+next = ["adapters/faraday-window/src/drag.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/window/src/pace.rs"
+fate = "copy"
+next = ["adapters/faraday-window/src/pace.rs"]
+changed = ["its edge to `faraday-shell-api` becomes `faraday-port` (09 §2.3)"]
+
+[[module]]
+main = "faraday/shells/window/src/clipboard.rs"
+fate = "copy"
+next = ["adapters/faraday-window/src/clipboard.rs"]
+changed = ["its edge to `faraday-shell-api` becomes `faraday-port` (09 §2.3)"]
+
+[[module]]
+main = "faraday/shells/window/src/camera.rs"
+fate = "copy"
+next = ["adapters/faraday-window/src/camera.rs"]
+changed = ["its edge to `faraday-shell-api` becomes `faraday-port` (09 §2.3)"]
+
+[[module]]
+main = "faraday/shells/window/src/system32.rs"
+fate = "copy"
+next = ["adapters/faraday-window/src/system32.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/window/src/lens.rs"
+fate = "port"
+next = ["adapters/faraday-window/src/lens.rs"]
+feature = ["desktop-shells", "scanner-qr"]
+
+
+# ----------------------------------------------------------------------
+# faraday/shells/demo (`faraday-demo`): Faraday Demo. The adapter part becomes `faraday-desktop-adapter`; the window loop the root `faraday-demo` (09 §6, 06 §5.2)
+
+[[module]]
+main = "faraday/shells/demo/Cargo.toml"
+fate = "rewrite"
+next = ["roots/faraday-demo/Cargo.toml", "adapters/faraday-desktop-adapter/Cargo.toml"]
+feature = ["desktop-shells"]
+contract = "09 §6, 09 §7: the manifests of the root and of the desktop adapter"
+
+[[module]]
+main = "faraday/shells/demo/build.rs"
+fate = "copy"
+next = ["roots/faraday-demo/build.rs"]
+changed = ["its path to the icon is the Starter root's `assets/icon.png`, its path to the names the build's own (09 §1)"]
+
+[[module]]
+main = "faraday/shells/demo/src/main.rs"
+fate = "rewrite"
+next = ["roots/faraday-demo/src/main.rs", "roots/faraday-demo/src/options.rs"]
+feature = ["desktop-shells", "practice-demo", "lock", "dev-diagnostics", "settings-time", "storage", "transfer"]
+contract = "06 §5.2, 06 §2: the window loop to the root and the runtime; the command line to `options.rs`"
+
+[[module]]
+main = "faraday/shells/demo/src/lib.rs"
+fate = "port"
+next = ["adapters/faraday-desktop-adapter/src/lib.rs"]
+feature = ["desktop-shells", "practice-demo", "storage", "transfer", "randomness", "boot-import"]
+
+
+# ----------------------------------------------------------------------
+# faraday/shells/snapshot (`faraday-snapshot`): the tour root, rewritten (10 §2, 07 §5, 06 §8)
+
+[[module]]
+main = "faraday/shells/snapshot/Cargo.toml"
+fate = "rewrite"
+next = ["roots/faraday-snapshot/Cargo.toml"]
+feature = ["tour-runner"]
+contract = "09 §7: the root's manifest, over the three product crates"
+
+[[module]]
+main = "faraday/shells/snapshot/src/main.rs"
+fate = "rewrite"
+next = ["roots/faraday-snapshot/src/main.rs", "roots/faraday-snapshot/src/runner.rs"]
+feature = ["tours", "tour-runner"]
+contract = "06 §8, 09 §7: the command line is `runner::parse`, the run `runner::run`"
+
+[[module]]
+main = "faraday/shells/snapshot/src/tour.rs"
+fate = "rewrite"
+next = ["roots/faraday-snapshot/src/runner.rs", "roots/faraday-snapshot/src/png.rs"]
+feature = ["tour-runner"]
+contract = "07 §5, 06 §8: a `Tour` over a product's model and the fixture adapters, the runtime's frame read, the picture written"
+
+[[module]]
+main = "faraday/shells/snapshot/src/targets.rs"
+fate = "rewrite"
+next = ["roots/faraday-snapshot/src/targets.rs"]
+feature = ["tours", "tour-runner"]
+contract = "07 §5.2: the touch-target walk"
+
+[[module]]
+main = "faraday/shells/snapshot/src/leaks.rs"
+fate = "rewrite"
+next = ["roots/faraday-snapshot/src/screens.rs"]
+feature = ["tour-runner"]
+contract = "07 §5.3: the secret-leak check of each step's screen"
+
+[[module]]
+main = "faraday/shells/snapshot/src/tours"
+fate = "rewrite"
+next = ["roots/faraday-snapshot/src/tours"]
+feature = ["tours"]
+contract = "07 §5, 09 §9: one module per tour of the inventory's tours.md, driving a product's model and the fixture adapters, not `Faraday`"
+
+
+# ----------------------------------------------------------------------
+# faraday/faraday-host: Faraday Demo's host, ported into the strip feature (09 §4.7, 10 §2)
+
+[[module]]
+main = "faraday/faraday-host/Cargo.toml"
+fate = "rewrite"
+next = ["app/features/faraday-strip/Cargo.toml"]
+feature = ["practice-demo"]
+contract = "09 §4.7: the strip feature's manifest; the window-holding part's edges are the runtime's and the desktop adapter's"
+
+[[module]]
+main = "faraday/faraday-host/src/lib.rs"
+fate = "port"
+next = ["app/features/faraday-strip/src/state.rs", "app/features/faraday-strip/src/update.rs", "app/features/faraday-strip/src/page.rs", "runtime/faraday-runtime/src/frame.rs", "adapters/faraday-desktop-adapter/src/lib.rs"]
+feature = ["practice-demo", "desktop-shells"]
+
+[[module]]
+main = "faraday/faraday-host/src/screen.rs"
+fate = "port"
+next = ["app/features/faraday-strip/src/present.rs", "app/features/faraday-strip/src/page.rs"]
+feature = ["practice-demo", "desktop-shells", "dev-diagnostics"]
+
+[[module]]
+main = "faraday/faraday-host/src/scroll.rs"
+fate = "port"
+next = ["app/features/faraday-strip/src/update.rs"]
+feature = ["desktop-shells"]
+
+[[module]]
+main = "faraday/faraday-host/src/labels.rs"
+fate = "port"
+next = ["app/features/faraday-strip/src/model.rs"]
+feature = ["desktop-shells"]
+
+[[module]]
+main = "faraday/faraday-host/tests/all"
+fate = "drop"
+why = "TS4 (10 §10) and 10 §7.2: the tests of a ported crate; each drives `Faraday` through the host. What they hold (the strip for each screen, the Pi panel's fit) is update and presentation tests of `faraday-strip` and the tours (07 §5)"
+
+
+# ----------------------------------------------------------------------
+# faraday/faraday-storage: the storage adapter, glue to `faraday-core` rewritten to the port (02 §8)
+
+[[module]]
+main = "faraday/faraday-storage/Cargo.toml"
+fate = "rewrite"
+next = ["adapters/faraday-storage/Cargo.toml"]
+feature = ["storage"]
+contract = "09 §6: the manifest, edge to core cut"
+
+[[module]]
+main = "faraday/faraday-storage/src/lib.rs"
+fate = "rewrite"
+next = ["adapters/faraday-storage/src/lib.rs", "adapters/faraday-desktop-adapter/src/lib.rs"]
+feature = ["storage", "transfer", "stick-shell", "starter-app", "scanner-qr", "desktop-shells", "vault-unlock", "vault-list-create", "motion"]
+contract = "02 §8, 02 §4.1, 09 §6: `Sticks`, `DiskProcess` and `Boxes` answer `Ask::Storage`, `Keep`, `Forget`, `Host`, `Print` and `Memory` over the port's types; `Dirs` (folder sticks) goes to the desktop adapter"
+
+[[module]]
+main = "faraday/faraday-storage/tests/all"
+fate = "drop"
+why = "TS4 (10 §10): the tests of a rewritten crate, over `faraday-core` types; the rules they hold (a whole write or none, the exit forgets, foreign files left, stick folders) are the storage adapter's own tests from the inventory's storage.md (07 §4)"
+
+
+# ----------------------------------------------------------------------
+# faraday/faraday-scanner: the scanner adapter, edge to `faraday-draw` cut (09 §6)
+
+[[module]]
+main = "faraday/faraday-scanner/Cargo.toml"
+fate = "rewrite"
+next = ["adapters/faraday-scanner/Cargo.toml"]
+feature = ["scanner-qr"]
+contract = "09 §6: the manifest, `faraday-tokens` in place of `faraday-draw`"
+
+[[module]]
+main = "faraday/faraday-scanner/src/lib.rs"
+fate = "copy"
+next = ["adapters/faraday-scanner/src/lib.rs"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-scanner/src/scan.rs"
+fate = "copy"
+next = ["adapters/faraday-scanner/src/scan.rs"]
+changed = ["its edge to `faraday-draw`'s `tokens` becomes `faraday-tokens` (09 §6)"]
+
+
+# ----------------------------------------------------------------------
+# faraday/tools/testkit: the writer of the test sticks (10 §6)
+
+[[module]]
+main = "faraday/tools/testkit/Cargo.toml"
+fate = "rewrite"
+next = ["tools/faraday-testkit/Cargo.toml", "tools/testkit-sticks/Cargo.toml"]
+feature = ["test-kit"]
+contract = "10 §6, 09 §8: the manifests of the data library and the stick writer, no edge to `faraday-core`"
+
+[[module]]
+main = "faraday/tools/testkit/src/main.rs"
+fate = "rewrite"
+next = ["tools/faraday-testkit/src/lib.rs", "tools/testkit-sticks/src/lib.rs"]
+feature = ["test-kit"]
+contract = "10 §6: the data half is `faraday-testkit`'s library over the domain crates, the writer of the sticks is `faraday-testkit-sticks`; the half that drives `Faraday` is dropped"
+
+[[module]]
+main = "faraday/tools/testkit/tests/network.rs"
+fate = "drop"
+why = "TS4 (10 §10): the test of a rewritten tool; the `--network mainnet` sticks are checked by `faraday-testkit-sticks`' own test of the stick it writes (10 §6)"
+
+# ---- rows from the map reader 106-map-R2 ----
+
+# ----------------------------------------------------------------------
+# faraday-core, src/ s to z: the modules of the Practice samples, the scanner's reads and the secrets (faraday/faraday-core/src/)
+
+[[module]]
+main = "faraday/faraday-core/src/samples"
+fate = "port"
+next = ["app/features/faraday-strip/src/state.rs", "app/features/faraday-strip/src/update.rs", "app/features/faraday-strip/src/present.rs", "app/features/faraday-strip/src/model.rs", "core/faraday-samples/src/lib.rs"]
+feature = ["practice-demo"]
+
+[[module]]
+main = "faraday/faraday-core/src/scan_key.rs"
+fate = "port"
+next = ["app/parts/faraday-scan-part/src/lib.rs", "app/features/faraday-scan/src/state.rs", "app/features/faraday-scan/src/update.rs"]
+feature = ["scanner-qr"]
+
+[[module]]
+main = "faraday/faraday-core/src/scan_read.rs"
+fate = "port"
+next = ["app/parts/faraday-scan-part/src/lib.rs", "app/parts/faraday-secrets/src/lib.rs"]
+feature = ["scanner-qr"]
+
+[[module]]
+main = "faraday/faraday-core/src/secrets.rs"
+fate = "port"
+next = ["app/parts/faraday-secrets/src/lib.rs"]
+feature = ["secrets"]
+
+[[module]]
+main = "faraday/faraday-core/src/text_check.rs"
+fate = "port"
+next = ["app/parts/faraday-secrets/src/lib.rs"]
+feature = ["secrets"]
+
+[[module]]
+main = "faraday/faraday-core/src/secure_boot"
+fate = "port"
+next = ["app/features/faraday-secure-boot/src/state.rs", "app/features/faraday-secure-boot/src/update.rs", "app/features/faraday-secure-boot/src/present.rs", "app/features/faraday-secure-boot/src/model.rs"]
+feature = ["secure-boot"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/seed_check, seeds, silent, spend_backup, signing
+
+[[module]]
+main = "faraday/faraday-core/src/seed_check"
+fate = "port"
+next = ["app/features/faraday-seed-checks/src/state.rs", "app/features/faraday-seed-checks/src/update.rs", "app/features/faraday-seed-checks/src/present.rs", "app/features/faraday-seed-checks/src/model.rs"]
+feature = ["seed-checks"]
+
+[[module]]
+main = "faraday/faraday-core/src/seeds/kef.rs"
+fate = "port"
+next = ["app/features/faraday-krux/src/state.rs", "app/features/faraday-krux/src/update.rs", "app/features/faraday-krux/src/present.rs", "app/features/faraday-krux/src/model.rs"]
+feature = ["krux-codes"]
+
+[[module]]
+main = "faraday/faraday-core/src/seeds/mod.rs"
+fate = "port"
+next = ["app/features/faraday-seeds/src/state.rs", "app/features/faraday-seeds/src/update.rs"]
+feature = ["seeds"]
+
+[[module]]
+main = "faraday/faraday-core/src/seeds/read.rs"
+fate = "port"
+next = ["app/features/faraday-seeds/src/state.rs", "app/features/faraday-seeds/src/update.rs"]
+feature = ["seeds"]
+
+[[module]]
+main = "faraday/faraday-core/src/seeds/screen.rs"
+fate = "port"
+next = ["app/features/faraday-seeds/src/present.rs", "app/features/faraday-seeds/src/model.rs"]
+feature = ["seeds"]
+
+[[module]]
+main = "faraday/faraday-core/src/seeds/sweep.rs"
+fate = "port"
+next = ["app/features/faraday-seeds/src/state.rs", "app/features/faraday-seeds/src/update.rs", "app/features/faraday-seeds/src/present.rs", "app/features/faraday-seeds/src/model.rs"]
+feature = ["seeds"]
+
+[[module]]
+main = "faraday/faraday-core/src/silent"
+fate = "port"
+next = ["app/features/faraday-silent/src/state.rs", "app/features/faraday-silent/src/update.rs", "app/features/faraday-silent/src/present.rs", "app/features/faraday-silent/src/model.rs"]
+feature = ["silent-payments"]
+
+[[module]]
+main = "faraday/faraday-core/src/signing"
+fate = "port"
+next = ["app/features/faraday-spend/src/state.rs", "app/features/faraday-spend/src/update.rs"]
+feature = ["spend-signing"]
+
+[[module]]
+main = "faraday/faraday-core/src/signing.rs"
+fate = "rewrite"
+next = ["app/features/faraday-spend/src/update.rs"]
+feature = ["spend-signing"]
+contract = "03 §8"
+
+[[module]]
+main = "faraday/faraday-core/src/slow.rs"
+fate = "rewrite"
+next = ["app/kernel/faraday-kernel/src/effects.rs"]
+feature = ["spend-signing", "drawing-compute"]
+contract = "03 §4"
+
+[[module]]
+main = "faraday/faraday-core/src/spend_backup"
+fate = "port"
+next = ["app/features/faraday-spend-backup/src/state.rs", "app/features/faraday-spend-backup/src/update.rs", "app/features/faraday-spend-backup/src/present.rs", "app/features/faraday-spend-backup/src/model.rs"]
+feature = ["spend-backup"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/set_time.rs, state.rs, version.rs: the screens that belong to no area folder
+
+[[module]]
+main = "faraday/faraday-core/src/set_time.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/state.rs", "app/owners/faraday-settings/src/update.rs"]
+feature = ["settings-time"]
+
+[[module]]
+main = "faraday/faraday-core/src/state.rs"
+fate = "port"
+next = ["app/features/faraday-add-key/src/state.rs", "app/features/faraday-add-key/src/update.rs", "app/features/faraday-messages/src/state.rs", "app/features/faraday-messages/src/update.rs", "app/features/faraday-power/src/state.rs", "app/features/faraday-power/src/update.rs", "app/kernel/faraday-kernel/src/lock.rs"]
+feature = ["add-key", "messages", "lock", "app-shell"]
+
+[[module]]
+main = "faraday/faraday-core/src/version.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/state.rs", "app/owners/faraday-settings/src/present.rs"]
+feature = ["settings-time"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/stick: the stick area, its settings, the visit and the wipe
+
+[[module]]
+main = "faraday/faraday-core/src/stick/events.rs"
+fate = "rewrite"
+next = ["app/features/faraday-stick-visit/src/update.rs", "app/owners/faraday-session/src/update.rs"]
+feature = ["stick-visit", "delete-and-zero", "storage"]
+contract = "02 §8"
+
+[[module]]
+main = "faraday/faraday-core/src/stick/folders.rs"
+fate = "port"
+next = ["app/features/faraday-stick-visit/src/state.rs"]
+feature = ["stick-visit"]
+
+[[module]]
+main = "faraday/faraday-core/src/stick/mod.rs"
+fate = "port"
+next = ["app/features/faraday-stick-visit/src/state.rs", "app/features/faraday-stick-visit/src/update.rs"]
+feature = ["stick-visit"]
+
+[[module]]
+main = "faraday/faraday-core/src/stick/pills.rs"
+fate = "port"
+next = ["app/features/faraday-stick-visit/src/present.rs", "app/features/faraday-stick-visit/src/model.rs", "kit/faraday-molecules/src/stick_pill.rs"]
+feature = ["stick-visit"]
+
+[[module]]
+main = "faraday/faraday-core/src/stick/settings.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/state.rs", "app/owners/faraday-settings/src/update.rs"]
+feature = ["settings-time"]
+
+[[module]]
+main = "faraday/faraday-core/src/stick/settings_choice.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/state.rs", "app/owners/faraday-settings/src/update.rs"]
+feature = ["settings-time"]
+
+[[module]]
+main = "faraday/faraday-core/src/stick/visit_same.rs"
+fate = "port"
+next = ["app/features/faraday-stick-visit/src/state.rs", "app/features/faraday-stick-visit/src/present.rs"]
+feature = ["stick-visit", "files-inbox"]
+
+[[module]]
+main = "faraday/faraday-core/src/stick/visit_taken.rs"
+fate = "port"
+next = ["app/features/faraday-stick-visit/src/state.rs", "app/features/faraday-stick-visit/src/update.rs", "app/features/faraday-stick-visit/src/present.rs", "app/features/faraday-stick-visit/src/model.rs"]
+feature = ["stick-visit", "files-inbox"]
+
+[[module]]
+main = "faraday/faraday-core/src/stick/wipe.rs"
+fate = "port"
+next = ["app/features/faraday-zeroing/src/state.rs", "app/features/faraday-zeroing/src/update.rs", "app/features/faraday-zeroing/src/present.rs", "app/features/faraday-zeroing/src/model.rs"]
+feature = ["delete-and-zero"]
+
+[[module]]
+main = "faraday/faraday-core/src/storage_api.rs"
+fate = "rewrite"
+next = ["core/faraday-port/src/storage.rs"]
+feature = ["storage"]
+contract = "02 §8"
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/testkit: the test wallets and the files a test stick carries
+
+[[module]]
+main = "faraday/faraday-core/src/testkit.rs"
+fate = "rewrite"
+next = ["tools/faraday-testkit/src/lib.rs"]
+feature = ["test-kit"]
+contract = "10 §6: its data half over domain types; the half that drives `Faraday` is dropped"
+
+[[module]]
+main = "faraday/faraday-core/src/testkit"
+fate = "rewrite"
+next = ["tools/faraday-testkit/src/lib.rs"]
+feature = ["test-kit"]
+contract = "10 §6: its data half over domain types; the half that drives `Faraday` is dropped"
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/tools, trail, transfer, ui, vanity
+
+[[module]]
+main = "faraday/faraday-core/src/tools/flow.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/flow.rs"]
+feature = ["tools", "flow-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/tools/mod.rs"
+fate = "port"
+next = ["app/features/faraday-calculators/src/state.rs", "app/features/faraday-calculators/src/update.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/tools/screen.rs"
+fate = "port"
+next = ["app/features/faraday-calculators/src/present.rs", "app/features/faraday-calculators/src/model.rs"]
+feature = ["tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/tools/search.rs"
+fate = "port"
+next = ["app/composites/faraday-tools-area/src/update.rs", "app/composites/faraday-tools-area/src/state.rs"]
+feature = ["menu-pages", "tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/trail.rs"
+fate = "rewrite"
+next = ["app/kernel/faraday-kernel/src/nav.rs"]
+feature = ["flow-container", "pane-container"]
+contract = "04 §7"
+
+[[module]]
+main = "faraday/faraday-core/src/transfer"
+fate = "port"
+next = ["app/features/faraday-transfer/src/state.rs", "app/features/faraday-transfer/src/update.rs", "app/features/faraday-transfer/src/present.rs", "app/features/faraday-transfer/src/model.rs"]
+feature = ["transfer"]
+
+[[module]]
+main = "faraday/faraday-core/src/ui.rs"
+fate = "port"
+next = ["kit/faraday-atoms/src/ui.rs", "kit/faraday-molecules/src/pass.rs"]
+feature = ["sheets-parts"]
+
+[[module]]
+main = "faraday/faraday-core/src/vanity"
+fate = "port"
+next = ["app/features/faraday-vanity/src/state.rs", "app/features/faraday-vanity/src/update.rs", "app/features/faraday-vanity/src/present.rs", "app/features/faraday-vanity/src/model.rs"]
+feature = ["vanity"]
+
+[[module]]
+main = "faraday/faraday-core/src/visible.rs"
+fate = "port"
+next = ["kit/faraday-atoms/src/shown.rs", "app/parts/faraday-text-field/src/lib.rs"]
+feature = ["typing"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/vault: the vault area (the list and Create, Unlock, contents, the seal)
+
+[[module]]
+main = "faraday/faraday-core/src/vault/act_create.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-list/src/state.rs", "app/owners/faraday-vault-list/src/update.rs"]
+feature = ["vault-list-create"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/act_state.rs"
+fate = "port"
+next = ["app/owners/faraday-vaults/src/state.rs", "app/owners/faraday-vaults/src/update.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/area.rs"
+fate = "port"
+next = ["app/owners/faraday-vaults/src/state.rs", "app/owners/faraday-vault-list/src/state.rs", "app/owners/faraday-vault-unlock/src/state.rs", "app/owners/faraday-vault-contents/src/state.rs", "app/owners/faraday-vault-seal/src/state.rs"]
+feature = ["vault-list-create", "vault-contents", "vault-seal", "vault-unlock"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/copy.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/state.rs", "app/owners/faraday-vault-contents/src/update.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/copy_screen.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/present.rs", "app/owners/faraday-vault-contents/src/model.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/create_key.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-list/src/state.rs", "app/owners/faraday-vault-list/src/update.rs"]
+feature = ["vault-list-create"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/dice.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-list/src/state.rs", "app/owners/faraday-vault-list/src/update.rs"]
+feature = ["vault-list-create"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/errors.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-unlock/src/update.rs", "app/owners/faraday-vault-list/src/update.rs", "app/owners/faraday-vault-seal/src/update.rs"]
+feature = ["vault-unlock", "vault-list-create", "vault-seal"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/keep.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/state.rs", "app/owners/faraday-vault-contents/src/update.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/load.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/state.rs", "app/owners/faraday-vault-contents/src/update.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/load_job.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/update.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/load_screen.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/present.rs", "app/owners/faraday-vault-contents/src/model.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/lock_clears.rs"
+fate = "drop"
+why = "07 §6 and TS4: tests only (a lock forgets what a tool held typed); the leak flows and each feature's lock test hold the rule on `next`"
+
+[[module]]
+main = "faraday/faraday-core/src/vault/mod.rs"
+fate = "port"
+next = ["app/owners/faraday-vaults/src/state.rs", "app/owners/faraday-vaults/src/update.rs", "app/owners/faraday-vault-list/src/update.rs", "app/owners/faraday-vault-unlock/src/update.rs", "app/owners/faraday-vault-contents/src/update.rs", "app/owners/faraday-vault-seal/src/update.rs"]
+feature = ["vault-contents", "vault-unlock", "vault-seal", "vault-list-create"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/more.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/state.rs", "app/owners/faraday-vault-contents/src/update.rs", "app/owners/faraday-vault-contents/src/present.rs", "app/owners/faraday-vault-contents/src/model.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/out.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/state.rs", "app/owners/faraday-vault-contents/src/update.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/panes_screen.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-list/src/present.rs", "app/owners/faraday-vault-list/src/model.rs"]
+feature = ["vault-list-create", "vault-unlock"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/plan_store.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs", "app/owners/faraday-vault-seal/src/update.rs"]
+feature = ["vault-seal", "wallet-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/rekey_screen.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-seal/src/present.rs", "app/owners/faraday-vault-seal/src/model.rs"]
+feature = ["vault-seal"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/related.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/state.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/screen.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-list/src/present.rs", "app/owners/faraday-vault-list/src/model.rs", "app/owners/faraday-vault-unlock/src/present.rs", "app/owners/faraday-vault-unlock/src/model.rs", "app/owners/faraday-vault-contents/src/present.rs", "app/owners/faraday-vault-contents/src/model.rs", "app/owners/faraday-gpg/src/present.rs", "app/owners/faraday-gpg/src/model.rs"]
+feature = ["vault-contents", "vault-list-create", "gpg-keys", "vault-unlock"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/screen/codes.rs"
+fate = "port"
+next = ["app/owners/faraday-totp/src/present.rs", "app/owners/faraday-totp/src/model.rs"]
+feature = ["totp-codes", "vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/screen/create.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-list/src/present.rs", "app/owners/faraday-vault-list/src/model.rs"]
+feature = ["vault-list-create"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/screen/save.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/present.rs", "app/owners/faraday-vault-contents/src/model.rs", "app/features/faraday-stick-visit/src/present.rs", "app/features/faraday-stick-visit/src/model.rs"]
+feature = ["vault-contents", "stick-visit", "secure-boot"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/screen/search.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/present.rs", "app/owners/faraday-vault-contents/src/model.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/screen/secret.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/present.rs", "app/owners/faraday-vault-contents/src/model.rs"]
+feature = ["vault-contents", "totp-codes"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/screen/unread.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/present.rs", "app/owners/faraday-vault-contents/src/model.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/seal.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-seal/src/state.rs", "app/owners/faraday-vault-seal/src/update.rs"]
+feature = ["vault-seal"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/seals.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-seal/src/state.rs", "app/owners/faraday-vault-seal/src/update.rs", "app/owners/faraday-vault-unlock/src/state.rs"]
+feature = ["vault-seal", "vault-unlock"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/search.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/state.rs", "app/owners/faraday-vault-contents/src/update.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/strength.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-list/src/present.rs", "app/owners/faraday-vault-list/src/model.rs"]
+feature = ["vault-list-create"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/stretch.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-unlock/src/state.rs", "app/owners/faraday-vault-unlock/src/update.rs"]
+feature = ["vault-unlock", "vault-list-create"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/summaries.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-seal/src/state.rs", "app/owners/faraday-vault-seal/src/update.rs"]
+feature = ["vault-seal"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/trim.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-contents/src/state.rs", "app/owners/faraday-vault-contents/src/update.rs"]
+feature = ["vault-contents"]
+
+[[module]]
+main = "faraday/faraday-core/src/vault/unlock_keys.rs"
+fate = "port"
+next = ["app/owners/faraday-vault-unlock/src/state.rs", "app/owners/faraday-vault-unlock/src/update.rs"]
+feature = ["vault-unlock"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/wallet, wallet_backup: the session's wallets and the spend, and a wallet's backup
+
+[[module]]
+main = "faraday/faraday-core/src/wallet.rs"
+fate = "port"
+next = ["app/owners/faraday-session/src/state.rs", "app/owners/faraday-session/src/update.rs", "app/features/faraday-wallets/src/state.rs", "app/features/faraday-wallets/src/update.rs", "app/features/faraday-spend/src/state.rs", "app/features/faraday-spend/src/update.rs", "app/features/faraday-decode/src/state.rs", "app/features/faraday-decode/src/update.rs", "app/features/faraday-messages/src/state.rs", "app/features/faraday-messages/src/update.rs"]
+feature = ["wallets", "spend-signing", "decode", "messages"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/account.rs"
+fate = "port"
+next = ["app/owners/faraday-session/src/update.rs", "app/features/faraday-wallets/src/update.rs", "app/features/faraday-silent/src/update.rs"]
+feature = ["wallets", "silent-payments"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/confirm.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/update.rs", "app/features/faraday-wallets/src/present.rs", "app/features/faraday-wallets/src/model.rs"]
+feature = ["wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/keycheck.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/state.rs", "app/features/faraday-wallets/src/update.rs"]
+feature = ["wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/nonce.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/state.rs", "app/features/faraday-decode/src/update.rs", "app/features/faraday-decode/src/present.rs", "app/features/faraday-decode/src/model.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/own_name.rs"
+fate = "port"
+next = ["app/features/faraday-spend/src/update.rs", "app/features/faraday-spend/src/state.rs"]
+feature = ["spend-signing"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/partial_tests.rs"
+fate = "drop"
+why = "TS4: a test of the spend's partial-signature tally; the spend feature's update tests hold the rule on `next`"
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/paths.rs"
+fate = "port"
+next = ["app/features/faraday-spend/src/present.rs", "app/features/faraday-spend/src/model.rs", "app/features/faraday-wallets/src/present.rs", "app/features/faraday-wallets/src/model.rs"]
+feature = ["spend-signing", "wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/state.rs"
+fate = "port"
+next = ["app/features/faraday-spend/src/state.rs", "app/features/faraday-spend/src/update.rs", "app/owners/faraday-session/src/state.rs"]
+feature = ["spend-signing", "wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet/v2.rs"
+fate = "port"
+next = ["app/features/faraday-spend/src/update.rs"]
+feature = ["spend-signing"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet_backup"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs", "app/features/faraday-backup/src/present.rs", "app/features/faraday-backup/src/model.rs"]
+feature = ["wallet-backup", "codex-backup", "backup-board"]
+
+[[module]]
+main = "faraday/faraday-core/src/wallet_backup.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs", "app/features/faraday-backup/src/present.rs", "app/features/faraday-backup/src/model.rs"]
+feature = ["wallet-backup", "codex-backup", "backup-board"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/ways_in, word_entry, wordlist
+
+[[module]]
+main = "faraday/faraday-core/src/ways_in"
+fate = "port"
+next = ["app/parts/faraday-ways-in/src/lib.rs", "kit/faraday-organisms/src/ways_in.rs"]
+feature = ["add-key"]
+
+[[module]]
+main = "faraday/faraday-core/src/word_entry.rs"
+fate = "port"
+next = ["app/parts/faraday-word-grid/src/lib.rs", "kit/faraday-organisms/src/keyboard.rs"]
+feature = ["add-key"]
+
+[[module]]
+main = "faraday/faraday-core/src/wordlist"
+fate = "port"
+next = ["app/parts/faraday-word-grid/src/lib.rs", "app/features/faraday-add-key/src/state.rs", "app/features/faraday-add-key/src/update.rs", "app/features/faraday-add-key/src/present.rs", "app/features/faraday-add-key/src/model.rs"]
+feature = ["add-key"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/work, worker: the costly-work counters, the budget tests and the worker
+
+[[module]]
+main = "faraday/faraday-core/src/work.rs"
+fate = "rewrite"
+next = ["core/faraday-crypto/src/lib.rs", "tools/faraday-app-test/src/lib.rs"]
+feature = ["drawing-compute"]
+contract = "05 §5.2"
+
+[[module]]
+main = "faraday/faraday-core/src/work/budget.rs"
+fate = "drop"
+why = "07 §7.3: the budget tests' root; each budget is held where its rule now sits (see the directory row)"
+
+[[module]]
+main = "faraday/faraday-core/src/work/budget"
+fate = "drop"
+why = "07 §7.3: the budget tests; each budget is held where its rule now sits (no `Compute` in `present`, an update test of the count by kind, `lint-op-cost`)"
+
+[[module]]
+main = "faraday/faraday-core/src/work/kept.rs"
+fate = "drop"
+why = "TS4: tests that what the app keeps worked out follows its inputs; on `next` the kept value is a `Derived` keyed by its inputs (04 §13) and each feature's update tests hold it"
+
+[[module]]
+main = "faraday/faraday-core/src/worker.rs"
+fate = "rewrite"
+next = ["runtime/faraday-runtime/src/pool.rs"]
+feature = ["drawing-compute"]
+contract = "05 §5"
+
+[[module]]
+main = "faraday/faraday-core/src/worker/kef.rs"
+fate = "port"
+next = ["app/features/faraday-krux/src/update.rs"]
+feature = ["krux-codes"]
+
+[[module]]
+main = "faraday/faraday-core/src/worker/kef_make.rs"
+fate = "port"
+next = ["app/features/faraday-krux/src/update.rs", "app/features/faraday-krux/src/state.rs"]
+feature = ["krux-codes"]
+
+
+# ----------------------------------------------------------------------
+# faraday-core, src/screens: what is drawn (starting with the pages of each feature)
+
+[[module]]
+main = "faraday/faraday-core/src/screens/backup.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/present.rs", "app/features/faraday-backup/src/model.rs"]
+feature = ["wallet-backup", "public-files"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/backup/quick.rs"
+fate = "port"
+next = ["app/features/faraday-backup/src/present.rs", "app/features/faraday-backup/src/model.rs"]
+feature = ["wallet-backup"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/bar_search.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/screen.rs", "kit/faraday-organisms/src/menu.rs"]
+feature = ["menu-pages"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/catalog.rs"
+fate = "port"
+next = ["app/composites/faraday-tools-area/src/present.rs", "app/composites/faraday-tools-area/src/model.rs"]
+feature = ["menu-pages", "tools"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/check_message.rs"
+fate = "port"
+next = ["app/features/faraday-messages/src/present.rs", "app/features/faraday-messages/src/model.rs"]
+feature = ["messages"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/create.rs"
+fate = "port"
+next = ["app/features/faraday-create/src/present.rs", "app/features/faraday-create/src/model.rs"]
+feature = ["create-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/create_making.rs"
+fate = "port"
+next = ["app/features/faraday-create/src/present.rs", "app/features/faraday-create/src/model.rs", "app/parts/faraday-key-making/src/lib.rs"]
+feature = ["create-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/entry.rs"
+fate = "port"
+next = ["app/features/faraday-add-key/src/present.rs", "app/features/faraday-add-key/src/model.rs"]
+feature = ["add-key"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/files.rs"
+fate = "port"
+next = ["app/composites/faraday-files-area/src/present.rs", "app/composites/faraday-files-area/src/model.rs"]
+feature = ["files-inbox"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/guide_pane.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs"]
+feature = ["guide", "pane-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/home.rs"
+fate = "port"
+next = ["app/features/faraday-home/src/present.rs", "app/features/faraday-home/src/model.rs"]
+feature = ["menu-pages"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/hub_layout/lines.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs"]
+feature = ["pane-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/hub_layout/mod.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs"]
+feature = ["pane-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/hub_layout/page.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs"]
+feature = ["pane-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/hub_layout/pair.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs"]
+feature = ["pane-container"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/hub_layout/turn.rs"
+fate = "rewrite"
+next = ["kit/faraday-templates/src/panes.rs"]
+feature = ["pane-container", "motion"]
+contract = "04 §8"
+
+[[module]]
+main = "faraday/faraday-core/src/screens/menu_page.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/menu_page.rs"]
+feature = ["menu-pages"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/message.rs"
+fate = "port"
+next = ["app/features/faraday-messages/src/present.rs", "app/features/faraday-messages/src/model.rs"]
+feature = ["messages"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/mod.rs"
+fate = "rewrite"
+next = ["app/composites/faraday-device/src/frame.rs", "app/composites/faraday-device/src/present.rs", "kit/faraday-templates/src/screen.rs"]
+feature = ["screen-frame"]
+contract = "04 §4"
+
+[[module]]
+main = "faraday/faraday-core/src/screens/nonce_check.rs"
+fate = "port"
+next = ["app/features/faraday-decode/src/present.rs", "app/features/faraday-decode/src/model.rs"]
+feature = ["decode"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/parts.rs"
+fate = "port"
+next = ["kit/faraday-molecules/src/row.rs", "kit/faraday-molecules/src/buttons.rs", "kit/faraday-molecules/src/pads.rs", "kit/faraday-molecules/src/words.rs"]
+feature = ["sheets-parts", "keyboard"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/randomness.rs"
+fate = "port"
+next = ["app/features/faraday-randomness/src/present.rs", "app/features/faraday-randomness/src/model.rs"]
+feature = ["randomness"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/restore.rs"
+fate = "port"
+next = ["app/features/faraday-restore/src/present.rs", "app/features/faraday-restore/src/model.rs"]
+feature = ["restore-wallet"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/row_details.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/session_pane.rs"]
+feature = ["session-pane"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/scan_frame.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/viewfinder.rs"]
+feature = ["session-pane", "scanner-qr"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/session_pane"
+fate = "port"
+next = ["kit/faraday-organisms/src/session_pane.rs", "app/owners/faraday-session/src/model.rs", "app/owners/faraday-session/src/present.rs"]
+feature = ["session-pane"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/set_time.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/present.rs", "app/owners/faraday-settings/src/model.rs"]
+feature = ["settings-time"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/settings.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/present.rs", "app/owners/faraday-settings/src/model.rs"]
+feature = ["settings-time"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/settings/rows.rs"
+fate = "port"
+next = ["app/owners/faraday-settings/src/present.rs", "app/owners/faraday-settings/src/model.rs"]
+feature = ["settings-time", "menu-pages"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/sheets.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/sheet.rs", "app/features/faraday-power/src/present.rs", "app/features/faraday-power/src/model.rs"]
+feature = ["sheets-parts"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/sidebar.rs"
+fate = "port"
+next = ["kit/faraday-organisms/src/nav.rs"]
+feature = ["screen-frame"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/spend.rs"
+fate = "port"
+next = ["app/features/faraday-spend/src/present.rs", "app/features/faraday-spend/src/model.rs"]
+feature = ["spend-signing"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/vaults_pair.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs", "app/owners/faraday-vault-list/src/present.rs"]
+feature = ["files-inbox", "screen-frame"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/visit.rs"
+fate = "port"
+next = ["app/features/faraday-stick-visit/src/present.rs", "app/features/faraday-stick-visit/src/model.rs"]
+feature = ["files-inbox", "stick-visit"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/visit_same.rs"
+fate = "port"
+next = ["app/features/faraday-stick-visit/src/present.rs"]
+feature = ["files-inbox", "stick-visit"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/wallets.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/present.rs", "app/features/faraday-wallets/src/model.rs"]
+feature = ["wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/wallets/actions.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/present.rs", "app/features/faraday-wallets/src/model.rs"]
+feature = ["wallets"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/wallets_pair.rs"
+fate = "port"
+next = ["kit/faraday-templates/src/panes.rs", "app/features/faraday-wallets/src/present.rs"]
+feature = ["wallets", "menu-pages"]
+
+[[module]]
+main = "faraday/faraday-core/src/screens/wallets_start.rs"
+fate = "port"
+next = ["app/features/faraday-wallets/src/present.rs", "app/features/faraday-wallets/src/model.rs"]
+feature = ["wallets", "menu-pages"]
