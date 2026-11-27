@@ -18,9 +18,10 @@ runs:
       run: |
         {
           echo "JUST_VERSION=1.58.0"
+          echo "NEXTEST_VERSION=0.9.146"
           echo "DENY_VERSION=0.20.2"
           echo "VET_VERSION=0.10.2"
-          echo "TOOLS=just-1.58.0-deny-0.20.2-vet-0.10.2"
+          echo "TOOLS=just-1.58.0-nextest-0.9.146-deny-0.20.2-vet-0.10.2"
         } >> "$GITHUB_ENV"
 
     # Mounted, not linked: target/ stays a folder, so the test jobs can
@@ -49,6 +50,7 @@ runs:
       with:
         path: |
           ~/.cargo/bin/just
+          ~/.cargo/bin/cargo-nextest
           ~/.cargo/bin/cargo-deny
           ~/.cargo/bin/cargo-vet
           ~/.cargo/registry/index
@@ -87,6 +89,7 @@ runs:
       run: |
         have() { "$@" >/dev/null 2>&1; }
         have just --version || cargo install --locked "just@${JUST_VERSION}"
+        have cargo nextest --version || cargo install --locked "cargo-nextest@${NEXTEST_VERSION}"
         have cargo deny --version || cargo install --locked "cargo-deny@${DENY_VERSION}"
         have cargo vet --version || cargo install --locked "cargo-vet@${VET_VERSION}"
-        just --version; cargo deny --version; cargo vet --version
+        just --version; cargo nextest --version; cargo deny --version; cargo vet --version
