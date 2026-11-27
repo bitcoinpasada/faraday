@@ -12,7 +12,7 @@ use faraday_fixture_adapters::{Fixtures, Scripted};
 use faraday_port::{Adapters, Waker};
 use faraday_runtime::{Mark, Root, Runtime, Workers};
 
-use crate::targets::{self, Short, SIZES};
+use crate::targets::{self, SIZES, Short};
 use crate::{png, screens, tours};
 
 /// Which product's model a run builds.
@@ -107,7 +107,13 @@ pub struct Tour {
 
 impl Tour {
     #[must_use]
-    pub fn new(play: Box<dyn Play>, size: (u16, u16), dpi: u16, out: Option<PathBuf>, count: bool) -> Self {
+    pub fn new(
+        play: Box<dyn Play>,
+        size: (u16, u16),
+        dpi: u16,
+        out: Option<PathBuf>,
+        count: bool,
+    ) -> Self {
         Tour {
             play,
             size,
@@ -144,8 +150,13 @@ impl Tour {
         screens::check(self.last.as_ref(), &look, name)?;
         if let Some(out) = &self.out {
             let path = out.join(format!("{:02}-{name}.png", self.n));
-            png::write(&path, u32::from(look.width), u32::from(look.height), &look.rgba)
-                .map_err(|e| format!("{}: {e}", path.display()))?;
+            png::write(
+                &path,
+                u32::from(look.width),
+                u32::from(look.height),
+                &look.rgba,
+            )
+            .map_err(|e| format!("{}: {e}", path.display()))?;
         }
         self.last = Some(look);
         if self.count {
@@ -169,8 +180,7 @@ struct Played<R: Root> {
     fixtures: Fixtures,
 }
 
-impl<R: Root> Played<R>
-{
+impl<R: Root> Played<R> {
     fn new(root: R, mut fixtures: Fixtures, size: (u16, u16), dpi: u16) -> Self {
         fixtures.display_of(size.0, size.1, dpi);
         let mut runtime = Runtime::new(root, Arc::new(NoWake), Workers::Inline);
@@ -195,12 +205,13 @@ impl<R: Root> Played<R>
                 return Ok(());
             }
         }
-        Err(String::from("the model never came to rest: events kept arriving"))
+        Err(String::from(
+            "the model never came to rest: events kept arriving",
+        ))
     }
 }
 
-impl<R: Root> Play for Played<R>
-{
+impl<R: Root> Play for Played<R> {
     fn input(&mut self, script: &[Scripted]) {
         self.fixtures.input(script);
     }
@@ -222,8 +233,18 @@ impl<R: Root> Play for Played<R>
             .iter()
             .filter(|h| Some(h.layer) == top)
             .map(|h| HitLook {
-                rect: Box4 { x: h.rect.x, y: h.rect.y, w: h.rect.w, h: h.rect.h },
-                target: Box4 { x: h.target.x, y: h.target.y, w: h.target.w, h: h.target.h },
+                rect: Box4 {
+                    x: h.rect.x,
+                    y: h.rect.y,
+                    w: h.rect.w,
+                    h: h.rect.h,
+                },
+                target: Box4 {
+                    x: h.target.x,
+                    y: h.target.y,
+                    w: h.target.w,
+                    h: h.target.h,
+                },
                 // `Pressed` has no `kind()` yet (07 §5.1 names a press by its message's kind), so
                 // every press of a screen is one kind until the kit gives one.
                 message: String::from("Press"),
@@ -246,18 +267,36 @@ impl<R: Root> Play for Played<R>
             texts,
             hits,
             page: (String::from(seen.page.scope), seen.page.n),
-            sheets: seen.sheets.iter().map(|a| (String::from(a.scope), a.n)).collect(),
+            sheets: seen
+                .sheets
+                .iter()
+                .map(|a| (String::from(a.scope), a.n))
+                .collect(),
             marks: seen.marks.to_vec(),
-            kept: seen.kept.iter().map(|k| KeptLook { secret: k.secret }).collect(),
+            kept: seen
+                .kept
+                .iter()
+                .map(|k| KeptLook { secret: k.secret })
+                .collect(),
         })
     }
 }
 
 /// The model of `product` over the fixtures from `kit`. Where a product cannot be built yet, the
 /// error says what is missing.
-fn build(product: Product, kit: &Path, size: (u16, u16), dpi: u16) -> Result<Box<dyn Play>, String> {
+fn build(
+    product: Product,
+    kit: &Path,
+    size: (u16, u16),
+    dpi: u16,
+) -> Result<Box<dyn Play>, String> {
     match product {
-        Product::Device => Ok(Box::new(Played::new(Device, Fixtures::device(kit), size, dpi))),
+        Product::Device => Ok(Box::new(Played::new(
+            Device,
+            Fixtures::device(kit),
+            size,
+            dpi,
+        ))),
         Product::Demo => Err(String::from(
             "Faraday Demo's model cannot be built over the fixtures yet: its product value has no public constructor",
         )),
@@ -282,7 +321,11 @@ pub fn parse_from(args: &[String]) -> Result<Command, String> {
     };
     let mut it = args.iter();
     while let Some(arg) = it.next() {
-        let mut value = |what: &str| it.next().cloned().ok_or_else(|| format!("{arg} takes {what}"));
+        let mut value = |what: &str| {
+            it.next()
+                .cloned()
+                .ok_or_else(|| format!("{arg} takes {what}"))
+        };
         match arg.as_str() {
             "--product" => {
                 command.product = match value("device, demo or starter")?.as_str() {
@@ -298,7 +341,11 @@ pub fn parse_from(args: &[String]) -> Result<Command, String> {
                 command.width = w.parse().map_err(|_| "--size is WIDTHxHEIGHT")?;
                 command.height = h.parse().map_err(|_| "--size is WIDTHxHEIGHT")?;
             }
-            "--dpi" => command.dpi = value("a number")?.parse().map_err(|_| "--dpi is a number")?,
+            "--dpi" => {
+                command.dpi = value("a number")?
+                    .parse()
+                    .map_err(|_| "--dpi is a number")?
+            }
             "--tour" => command.tour = Some(value("a tour's name")?),
             "--out" => command.out = value("a folder")?,
             "--kit" => command.kit = value("a folder")?,
@@ -326,7 +373,13 @@ fn play(
 ) -> Result<Tour, String> {
     let label = name.unwrap_or("default");
     let played = catch_unwind(AssertUnwindSafe(|| {
-        let mut tour = Tour::new(build(command.product, Path::new(&command.kit), size, dpi)?, size, dpi, out, count);
+        let mut tour = Tour::new(
+            build(command.product, Path::new(&command.kit), size, dpi)?,
+            size,
+            dpi,
+            out,
+            count,
+        );
         match tours::run_named(&mut tour, label) {
             Some(result) => result?,
             None => return Err(String::from("no such tour")),
@@ -341,7 +394,9 @@ fn play(
                 .map(|s| String::from(*s))
                 .or_else(|| panic.downcast_ref::<String>().cloned())
                 .unwrap_or_default();
-            Err(format!("tour {label}: the model is not built yet at this level of the kit ({what})"))
+            Err(format!(
+                "tour {label}: the model is not built yet at this level of the kit ({what})"
+            ))
         }
     }
 }
@@ -378,10 +433,19 @@ pub fn run(command: &Command) -> ExitCode {
         ratchet(command, file)
     } else {
         let out = PathBuf::from(&command.out).join(command.tour.as_deref().unwrap_or("default"));
-        std::fs::create_dir_all(&out).map_err(|e| format!("{}: {e}", out.display())).and_then(|()| {
-            play(command, command.tour.as_deref(), (command.width, command.height), command.dpi, Some(out), false)
+        std::fs::create_dir_all(&out)
+            .map_err(|e| format!("{}: {e}", out.display()))
+            .and_then(|()| {
+                play(
+                    command,
+                    command.tour.as_deref(),
+                    (command.width, command.height),
+                    command.dpi,
+                    Some(out),
+                    false,
+                )
                 .map(|tour| println!("{} pictures", tour.steps.len()))
-        })
+            })
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -417,7 +481,8 @@ mod tests {
     }
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("faraday-snapshot-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("faraday-snapshot-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let _ = std::fs::create_dir_all(&dir);
         dir
@@ -429,7 +494,13 @@ mod tests {
     #[test]
     fn a_tour_writes_one_picture_a_step() {
         let dir = scratch("steps");
-        let mut tour = Tour::new(Box::new(Still { page: 0 }), (2, 1), 160, Some(dir.clone()), false);
+        let mut tour = Tour::new(
+            Box::new(Still { page: 0 }),
+            (2, 1),
+            160,
+            Some(dir.clone()),
+            false,
+        );
         tour.input(&[]);
         tour.advance(0);
         assert_eq!(tour.step("open"), Ok(()));
@@ -448,9 +519,13 @@ mod tests {
     #[test]
     fn the_command_line_is_read_and_a_wrong_option_refused() {
         let args = |v: &[&str]| v.iter().map(|s| String::from(*s)).collect::<Vec<_>>();
-        let command = parse_from(&args(&["--size", "480x640", "--dpi", "286", "--tour", "power"]));
-        assert!(matches!(&command, Ok(c) if c.width == 480 && c.height == 640 && c.dpi == 286
-            && c.tour.as_deref() == Some("power")));
+        let command = parse_from(&args(&[
+            "--size", "480x640", "--dpi", "286", "--tour", "power",
+        ]));
+        assert!(
+            matches!(&command, Ok(c) if c.width == 480 && c.height == 640 && c.dpi == 286
+            && c.tour.as_deref() == Some("power"))
+        );
         assert!(parse_from(&args(&["--sizee", "1x1"])).is_err());
     }
 }

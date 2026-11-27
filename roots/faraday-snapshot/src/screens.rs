@@ -27,10 +27,12 @@ fn forms() -> Vec<(String, bool)> {
 /// the runtime's marks, and a change of page or sheets between two frames.
 #[must_use]
 pub fn is_event(before: Option<&Look>, now: &Look) -> bool {
-    let marked = now
-        .marks
-        .iter()
-        .any(|m| matches!(m, Mark::LockBegun | Mark::Hidden | Mark::Hides | Mark::ModelBuilt));
+    let marked = now.marks.iter().any(|m| {
+        matches!(
+            m,
+            Mark::LockBegun | Mark::Hidden | Mark::Hides | Mark::ModelBuilt
+        )
+    });
     let Some(before) = before else {
         return marked;
     };
@@ -47,11 +49,21 @@ pub fn check(before: Option<&Look>, now: &Look, step: &str) -> Result<(), String
     }
     let forms = forms();
     for (text, _) in &now.texts {
-        let flat = text.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase();
+        let flat = text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase();
         for (form, whole) in &forms {
-            let hit = if *whole { flat == *form } else { flat.contains(form.as_str()) };
+            let hit = if *whole {
+                flat == *form
+            } else {
+                flat.contains(form.as_str())
+            };
             if hit {
-                return Err(format!("step {step}: a planted secret is drawn after the event: {form}"));
+                return Err(format!(
+                    "step {step}: a planted secret is drawn after the event: {form}"
+                ));
             }
         }
     }

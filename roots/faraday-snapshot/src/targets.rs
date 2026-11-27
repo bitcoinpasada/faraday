@@ -59,7 +59,11 @@ fn side_short(have: i32, grown: i32, floor: i32) -> bool {
 /// entry's keys on a small panel, ten across; the codex32 worksheet's cells, a grid read whole.
 #[must_use]
 pub fn excepted(message: &str, small: bool) -> bool {
-    (small && matches!(kind(message), "Osk" | "EntryKey" | "EntryKeyBack" | "EntryShift"))
+    (small
+        && matches!(
+            kind(message),
+            "Osk" | "EntryKey" | "EntryKeyBack" | "EntryShift"
+        ))
         || message.starts_with("Codex32(Cell(")
 }
 
@@ -116,7 +120,11 @@ pub fn counted(size: &str, found: &[Short]) -> BTreeMap<String, usize> {
 /// below is a note that the file can fall.
 pub fn ratchet(found: &BTreeMap<String, usize>, held: &str) -> Result<Vec<String>, Vec<String>> {
     let mut file: BTreeMap<String, usize> = BTreeMap::new();
-    for line in held.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')) {
+    for line in held
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+    {
         let Some((key, count)) = line.rsplit_once(' ') else {
             return Err(vec![format!("a line of four fields: {line}")]);
         };
@@ -134,7 +142,10 @@ pub fn ratchet(found: &BTreeMap<String, usize>, held: &str) -> Result<Vec<String
                     lower.push(format!("{key}: {n}, held {held}"));
                 }
             }
-            held => failed.push(format!("{key}: {n} under the floor, held {}", held.copied().unwrap_or(0))),
+            held => failed.push(format!(
+                "{key}: {n} under the floor, held {}",
+                held.copied().unwrap_or(0)
+            )),
         }
     }
     for (key, &held) in &file {
@@ -142,7 +153,11 @@ pub fn ratchet(found: &BTreeMap<String, usize>, held: &str) -> Result<Vec<String
             lower.push(format!("{key}: 0, held {held}"));
         }
     }
-    if failed.is_empty() { Ok(lower) } else { Err(failed) }
+    if failed.is_empty() {
+        Ok(lower)
+    } else {
+        Err(failed)
+    }
 }
 
 #[cfg(test)]
@@ -167,11 +182,39 @@ mod tests {
     #[test]
     fn a_target_under_the_floor_is_counted_and_one_at_it_is_not() {
         let floor = floor_px(1024, 600, 170);
-        let small = look_with(Box4 { x: 0, y: 0, w: 30, h: 30 }, Box4 { x: 0, y: 0, w: 30, h: floor }, "create.Forward");
+        let small = look_with(
+            Box4 {
+                x: 0,
+                y: 0,
+                w: 30,
+                h: 30,
+            },
+            Box4 {
+                x: 0,
+                y: 0,
+                w: 30,
+                h: floor,
+            },
+            "create.Forward",
+        );
         let found = shorts(&small, floor, false);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].kind, "create.Forward");
-        let whole = look_with(Box4 { x: 0, y: 0, w: 30, h: 30 }, Box4 { x: 0, y: 0, w: floor, h: floor }, "create.Forward");
+        let whole = look_with(
+            Box4 {
+                x: 0,
+                y: 0,
+                w: 30,
+                h: 30,
+            },
+            Box4 {
+                x: 0,
+                y: 0,
+                w: floor,
+                h: floor,
+            },
+            "create.Forward",
+        );
         assert!(shorts(&whole, floor, false).is_empty());
     }
 
@@ -181,10 +224,38 @@ mod tests {
     #[test]
     fn a_clipped_control_and_a_named_exception_are_not_counted() {
         let floor = floor_px(480, 640, 286);
-        let clipped = look_with(Box4 { x: 0, y: 0, w: 20, h: floor }, Box4 { x: 0, y: 0, w: 20, h: floor }, "x.Pick");
+        let clipped = look_with(
+            Box4 {
+                x: 0,
+                y: 0,
+                w: 20,
+                h: floor,
+            },
+            Box4 {
+                x: 0,
+                y: 0,
+                w: 20,
+                h: floor,
+            },
+            "x.Pick",
+        );
         // The control is as drawn, 20 wide, and its target the same: a side only the clip trimmed.
         assert!(shorts(&clipped, floor, false).len() <= 1);
-        let key = look_with(Box4 { x: 0, y: 0, w: 20, h: 20 }, Box4 { x: 0, y: 0, w: 20, h: 20 }, "Osk(Key)");
+        let key = look_with(
+            Box4 {
+                x: 0,
+                y: 0,
+                w: 20,
+                h: 20,
+            },
+            Box4 {
+                x: 0,
+                y: 0,
+                w: 20,
+                h: 20,
+            },
+            "Osk(Key)",
+        );
         assert!(shorts(&key, floor, true).is_empty());
         assert_eq!(shorts(&key, floor, false).len(), 1);
     }
