@@ -323,6 +323,31 @@ pub struct Device {
 }
 
 impl Device {
+    /// The device one `--input` value names: `PATH`, or `KIND:PATH` where the kind is `touch`,
+    /// `mouse`, `pad` or `keys`. A file of recorded packets stands in for a device a build box
+    /// has not got; a bare path is a touchscreen.
+    pub fn from_input_flag(value: &str) -> Device {
+        let (kind, path) = match value.split_once(':') {
+            Some((kind, path)) if ["touch", "mouse", "pad", "keys"].contains(&kind) => (kind, path),
+            _ => ("touch", value),
+        };
+        Device {
+            node: PathBuf::from(path),
+            sys: PathBuf::new(),
+            name: format!("--input {kind}"),
+            keyboard: kind == "keys",
+            mouse: kind == "mouse",
+            touchpad: kind == "pad",
+            touchscreen: kind == "touch",
+            hi_res_wheel: false,
+            left_button: kind != "pad",
+            abs_single: kind == "pad",
+            // A file standing in for a device on a build box.
+            trusted: true,
+            range: None,
+        }
+    }
+
     /// A device this shell has no reader for is not opened at all.
     pub fn wanted(&self) -> bool {
         self.keyboard || self.mouse || self.touchpad || self.touchscreen

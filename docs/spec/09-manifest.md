@@ -108,10 +108,10 @@ the domain's tests and examples name these paths to read fixtures and to time, a
 
 The U2 list, by crate name: `faraday-crypto`, `faraday-storage`, `faraday-grant`, `faraday-v4l2`,
 `faraday-mediafoundation`, `faraday-window`, `faraday-os-adapter`, `faraday-alloc-count`,
-`faraday-leak-scan`, and `faraday-stick-adapter`. The stick adapter holds no `unsafe`, as
-`main`'s stick shell holds none: the two ioctls it calls (the vblank wait and the input grab) are
-`faraday-v4l2`'s `wait_vblank` and `grab_input`, as in `main`'s `shells/v4l2`. No root keeps
-`unsafe`.
+and `faraday-leak-scan`. The stick adapter is not on it: it holds no `unsafe`, as `main`'s stick
+shell holds none, and inherits the workspace's `forbid`. The two ioctls it calls (the vblank wait
+and the input grab) are `faraday-v4l2`'s `wait_vblank` and `grab_input`, as in `main`'s
+`shells/v4l2`. No root keeps `unsafe`.
 
 ## 2. The domain and the port
 
@@ -822,8 +822,14 @@ of the app's.
 ```rust
 // faraday-stick-adapter
 pub struct StickOptions { pub fb: Text, pub size: Option<(u16, u16)>, pub depth: u8, pub dpi: u16,
-    pub native: bool, pub mount: Text, pub pointer_speed: u8, pub touch_grid: bool, pub files: Text,
-    pub verbose: bool, pub timings: bool, pub boot_report: bool }
+    pub native: Option<Orientation>,          // None: detect
+    pub mount: Text, pub pointer_speed: u8,
+    pub touch_grid: Option<(u16, u16)>,       // None: the default grid
+    pub touch_name: Option<Text>,
+    pub calibration: Calibration,             // { swap, invert_x, invert_y }
+    pub files: Text, pub verbose: bool, pub timings: bool, pub boot_report: bool,
+    pub input: Vec<Text>,                     // files of recorded input: PATH or KIND:PATH
+    pub frames: Option<u64>, pub camera: Option<Text>, pub no_camera: bool }
 pub struct Stick { /* every device adapter but storage */ }
 impl Stick { pub fn open(o: StickOptions, waker: Arc<dyn Waker>) -> Result<Self, Failure>;
              pub fn present(&mut self, f: &port::Frame<'_>);   // 02 §1, §5

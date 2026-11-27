@@ -44,6 +44,7 @@ mod writer;
 use std::sync::{Arc, Mutex};
 
 use faraday_port::event::Key;
+use faraday_port::values::Orientation;
 use faraday_port::{Adapters, Ask, Effect, Event, Waker};
 use faraday_storage::Storage;
 use faraday_text::Text;
@@ -52,26 +53,43 @@ use crate::cursor::{Cursor, Pointed};
 use crate::panel::{Panel, lock};
 
 pub use crate::stick::Stick;
+pub use crate::touch::Calibration;
 
-/// The stick shell's command line, as the adapter takes it.
+/// The stick shell's command line, as the adapter takes it (06 §5.1).
 ///
-/// Where an option cannot say "not given" (`depth` 0, `dpi` 0, `pointer_speed` 0 for the default
-/// of 10, `mount` empty) it is the unsaid value; `native` true is a panel that is portrait
-/// natively, false is "read it from the framebuffer"; `touch_grid` true is the default grid.
+/// An option that can be left unsaid is an `Option`; where one cannot (`depth` 0, `dpi` 0,
+/// `pointer_speed` 0 for the default of 10, `mount` empty) it is the unsaid value.
 pub struct StickOptions {
     pub fb: Text,
     pub size: Option<(u16, u16)>,
     pub depth: u8,
     pub dpi: u16,
-    pub native: bool,
+    /// The panel's native orientation, as `--native` says; `None` detects it.
+    pub native: Option<Orientation>,
     pub mount: Text,
     /// Tenths of a device pixel per unit of pointer motion; 0 is 10.
     pub pointer_speed: u8,
-    pub touch_grid: bool,
+    /// The grid the touch controller reports in, as `--touch-grid` says; `None` is the default.
+    pub touch_grid: Option<(u16, u16)>,
+    /// The touch controller's name to look for, as `--touch-name` says; `None` is the default.
+    pub touch_name: Option<Text>,
+    /// How the controller's axes lie against the panel's (`--touch-swap`, `--touch-invert-x`,
+    /// `--touch-invert-y`).
+    pub calibration: Calibration,
     pub files: Text,
     pub verbose: bool,
     pub timings: bool,
     pub boot_report: bool,
+    /// Files of recorded input standing in for devices, each `PATH` (a touchscreen) or
+    /// `KIND:PATH` with the kind `touch`, `mouse`, `pad` or `keys` (`--input`); any given, no
+    /// device is looked for.
+    pub input: Vec<Text>,
+    /// End after this many frames are drawn (`--frames`).
+    pub frames: Option<u64>,
+    /// The camera's device (`--camera`); `None` is the default.
+    pub camera: Option<Text>,
+    /// No camera is offered (`--no-camera`).
+    pub no_camera: bool,
 }
 
 /// What woke the loop.
