@@ -97,43 +97,74 @@ why = "next has its own lockfile, which cargo keeps; main's pins are not carried
 main = "core/faraday-text"
 fate = "copy"
 next = ["core/faraday-text"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block",
+    "`src/lib.rs`: `pub mod secret;`",
+    "`src/secret.rs` (new): `faraday-intake/src/secret_buf.rs` with `std` as `core`, `ROOM` moved in from intake's `lib.rs`, and the `pub use crate::room` re-export dropped",
+]
 
 [[module]]
 main = "core/faraday-crypto"
 fate = "copy"
 next = ["core/faraday-crypto"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block and a dev-dependency on itself with `unchecked`, for the copied tests",
+    "`src/work.rs`: `Hooks { count, stop, progress }`, `Compute::new(Hooks)`, `stop_asked`, `progress` (05 §5.2); `unchecked` mints through `Hooks`",
+    "`src/scrypt.rs`: its test mints with `Compute::unchecked()`, not `Compute::new(|_| {})`",
+    "`tests/primitives.rs`: nine `Compute::new(|_| {})` sites become `Compute::unchecked()`",
+    "`clippy.toml`: `Compute::new` added to the disallowed methods",
+]
 
 [[module]]
 main = "core/faraday-bip"
 fate = "copy"
 next = ["core/faraday-bip"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block",
+    "`tests/all/{bsms,coldcard,core_import,json,silent,slip132}.rs`: fixture paths rewritten to `tools/vectors/` and rustfmt of the shorter lines",
+    "`clippy.toml`: `Compute::new` added to the disallowed methods",
+]
 
 [[module]]
 main = "core/faraday-psbt"
 fate = "copy"
 next = ["core/faraday-psbt"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block",
+    "`src/sign.rs`: three board citations dropped from the module comment",
+    "`tests/all/verify.rs`: the three fixture directories rewritten to `tools/vectors/` and `core/faraday-samples/data`",
+    "`clippy.toml` (new): `Compute::new` and the complexity threshold",
+]
 
 [[module]]
 main = "core/faraday-codec"
 fate = "copy"
 next = ["core/faraday-codec"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block",
+    "`src/lib.rs`: `pub mod otpauth;`",
+    "`src/otpauth.rs` (new): `is_otpauth` and its constant from `faraday-intake/src/lib.rs`",
+    "`clippy.toml` (new): `Compute::new` and the complexity threshold",
+]
 
 [[module]]
 main = "core/faraday-entropy"
 fate = "copy"
 next = ["core/faraday-entropy"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block",
+    "`clippy.toml`: `Compute::new` added to the disallowed methods",
+]
 
 [[module]]
 main = "core/faraday-selftest"
 fate = "copy"
 next = ["core/faraday-selftest"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block",
+    "`src/lib.rs`: `run` takes the stick adapter's `Option<bool>` answer for the 'Root filesystem read-only' check (`Some(false)` fails it); the read of `/proc/mounts` (`IMAGE_MARK`, `MOUNTS`, `root_read_only`) and the parser `root_is_read_only` with its test `a_root_filesystem_still_writable_fails` (now on the argument) leave for the stick adapter",
+    "`clippy.toml` (new): `Compute::new` and the complexity threshold",
+]
 
 [[module]]
 main = "core/faraday-shell-api"
@@ -245,7 +276,15 @@ changed = []
 main = "faraday/faraday-intake"
 fate = "copy"
 next = ["core/faraday-intake"]
-changed = []
+changed = [
+    "`src/lib.rs`: `ROOM` and `is_otpauth` leave for `faraday-text` and `faraday-codec`, which are already copied",
+]
+
+[[module]]
+main = "faraday/faraday-intake/src/secret_buf.rs"
+fate = "copy"
+next = ["core/faraday-text/src/secret.rs"]
+changed = ["`std` as `core`; `ROOM` moved in; the `pub use crate::room` re-export dropped"]
 
 [[module]]
 main = "faraday/faraday-forms"

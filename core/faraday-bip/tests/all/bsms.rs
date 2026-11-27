@@ -320,8 +320,8 @@ fn a_record_outside_the_bips_limits_is_refused() {
     assert_eq!(SignerRecord::parse(&long), Err(bsms::Error::Description));
 }
 
-/// One of Sparrow's BIP 129 records (`faraday/faraday-core/tests/vectors/
-/// interop/sparrow/bsms/`, from Sparrow's own test suite).
+/// One of Sparrow's BIP 129 records (`tools/vectors/interop/sparrow/bsms/`,
+/// from Sparrow's own test suite).
 fn sparrow(n: u32) -> String {
     let dir = concat!(
         env!("CARGO_MANIFEST_DIR"),
