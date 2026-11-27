@@ -6,7 +6,7 @@ pub struct Model<'s>(PhantomData<&'s ()>);
 /// The page under the sheets: one variant per page, the Demo's apart (06 §4.2).
 pub enum Body<'s> {
     Home(faraday_starter_home::Model<'s>),
-    Make(faraday_make_stick::Model<'s>),
+    Make(Box<faraday_make_stick::Model<'s>>),
     Start(faraday_starter_start::Model<'s>),
     Tools(Model<'s>),
     Templates(faraday_print_templates::Model<'s>),

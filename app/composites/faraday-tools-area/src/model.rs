@@ -10,7 +10,7 @@ pub enum Body<'s> {
     Tools(faraday_calculators::Model<'s>),
     Lightning(faraday_lightning::Model<'s>),
     Invoice(faraday_lightning::Model<'s>),
-    OtsCheck(faraday_ots_check::Model<'s>),
+    OtsCheck(Box<faraday_ots_check::Model<'s>>),
 }
 
 /// The sheets over a page.

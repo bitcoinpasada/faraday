@@ -3,7 +3,7 @@ use faraday_kernel::Never;
 
 /// The page under the sheets: one variant per page.
 pub enum Body<'s> {
-    Spend(faraday_spend::Model<'s>),
+    Spend(Box<faraday_spend::Model<'s>>),
     Decode(faraday_decode::Model<'s>),
     NonceCheck(faraday_decode::Model<'s>),
     SignerCheck(faraday_decode::Model<'s>),

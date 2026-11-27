@@ -34,7 +34,7 @@ pub struct FlowModel<'s, A> {
     pub under: Option<Content<'s, A>>,
     pub back: Offered<A>,
     pub cancel: Option<Offered<A>>,
-    pub asking: Option<DialogModel<'s, A>>,
+    pub asking: Option<Box<DialogModel<'s, A>>>,
     pub refused: Option<Shown<'s>>,
     pub busy: Option<BusyModel<'s>>,
     pub width: Width,
