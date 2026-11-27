@@ -1,0 +1,138 @@
+# Every build this repository makes, and the ones planned, one [[build]]
+# each. Tools that offer a choice of builds read this file rather than a
+# list of their own, so a new build is added here and nowhere else; a new
+# board or panel directory under build/image/ without a build here fails
+# `just lint` (tools/lint-builds.py).
+#
+#   id        a short name, unique
+#   label     what a person reads
+#   group     "app", "image" or "starter"
+#   status    "built": the recipe below builds it today
+#             "untried": it has a recipe, but nobody has built or booted it
+#             "planned": a document plans it (spec); it has no recipe yet
+#   board, panel  for an image: the directories under build/image/boards
+#             and build/image/panels it is built from (the Pi's panel is
+#             "any": one image for every screen)
+#   recipe    the just recipe; vars are just variables set before its name
+#             (`just board=pi3 faraday-pi-image`), args its arguments,
+#             env the environment it needs ({version} is the release's)
+#   needs     what must be built first: "images" is the release's IMAGES
+#             list, staged by tools/stage-release.sh's first pass
+#   dev       true when dev=1 builds a dev variant (an image: a console and a
+#             login; Faraday Demo: the handwriting feature, F326)
+#   outputs   the files it leaves, from the repository's root; {dev} is
+#             "-dev" for a dev build and "" otherwise
+#   release   the files a release publishes from it ({version}), if any;
+#             for an image, its .img.xz first, then its boot program (.EFI)
+#             if it has one. tools/stage-release.sh publishes every
+#             built image that names its release files (docs/IMAGES.md §4)
+#   starts    for an image a release publishes: the boards it starts, as a
+#             person reads them, for the release's image list (IMAGES §4)
+#   hardware  for an image: the [[hardware]] entry it is offered under
+#   option    for an image: what tells it from another image of the same
+#             hardware, as a person reads it ("Ribbon cable (DSI)")
+#
+# And one [[hardware]] entry for each piece of hardware the download page
+# offers a tile for (docs/IMAGES.md §7, F186), in the tiles' order:
+#
+#   id        a short name, unique; the download page's address
+#   label     the tile's name, as a person reads it
+#   fits      what it runs on, as a person reads it ("Pi 3 or Zero 2 W")
+#   soon      what it will also run on once that is built ("Pi 4"), if any
+#   tested    true once a built image of it has been tried on the hardware
+#
+# A tile reads Tested when tested is true, Looking for testers when an image
+# of it is built but not tried, and Coming soon when none is built yet.
+
+# ---------------------------------------------------------------- hardware
+
+[[hardware]]
+id = "pc"
+label = "A laptop or PC"
+fits = "From a USB stick"
+tested = true
+
+[[hardware]]
+id = "pi"
+label = "A Raspberry Pi"
+fits = "Pi 3 or Zero 2 W"
+soon = "Pi 4"
+tested = false
+
+# ---------------------------------------------------------------- apps
+
+[[build]]
+id = "demo-linux"
+label = "Faraday Demo for Linux"
+group = "app"
+status = "built"
+recipe = "faraday-linux-bin"
+dev = true
+outputs = ["out/linux/faraday"]
+
+[[build]]
+id = "demo-windows"
+label = "Faraday Demo for Windows"
+group = "app"
+status = "built"
+recipe = "faraday-windows-bin"
+args = ["build", "out/windows", "out/build/run", "faraday-demo", "faraday"]
+outputs = ["out/windows/faraday.exe"]
+
+# ---------------------------------------------------------------- images
+
+[[build]]
+id = "stick"
+label = "PC stick (x86-64, UEFI)"
+group = "image"
+status = "built"
+board = "x86_64-uefi"
+panel = "efi-framebuffer"
+recipe = "faraday-stick-image"
+hardware = "pc"
+dev = true
+outputs = ["out/stick/faraday-x86_64-uefi{dev}.img"]
+release = ["faraday-stick-{version}-x86_64-uefi.img.xz", "faraday-{version}-BOOTX64.EFI"]
+starts = ["a 64-bit PC with UEFI firmware"]
+
+# One image for every Pi screen (docs/IMAGES.md §3, F186): the boot script
+# finds the screen, so the Pi has one tile.
+[[build]]
+id = "pi3-any"
+label = "Raspberry Pi, every screen listed (the 2.8-inch panel, an HDMI screen)"
+group = "image"
+status = "built"
+board = "pi3"
+panel = "any"
+recipe = "faraday-pi-image"
+vars = { board = "pi3" }
+hardware = "pi"
+dev = true
+outputs = ["out/pi/faraday-pi3-any{dev}.img"]
+release = ["faraday-pi-{version}.img.xz"]
+starts = ["Pi 3B", "Pi 3B+", "Pi Zero 2 W"]
+
+# ---------------------------------------------------------------- the Starter
+
+[[build]]
+id = "starter-linux"
+label = "Faraday Starter for Linux"
+group = "starter"
+status = "built"
+recipe = "faraday-linux-bin"
+args = ["out/linux", "out/build/run", "faraday-starter-shell", "faraday-starter"]
+env = { FARADAY_STARTER_IMAGES = "out/release/{version}/IMAGES" }
+needs = "images"
+outputs = ["out/linux/faraday-starter"]
+release = ["Faraday-Starter-{version}-Linux.tar.gz"]
+
+[[build]]
+id = "starter-windows"
+label = "Faraday Starter for Windows"
+group = "starter"
+status = "built"
+recipe = "faraday-windows-bin"
+env = { FARADAY_STARTER_IMAGES = "out/release/{version}/IMAGES" }
+needs = "images"
+outputs = ["out/windows/faraday-starter.exe"]
+release = ["Faraday-Starter-{version}-Windows.exe"]

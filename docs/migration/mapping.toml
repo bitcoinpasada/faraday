@@ -553,7 +553,7 @@ changed = []
 main = "faraday/builds.toml"
 fate = "copy"
 next = ["build/builds.toml"]
-changed = []
+changed = ["the comments' `faraday/image/` and `faraday/tools/stage-release.sh` become `build/image/` and `tools/stage-release.sh`"]
 
 [[module]]
 main = "faraday/release-key.asc"
@@ -737,7 +737,7 @@ changed = []
 main = "faraday/tools/stage-release.sh"
 fate = "copy"
 next = ["tools/stage-release.sh"]
-changed = []
+changed = ["the `cd` at line 118 goes up one level (`/..`); `faraday/builds.toml` becomes `build/builds.toml`; the usage comments name `tools/stage-release.sh`"]
 
 [[module]]
 main = "tools/lint-layout.py"
