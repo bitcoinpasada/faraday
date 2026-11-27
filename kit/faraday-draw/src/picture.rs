@@ -2,12 +2,18 @@
 
 use alloc::vec::Vec;
 
+use faraday_codec::qr::QrMatrix;
 use faraday_crypto::Secret;
-use faraday_text::Text;
+use faraday_crypto::work::Compute;
 
-/// A picture with one label, as PNG bytes. The one string is passed in by the caller (section 10
-/// §6).
-// Spec: 09 §3.2 names `labelled_png` without a signature; `faraday_codec::png` writes the PNG.
-pub fn labelled_png(_label: &Text, _width: u16, _height: u16) -> Secret<Vec<u8>> {
+/// Costs what `faraday_codec::png` costs. `code` with `title` and then each of `lines` under
+/// it, as a PNG file. The words are the caller's (section 10 §6). The pixels drawn are wiped
+/// before it returns, and the file is a wiping buffer, since the code may be a secret's.
+pub fn labelled_png(
+    _c: &Compute,
+    _code: &QrMatrix,
+    _title: &str,
+    _lines: &[&str],
+) -> Secret<Vec<u8>> {
     todo!()
 }

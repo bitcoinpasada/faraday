@@ -15,6 +15,8 @@ use faraday_molecules::words::WordGridModel;
 
 use crate::board::BoardModel;
 use crate::chart::{ChartModel, WalletCardModel};
+use crate::demo_only::DemoOnlyModel;
+use crate::qr_grid::QrGridModel;
 use crate::ways_in::WaysInModel;
 use crate::worksheet::WorksheetModel;
 
@@ -52,14 +54,16 @@ pub enum Block<'s, A> {
     Part(Organism<'s, A>),
 }
 
-/// The bespoke organisms a `Block::Part` holds, one variant per model.
-// Spec: 09 §3.3 names `Organism` as an enum over the bespoke organisms' models, without variants.
+/// The bespoke organisms a `Block::Part` holds, one variant per model: every organism a step's
+/// card draws, since a card is content alone (09 §3.3).
 pub enum Organism<'s, A> {
     Worksheet(WorksheetModel<'s, A>),
     Chart(ChartModel<'s, A>),
     WalletCard(WalletCardModel<'s, A>),
     Board(BoardModel<'s, A>),
     WaysIn(WaysInModel<'s, A>),
+    QrGrid(QrGridModel<'s, A>),
+    DemoOnly(DemoOnlyModel<'s, A>),
 }
 
 /// Draws the content.

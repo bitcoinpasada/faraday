@@ -205,11 +205,26 @@ Practice and stays in `faraday-organisms`. Both need same-level edges (asked of 
 - **`faraday-tokens`**: `dims` (every named dimension), `palette` (`Role`, the scheme table,
   fixed colours, stick tones), `type_roles`, `motion` (durations, easing, `STEP_MS`), `elevation`;
   `Theme`, `TextSize`, `Contrast`, `Mode` (light, dark). Constants and their helpers only (K2).
-- **`faraday-draw`**: `canvas` (`Canvas`, the call list `Calls`, `Ink`), `surface`, `blend`,
-  `geom` (`Rect`, `Size`; `Point` from the port), `text` (`Font`, shaping and measure), `fonts`
-  (the baked fonts), `shapes`, `icons` (`Icon`), `ease`, `qr` (a QR code's modules to squares),
-  `picture` (`labelled_png`: a labelled picture drawn on `Canvas` in the baked fonts and written as
-  PNG by `faraday_codec::png`; its one string is passed in by its caller; section 10 §6).
+- **`faraday-draw`**: `canvas` (`Canvas`, the call list `Calls`, the ink record `Ink` of
+  `Inked` entries, 04 §9), `surface`, `blend`, `geom` (`Rect`, `Size`; `Point` from the port),
+  `text` (`Font`, shaping and measure), `fonts` (the baked fonts), `shapes`, `icons` (`Icon`),
+  `ease`, `qr` and `picture`:
+
+```rust
+/// `qr`: `code` written into `at` on a white square, whole pixels per module, the quiet zone
+/// included, centred; each row of modules written straight into the canvas and nothing kept,
+/// so no secret's code outlives its frame (`main`'s `faraday-ui` `parts::qr_code`).
+pub fn modules(canvas: &mut Canvas, code: &faraday_codec::qr::QrMatrix, at: Rect);
+
+/// `picture`: costs what `faraday_codec::png` costs. `code` with `title` and then each of
+/// `lines` under it, drawn in the baked fonts and written as a PNG file; the pixels drawn are
+/// wiped before it returns (`main`'s `faraday-core` `picture::labelled_png`).
+pub fn labelled_png(c: &Compute, code: &QrMatrix, title: &str, lines: &[&str]) -> Secret<Vec<u8>>;
+```
+
+  `labelled_png` takes the compute token because writing the PNG is costly work, and returns a
+  wiping buffer because the code may be a secret's (a SeedQR, a codex32 share). Its words are
+  its caller's (section 10 §6).
 - **`faraday-atoms`**:
 
 ```rust
@@ -217,22 +232,24 @@ pub use faraday_atoms_derive::Pressed;
 pub trait Pressed: Clone + PartialEq + Send + 'static { fn hides(&self) -> bool; }   // 04 §2
 pub struct Ui<'f, A: Pressed> { /* 04 §7.1 */ }
 pub struct FrameOut<R: Pressed> { /* 04 §7.1 */ }
-pub struct Hit<R> { /* rect, touch target, press, sheet layer */ }
-pub struct Scrolled { /* id, view, extent */ }
+pub struct Hit<R> { pub rect: Rect, pub target: Rect, pub press: R, pub layer: u8 }   // 04 §7.1
+pub struct Scrolled { pub id: Anchor, pub view: Rect, pub extent: Size }             // 04 §7.1
+pub struct Pointer<R> { pub at: Option<Point>, pub down: bool, pub focused: Option<R> }  // 04 §7.1
 pub enum Laid { Placed(Placement), Room(bool), Fits(bool), Rows(u16) }
 pub enum Placement { Stacked, Beside, OneColumn }
 pub struct MotionStore { /* 04 §8.1 */ }
 pub enum Motion { /* 04 §8.1 */ }
+pub enum Turn { Page, Step }                                // 04 §8.1
 pub struct ComponentId(/* page Anchor, component Anchor */);
 pub struct Shown<'s>(/* private */);          // 04 §11
 pub struct PlainRef<'s>(/* &'s Text | &'static str */);
-pub enum Offered<R> { Yes(R), Refused(Drawn), Busy }      // 04 §4: a control's press or why not
+pub enum Offered<R> { Yes(R), Refused(R, Drawn), No }    // 04 V11: a control's press, or why not
 pub enum Drawn { Dimmed, AsUsual }                        // the kernel's Refused::drawn answer (03 §10)
 pub enum Style { Filled, Tonal, Outlined, Text, Elevated, Error }
 pub use faraday_tokens::{Theme, TextSize};
 impl<'f, A: Pressed> Ui<'f, A> {
     pub fn new(canvas: &'f mut Canvas, theme: Theme, scale: f32, motion: &'f mut MotionStore,
-               pointer: &'f Pointer, ink: bool) -> Self;     // the runtime's only
+               pointer: &'f Pointer<A>, ink: bool) -> Self;  // the runtime's only
     pub fn finish(self) -> FrameOut<A>;                     // the runtime's only
     pub fn within<B: Pressed>(&mut self, lift: fn(B) -> A, f: impl FnOnce(&mut Ui<'_, B>));
     pub fn anchor(&mut self, id: Anchor);
@@ -243,13 +260,14 @@ impl<'f, A: Pressed> Ui<'f, A> {
   Its modules: `ui`, `frame_out`, `hits`, `focus`, `region`, `motion`, `shown`, `offered`, and one
   per control (`button`, `fab`, `chip`, `pill`, `tag`, `badge`, `check`, `switch`, `segmented`,
   `icon_button`, `stepper`, `progress`, `hold`, `field`, `line`, `rule`, `mark`, `shadow`,
-  `frost`), each a `pub fn` over `&mut Ui<A>` and a model struct. `Drawn` is the kit's, and the
+  `frost`), each a `pub fn` over `&mut Ui<A>` and a model struct (§3.4). `focus` holds
+  `step`, the Tab order's move (04 §7.1). `Drawn` is the kit's, and the
   kernel's `Refused::drawn` returns it through the presentation kernel (asked of section 03 below:
   the kernel may not name the kit, so `Drawn` is a kernel enum the presentation kernel maps).
 - **`faraday-molecules`**: one module per molecule of 04 §12.1's row (`row`, `kind_rows`,
   `options`, `multi`, `chips`, `buttons`, `code_box`, `address`, `pass`, `words`, `pads`,
   `time_zone`, `appearance`, `tabs`, `destination`, `stick_pill`, `status`, `flow_text`,
-  `guide_block`, `caution`, `qr`), each a model struct and a `pub fn draw<A: Pressed>(&Model,
+  `guide_block`, `caution`, `qr`), each a model struct (§3.4) and a `pub fn draw<A: Pressed>(&Model,
   &mut Ui<A>)`.
 - **`faraday-organisms`** and **`faraday-templates`**: §3.3.
 
@@ -266,7 +284,7 @@ This answers section 04's question.
 | the snackbar | `faraday-organisms` | `snackbar` | `SnackbarModel<'s>` |
 | tooltips | `faraday-organisms` | `tooltip` | `TipModel<'s>` |
 | ways-in | `faraday-organisms` | `ways_in` | `WaysInModel<'s, A>` |
-| the navigation rail, the navigation bar, the top app bar | `faraday-organisms` | `nav` | `RailModel`, `BarModel`, `TopBarModel` |
+| the navigation rail, the navigation bar, the top app bar | `faraday-organisms` | `nav` | `NavModel<'s, A>` (drawn as the rail by `draw`, as the bar by `draw_bar`), `TopBarModel<'s, A>` (`draw_top`) |
 | the viewfinder | `faraday-organisms` | `viewfinder` | `ViewfinderModel<'s, A>` |
 | the on-screen keyboard's panel | `faraday-organisms` | `keyboard` | `KeyboardModel<A>` |
 | the guide's pages | `faraday-organisms` | `guide` | `GuidePageModel<'s, A>` |
@@ -281,15 +299,61 @@ This answers section 04's question.
 | the step-flow template | `faraday-templates` | `flow` | `FlowModel<'s, A>` (04 §5) |
 | the menu-page template | `faraday-templates` | `menu_page` | `MenuPageModel<'s, A>` |
 
-Each module exports its model and `pub fn draw<A: Pressed>(m: &Model<'_, A>, ui: &mut Ui<'_, A>)`
-(`Organism<'s, A>`, the content organism's `Block::Part`, is an enum over the bespoke organisms'
-models). The sketches' `kit::screen`, `kit::flow` and `kit::snackbar` are
-`faraday_templates::screen`, `faraday_templates::flow` and `faraday_organisms::snackbar`.
+Each module exports its model and `pub fn draw<A: Pressed>(m: &Model<'_, A>, ui: &mut Ui<'_, A>)`.
+The sketches' `kit::screen`, `kit::flow` and `kit::snackbar` are `faraday_templates::screen`,
+`faraday_templates::flow` and `faraday_organisms::snackbar`.
+
+```rust
+/// `content`: the content organism's `Block::Part` (04 §12.3).
+pub enum Organism<'s, A> {
+    Worksheet(WorksheetModel<'s, A>),
+    Chart(ChartModel<'s, A>),
+    WalletCard(WalletCardModel<'s, A>),
+    Board(BoardModel<'s, A>),
+    WaysIn(WaysInModel<'s, A>),
+    QrGrid(QrGridModel<'s, A>),       // Krux's codes and their copy grid (inventory `krux-codes.md`)
+    DemoOnly(DemoOnlyModel<'s, A>),   // Spend from backup's sample PSBT (`spend-backup.md`)
+}
+
+/// `screen`: the screen template's model. The navigation is one model at every size; the
+/// template draws it as the rail, the bar or the sidebar by the room (04 V10).
+pub struct FrameModel<'s, R> {
+    pub nav: NavModel<'s, R>,          // destinations, Scan, power, the app's name, the lock tag
+    pub top: TopBarModel<'s, R>,       // the title, the way back, the pills
+    pub busy: Option<BusyModel<'s>>,   // the busy line
+}
+```
+
+- A step's card is the content organism alone (04 §5's `card`), so every organism a
+  step flow's card draws is a variant of `Organism`. A flow whose card needs another organism
+  adds its variant here. Held by `ShowFlow::card`'s return type.
+- **Decision: one navigation model, drawn as the rail or the bar by the screen template.**
+  Reason: V10 keeps the model the same at every window size, and which form fits is the
+  template's (04 §12.4). Turned down: a rail model and a bar model, which would make `present`
+  choose by the size.
 
 `reexports` (K7): `faraday-organisms` names `faraday_atoms::{Ui, Pressed, Shown, PlainRef,
 Offered, Drawn, Style, Laid, Placement}`, `faraday_draw::icons::Icon` and each molecule model a
 `Block` variant holds; `faraday-organisms-online` names the same atoms; `faraday-templates` names
 the organisms' models its own models hold and the same atoms.
+
+### 3.4 The kit's models
+
+Every control, molecule and organism has one model struct, in its module, with the name and
+generics below (atoms and molecules; §3.3 gives the organisms and templates).
+
+- A kit model's name, module and generics are this section's; its fields are those
+  of the `main` component its module ports (04 §12.1's places), written when it is ported. A
+  field obeys V9 (no coordinate, size or rectangle), K12 (every text a `Shown<'s>`) and V11 (a
+  press only as an `Offered<A>`, or as the press itself for a key, a pad's face or a word). So a
+  model with `'s` holds text, one with `A` holds presses, and one with neither is a unit struct,
+  drawn from the theme alone. Held by the compiler (the organisms and templates name these
+  types) and by `lint-layers` (V9).
+
+| Crate | Text and presses, `<'s, A>` | Text only, `<'s>` | Presses only, `<A>`, or neither |
+|---|---|---|---|
+| `faraday-atoms` | `button::ButtonModel` (04 §12.3), `check::CheckModel`, `chip::ChipModel`, `fab::FabModel`, `field::FieldModel`, `hold::HoldModel`, `icon_button::IconButtonModel`, `line::LineModel`, `pill::PillModel`, `segmented::SegmentedModel`, `stepper::StepperModel`, `switch::SwitchModel` | `badge::BadgeModel`, `progress::ProgressModel`, `tag::TagModel` | `frost::FrostModel`, `mark::MarkModel`, `rule::RuleModel`, `shadow::ShadowModel` |
+| `faraday-molecules` | `appearance::AppearanceModel`, `buttons::ButtonsModel`, `chips::ChipsModel`, `destination::DestinationModel`, `guide_block::GuideBlockModel`, `kind_rows::KindRowsModel`, `multi::MultiModel`, `options::ChoiceModel`, `pass::PassModel`, `row::RowModel`, `tabs::TabsModel`, `time_zone::TimeZoneModel`, `words::WordGridModel` | `address::AddressModel`, `caution::CautionModel`, `code_box::CodeBoxModel`, `flow_text::FlowText`, `qr::QrModel`, `status::StatusModel`, `status::BusyModel`, `stick_pill::StickPillModel` | `pads::PadModel<A>` |
 
 ## 4. The application
 
