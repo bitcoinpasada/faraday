@@ -350,6 +350,7 @@ impl<A: Pressed> Ui<'_, A> {
             let m = self.strip_margin(&view, d);
             self.c.paste_rows(rows, view, -d, m);
             self.keeps.moved += 1;
+            self.keeps.slid.push((view, -d));
         }
         if region.moves
             && self.layer == 0

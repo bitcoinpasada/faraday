@@ -42,6 +42,12 @@ pub struct FrameOut<R: Pressed> {
     pub rows: Vec<crate::keeps::MadeRows>,
     /// How many regions were drawn as moved frames: their rows put back, only the strip painted.
     pub moved: usize,
+    /// Where each of them moved: the region's view and the rows its kept rows now stand lower
+    /// by (higher when negative), for the shell (05 §9).
+    pub slid: Vec<(Rect, i32)>,
+    /// A caret was drawn, shown or in the off half of its blink: nothing kept of this frame
+    /// stands for the next while it blinks.
+    pub caret: bool,
     /// A secret was drawn (04 §11).
     pub secret: bool,
     /// Rest or Moving: motion wants another frame.

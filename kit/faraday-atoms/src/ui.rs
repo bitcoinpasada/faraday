@@ -291,6 +291,8 @@ impl<'f, A: Pressed> Ui<'f, A> {
             frosts: self.keeps.made,
             rows: self.keeps.made_rows,
             moved: self.keeps.moved,
+            slid: self.keeps.slid,
+            caret: self.caret_drawn,
             secret: self.secret,
             pace: if self.moving {
                 Pace::Moving
@@ -444,6 +446,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
         self.keeps.made.extend(keeps.made);
         self.keeps.made_rows.extend(keeps.made_rows);
         self.keeps.moved += keeps.moved;
+        self.keeps.slid.extend(keeps.slid);
         self.keeps.holds.extend(keeps.holds.into_iter().map(lift));
         self.keeps.held.extend(keeps.held.into_iter().map(lift));
         if self.back.is_none() {

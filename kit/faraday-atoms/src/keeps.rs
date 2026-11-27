@@ -58,6 +58,9 @@ pub(crate) struct Keeps<'f, A: Pressed> {
     pub(crate) made_rows: Vec<MadeRows>,
     /// Regions drawn as moved frames.
     pub(crate) moved: usize,
+    /// Where they moved: each region's view and how many rows its rows now stand lower (higher
+    /// for a negative number).
+    pub(crate) slid: Vec<(Rect, i32)>,
     /// The presses of the holds drawn, and those of them that are full.
     pub(crate) holds: Vec<A>,
     pub(crate) held: Vec<A>,
@@ -71,6 +74,7 @@ impl<'f, A: Pressed> Keeps<'f, A> {
             rows,
             made_rows: Vec::new(),
             moved: 0,
+            slid: Vec::new(),
             holds: Vec::new(),
             held: Vec::new(),
         }

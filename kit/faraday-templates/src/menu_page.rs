@@ -437,7 +437,7 @@ pub fn draw<A: Pressed>(m: &MenuPageModel<'_, A>, ui: &mut Ui<'_, A>) {
         top = y;
     }
     let clip = ui.rect(0.0, top, cw, (h - top).max(0.0));
-    let open = ui.region_open(Region::new(m.scroll, clip));
+    let open = ui.region_open(Region::new(m.scroll, clip).moves());
     if let (false, Some(row)) = (pinned, row) {
         y += search_row(row, ui, (x, y, width));
     }

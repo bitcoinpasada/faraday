@@ -1838,3 +1838,61 @@ fn no_rows_of_a_secret_frame_are_reused_and_none_outlive_a_lock() {
     );
     assert!(runtime.seen().kept.is_empty());
 }
+
+/// A frame taken, with what it says of the rows it moved.
+fn taken(runtime: &mut Runtime<Device>) -> Option<(Vec<u8>, Option<port::frame::Moved>)> {
+    runtime
+        .frame()
+        .map(|frame| (frame.rgba.to_vec(), frame.moved))
+}
+
+/// Invariant: A list scrolled under a pointer at rest on a control is drawn as moved frames, the display's pixels after each equal those of a whole frame, and each frame says the rows it moved: the rows of the frame before, moved so, are the rows now.
+/// Regression: A hovered control makes every scrolled frame whole; or the frame names a move the pixels do not make, so a display that moves rows shows a seam; or none says anything and the display copies it all.
+/// Owner: runtime
+#[test]
+fn a_scrolled_list_under_a_resting_pointer_says_what_it_moved() {
+    let mut moved = drawing(draw_rows);
+    let mut whole = drawing(draw_rows);
+    whole.frame.whole_only = true;
+    for runtime in [&mut moved, &mut whole] {
+        at(runtime, 1_000);
+        runtime.event(Event::Input(port::event::Input::Hover(Some(
+            port::values::Point { x: 50, y: 50 },
+        ))));
+        at(runtime, 1_001);
+    }
+    let (mut last, _) = taken(&mut moved).expect("a frame");
+    assert_eq!(taken(&mut whole).map(|f| f.0), Some(last.clone()));
+    let width = 320_usize;
+    let mut said = 0;
+    for dy in [7, 13, 13, -5, -9, 31, 4, 9, 2] {
+        wheel(&mut moved, dy);
+        wheel(&mut whole, dy);
+        let (now, plan) = taken(&mut moved).expect("a frame");
+        let (all, none) = taken(&mut whole).expect("a frame");
+        assert_eq!(now, all, "after {dy}");
+        assert_eq!(none, None);
+        if let Some(m) = plan {
+            said += 1;
+            let (x, y) = (m.band.x as usize, m.band.y as usize);
+            let (h, dy) = (m.band.h as isize, isize::from(m.dy));
+            // Rows well clear of the strip and the shadows beside it, and of the scrollbar.
+            let rows = if dy > 0 {
+                (y as isize + dy + 60)..(y as isize + h)
+            } else {
+                (y as isize)..(y as isize + h + dy - 60)
+            };
+            for r in rows {
+                let from = (r - dy) as usize;
+                let r = r as usize;
+                assert_eq!(
+                    now[(r * width + x) * 4..(r * width + x + 100) * 4],
+                    last[(from * width + x) * 4..(from * width + x + 100) * 4],
+                    "row {r} after {dy}"
+                );
+            }
+        }
+        last = now;
+    }
+    assert!(said >= 6, "frames that said what they moved: {said}");
+}

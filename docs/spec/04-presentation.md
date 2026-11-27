@@ -576,6 +576,10 @@ clock (`MotionStore::scroll_region`), and a hold held to its end sends its press
   opts in (`Region::moves`) and was drawn in the same view puts them back moved, paints the strip
   the move uncovered, sees its whole view for hits, and gives the rows it took (`MadeRows`, in
   `FrameOut::rows`) to be kept again (K16).
+  The frame says what it moved to the shell: `FrameOut::slid` gives each moved region's view and
+  rows, the runtime hands the biggest as `port::Frame::moved` (composed over frames the shell did
+  not take, none after a whole one), and a frame only motion asked for draws nothing hovered, so a
+  pointer at rest over a control, or a coast after a touch, still moves; the menu page opts in.
 - Scrolling is motion, not state: a wheel notch, a pan, a flick and the stretch are handled by the
   runtime against the last frame's `regions`, change the store and send no message (inventory
   `features/motion.md`: slop, coast, notch, Reduce motion). Reason: a pan is up to 60 events a

@@ -121,6 +121,10 @@ pub(crate) struct Painted<R: Root> {
     pub(crate) rows: Vec<KeptRegion>,
     /// Nothing but a region's motion asked for the frame about to be drawn.
     motion_only: bool,
+    /// The last frame drew a control hovered or pressed: the rows it kept carry the tint.
+    last_hot: bool,
+    /// What the frames drawn since the shell last took one did to the rows of a region (05 §9).
+    since: Since,
     /// Regions drawn as moved frames, so far.
     #[cfg(test)]
     pub(crate) moved: usize,
@@ -173,6 +177,8 @@ impl<R: Root> Painted<R> {
             frosts: Vec::new(),
             rows: Vec::new(),
             motion_only: false,
+            last_hot: false,
+            since: Since::Nothing,
             #[cfg(test)]
             moved: 0,
             #[cfg(test)]
@@ -197,12 +203,16 @@ impl<R: Root> Painted<R> {
             return None;
         }
         self.fresh = false;
+        let moved = match std::mem::replace(&mut self.since, Since::Nothing) {
+            Since::Moved(m) => Some(m),
+            Since::Nothing | Since::Whole => None,
+        };
         Some(port::Frame {
             width: self.size.0,
             height: self.size.1,
             rgba: self.buffer.expose().as_slice(),
             changed: &self.changed,
-            moved: None,
+            moved,
             regions: &[],
             pace: self.pace(),
         })
@@ -211,6 +221,32 @@ impl<R: Root> Painted<R> {
     /// What the last frame said about the next tick.
     pub(crate) fn pace(&self) -> Pace {
         self.out.as_ref().map_or(Pace::Rest, |out| out.pace)
+    }
+
+    /// What the frame just drawn did to the rows the shell took before: its biggest moved
+    /// region, composed with the frames drawn since the shell last took one. A frame drawn
+    /// whole, or two that moved other regions, leave nothing to say.
+    fn slid(&mut self, out: &FrameOut<R::Press>) {
+        let plan = out
+            .slid
+            .iter()
+            .max_by_key(|(view, _)| i64::from(view.w) * i64::from(view.h))
+            .and_then(|&(view, dy)| {
+                Some(port::frame::Moved {
+                    band: port::frame::Rect {
+                        x: view.x,
+                        y: view.y,
+                        w: view.w,
+                        h: view.h,
+                    },
+                    dy: i16::try_from(dy).ok()?,
+                })
+            });
+        self.since = match (std::mem::replace(&mut self.since, Since::Whole), plan) {
+            (Since::Nothing, Some(m)) => Since::Moved(m),
+            (Since::Moved(was), Some(m)) => then(was, m).map_or(Since::Whole, Since::Moved),
+            _ => Since::Whole,
+        };
     }
 
     /// A frame is wanted by something that is not a region's motion.
@@ -237,6 +273,7 @@ impl<R: Root> Painted<R> {
             kept.wipe();
         }
         self.rows.clear();
+        self.since = Since::Whole;
     }
 
     /// Whether a frame may put back the rows it kept: nothing but a region's motion asked for
@@ -251,10 +288,10 @@ impl<R: Root> Painted<R> {
             && self.motion_only
             && self.pointer.hovered.is_none()
             && self.pointer.pressed.is_none()
-            && self
-                .out
-                .as_ref()
-                .is_some_and(|out| out.sheets.is_empty() && !out.secret && out.holds.is_empty())
+            && !self.last_hot
+            && self.out.as_ref().is_some_and(|out| {
+                out.sheets.is_empty() && !out.secret && out.holds.is_empty() && !out.caret
+            })
     }
 
     /// After a frame: the rows kept before are wiped; the rows the frame took are kept unless
@@ -563,7 +600,14 @@ impl<R: Root> Runtime<R> {
         // frame seen: what a control asks to draw its hovered and pressed state (04 §7.1).
         let under = frame.pointer.at.and_then(|at| frame.hit_at(at));
         frame.pointer.pressed = frame.down.clone().or_else(|| frame.key_hold.clone());
-        frame.pointer.hovered = if frame.pointer.down { None } else { under };
+        // Content that moves under a pointer at rest is hovered once it rests: a frame only
+        // motion asked for draws none, so that its rows stand for the next one.
+        let moving = only_motion && frame.motion_only;
+        frame.pointer.hovered = if frame.pointer.down || moving {
+            None
+        } else {
+            under
+        };
         let size =
             usize::from(facts.facts.display.width) * usize::from(facts.facts.display.height) * 4;
         let lent_frosts: Vec<KeptFrost<'_>> = frame
@@ -613,6 +657,10 @@ impl<R: Root> Runtime<R> {
         drop(lent_rows);
         frame.keep_frosts(&mut out, clock.now_ms, keeping, size);
         frame.keep_rows(&mut out, (clock.now_ms, scale), keeping, size);
+        frame.slid(&out);
+        frame.last_hot = frame.pointer.hovered.is_some() || frame.pointer.pressed.is_some();
+        // The content came to rest under the pointer: the next frame shows what it is over.
+        let settled = moving && out.pace == Pace::Rest && frame.pointer.at.is_some();
 
         let mut pending = Vec::new();
         for (anchor, laid, press) in &out.laid {
@@ -633,6 +681,9 @@ impl<R: Root> Runtime<R> {
         frame.finish_hold();
         frame.wanted = false;
         frame.motion_only = false;
+        if settled {
+            frame.want();
+        }
         frame.number += 1;
         frame.fresh = true;
         let display = &facts.facts.display;
@@ -1059,6 +1110,25 @@ impl<R: Root> Painted<R> {
             h: i32::from(height),
         });
     }
+}
+
+/// What the frames the shell has not taken did to the rows of a region.
+#[derive(Clone, Copy)]
+enum Since {
+    /// No frame since the shell took the last.
+    Nothing,
+    /// Moved frames of one region since.
+    Moved(port::frame::Moved),
+    /// A frame drawn whole, or moves that do not compose.
+    Whole,
+}
+
+/// `first`, then `next` on the same band: one move by both; none where `next` moves another
+/// band, or the two together leave no row of the band in view.
+fn then(first: port::frame::Moved, next: port::frame::Moved) -> Option<port::frame::Moved> {
+    let dy = first.dy.checked_add(next.dy)?;
+    (first.band == next.band && i32::from(dy).abs() < first.band.h - 1)
+        .then_some(port::frame::Moved { dy, ..first })
 }
 
 /// The bytes of the rows of a view, as the canvas copies them.
