@@ -359,6 +359,8 @@ next = ["core/faraday-paper"]
 changed = [
     "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout; `faraday-draw` becomes `faraday-tokens`",
     "`src/pdf.rs`: the sheet dimensions are read from `faraday_tokens::dims` (their values copied from `faraday-draw`'s `tokens.rs` into `kit/faraday-tokens/src/dims.rs`)",
+    "`src/blank.rs` added and `src/lib.rs` declares it: `sheet_blank` and `BlankCopy` from `faraday-core`'s `wallet_backup` and `codex32_printed` (`printed`, with `QR_SIDE`) from its `codex32_backup` (09 §2.1); the wallet it adds to the sheet is a `BlankWallet` of text the caller worked out (name, shape, paths), the network its lower-case name and the sheet a `String`, since the session's `Wallet`, `faraday-bip`'s `Network` and `faraday-text` are no edge of this crate",
+    "`Cargo.toml`: `faraday-crypto` with `unchecked` as a dev-dependency, for the blank sheet's tests",
 ]
 
 [[module]]
@@ -2070,7 +2072,7 @@ feature = ["backup-board"]
 [[module]]
 main = "faraday/faraday-core/src/codex32_backup/mod.rs"
 fate = "port"
-next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
+next = ["core/faraday-paper/src/blank.rs", "app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs"]
 feature = ["codex-backup"]
 
 [[module]]
@@ -3211,6 +3213,14 @@ why = "10 §6: the example is replaced by the cross-check's import area (TS20), 
 main = "faraday/faraday-core/tests/all"
 fate = "drop"
 why = "10 §10, TS4: the tests of ported crates are not ported and not read; none holds a fixture but core_wallet_pinned.txt, which has its own row"
+
+[[module]]
+main = "faraday/faraday-core/tests/all/blank_sheet.rs"
+fate = "copy"
+next = ["core/faraday-paper/tests/blank_sheet.rs"]
+changed = [
+    "`BlankCopy` and `sheet_blank` are `faraday_paper::blank`'s, which take the network as its lower-case name and return a `String`; the test token is `Compute::unchecked()` under `#[expect]` in place of `faraday_core::testkit::compute` (10 §7.2)",
+]
 
 [[module]]
 main = "faraday/faraday-core/tests/all/core_wallet_pinned.txt"
@@ -4579,7 +4589,7 @@ feature = ["wallet-backup", "codex-backup", "backup-board"]
 [[module]]
 main = "faraday/faraday-core/src/wallet_backup.rs"
 fate = "port"
-next = ["app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs", "app/features/faraday-backup/src/present.rs", "app/features/faraday-backup/src/model.rs"]
+next = ["core/faraday-paper/src/blank.rs", "app/features/faraday-backup/src/state.rs", "app/features/faraday-backup/src/update.rs", "app/features/faraday-backup/src/present.rs", "app/features/faraday-backup/src/model.rs"]
 feature = ["wallet-backup", "codex-backup", "backup-board"]
 
 
