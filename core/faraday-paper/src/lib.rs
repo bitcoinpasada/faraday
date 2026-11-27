@@ -1,2 +1,8 @@
-//! The domain crate `faraday-paper`: Faraday's own code, copied from `main` in a later step.
-//! Everything a crate of the domain may do is in `docs/spec/01-layers.md` section 2.
+//! What Faraday prints and what it reads of a display, with no app in it:
+//! the PDF sheets and their writer ([`pdf`]), the EDID rules ([`edid`])
+//! and the build ID ([`build`]). faraday-core and the Starter use them.
+
+pub mod build;
+pub mod edid;
+pub mod pdf;
+mod wipe;

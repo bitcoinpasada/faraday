@@ -1,15 +1,23 @@
 [package]
 name = "faraday-paper"
-version = "0.0.0"
+version = "0.2.0"
+description = "What Faraday prints and reads of a display: the PDF sheets, the EDID rules and the build ID, with no app in them"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
+# The QR codes the sheets draw and the Compute token the costly functions take.
 faraday-codec = { path = "../faraday-codec" }
 faraday-crypto = { path = "../faraday-crypto" }
-faraday-strings = { path = "../faraday-strings" }
+# The sheets' dimensions.
 faraday-tokens = { path = "../../kit/faraday-tokens" }
+# The wording of the sheets and of a build's description.
+faraday-strings = { path = "../faraday-strings" }
+# A page's operators carry what a sheet prints, and are wiped when it drops.
+zeroize = { workspace = true, features = ["alloc"] }
 
 [lints]
 workspace = true
