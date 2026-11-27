@@ -57,6 +57,11 @@ pub trait Root: Sized + 'static {
 /// The top states, lent read-only. `None`: the Starter's lock scope is not built.
 pub struct Tops<'a, R: Root> { /* settings, session, vaults, app, outside */ }
 impl<'a, R: Root> Tops<'a, R> {
+    /// The owners' reads as the kernel's type, for a frame in a composite shared by
+    /// two products (the online app), which may not name `Tops` (section 03 §5).
+    pub fn view(&self) -> kernel::TopsView<'_>;
+}
+impl<'a, R: Root> Tops<'a, R> {
     pub fn settings(&self) -> &'a OwnerState<R::Settings>;
     pub fn session(&self) -> Option<&'a OwnerState<R::Session>>;
     pub fn vaults(&self) -> Option<&'a OwnerState<R::Vaults>>;

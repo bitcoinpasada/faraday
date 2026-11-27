@@ -376,6 +376,15 @@ pub struct View<'a> {
 
 pub enum Started { Power, Lock, Rebuilt }   // Rebuilt: in process after a failed keep (section 05, §7.6)
 
+/// The three owners' states read for an owner's page, built by the runtime from its `Tops`
+/// (section 05 §1); `None` outside the Starter's lock scope. A composite shared by two products
+/// (the online app) takes this, never the runtime's `Tops`.
+pub struct TopsView<'a> {
+    pub settings: &'a Settings,
+    pub session: Option<&'a dyn session::Read>,
+    pub vaults: Option<&'a dyn vaults::Read>,
+}
+
 /// What `update` reads: the view, and the token for costly work.
 pub struct Ctx<'a> {
     pub view: View<'a>,
@@ -861,8 +870,11 @@ pub enum Line { Fixed(&'static str), Filled(Text) }   // Filled: faraday_strings
 
 /// A refusal: worded, and how a control it refuses is drawn.
 pub trait Refused: Worded + Public {
-    fn drawn(&self) -> Drawn { Drawn::Dimmed }      // Dimmed | AsUsual
+    fn drawn(&self) -> Drawn { Drawn::Dimmed }
 }
+/// In the kernel; the presentation kernel maps it to the kit's own (section 09 §3.2),
+/// since the kernel may not name the kit.
+pub enum Drawn { Dimmed, AsUsual }
 ```
 
 - **Rule A30.** Every refusal is a variant of a typed enum: the feature's `Refusal`, whose

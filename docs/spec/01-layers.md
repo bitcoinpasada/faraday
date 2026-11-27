@@ -24,13 +24,13 @@ on nothing else.
 | Port | The one contract between app and shells: events in, effects out, the frame out | Domain | Kit, application, runtime, adapters, roots |
 | UI kit, tokens to templates | Faraday's look, by atomic level; no app types (`Ui<A>` is generic over the action) | Lower kit levels, port value types, domain | Application, runtime, adapters, roots |
 | Application kernel | The shared shapes every feature uses: `Ctx`, `Effects`, `Message`, `Public`, `AtLock`, the step-flow machine, the handles | Port, domain | Kit, features, runtime, adapters, roots |
-| Presentation kernel (`role = "present"`) | `Present`, `Page`, `ShowFlow`, the step-flow fill and the helpers every `present` shares (section 04 §2) | Kernel, port, domain, the kit's templates and organisms | Features, runtime, adapters, roots |
+| Presentation kernel (`role = "present"`) | `Present`, `Page`, `ShowFlow`, the step-flow fill and the helpers every `present` shares (section 04 §2) | Kernel, port, domain, the passphrase part (for `pass_model`, through its read view, A3), the kit's templates and organisms | Features, other parts, runtime, adapters, roots |
 | Application parts | State machines a feature embeds and owns (a text field, the passphrase field, the scanner sheet's state) | Kernel, port, domain | Features, kit, runtime, adapters, roots |
 | Application features | One feature each: `State`, `Msg`, `update`; and its presentation, `present` and its pages (§5) | Kernel, presentation kernel, parts, port, domain; its `model`, `present` and `page` also the kit's templates and organisms | Another feature (but a composite's children, §4.3), the kit below organisms, runtime, adapters, roots |
 | Product crates (`role = "product"`) | One per product: the runtime's `Root` for that product, its app composite's frame and the assertion of L1 (§7.2) | Runtime, composites, features, parts, the kernels, the kit's templates and organisms, port, domain | Adapters, roots |
 | Runtime | The model's owner: queue, effect dispatch, worker pool, memo, note queue, motion store, lock and restart, the frame's hit targets | Kernel, port, kit atoms (the `Ui` and its frame), domain | Any feature or composite, the presentation kernel, product crates, adapters, roots |
 | Adapters | The shells' I/O: the stick's framebuffer, input and disk client, the desktop window, sticks as folders, the camera, the scanner, the disk and grant processes, the Starter's operating-system side | Other adapters (no cycle; not a separate process, S2), port, domain, kit tokens | Kit above tokens, application, runtime, roots |
-| Composition roots | One binary per product (the device app, Faraday Demo, the Starter) and the tour root | Every layer above | Another root, a tool (but as a dev-dependency, §7.3) |
+| Composition roots | One binary per product (the device app, Faraday Demo, the Starter) and the tour root | Every layer above | Another root, a tool (but as a dev-dependency, §7.3, and the tour root, `ships = false`, through a normal edge, T1) |
 | Tools and test support | Bakers, lints, cross-check servers, cost measures, test allocators, fixture writers | Any library crate | A root; nothing that ships depends on a tool (§7.3) |
 
 Presentation's two stages are modules of each feature crate (§5), and its second stage is the
@@ -229,8 +229,9 @@ value. It never routes, never names a feature and never returns an `Out`. A part
 read view for its owner's `present`: the passphrase field's gives its dots, its eye and its chips,
 and its text only while the eye is open. Only the part's crate names the part's state.
 
-- **Rule A2.** A part depends on the kernel, the port and the domain. Held by `lint-layers`
-  (`role = "part"`).
+- **Rule A2.** A part depends on the kernel, the port, the domain and other parts, with no cycle
+  (the ways in embed the text field and the word grid; the making of a key embeds the word grid
+  and the passphrase field). Held by `lint-layers` (`role = "part"`, and its cycle check).
 - **Rule A3.** The passphrase field part is the only holder and filter of a typed passphrase
   (`docs/KEYS.md` §2 on `main`; inventory `features/secrets.md`). Held by the rule `main` keeps
   in `lint-components` (a passphrase field drawn or held outside `pass_field`), carried into
@@ -361,7 +362,9 @@ per feature.
 ### 6.2 The rules
 
 - **Rule K1.** Each level from tokens to templates is one crate (or more, named in the manifest,
-  each with one level). A level depends only on lower levels. Held by `lint-layers` (`level`).
+  each with one level). A level depends only on lower levels, and on a crate of its own level
+  only where the manifest names the edge, with no cycle (the atoms on `faraday-draw` and
+  `faraday-atoms-derive`, so that `faraday-draw` stays `no_std`). Held by `lint-layers` (`level`).
 - **Rule K2.** The tokens crate depends on nothing. A new dimension is a name in it, as on `main`
   (`lint-tokens`).
 - **Rule K3.** No kit crate names an app type. A component is generic over the action it returns
@@ -484,9 +487,10 @@ where printed sheets are made.
 
 ### 7.3 Tools and test support
 
-- **Rule T1.** A tool may depend on any library crate of any layer. No root and no crate that a
-  root depends on (through normal or build edges) depends on a tool. Held by `lint-layers` over
-  the resolved graph of each root.
+- **Rule T1.** A tool may depend on any library crate of any layer. No root that ships and no
+  crate it depends on (through normal or build edges) depends on a tool; the tour root
+  (`ships = false`) runs on the fixture adapters and the test kit, both tools. Held by
+  `lint-layers` over the resolved graph of each root that ships.
 - **Rule T2.** A crate's dev-dependencies are crates of its own layer or below, test-support
   crates (the test allocators, the fixtures), and nothing above. An update test is pure (section
   07) and needs no adapter; a journey test lives in a root's tests. Held by `lint-layers`.
@@ -593,7 +597,8 @@ each takes in `next`.
 - **Rule U2.** The list, carried from `main`: `faraday-crypto` (`pinned.rs`: page-aligned memory
   and `mlock`), the storage adapter (on Windows, the free memory for a vault's Argon2id), the
   grant helper, the V4L2 and Media Foundation camera adapters, the desktop window adapter
-  (clipboard and the system library loading), the Starter's operating-system adapter, and the two
+  (clipboard and the system library loading), the Starter's operating-system adapter, the stick adapter (`main`'s stick shell: the ioctls of its input,
+  touch and file code), and the two
   test allocators. No crate of the application, the kit, the port or the runtime is on it.
 - **Rule U3.** A new entry is a security trade-off and needs a recorded decision.
 
