@@ -144,12 +144,12 @@ last column.
 | `faraday-core-wallet` | `faraday/` | | bip, crypto, keys, sqlite, strings, text | none | ~~intake~~ (`network_name` to strings) |
 | `faraday-qr` | `faraday/` | | bip, codec, crypto, text | alloc-count, codec, files | |
 | `faraday-files` | `faraday/` | | codec, crypto, fat, strings, text | none | its folder `Place` to the desktop adapter |
-| `faraday-intake` | `faraday/` | | bip, codec, crypto, qr, strings, text | none | loses `SecretText`, `ROOM`, `Refusal`, `is_otpauth` |
+| `faraday-intake` | `faraday/` | | bip, codec, crypto, qr, strings, text | none | loses `SecretText`, `ROOM`, `is_otpauth`, `network_name` (to strings) and `Refusal`'s session variants (to `faraday-keys`); keeps its own answer, `NotAWallet` |
 | `faraday-forms` | `faraday/` | | keys, strings | none | gains the edge to keys (`Makes`) |
-| `faraday-paper` | `faraday/` | | codec, crypto, strings, tokens | none | ~~draw~~ (to `faraday-tokens`); gains `blank::{sheet_blank, codex32_printed}` |
+| `faraday-paper` | `faraday/` | | codec, crypto, strings, tokens | crypto (`unchecked`) | ~~draw~~ (to `faraday-tokens`); gains `blank::{sheet_blank, codex32_printed}` |
 | `faraday-strings` | `faraday/` | `wording` | bip, crypto, text | none | gains `network_name` |
 | `faraday-guide` | `faraday/` | `wording` | strings | none | |
-| `faraday-samples` | `faraday/` | `online` | bip, forms, text | bip, codec, crypto, intake, keys, ots, psbt, testkit, text, vault | ~~core~~ (normal and dev), ~~host~~, ~~shell-api~~ (dev) |
+| `faraday-samples` | `faraday/` | `online` | bip, forms, text | bip, codec, crypto, intake, keys, ots, psbt, strings, testkit, text, vault | ~~core~~ (normal and dev), ~~host~~, ~~shell-api~~ (dev) |
 
 - **The samples' types** (`SampleKey`, `SampleForm`, `SampleSize`, `SampleKind`, `SampleScript`,
   `SampleWallet`, `SampleInputs`, `SampleHsm`, `Samples`, from `faraday-core`'s `samples` module)

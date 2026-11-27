@@ -3222,14 +3222,6 @@ fate = "drop"
 why = "10 §10, TS4: the tests of ported crates are not ported and not read; none holds a fixture but core_wallet_pinned.txt, which has its own row"
 
 [[module]]
-main = "faraday/faraday-core/tests/all/blank_sheet.rs"
-fate = "copy"
-next = ["core/faraday-paper/tests/blank_sheet.rs"]
-changed = [
-    "`BlankCopy` and `sheet_blank` are `faraday_paper::blank`'s, which take the network as its lower-case name and return a `String`; the test token is `Compute::unchecked()` under `#[expect]` in place of `faraday_core::testkit::compute` (10 §7.2)",
-]
-
-[[module]]
 main = "faraday/faraday-core/tests/all/core_wallet_pinned.txt"
 fate = "copy"
 next = ["core/faraday-core-wallet/tests/core_wallet_pinned.txt"]

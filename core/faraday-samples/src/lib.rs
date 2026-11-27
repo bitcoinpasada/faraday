@@ -9,8 +9,7 @@
 //! [`types`] defines. This crate parses nothing and derives
 //! nothing, so no key material is in it or reaches it. Its tests check
 //! every value against the testkit, the published vectors and another
-//! implementation; `examples/regenerate.rs` writes `src/data.rs` and
-//! `data/` again when one of those changes.
+//! implementation.
 //!
 //! Only Faraday Demo depends on this crate: the desktop app, and the
 //! Starter through it, since Faraday Demo runs in the Starter's window

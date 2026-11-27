@@ -219,7 +219,6 @@ core/faraday-plan/src/xor.rs
 core/faraday-plan/tests/note_text.rs
 core/faraday-plan/tests/set_round_trips.rs
 core/faraday-plan/tests/text.rs
-core/faraday-paper/tests/blank_sheet.rs
 core/faraday-samples/tests/all/keys.rs
 core/faraday-samples/tests/all/published.rs
 core/faraday-samples/tests/all/vectors.rs

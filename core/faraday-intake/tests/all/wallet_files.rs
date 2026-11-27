@@ -2,7 +2,7 @@
 //! readers it calls (`caravan`, `electrum`, `single_key`, `specter_diy`).
 //! The files are
 //! the ones those wallets' own test suites carry
-//! (`faraday/faraday-core/tests/vectors/interop/README.md`); each reads as
+//! (`tools/vectors/interop/README.md`); each reads as
 //! the wallet it holds, with the first address it shows, and a malformed
 //! or wrong one is refused.
 

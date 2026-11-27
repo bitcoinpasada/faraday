@@ -50,8 +50,10 @@ pub struct BlankWallet<'a> {
 /// page of `places` empty lines, "Place ____ holds ____", to fill in by
 /// hand. It holds no secret and nothing of the plan, and may go to any
 /// printer. `wallet` adds the path, script and network to fill in;
-/// `network` is its lower-case name (`mainnet`, `testnet`, `signet` or
-/// `regtest`).
+/// `network` is its name (`mainnet`, `testnet`, `signet` or `regtest`),
+/// written in lower case. Each value is written on its own line: a line
+/// break or other control character in it is written as a space, so no
+/// value adds a line of its own to the sheet.
 pub fn sheet_blank(
     words: usize,
     copy: BlankCopy,
@@ -60,15 +62,21 @@ pub fn sheet_blank(
     places: usize,
 ) -> String {
     let mut out = format!(
-        "faraday-sheet 1\nkind: blank\nwords: {words}\ncopy: {}\nnetwork: {network}\nplaces: {places}\n",
+        "faraday-sheet 1\nkind: blank\nwords: {words}\ncopy: {}\nnetwork: {}\nplaces: {places}\n",
         copy.line(),
+        one_line(network).to_ascii_lowercase(),
     );
     if let Some(w) = wallet {
-        let _ = writeln!(out, "name: {}\nshape: {}", w.name, w.shape);
+        let _ = writeln!(
+            out,
+            "name: {}\nshape: {}",
+            one_line(w.name),
+            one_line(w.shape)
+        );
         // The path its keys are taken at, which the seed alone does not say.
         let mut paths = String::new();
         for p in w.paths {
-            let p = format!("m/{p}");
+            let p = format!("m/{}", one_line(p));
             if !paths.split(", ").any(|q| q == p) {
                 if !paths.is_empty() {
                     paths.push_str(", ");
@@ -81,6 +89,15 @@ pub fn sheet_blank(
         }
     }
     out
+}
+
+/// `value` as one line of the sheet file: each control character, a line break among them, as a
+/// space.
+fn one_line(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect()
 }
 
 /// The side of a Codex32QR in squares: version 3 (`docs/CODEX32.md`

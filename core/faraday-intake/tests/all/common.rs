@@ -26,7 +26,7 @@ pub fn tools_vector(path: &str) -> String {
 }
 
 /// A file other wallets write, from `faraday-core`'s interop set
-/// (`faraday/faraday-core/tests/vectors/interop/README.md`).
+/// (`tools/vectors/interop/README.md`).
 pub fn interop(path: &str) -> String {
     let full = format!(
         "{}/../../tools/vectors/interop/{path}",
