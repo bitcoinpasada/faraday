@@ -811,7 +811,7 @@ why = "`lint-check-tiles`: a script checking that every Check row's flow has a T
 main = "tools/clippy.py"
 fate = "copy"
 next = ["tools/clippy.py"]
-changed = []
+changed = ["the copies check is rewritten for next's directories and sets (docs/spec/09-manifest.md section 1.4), and the arguments are passed to clippy as given"]
 
 [[module]]
 main = "tools/decisions-index.py"

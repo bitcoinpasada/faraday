@@ -5,7 +5,7 @@ check:
     cargo check --workspace --all-targets --locked
 
 clippy:
-    cargo clippy --workspace --all-targets --locked -- -D warnings
+    python3 -I -B tools/clippy.py --workspace --all-targets --locked -- -D warnings
 
 fmt:
     cargo fmt --all --check
