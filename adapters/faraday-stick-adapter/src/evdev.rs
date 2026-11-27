@@ -1,0 +1,1508 @@
+//! evdev: the codes on the wire, the capability bitmaps in sysfs, and the
+//! devices this shell reads.
+//!
+//! A laptop booted from the stick has whatever the person plugged in: a
+//! built-in keyboard, a touchpad, a USB mouse, sometimes a touchscreen.
+//! The Pi has one panel controller and nothing else. Both are the same
+//! problem — open every `/dev/input/event*`, ask each what it can report,
+//! and read the ones that say something this shell understands.
+//!
+//! **What a device is** is read from
+//! `/sys/class/input/eventN/device/capabilities/{ev,key,rel,abs}` and
+//! `…/device/properties`, which the kernel prints as hexadecimal bitmaps.
+//! That is text: no `EVIOCGBIT` ioctl, no `libc` and no `unsafe`, which
+//! is the rule this crate is built under (the one ioctl, `EVIOCGRAB`
+//! when a node is read, is made in `faraday-v4l2`). The four rules are:
+//!
+//! - a **keyboard** reports `EV_KEY` with the letter keys;
+//! - a **mouse** reports `EV_REL` with `REL_X` and `REL_Y`;
+//! - a **touchpad** reports `EV_ABS` with `ABS_X` and `ABS_Y` and either
+//!   `BTN_TOOL_FINGER` or `INPUT_PROP_POINTER`, and is not
+//!   `INPUT_PROP_DIRECT`;
+//! - a **touchscreen** reports `ABS_MT_POSITION_X` or is
+//!   `INPUT_PROP_DIRECT`, and is not a touchpad — a pad reports
+//!   multitouch too, and the finger on it is a pointer and not a place on
+//!   the screen.
+//!
+//! One device may be several: a wireless receiver is one node that is
+//! both a keyboard and a mouse, and both are read.
+//!
+//! `--touch-name` still wins for touch on a bus that is part of the
+//! machine: a device there whose name holds it is the touchscreen and no
+//! other device is, which is how the Pi's panel is found and how a laptop
+//! with a touchscreen the classification misreads can be told what it
+//! has. A device on USB is never trusted for its name (F153): a USB
+//! touchscreen is held back like any other plugged-in device and is let
+//! in by tapping the target the app draws.
+//!
+//! **Devices plugged in after start are found.** [`Watch`] lists
+//! `/dev/input` again every couple of seconds and classifies whatever is
+//! new, so a keyboard plugged into a laptop after the app is up starts
+//! typing. A device that is unplugged ends its reader thread, and its node
+//! going from the listing is what drops it. That is a listing and a
+//! `read_dir`: no netlink socket, no hotplug helper, no ioctl.
+
+use crate::wakechan::WakeTx;
+use std::fs;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+
+use crate::Wake;
+use crate::keyboard::{Keyboard, Stroke};
+use crate::pointer::Pointer;
+use crate::touch;
+
+/// `ENOTTY`: what the grab of a file that is not an input device says.
+const ENOTTY: i32 = 25;
+
+// linux/input-event-codes.h
+/// Synchronisation events; `SYN_REPORT` ends a packet.
+pub const EV_SYN: u16 = 0x00;
+/// Keys and buttons.
+pub const EV_KEY: u16 = 0x01;
+/// Relative axes: a mouse's motion and its wheel.
+pub const EV_REL: u16 = 0x02;
+/// Absolute axes: a touch controller's or a touchpad's positions.
+pub const EV_ABS: u16 = 0x03;
+/// The end of a packet.
+pub const SYN_REPORT: u16 = 0x00;
+
+/// `KEY_A`, one of the two letters a keyboard is recognised by.
+pub const KEY_A: u16 = 30;
+/// `KEY_Z`, the other.
+pub const KEY_Z: u16 = 44;
+/// The left mouse button, and a touchpad's own button.
+pub const BTN_LEFT: u16 = 0x110;
+/// A mouse's thumb button nearer the person: back, on most mice.
+pub const BTN_SIDE: u16 = 0x113;
+/// A mouse's thumb button further from the person: forward, on most mice.
+pub const BTN_EXTRA: u16 = 0x114;
+/// Forward, on a mouse that names it so.
+pub const BTN_FORWARD: u16 = 0x115;
+/// Back, on a mouse that names it so.
+pub const BTN_BACK: u16 = 0x116;
+/// A touchpad saying one finger is on it.
+pub const BTN_TOOL_FINGER: u16 = 0x145;
+/// Contact: a finger is down.
+pub const BTN_TOUCH: u16 = 0x14a;
+/// A touchpad saying two fingers are on it, which is the scroll gesture.
+pub const BTN_TOOL_DOUBLETAP: u16 = 0x14d;
+
+/// Relative x: mouse motion across.
+pub const REL_X: u16 = 0x00;
+/// Relative y: mouse motion down.
+pub const REL_Y: u16 = 0x01;
+/// The wheel, in notches.
+pub const REL_WHEEL: u16 = 0x08;
+/// The wheel, in 120ths of a notch.
+pub const REL_WHEEL_HI_RES: u16 = 0x0b;
+
+/// Absolute x.
+pub const ABS_X: u16 = 0x00;
+/// Absolute y.
+pub const ABS_Y: u16 = 0x01;
+/// The contact the following `ABS_MT_*` events belong to.
+pub const ABS_MT_SLOT: u16 = 0x2f;
+/// Multitouch x for the current contact.
+pub const ABS_MT_POSITION_X: u16 = 0x35;
+/// Multitouch y for the current contact.
+pub const ABS_MT_POSITION_Y: u16 = 0x36;
+/// The contact's tracking id; −1 closes it.
+pub const ABS_MT_TRACKING_ID: u16 = 0x39;
+
+/// `INPUT_PROP_POINTER`: the device moves a pointer rather than naming a
+/// place on the screen.
+pub const INPUT_PROP_POINTER: u16 = 0x00;
+/// `INPUT_PROP_DIRECT`: the device is on the screen it reports positions
+/// in.
+pub const INPUT_PROP_DIRECT: u16 = 0x01;
+
+/// `struct input_event` on a 32-bit target: two 32-bit `timeval` fields,
+/// then `u16` type, `u16` code, `i32` value.
+pub const EVENT_SIZE_32: usize = 16;
+/// The same struct on a 64-bit target, where `timeval` is two 64-bit
+/// fields.
+pub const EVENT_SIZE_64: usize = 24;
+
+/// The size of one `struct input_event` on this build. The Pi runs a
+/// 32-bit ARM kernel and userland, so on it this is 16; on a laptop and
+/// on a build box it is 24, which is why the parser is written against a
+/// size rather than a layout.
+pub const EVENT_SIZE: usize = if cfg!(target_pointer_width = "64") {
+    EVENT_SIZE_64
+} else {
+    EVENT_SIZE_32
+};
+
+/// The four fields of a `struct input_event` this shell cares about. The
+/// timestamp is the kernel's, and only differences between two of them
+/// are ever used, so which clock it came from does not matter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RawEvent {
+    /// When the kernel stamped the event, in milliseconds.
+    pub time_ms: u64,
+    /// `EV_ABS`, `EV_KEY`, `EV_SYN`, …
+    pub kind: u16,
+    /// The axis or button within that type.
+    pub code: u16,
+    /// The value: a coordinate, a tracking id, or a button state.
+    pub value: i32,
+}
+
+/// Decodes one `struct input_event` of `size` bytes.
+///
+/// The type, code and value are the last eight bytes whatever the size of
+/// the timestamp in front of them, which is what makes one decoder serve
+/// both the 16-byte and the 24-byte layout. The timestamp is the two
+/// `timeval` fields in front of them: two `u32` on the 16-byte layout,
+/// two `u64` on the 24-byte one. Little-endian: every target this runs on
+/// (armv7 and x86-64) is.
+pub fn decode(bytes: &[u8], size: usize) -> Option<RawEvent> {
+    if size < 8 || bytes.len() < size {
+        return None;
+    }
+    let head = &bytes[..size - 8];
+    let (secs, micros) = match head.len() {
+        8 => (
+            u64::from(u32::from_le_bytes([head[0], head[1], head[2], head[3]])),
+            u64::from(u32::from_le_bytes([head[4], head[5], head[6], head[7]])),
+        ),
+        16 => (
+            u64::from_le_bytes(head[..8].try_into().ok()?),
+            u64::from_le_bytes(head[8..16].try_into().ok()?),
+        ),
+        _ => (0, 0),
+    };
+    let tail = &bytes[size - 8..size];
+    Some(RawEvent {
+        time_ms: secs.wrapping_mul(1000).wrapping_add(micros / 1000),
+        kind: u16::from_le_bytes([tail[0], tail[1]]),
+        code: u16::from_le_bytes([tail[2], tail[3]]),
+        value: i32::from_le_bytes([tail[4], tail[5], tail[6], tail[7]]),
+    })
+}
+
+/// Whether `bit` is set in a kernel capability bitmap.
+///
+/// The kernel prints a bitmap as space-separated hexadecimal words, most
+/// significant first, each one an `unsigned long`. Its width is the
+/// kernel's, and this binary runs in the same word size as the kernel it
+/// is built for, so [`usize::BITS`] is the right divisor.
+pub fn has_bit(text: &str, bit: u16) -> bool {
+    let words: Vec<u64> = text
+        .split_whitespace()
+        .filter_map(|w| u64::from_str_radix(w, 16).ok())
+        .collect();
+    let bits = usize::BITS as usize;
+    let (word, shift) = (usize::from(bit) / bits, usize::from(bit) % bits);
+    match words.len().checked_sub(word + 1) {
+        Some(i) => words[i] >> shift & 1 == 1,
+        None => false,
+    }
+}
+
+/// What one device can report: the five sysfs bitmaps, as the kernel
+/// printed them.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Caps {
+    /// `capabilities/ev`: which event types the device sends at all.
+    pub ev: String,
+    /// `capabilities/key`: keys and buttons.
+    pub key: String,
+    /// `capabilities/rel`: relative axes.
+    pub rel: String,
+    /// `capabilities/abs`: absolute axes.
+    pub abs: String,
+    /// `properties`: `INPUT_PROP_*`.
+    pub props: String,
+}
+
+impl Caps {
+    /// Reads the five files under a `/sys/class/input/eventN` directory.
+    /// A file that is not there is an empty bitmap, which sets no bit.
+    pub fn read(dir: &Path) -> Caps {
+        let device = dir.join("device");
+        let caps = device.join("capabilities");
+        let read = |path: PathBuf| fs::read_to_string(path).unwrap_or_default();
+        Caps {
+            ev: read(caps.join("ev")),
+            key: read(caps.join("key")),
+            rel: read(caps.join("rel")),
+            abs: read(caps.join("abs")),
+            props: read(device.join("properties")),
+        }
+    }
+
+    /// Whether the device is a keyboard: keys, and the letters among them.
+    pub fn keyboard(&self) -> bool {
+        has_bit(&self.ev, EV_KEY) && has_bit(&self.key, KEY_A) && has_bit(&self.key, KEY_Z)
+    }
+
+    /// Whether the device is a mouse: relative motion on both axes.
+    pub fn mouse(&self) -> bool {
+        has_bit(&self.ev, EV_REL) && has_bit(&self.rel, REL_X) && has_bit(&self.rel, REL_Y)
+    }
+
+    /// Whether the device is a touchpad: absolute positions that move a
+    /// pointer rather than name a place on the screen.
+    pub fn touchpad(&self) -> bool {
+        has_bit(&self.ev, EV_ABS)
+            && has_bit(&self.abs, ABS_X)
+            && has_bit(&self.abs, ABS_Y)
+            && (has_bit(&self.key, BTN_TOOL_FINGER) || has_bit(&self.props, INPUT_PROP_POINTER))
+            && !has_bit(&self.props, INPUT_PROP_DIRECT)
+    }
+
+    /// Whether the device is a touchscreen: multitouch, or a device on
+    /// the screen it reports in, and not a pad.
+    pub fn touchscreen(&self) -> bool {
+        !self.touchpad()
+            && (has_bit(&self.abs, ABS_MT_POSITION_X) || has_bit(&self.props, INPUT_PROP_DIRECT))
+    }
+
+    /// Whether the wheel reports 120ths of a notch as well as notches.
+    /// When it does, only the fine axis is counted, so that a turn is not
+    /// counted twice.
+    pub fn hi_res_wheel(&self) -> bool {
+        has_bit(&self.rel, REL_WHEEL_HI_RES)
+    }
+
+    /// Whether the device has a real button. A touchpad without one
+    /// clicks by tapping.
+    pub fn left_button(&self) -> bool {
+        has_bit(&self.key, BTN_LEFT)
+    }
+
+    /// Whether the device reports `ABS_X`, the kernel's single-touch
+    /// emulation. A pad that has it is followed by `ABS_X`/`ABS_Y`,
+    /// which track the oldest contact; a pad that has not is followed by
+    /// the multitouch axes of slot 0.
+    pub fn abs_single(&self) -> bool {
+        has_bit(&self.abs, ABS_X)
+    }
+}
+
+/// One input device this shell will read, and what it is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Device {
+    /// The node to open, `/dev/input/eventN`.
+    pub node: PathBuf,
+    /// The canonical path of its `/sys/class/input/eventN`: it holds the
+    /// kernel's input and HID numbers, so a device unplugged and plugged
+    /// back in has a new one within a boot.
+    pub sys: PathBuf,
+    /// What the device calls itself, for `--verbose`.
+    pub name: String,
+    /// It sends [`Event::Key`](faraday_shell_api::Event::Key).
+    pub keyboard: bool,
+    /// It moves the cursor with relative motion.
+    pub mouse: bool,
+    /// It moves the cursor with a finger.
+    pub touchpad: bool,
+    /// It names places on the screen.
+    pub touchscreen: bool,
+    /// Its wheel counts in 120ths of a notch.
+    pub hi_res_wheel: bool,
+    /// It has a button of its own.
+    pub left_button: bool,
+    /// Its position comes from `ABS_X`/`ABS_Y` rather than from the
+    /// multitouch axes.
+    pub abs_single: bool,
+    /// Part of the machine: the built-in keyboard and touchpad, anything
+    /// on a hard-wired USB port, the touch panel on the machine's own bus.
+    /// Any other device's input is held back until a person says it is
+    /// theirs (`docs/SECURITY-MODEL.md` "What the kernel can reach", F153).
+    pub trusted: bool,
+    /// A HID touchscreen's axis ranges, from its report descriptor
+    /// (`hid.rs`). None for a panel that is not HID, such as the Pi's
+    /// Goodix, which is scaled by `--touch-grid` instead.
+    pub range: Option<crate::hid::Range>,
+}
+
+impl Device {
+    /// A device this shell has no reader for is not opened at all.
+    pub fn wanted(&self) -> bool {
+        self.keyboard || self.mouse || self.touchpad || self.touchscreen
+    }
+
+    /// What the device is, in the order the verbose line prints it.
+    pub fn kinds(&self) -> String {
+        let mut kinds = Vec::new();
+        for (yes, word) in [
+            (self.keyboard, "keyboard"),
+            (self.mouse, "mouse"),
+            (self.touchpad, "touchpad"),
+            (self.touchscreen, "touchscreen"),
+        ] {
+            if yes {
+                kinds.push(word.to_string());
+            }
+        }
+        if let Some(r) = self.range.filter(|_| self.touchscreen) {
+            kinds.push(format!("range {}..{} x {}..{}", r.x.0, r.x.1, r.y.0, r.y.1));
+        }
+        kinds.join("+")
+    }
+}
+
+/// How often [`Watch::rescan`] is worth doing. A person plugging a
+/// keyboard in waits this long at worst. A look reads the directory and
+/// each device's files in `/sys`, and opens (and closes) the node of each
+/// device that is wanted and no reader holds yet; closing a node waits in
+/// the kernel, so a node a reader holds is not opened again, and one of a
+/// device nothing reads (a receiver's consumer or system control node) is
+/// not opened at all.
+pub const RESCAN: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// How often the list is read while the start window is open, so a device
+/// that appears in it is found before the window closes.
+pub const RESCAN_AT_START: std::time::Duration = std::time::Duration::from_millis(250);
+
+/// Every device under `/sys/class/input` this shell can read.
+///
+/// `wanted` is `--touch-name`: a device on a bus that is part of the
+/// machine whose name holds it is the touchscreen and no other device is.
+/// That is how the Pi's Goodix panel is found, and it is why a Pi's frames
+/// and events are what they were before a laptop was ever considered.
+#[cfg(test)]
+pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec<Device> {
+    find_devices_holding(sys_class_input, dev_dir, wanted, &[])
+}
+
+/// [`find_devices`], without the open check for the nodes in `held`: a
+/// reader has each of them open, so it is known to open, and opening it
+/// again costs a close the kernel waits on. Everything else is read as
+/// ever, so the list is the same.
+pub fn find_devices_holding(
+    sys_class_input: &Path,
+    dev_dir: &Path,
+    wanted: &str,
+    held: &[&Path],
+) -> Vec<Device> {
+    let mut names: Vec<String> = match fs::read_dir(sys_class_input) {
+        Ok(dir) => dir
+            .filter_map(|e| e.ok())
+            .filter_map(|e| e.file_name().into_string().ok())
+            .filter(|n| n.starts_with("event"))
+            .collect(),
+        Err(_) => return Vec::new(),
+    };
+    // event2 must not sort before event10.
+    names.sort_by_key(|n| (n[5..].parse::<u32>().unwrap_or(u32::MAX), n.clone()));
+
+    let mut devices = Vec::new();
+    for entry in names {
+        let dir = sys_class_input.join(&entry);
+        let node = dev_dir.join(&entry);
+        let caps = Caps::read(&dir);
+        let name = fs::read_to_string(dir.join("device").join("name"))
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        let touchscreen = caps.touchscreen();
+        let device = Device {
+            sys: fs::canonicalize(&dir).unwrap_or_else(|_| dir.clone()),
+            trusted: trusted_by_bus(&dir),
+            range: touchscreen
+                .then(|| touch_range(&dir, has_bit(&caps.abs, ABS_MT_POSITION_X)))
+                .flatten(),
+            node,
+            name,
+            keyboard: caps.keyboard(),
+            mouse: caps.mouse(),
+            touchpad: caps.touchpad(),
+            touchscreen,
+            hi_res_wheel: caps.hi_res_wheel(),
+            left_button: caps.left_button(),
+            abs_single: caps.abs_single(),
+        };
+        if device.wanted() || !device.name.is_empty() {
+            // Only a candidate is opened: a wanted device, or one the panel
+            // rule below could make the touchscreen. The others are dropped
+            // by the filter at the end whatever the open says, and opening
+            // a node nothing reads costs a wait in the kernel at its close.
+            // A candidate this process cannot open yet is not found yet: a
+            // device that appeared after boot is root's until faraday-grant
+            // gives it the owner /etc/mdev.conf names, and the next look
+            // finds it.
+            let panel = !wanted.is_empty() && device.name.contains(wanted) && device.trusted;
+            if (device.wanted() || panel)
+                && !held.contains(&device.node.as_path())
+                && fs::File::open(&device.node).is_err()
+            {
+                continue;
+            }
+            devices.push(device);
+        }
+    }
+
+    // The named panel is the touch device, whatever the bitmaps said, and
+    // it is the only one, when it is on a bus that is part of the machine
+    // (the Pi's Goodix, on I2C). A name is what a device says about
+    // itself, and anyone can plug in a USB device that says any name: one
+    // on USB is not the panel for its name, and is held back as every
+    // plugged-in device is (F153, docs/IMAGES.md §2).
+    if !wanted.is_empty()
+        && let Some(i) = devices
+            .iter()
+            .position(|d| d.name.contains(wanted) && d.trusted)
+    {
+        for (j, d) in devices.iter_mut().enumerate() {
+            d.touchscreen = j == i;
+        }
+    }
+    devices.retain(Device::wanted);
+    devices
+}
+
+/// The size of the largest report descriptor the kernel keeps
+/// (`HID_MAX_DESCRIPTOR_SIZE`): no more is read.
+const DESCRIPTOR_MAX: u64 = 4096;
+
+/// A touchscreen's axis ranges, when it is a HID device: its report
+/// descriptor is the file `device/device/report_descriptor` under its
+/// `/sys/class/input/eventN` directory (`hid.rs`). `multitouch` says the
+/// node reports fingers rather than a pen.
+pub fn touch_range(dir: &Path, multitouch: bool) -> Option<crate::hid::Range> {
+    let file = fs::File::open(dir.join("device/device/report_descriptor")).ok()?;
+    let mut bytes = Vec::new();
+    file.take(DESCRIPTOR_MAX).read_to_end(&mut bytes).ok()?;
+    crate::hid::ranges(&bytes).for_node(multitouch)
+}
+
+/// Whether an input device is part of the machine, from `/sys` alone: on
+/// I2C (a touchpad, the Pi's panel), a platform device (the power button),
+/// or on a USB port the firmware describes as hard-wired. A device on an
+/// external USB port, or on any other bus, is not. One on the i8042
+/// controller is not either: a PS/2 port can be wired to a connector, so
+/// it is the machine's own only when the start window found it or the
+/// computer is a laptop (`start_window::Window::admit`).
+pub fn trusted_by_bus(dir: &Path) -> bool {
+    let bus = fs::read_to_string(dir.join("device/id/bustype"))
+        .ok()
+        .and_then(|t| u16::from_str_radix(t.trim(), 16).ok());
+    match bus {
+        // BUS_I2C, BUS_HOST.
+        Some(0x18 | 0x19) => true,
+        // BUS_USB: the device's port says whether it is built in.
+        Some(0x03) => fs::canonicalize(dir.join("device")).is_ok_and(port_fixed),
+        _ => false,
+    }
+}
+
+/// Whether the USB device at `at` (a canonical `/sys` path) is built in:
+/// it and every hub between it and the root hub read `fixed` in their
+/// `removable` file, so a keyboard with its own hub plugged into an
+/// external port is not. The kernel gives `fixed` from the firmware's
+/// description of a port or, for a compound hub only, from the hub's own
+/// descriptor; every other port reads `removable` or `unknown`. A root
+/// hub (`usbN`) ends the walk; none found is not built in.
+pub fn port_fixed(mut at: PathBuf) -> bool {
+    loop {
+        let name = at.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name
+            .strip_prefix("usb")
+            .is_some_and(|n| n.parse::<u32>().is_ok())
+        {
+            return true;
+        }
+        if let Ok(r) = fs::read_to_string(at.join("removable"))
+            && r.trim() != "fixed"
+        {
+            return false;
+        }
+        if !at.pop() {
+            return false;
+        }
+    }
+}
+
+/// The panel as a touchscreen's reader needs it: its size in pixels,
+/// the grid its controller reports in when no HID descriptor says, and
+/// how the controller's axes lie against it.
+#[derive(Debug, Clone)]
+pub struct TouchPanel {
+    /// The panel's width in pixels, natively.
+    pub width: u16,
+    /// The panel's height in pixels, natively.
+    pub height: u16,
+    /// The grid a touchscreen with no HID ranges reports in.
+    pub grid: (u16, u16),
+    /// How the controller's axes lie against the panel's.
+    pub calibration: touch::Calibration,
+    /// How the frame is turned onto the panel, shared with the main
+    /// loop, which sets it.
+    pub turn: crate::orient::Shared,
+    /// Set when the frame is drawn in a window of the screen the
+    /// controller covers.
+    pub window: Option<Window>,
+}
+
+/// A centred window of a larger screen, in screen pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Window {
+    /// The whole screen's width and height.
+    pub screen: (u16, u16),
+    /// The screen pixel the window's top-left corner is at.
+    pub at: (u16, u16),
+}
+
+/// The parsers one device needs, and the thread body that feeds them.
+///
+/// A device that is two things gets two parsers and both are fed every
+/// event: a receiver that is a keyboard and a mouse types and points.
+#[derive(Debug)]
+pub struct Readers {
+    touch: Option<touch::Parser>,
+    pointer: Option<Pointer>,
+    keyboard: Option<Keyboard>,
+}
+
+impl Readers {
+    /// The readers for one device on `panel`.
+    pub fn new(device: &Device, panel: &TouchPanel) -> Readers {
+        let (width, height) = (panel.width, panel.height);
+        Readers {
+            touch: device.touchscreen.then(|| {
+                match device.range {
+                    Some(r) => touch::Parser::with_range(width, height, r),
+                    None => touch::Parser::new(width, height, panel.grid),
+                }
+                .calibrated(panel.calibration)
+                .turned(panel.turn.clone())
+                .windowed(panel.window)
+            }),
+            pointer: (device.mouse || device.touchpad).then(|| {
+                Pointer::new(
+                    device.hi_res_wheel,
+                    device.touchpad && !device.left_button,
+                    device.abs_single,
+                )
+            }),
+            keyboard: device.keyboard.then(Keyboard::default),
+        }
+    }
+
+    /// Feeds one raw event to every parser this device has, appending
+    /// whatever they produced.
+    pub fn feed(&mut self, ev: RawEvent, out: &mut Vec<Wake>) {
+        if let Some(parser) = self.touch.as_mut()
+            && let Some(t) = parser.feed(ev)
+        {
+            out.push(Wake::Touch(t));
+        }
+        if let Some(pointer) = self.pointer.as_mut() {
+            pointer.feed(ev, out);
+        }
+        if let Some(keyboard) = self.keyboard.as_mut() {
+            match keyboard.feed(ev) {
+                Some(Stroke::Down(key)) => out.push(Wake::Key(key)),
+                Some(Stroke::Up(key)) => out.push(Wake::KeyUp(key)),
+                Some(Stroke::Panic(on)) => out.push(Wake::Panic(on)),
+                None => {}
+            }
+        }
+    }
+}
+
+/// Reads one device forever, waking the main loop with everything it
+/// decodes.
+///
+/// Returns once the device gives an error or ends (which a regular file
+/// used with `--input` does); the caller then sends [`Wake::InputEnded`]
+/// and the loop keeps ticking without that source.
+/// What a reader may do without the main loop: move the arrow itself,
+/// once the device is believed.
+pub struct Direct {
+    /// The arrow to move on a pointer move, when the machine has one.
+    pub arrow: Option<crate::Arrow>,
+    /// Set once a person says the device is theirs; a trusted device
+    /// starts with it set. Until then every event is held back.
+    pub believed: Arc<AtomicBool>,
+}
+
+pub fn read_loop(
+    device: &Device,
+    readers: &mut Readers,
+    tx: &WakeTx,
+    hold: Option<u32>,
+    direct: &Direct,
+) -> std::io::Result<()> {
+    let mut file = fs::File::open(&device.node)?;
+    // Taken exclusively, a held-back device too: the kernel's own key
+    // handling (the virtual terminal) is given none of what is typed, and
+    // a passphrase is not queued there. A file that is not an input device
+    // (`--input` on a build box) cannot be grabbed and is read as it is;
+    // an input device that cannot be grabbed is not read, since what it
+    // types would reach the kernel's buffer.
+    if let Err(e) = faraday_v4l2::grab_input(&file)
+        && e.raw_os_error() != Some(ENOTTY)
+    {
+        return Err(e);
+    }
+    // Room for a whole packet's worth of events and then some.
+    let mut buf = [0u8; EVENT_SIZE * 64];
+    let mut held = Vec::new();
+    let mut out = Vec::new();
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            return Ok(());
+        }
+        held.extend_from_slice(&buf[..n]);
+        let whole = held.len() / EVENT_SIZE * EVENT_SIZE;
+        for chunk in held[..whole].chunks_exact(EVENT_SIZE) {
+            if let Some(raw) = decode(chunk, EVENT_SIZE) {
+                readers.feed(raw, &mut out);
+            }
+        }
+        held.drain(..whole);
+        // A keyboard's events are what was typed, a passphrase among it:
+        // the bytes read are written over once decoded.
+        zeroize::Zeroize::zeroize(&mut buf[..n]);
+        zeroize::Zeroize::zeroize(held.spare_capacity_mut());
+        // A device not yet believed is named on every event, so the main
+        // loop can hold it back; once a person says it is theirs, its
+        // input goes straight through.
+        let held_back = hold.is_some() && !direct.believed.load(Ordering::Relaxed);
+        for wake in out.drain(..) {
+            let wake = match (wake, hold, direct.arrow.as_ref()) {
+                // A mouse move is applied here and the arrow painted
+                // now, before the main loop hears of it.
+                (Wake::Pointer(m @ crate::pointer::Motion::Move { .. }), _, Some(arrow))
+                    if !held_back =>
+                {
+                    arrow.moved(m)
+                }
+                (wake, Some(id), _) if held_back => match crate::HeldInput::of(wake) {
+                    Some(input) => Wake::Held(id, input),
+                    None => wake,
+                },
+                (wake, ..) => wake,
+            };
+            if tx.send(wake).is_err() {
+                return Ok(());
+            }
+        }
+    }
+}
+
+/// Starts one reader thread. The thread owns the device; the main loop
+/// only ever sees [`Wake`] values, and one last word naming the device
+/// when it is gone.
+pub fn spawn(id: u32, device: Device, panel: &TouchPanel, tx: WakeTx, direct: Direct) {
+    let mut readers = Readers::new(&device, panel);
+    let hold = (!device.trusted).then_some(id);
+    thread::Builder::new()
+        .name(String::from("input"))
+        .spawn(move || {
+            let _ = read_loop(&device, &mut readers, &tx, hold, &direct);
+            let _ = tx.send(Wake::InputEnded(id));
+        })
+        .ok();
+}
+
+/// One device this shell has a reader for, and whether that reader is
+/// still running.
+#[derive(Debug)]
+struct Known {
+    /// What [`Wake::InputEnded`] names this device by.
+    id: u32,
+    /// The node, which only one device holds at a time.
+    node: PathBuf,
+    /// The device's resolved sysfs path. It holds the kernel's `inputN`,
+    /// which is never used twice, so a device plugged back in on the same
+    /// node has another one.
+    sys: PathBuf,
+    /// It moves the cursor.
+    pointer: bool,
+    /// It can point: it moves the cursor or names places on the screen.
+    points: bool,
+    /// It types.
+    types: bool,
+    /// It is part of the machine (`Device::trusted`), not held back.
+    trusted: bool,
+    /// Its reader thread has not ended.
+    live: bool,
+}
+
+/// The devices being read, and what has changed since the last look.
+///
+/// The shell starts with whatever is plugged in and keeps looking, so a
+/// keyboard, a mouse or a touchscreen put into a laptop after the app is
+/// up is read from the moment it appears. Two things drive it:
+///
+/// - [`rescan`](Watch::rescan) lists the directory again and returns the
+///   devices that were not there before. Everything else about a new
+///   device — what it is, whether it is wanted at all — is the same
+///   classification [`find_devices`] does.
+/// - [`ended`](Watch::ended) is the reader thread saying its device gave
+///   an error or end of file, which is what an unplugged device does. The
+///   entry stays until the node is gone or holds another device, so a
+///   device whose reader stopped for another reason is not opened again
+///   and again.
+#[derive(Debug)]
+pub struct Watch {
+    sys_class_input: PathBuf,
+    dev_dir: PathBuf,
+    wanted: String,
+    known: Vec<Known>,
+    next_id: u32,
+    /// The thread that does the looks of [`ask`](Watch::ask), started by
+    /// the first one.
+    finder: Option<Finder>,
+}
+
+/// The thread that lists the directory and opens the nodes for
+/// [`Watch::ask`], so the main loop never waits on the kernel for it.
+#[derive(Debug)]
+struct Finder {
+    /// The nodes a reader holds, one list per look asked for.
+    request: std::sync::mpsc::Sender<Vec<PathBuf>>,
+    /// What each look found.
+    reply: std::sync::mpsc::Receiver<Vec<Device>>,
+    /// A look has been asked for and not yet taken.
+    pending: bool,
+}
+
+impl Watch {
+    /// A watch over the two directories, knowing about nothing yet. The
+    /// first [`rescan`](Watch::rescan) returns everything already plugged
+    /// in.
+    pub fn new(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Watch {
+        Watch {
+            sys_class_input: sys_class_input.to_path_buf(),
+            dev_dir: dev_dir.to_path_buf(),
+            wanted: wanted.to_string(),
+            known: Vec::new(),
+            next_id: 0,
+            finder: None,
+        }
+    }
+
+    /// The nodes a reader holds.
+    fn held(&self) -> Vec<PathBuf> {
+        self.known
+            .iter()
+            .filter(|k| k.live)
+            .map(|k| k.node.clone())
+            .collect()
+    }
+
+    /// Asks for a look at the directory on a thread of its own, unless
+    /// one is already out. The result comes from [`take`](Watch::take);
+    /// neither waits on the kernel. What is opened is what
+    /// [`rescan`](Watch::rescan) opens.
+    pub fn ask(&mut self) {
+        if self.finder.as_ref().is_some_and(|f| f.pending) {
+            return;
+        }
+        let held = self.held();
+        if self.finder.is_none() {
+            let (request, requests) = std::sync::mpsc::channel::<Vec<PathBuf>>();
+            let (replies, reply) = std::sync::mpsc::channel();
+            let (sys, dev, wanted) = (
+                self.sys_class_input.clone(),
+                self.dev_dir.clone(),
+                self.wanted.clone(),
+            );
+            let started = thread::Builder::new()
+                .name(String::from("input-look"))
+                .spawn(move || {
+                    for held in requests {
+                        let held: Vec<&Path> = held.iter().map(PathBuf::as_path).collect();
+                        let found = find_devices_holding(&sys, &dev, &wanted, &held);
+                        if replies.send(found).is_err() {
+                            return;
+                        }
+                    }
+                });
+            if started.is_err() {
+                return;
+            }
+            self.finder = Some(Finder {
+                request,
+                reply,
+                pending: false,
+            });
+        }
+        if let Some(f) = self.finder.as_mut() {
+            f.pending = f.request.send(held).is_ok();
+        }
+    }
+
+    /// The devices a look asked for by [`ask`](Watch::ask) found, once it
+    /// has finished; empty while it is out. Like [`rescan`](Watch::rescan)
+    /// in what it returns and in `admit`.
+    ///
+    /// # Panics
+    ///
+    /// When the thread ended without answering, which only a panic on it
+    /// does: the app does not go on without its input in silence.
+    pub fn take(&mut self, admit: &mut dyn FnMut(&Path) -> bool) -> Vec<(u32, Device)> {
+        let Some(f) = self.finder.as_mut().filter(|f| f.pending) else {
+            return Vec::new();
+        };
+        match f.reply.try_recv() {
+            Ok(found) => {
+                f.pending = false;
+                self.absorb(found, admit)
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => Vec::new(),
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                panic!("the thread that looks for input devices ended")
+            }
+        }
+    }
+
+    /// The devices that have appeared since the last call, each with the
+    /// id its reader will report when it ends.
+    ///
+    /// A device whose reader has ended is forgotten here once its node is
+    /// gone or holds another device, so plugging the same port again is a
+    /// new device and is read, however soon it comes back.
+    ///
+    /// `admit` is asked for each new device with its `sys` path and says
+    /// whether the start window trusts it, as it does one on the machine's
+    /// own bus (F202).
+    pub fn rescan(&mut self, admit: &mut dyn FnMut(&Path) -> bool) -> Vec<(u32, Device)> {
+        let held: Vec<&Path> = self
+            .known
+            .iter()
+            .filter(|k| k.live)
+            .map(|k| k.node.as_path())
+            .collect();
+        let found = find_devices_holding(&self.sys_class_input, &self.dev_dir, &self.wanted, &held);
+        self.absorb(found, admit)
+    }
+
+    /// What a look found, against what is known.
+    fn absorb(
+        &mut self,
+        found: Vec<Device>,
+        admit: &mut dyn FnMut(&Path) -> bool,
+    ) -> Vec<(u32, Device)> {
+        self.known.retain(|k| {
+            let replaced = found.iter().any(|d| d.node == k.node && d.sys != k.sys);
+            k.live || (k.node.exists() && !replaced)
+        });
+        let mut fresh = Vec::new();
+        for mut device in found {
+            if self.known.iter().any(|k| k.node == device.node) {
+                continue;
+            }
+            device.trusted |= admit(&device.sys);
+            let id = self.next_id;
+            self.next_id += 1;
+            self.known.push(Known {
+                id,
+                node: device.node.clone(),
+                sys: device.sys.clone(),
+                pointer: device.mouse || device.touchpad,
+                points: device.mouse || device.touchpad || device.touchscreen,
+                types: device.keyboard,
+                trusted: device.trusted,
+                live: true,
+            });
+            fresh.push((id, device));
+        }
+        fresh
+    }
+
+    /// Records that the reader for `id` has stopped.
+    pub fn ended(&mut self, id: u32) {
+        if let Some(k) = self.known.iter_mut().find(|k| k.id == id) {
+            k.live = false;
+        }
+    }
+
+    /// Whether any device still being read moves the cursor. False is
+    /// what hides the arrow: the mouse has been unplugged and nothing is
+    /// left to move it.
+    pub fn pointing(&self) -> bool {
+        self.known.iter().any(|k| k.live && k.pointer)
+    }
+
+    /// Whether any device of the machine's own, trusted without a
+    /// person's say, is still being read and can point.
+    pub fn trusted_points(&self) -> bool {
+        self.known.iter().any(|k| k.live && k.trusted && k.points)
+    }
+
+    /// Whether any device of the machine's own, trusted without a
+    /// person's say, is still being read and types.
+    pub fn trusted_types(&self) -> bool {
+        self.known.iter().any(|k| k.live && k.trusted && k.types)
+    }
+
+    /// Whether device `id` is still being read and can point.
+    pub fn live_points(&self, id: u32) -> bool {
+        self.known.iter().any(|k| k.id == id && k.live && k.points)
+    }
+
+    /// Whether device `id` is still being read and types.
+    pub fn live_types(&self, id: u32) -> bool {
+        self.known.iter().any(|k| k.id == id && k.live && k.types)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A capability bitmap as the kernel prints one: hexadecimal words of
+    /// the kernel's own width, most significant first, with `bits` set.
+    /// Written out here rather than pasted from one machine's sysfs so
+    /// that the sample says which capabilities it stands for.
+    fn bitmap(bits: &[u16]) -> String {
+        let width = usize::BITS as usize;
+        let top = bits.iter().map(|b| usize::from(*b)).max().unwrap_or(0);
+        let mut words = vec![0u64; top / width + 1];
+        for bit in bits {
+            let bit = usize::from(*bit);
+            words[bit / width] |= 1u64 << (bit % width);
+        }
+        words
+            .iter()
+            .rev()
+            .map(|w| format!("{w:x}"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// Every letter of the alphabet, by key code: `KEY_Q`..`KEY_P`,
+    /// `KEY_A`..`KEY_L`, `KEY_Z`..`KEY_M`.
+    fn letters() -> Vec<u16> {
+        (16..=25).chain(30..=38).chain(44..=50).collect()
+    }
+
+    /// The bitmaps a plain USB keyboard prints: every letter, and no
+    /// relative or absolute axis.
+    fn keyboard_caps() -> Caps {
+        Caps {
+            ev: bitmap(&[EV_SYN, EV_KEY]),
+            key: bitmap(&letters()),
+            rel: String::new(),
+            abs: String::new(),
+            props: String::new(),
+        }
+    }
+
+    /// A two-button wheel mouse.
+    fn mouse_caps() -> Caps {
+        Caps {
+            ev: bitmap(&[EV_SYN, EV_KEY, EV_REL]),
+            key: bitmap(&[BTN_LEFT]),
+            rel: bitmap(&[REL_X, REL_Y, REL_WHEEL, REL_WHEEL_HI_RES]),
+            abs: String::new(),
+            props: String::new(),
+        }
+    }
+
+    /// A laptop touchpad: absolute positions, a finger tool,
+    /// `INPUT_PROP_POINTER`, and the multitouch axes a pad reports too.
+    fn touchpad_caps() -> Caps {
+        Caps {
+            ev: bitmap(&[EV_SYN, EV_KEY, EV_ABS]),
+            key: bitmap(&[BTN_LEFT, BTN_TOOL_FINGER, BTN_TOUCH]),
+            rel: String::new(),
+            abs: bitmap(&[ABS_X, ABS_Y, ABS_MT_POSITION_X, ABS_MT_POSITION_Y]),
+            props: bitmap(&[INPUT_PROP_POINTER]),
+        }
+    }
+
+    /// A touchscreen: multitouch, and directly on the display.
+    fn touchscreen_caps() -> Caps {
+        Caps {
+            ev: bitmap(&[EV_SYN, EV_KEY, EV_ABS]),
+            key: bitmap(&[BTN_TOUCH]),
+            rel: String::new(),
+            abs: bitmap(&[
+                ABS_X,
+                ABS_Y,
+                ABS_MT_POSITION_X,
+                ABS_MT_POSITION_Y,
+                ABS_MT_TRACKING_ID,
+            ]),
+            props: bitmap(&[INPUT_PROP_DIRECT]),
+        }
+    }
+
+    #[test]
+    fn each_device_is_read_as_what_it_is() {
+        let k = keyboard_caps();
+        assert!(k.keyboard() && !k.mouse() && !k.touchpad() && !k.touchscreen());
+
+        let m = mouse_caps();
+        assert!(m.mouse() && !m.keyboard() && !m.touchpad() && !m.touchscreen());
+        assert!(m.left_button() && m.hi_res_wheel());
+
+        let p = touchpad_caps();
+        assert!(
+            p.touchpad() && !p.touchscreen(),
+            "a pad reports multitouch, and its finger is still a pointer"
+        );
+        assert!(p.left_button());
+
+        let s = touchscreen_caps();
+        assert!(s.touchscreen() && !s.touchpad() && !s.mouse() && !s.keyboard());
+    }
+
+    #[test]
+    fn one_device_can_be_both_a_keyboard_and_a_mouse() {
+        let mut keys = letters();
+        keys.push(BTN_LEFT);
+        let caps = Caps {
+            ev: bitmap(&[EV_SYN, EV_KEY, EV_REL]),
+            key: bitmap(&keys),
+            rel: bitmap(&[REL_X, REL_Y, REL_WHEEL]),
+            abs: String::new(),
+            props: String::new(),
+        };
+        assert!(caps.keyboard() && caps.mouse());
+    }
+
+    #[test]
+    fn a_keyboard_and_mouse_on_one_node_types_and_points() {
+        let device = Device {
+            node: PathBuf::from("/dev/input/event0"),
+            sys: PathBuf::from("/sys/class/input/event0"),
+            name: String::from("Wireless Receiver"),
+            keyboard: true,
+            mouse: true,
+            touchpad: false,
+            touchscreen: false,
+            hi_res_wheel: false,
+            left_button: true,
+            abs_single: false,
+            trusted: true,
+            range: None,
+        };
+        let mut readers = Readers::new(
+            &device,
+            &TouchPanel {
+                width: 1920,
+                height: 1080,
+                grid: (0, 0),
+                calibration: touch::Calibration::default(),
+                turn: crate::orient::Shared::default(),
+                window: None,
+            },
+        );
+        let mut out = Vec::new();
+        for ev in [
+            RawEvent {
+                time_ms: 0,
+                kind: EV_REL,
+                code: REL_X,
+                value: 12,
+            },
+            RawEvent {
+                time_ms: 0,
+                kind: EV_SYN,
+                code: SYN_REPORT,
+                value: 0,
+            },
+            // KEY_B pressed.
+            RawEvent {
+                time_ms: 0,
+                kind: EV_KEY,
+                code: 48,
+                value: 1,
+            },
+            RawEvent {
+                time_ms: 0,
+                kind: EV_KEY,
+                code: BTN_LEFT,
+                value: 1,
+            },
+            RawEvent {
+                time_ms: 0,
+                kind: EV_SYN,
+                code: SYN_REPORT,
+                value: 0,
+            },
+        ] {
+            readers.feed(ev, &mut out);
+        }
+        assert_eq!(
+            out,
+            vec![
+                Wake::Pointer(crate::pointer::Motion::Move { dx: 12, dy: 0 }),
+                Wake::Key(faraday_port::event::Key::Char('b')),
+                Wake::Pointer(crate::pointer::Motion::Button(true)),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_truncated_event_decodes_to_nothing() {
+        assert_eq!(decode(&[0u8; 4], EVENT_SIZE_32), None);
+    }
+
+    /// A tap is a touch that lifts soon after it lands, so the shell
+    /// needs the kernel's timestamp off both layouts of the struct.
+    #[test]
+    fn an_event_carries_the_time_the_kernel_stamped_it() {
+        let mut short = Vec::new();
+        short.extend_from_slice(&1_700_000_123u32.to_le_bytes());
+        short.extend_from_slice(&456_789u32.to_le_bytes());
+        short.extend_from_slice(&EV_KEY.to_le_bytes());
+        short.extend_from_slice(&BTN_TOUCH.to_le_bytes());
+        short.extend_from_slice(&1i32.to_le_bytes());
+
+        let mut long = Vec::new();
+        long.extend_from_slice(&1_700_000_123u64.to_le_bytes());
+        long.extend_from_slice(&456_789u64.to_le_bytes());
+        long.extend_from_slice(&short[8..]);
+
+        let want = RawEvent {
+            time_ms: 1_700_000_123_456,
+            kind: EV_KEY,
+            code: BTN_TOUCH,
+            value: 1,
+        };
+        assert_eq!(decode(&short, EVENT_SIZE_32), Some(want));
+        assert_eq!(decode(&long, EVENT_SIZE_64), Some(want));
+    }
+
+    /// Writes a `/sys/class/input/eventN` and its `/dev/input/eventN` as
+    /// the kernel would, so a listing has something to classify.
+    fn plug(sys: &Path, dev: &Path, n: u32, name: &str, caps: &Caps) {
+        let node = format!("event{n}");
+        let device = sys.join(&node).join("device");
+        fs::create_dir_all(device.join("capabilities")).expect("sysfs");
+        fs::write(device.join("name"), format!("{name}\n")).expect("name");
+        fs::write(device.join("properties"), &caps.props).expect("properties");
+        for (file, text) in [
+            ("ev", &caps.ev),
+            ("key", &caps.key),
+            ("rel", &caps.rel),
+            ("abs", &caps.abs),
+        ] {
+            fs::write(device.join("capabilities").join(file), text).expect("capabilities");
+        }
+        fs::create_dir_all(dev).expect("dev");
+        fs::write(dev.join(&node), []).expect("node");
+    }
+
+    /// A look asked for returns at once and finds a device plugged in
+    /// later when it has finished; a device it already knows is not
+    /// returned again.
+    #[test]
+    fn an_asked_for_look_finds_a_new_device_without_waiting() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-ask-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(&sys, &dev, 0, "USB Keyboard", &keyboard_caps());
+        let mut watch = Watch::new(&sys, &dev, "");
+        assert_eq!(watch.rescan(&mut |_| true).len(), 1);
+
+        plug(&sys, &dev, 1, "Logitech Mouse", &mouse_caps());
+        watch.ask();
+        let mut found = Vec::new();
+        for _ in 0..500 {
+            found = watch.take(&mut |_| false);
+            if !found.is_empty() {
+                break;
+            }
+            thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert_eq!(found.len(), 1);
+        assert!(found[0].1.mouse && !found[0].1.trusted);
+
+        watch.ask();
+        thread::sleep(std::time::Duration::from_millis(100));
+        assert!(watch.take(&mut |_| false).is_empty());
+
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A keyboard and a mouse found while the start window is open are
+    /// trusted, one found after is held, and one trusted at start that is
+    /// unplugged and plugged back in is held.
+    #[test]
+    fn devices_present_at_start_are_trusted_and_later_ones_are_held() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-window-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
+        plug(&sys, &dev, 1, "USB Keyboard", &keyboard_caps());
+
+        let mut watch = Watch::new(&sys, &dev, "");
+        let first = watch.rescan(&mut |_| true);
+        assert_eq!(first.len(), 2);
+        assert!(first.iter().all(|(_, d)| d.trusted));
+        assert!(watch.trusted_points() && watch.trusted_types());
+
+        plug(&sys, &dev, 2, "Other Keyboard", &keyboard_caps());
+        let later = watch.rescan(&mut |_| false);
+        assert!(!later[0].1.trusted, "after the window it is held");
+
+        // The mouse is unplugged and plugged back in: held.
+        watch.ended(first[0].0);
+        fs::remove_file(dev.join("event0")).expect("unplug");
+        fs::remove_dir_all(sys.join("event0")).expect("unplug");
+        assert!(watch.rescan(&mut |_| false).is_empty());
+        plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
+        let again = watch.rescan(&mut |_| false);
+        assert_eq!(again.len(), 1);
+        assert!(!again[0].1.trusted);
+
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    #[test]
+    fn a_keyboard_plugged_in_after_start_is_read() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-watch-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
+
+        let mut watch = Watch::new(&sys, &dev, "");
+        let first = watch.rescan(&mut |_| false);
+        assert_eq!(first.len(), 1, "the mouse already plugged in");
+        assert!(first[0].1.mouse && watch.pointing());
+
+        // Nothing has changed, so nothing is opened a second time.
+        assert!(watch.rescan(&mut |_| false).is_empty());
+
+        plug(&sys, &dev, 1, "USB Keyboard", &keyboard_caps());
+        let second = watch.rescan(&mut |_| false);
+        assert_eq!(second.len(), 1, "only the keyboard is new");
+        assert!(second[0].1.keyboard);
+        assert_eq!(second[0].1.node, dev.join("event1"));
+
+        // The mouse is unplugged: its reader ends and its node goes, and
+        // with nothing left to move the cursor the arrow has no reason to
+        // be on the screen.
+        watch.ended(first[0].0);
+        assert!(!watch.pointing());
+        fs::remove_file(dev.join("event0")).expect("unplug");
+        fs::remove_dir_all(sys.join("event0")).expect("unplug");
+        assert!(watch.rescan(&mut |_| false).is_empty());
+
+        // Plugged back into the same port, it is a device again.
+        plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
+        let third = watch.rescan(&mut |_| false);
+        assert_eq!(third.len(), 1);
+        assert!(third[0].1.mouse && watch.pointing());
+
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A mouse unplugged and back between two looks has the same node and
+    /// a new `inputN`: it is read again, as a device not yet believed. A
+    /// reader that stopped with its device still there is not started again.
+    #[test]
+    fn a_device_back_on_its_node_between_two_looks_is_read_again() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-replug-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (class, dev) = (root.join("class"), root.join("dev"));
+        fs::create_dir_all(&class).expect("class");
+        let link = class.join("event0");
+        let input = |n: u32| root.join(format!("devices/input{n}"));
+        plug(&input(7), &dev, 0, "Logitech Mouse", &mouse_caps());
+        std::os::unix::fs::symlink(input(7).join("event0"), &link).expect("link");
+
+        let mut watch = Watch::new(&class, &dev, "");
+        let first = watch.rescan(&mut |_| true);
+        assert_eq!(first.len(), 1);
+
+        // The reader stops and the device is still there.
+        watch.ended(first[0].0);
+        assert!(watch.rescan(&mut |_| false).is_empty());
+        assert!(!watch.pointing());
+
+        // Unplugged and back before this look: only the sysfs path differs.
+        fs::remove_file(&link).expect("unplug");
+        plug(&input(8), &dev, 0, "Logitech Mouse", &mouse_caps());
+        std::os::unix::fs::symlink(input(8).join("event0"), &link).expect("link");
+        let again = watch.rescan(&mut |_| false);
+        assert_eq!(again.len(), 1);
+        assert!(!again[0].1.trusted, "after the window it is held");
+        assert!(watch.pointing());
+        assert!(watch.rescan(&mut |_| false).is_empty());
+
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A node a live reader holds is not opened again at a look; a node
+    /// nobody reads is, and one that cannot be opened is not found yet.
+    #[test]
+    fn a_look_does_not_open_a_node_a_reader_holds() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-held-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
+        let mut watch = Watch::new(&sys, &dev, "");
+        let first = watch.rescan(&mut |_| true);
+        assert_eq!(first.len(), 1);
+
+        // The node can no longer be opened: a link to nothing.
+        let node = dev.join("event0");
+        fs::remove_file(&node).expect("node");
+        std::os::unix::fs::symlink(root.join("nothing"), &node).expect("link");
+        // A new device behind it appears all the same.
+        plug(&sys, &dev, 1, "Logitech Keyboard", &keyboard_caps());
+        let found = watch.rescan(&mut |_| true);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].1.name, "Logitech Keyboard");
+        assert!(watch.pointing(), "the held mouse is still known");
+        assert!(
+            find_devices_holding(&sys, &dev, "", &[node.as_path()])
+                .iter()
+                .any(|d| d.node == node)
+        );
+
+        // With no reader on it the node is opened, and not found.
+        assert!(!find_devices(&sys, &dev, "").iter().any(|d| d.node == node));
+        watch.ended(first[0].0);
+        let _ = watch.rescan(&mut |_| false);
+        assert!(!watch.pointing());
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A node of a device nothing reads is not opened: a wanted device
+    /// behind an unopenable one still appears, and a new wanted device
+    /// whose node cannot be opened is not found yet.
+    #[test]
+    fn a_look_finds_a_wanted_device_beside_a_node_nothing_reads() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-unread-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        let none = Caps {
+            ev: bitmap(&[EV_SYN]),
+            key: String::new(),
+            rel: String::new(),
+            abs: String::new(),
+            props: String::new(),
+        };
+        plug(&sys, &dev, 0, "Receiver System Control", &none);
+        plug(&sys, &dev, 1, "Logitech Keyboard", &keyboard_caps());
+        plug(&sys, &dev, 2, "Logitech Mouse", &mouse_caps());
+        // The first and last nodes cannot be opened: links to nothing.
+        for n in [0, 2] {
+            let node = dev.join(format!("event{n}"));
+            fs::remove_file(&node).expect("node");
+            std::os::unix::fs::symlink(root.join("nothing"), &node).expect("link");
+        }
+        let found = find_devices(&sys, &dev, "");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].name, "Logitech Keyboard");
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// Only a device that is part of the machine counts as trusted input
+    /// while it is read: a held-back one does not, and neither does one
+    /// whose reader has ended (F202).
+    #[test]
+    fn trusted_input_is_the_machines_own_and_still_read() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-trusted-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(
+            &sys,
+            &dev,
+            0,
+            "Goodix Capacitive TouchScreen",
+            &touchscreen_caps(),
+        );
+        fs::create_dir_all(sys.join("event0/device/id")).expect("sysfs");
+        // BUS_I2C.
+        fs::write(sys.join("event0/device/id/bustype"), "0018\n").expect("bustype");
+        plug(&sys, &dev, 1, "Logitech Mouse", &mouse_caps());
+
+        let mut watch = Watch::new(&sys, &dev, "Goodix");
+        assert!(!watch.trusted_points(), "nothing is known before a look");
+        let found = watch.rescan(&mut |_| false);
+        assert_eq!(found.len(), 2);
+        assert!(watch.trusted_points(), "the panel is the machine's own");
+        assert!(!watch.trusted_types(), "and it does not type");
+        let panel = found.iter().find(|(_, d)| d.trusted).expect("panel").0;
+        watch.ended(panel);
+        assert!(
+            !watch.trusted_points(),
+            "the mouse is held back, not trusted"
+        );
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A keyboard whose own port reads fixed but whose hub is plugged into
+    /// an external port is held back; one behind a hard-wired hub, or
+    /// straight on the root hub's hard-wired port, is the machine's own.
+    #[test]
+    fn a_keyboard_behind_a_pluggable_hub_is_not_the_machines_own() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-hub-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let usb = root.join("devices/pci0/usb1");
+        let put = |dir: &Path, removable: &str| {
+            fs::create_dir_all(dir.join("id")).expect("dir");
+            fs::write(dir.join("removable"), format!("{removable}\n")).expect("removable");
+            fs::write(dir.join("id/bustype"), "0003\n").expect("bustype");
+        };
+        let event = |name: &str, at: &Path| {
+            let dir = root.join("class").join(name);
+            fs::create_dir_all(&dir).expect("class");
+            std::os::unix::fs::symlink(at, dir.join("device")).expect("link");
+            dir
+        };
+        fs::create_dir_all(&usb).expect("root hub");
+        fs::write(usb.join("removable"), "unknown\n").expect("removable");
+        // A gadget's hub in an external port, its keyboard on a fixed port.
+        put(&usb.join("1-1"), "removable");
+        put(&usb.join("1-1/1-1.2"), "fixed");
+        // A laptop's internal hub and keyboard, both hard-wired.
+        put(&usb.join("1-2"), "fixed");
+        put(&usb.join("1-2/1-2.1"), "fixed");
+        // A keyboard straight on a hard-wired root port.
+        put(&usb.join("1-3"), "fixed");
+        // One straight on an external root port.
+        put(&usb.join("1-4"), "removable");
+
+        assert!(!trusted_by_bus(&event("e0", &usb.join("1-1/1-1.2"))));
+        assert!(trusted_by_bus(&event("e1", &usb.join("1-2/1-2.1"))));
+        assert!(trusted_by_bus(&event("e2", &usb.join("1-3"))));
+        assert!(!trusted_by_bus(&event("e3", &usb.join("1-4"))));
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A touchscreen is trusted for the name the panel's profile gives
+    /// only on a bus that is part of the machine (the Pi's Goodix, on
+    /// I2C): a USB one of that name is held back as any plugged-in device
+    /// is, and so is a keyboard that calls itself by it.
+    #[test]
+    fn only_the_panel_on_the_machines_own_bus_is_trusted_for_its_name() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-named-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(
+            &sys,
+            &dev,
+            0,
+            "Goodix Capacitive TouchScreen",
+            &touchscreen_caps(),
+        );
+        let id = sys.join("event0/device/id");
+        fs::create_dir_all(&id).expect("sysfs");
+        // BUS_I2C.
+        fs::write(id.join("bustype"), "0018\n").expect("bustype");
+        plug(&sys, &dev, 1, "Goodix Keyboard", &keyboard_caps());
+        let found = find_devices(&sys, &dev, "Goodix");
+        let by = |found: &[Device], n: &str| found.iter().find(|d| d.name == n).cloned();
+        let panel = by(&found, "Goodix Capacitive TouchScreen").expect("the panel");
+        assert!(panel.touchscreen && panel.trusted);
+        let keys = by(&found, "Goodix Keyboard").expect("the keyboard");
+        assert!(keys.keyboard && !keys.trusted);
+
+        // An HDMI screen's USB touch, by the name its maker gives it.
+        plug(&sys, &dev, 2, "WaveShare WaveShare", &touchscreen_caps());
+        let found = find_devices(&sys, &dev, "WaveShare");
+        fs::remove_dir_all(&root).expect("clean up");
+        let usb = by(&found, "WaveShare WaveShare").expect("the USB touchscreen");
+        assert!(usb.touchscreen && !usb.trusted);
+    }
+}
