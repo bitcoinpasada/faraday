@@ -275,8 +275,8 @@ mod tests {
         }
     }
 
-    /// The frame of a field and every text drawn on it.
-    fn drawn(m: &PassModel<'_, P>) -> (faraday_atoms::FrameOut<P>, Vec<String>) {
+    /// The frame of a field and every text drawn on it, with whether its ink is marked secret.
+    fn drawn(m: &PassModel<'_, P>) -> (faraday_atoms::FrameOut<P>, Vec<(String, bool)>) {
         let mut canvas = canvas(160);
         let out = frame(&mut canvas, &at_rest(None), |ui| {
             ui.clear(page());
@@ -286,7 +286,7 @@ mod tests {
             .ink()
             .iter()
             .filter_map(|i| match &i.kind {
-                InkKind::Text { text, .. } => Some(text.as_str().to_string()),
+                InkKind::Text { text, .. } => Some((text.as_str().to_string(), i.secret)),
                 _ => None,
             })
             .collect();
@@ -304,15 +304,27 @@ mod tests {
             out.secret,
             "a revealed passphrase leaves the frame unmarked"
         );
-        assert!(texts.iter().any(|t| t.contains(PASSPHRASE)), "{texts:?}");
+        let own: Vec<_> = texts.iter().filter(|t| t.0.contains(PASSPHRASE)).collect();
+        assert!(!own.is_empty(), "{texts:?}");
+        assert!(
+            own.iter().all(|t| t.1),
+            "the passphrase's ink is not marked secret"
+        );
 
         let count = PASSPHRASE.chars().count();
         let hidden = model(PassView::dots(count));
         let (out, texts) = drawn(&hidden);
         assert!(!out.secret);
-        let leaked = |t: &String| t.chars().any(|c| c != '\u{2022}' && PASSPHRASE.contains(c));
+        let leaked = |t: &(String, bool)| {
+            t.0.chars()
+                .any(|c| c != '\u{2022}' && PASSPHRASE.contains(c))
+        };
         assert!(!texts.iter().any(leaked), "{texts:?}");
-        assert!(texts.iter().any(|t| t.chars().count() == count));
+        assert!(
+            texts.iter().all(|t| !t.1),
+            "a hidden field's ink is marked secret"
+        );
+        assert!(texts.iter().any(|t| t.0.chars().count() == count));
     }
 
     /// Invariant: The eye and the box are two presses; a press on the eye never reaches the box's.
