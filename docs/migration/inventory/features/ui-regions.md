@@ -37,6 +37,91 @@ None outside the app's state.
 - Moves hit and reach rects with the stretch (`ui-press`).
 - Uses `Canvas::frost`, `snapshot`/`restore`, `elevation` (`draw-base`).
 
+Callers at main `d89dde5de` in `faraday-core`, the shells and the Starter, by module with the screen it draws and the number of call sites (`x2`); `git grep -n -w <item>` at that commit gives the lines.
+
+Home, menu pages, panes, sidebar and navigation:
+- `faraday/faraday-core/src/compact/` (the small panel (no sidebar): Home as the menu and its pages): `Scrolled`, `Slot`, `moving_page_begin`, `page_begin`, `region_end`
+- `faraday/faraday-core/src/flow/` (the flow container, Your choices sheet and step cards): `Moves` x2, `Region` x8, `Slot` x5, `region_close` x4, `region_open` x3
+- `faraday/faraday-core/src/guide.rs` (the Guide button's pages): `Slot` x2
+- `faraday/faraday-core/src/lib.rs` (the app's root): `Slot`
+- `faraday/faraday-core/src/motion.rs` (scroll and toast motion): `Scrolled` x7, `Slot` x76
+- `faraday/faraday-core/src/moved.rs` (the moved frame (scroll step)): `Plan` x2, `Slot` x7
+- `faraday/faraday-core/src/panes/` (list and detail panes): `Moves` x6, `Open`, `Region` x2, `Slot`, `region_close`, `region_open`
+- `faraday/faraday-core/src/pointer.rs` (the pointer, focus and what a press reaches): `BarGeometry` x3, `Scrolled`, `Slot`
+- `faraday/faraday-core/src/screens/bar_search.rs` (the search in the app bar and Home): `shadow`
+- `faraday/faraday-core/src/screens/guide_pane.rs` (the guide's supporting pane): `Region` x3, `Slot` x2, `region_reported`
+- `faraday/faraday-core/src/screens/hub_layout/` (the pane container): `Region` x4, `region_close` x3, `region_open` x3, `shadow` x2
+- `faraday/faraday-core/src/screens/menu_page.rs` (the menu page container): `Region` x2, `region_close`, `region_open`
+- `faraday/faraday-core/src/screens/mod.rs` (the screen dispatch and sheet/frame composition): `backdrop`, `region_abandon`, `still`
+- `faraday/faraday-core/src/screens/row_details.rs` (a row's details in the second pane): `Region` x2, `region_close`, `region_open`, `shadow`
+- `faraday/faraday-core/src/screens/session_pane/` (the session pane): `Region` x8, `Slot` x8, `region_close` x5, `region_open` x5, `shadow`
+- `faraday/faraday-core/src/screens/sheets.rs` (the sheets drawn over a screen): `Region` x3, `region_reported`
+- `faraday/faraday-core/src/screens/sidebar.rs` (the sidebar): `shadow`
+- `faraday/faraday-core/src/ui.rs` (drawing in design units (the app's `Ui` alias and helpers)): `BarGeometry`, `Extent`, `Layer`, `Moves`, `Plan`, `Region`, `Scrolled`, `Slot`
+
+Settings, Files, Modes, sticks and boot import:
+- `faraday/faraday-core/src/boot_import/` (the boot import list): `Region`, `Slot`, `region_close`, `region_open`
+- `faraday/faraday-core/src/codes/` (the TOTP codes screen): `page_begin`
+- `faraday/faraday-core/src/screens/set_time.rs` (Set the time by hand): `Region` x4, `region_close` x2, `region_open` x2
+- `faraday/faraday-core/src/screens/settings.rs` (Settings and About): `moving_page_begin`, `moving_panel_page_begin`
+- `faraday/faraday-core/src/screens/visit.rs` (Files: In Faraday and On the stick): `Moves` x3, `Region` x6, `Slot` x2, `region_close` x3, `region_open` x4
+- `faraday/faraday-core/src/transfer/` (Transfer: the QR link to the online app): `Region` x3, `region_close`, `region_open`
+
+Wallets, vaults and keys: create, add, restore, seeds:
+- `faraday/faraday-core/src/bip85/` (BIP-85 derived children): `Moves`
+- `faraday/faraday-core/src/codex32/` (Make codex32 shares (flow, dice screen, worksheet, input panel)): `Extent` x4, `Region` x10, `Slot` x14, `region_close` x3, `region_open` x3
+- `faraday/faraday-core/src/core_wallet/` (Read a Bitcoin Core wallet): `Moves`, `Region` x2, `region_close`, `region_open`
+- `faraday/faraday-core/src/kef_tool/` (Krux code in Tools): `Moves`
+- `faraday/faraday-core/src/keygen/` (Making a new key (randomness, word count, words)): `Moves` x2, `Slot` x3
+- `faraday/faraday-core/src/screens/create.rs` (Create a wallet): `Moves`
+- `faraday/faraday-core/src/screens/entry.rs` (typing a seed): `Open`, `Region` x3, `region_close`, `region_open`
+- `faraday/faraday-core/src/screens/randomness.rs` (Add randomness): `page_begin`
+- `faraday/faraday-core/src/screens/restore.rs` (Restore a wallet): `Moves`
+- `faraday/faraday-core/src/screens/vaults_pair.rs` (Vaults as the wide pair): `shadow`
+- `faraday/faraday-core/src/screens/wallets.rs` (the Wallets tab and wallet card): `Moves` x3, `Region` x3, `Slot` x2, `region_close` x2, `region_open` x2
+- `faraday/faraday-core/src/screens/wallets_pair.rs` (Wallets as the wide pair): `shadow`
+- `faraday/faraday-core/src/seed_check/` (My seed makes my wallet): `Moves`
+- `faraday/faraday-core/src/vault/` (Vaults: list, create, load, copy, dice, secrets): `Moves` x4, `Region` x5, `Slot`, `moving_page_begin`, `page_top` x2, `region_close` x2, `region_open` x2
+- `faraday/faraday-core/src/wordlist/` (Word lists): `Region` x3, `region_close`, `region_open`
+
+Back up and spend from a backup:
+- `faraday/faraday-core/src/backup_flow/` (the shared guided backup flow): `Moves`
+- `faraday/faraday-core/src/backups/` (the Backups screen): `Region` x3, `moving_page_begin`, `region_close`, `region_open`
+- `faraday/faraday-core/src/board/` (the backup board (Back up's plan)): `Region` x3, `Slot`, `region_close`, `region_open`, `shadow` x2
+- `faraday/faraday-core/src/screens/backup.rs` (Back up a wallet): `Moves` x2, `shadow`
+- `faraday/faraday-core/src/spend_backup/` (the Spend tab (spend from a backup)): `Moves`, `Region` x3, `region_close`, `region_open`
+
+Spend, sign and check:
+- `faraday/faraday-core/src/address_check/` (Check an address): `page_begin`
+- `faraday/faraday-core/src/convert/` (Convert a seed): `Moves`
+- `faraday/faraday-core/src/decode/` (Decode a transaction (incl. the nonce pane)): `Moves` x2, `Region` x3, `region_close` x2, `region_open`
+- `faraday/faraday-core/src/invoice/` (Decode a Lightning invoice): `Moves`, `Region` x3, `region_close`, `region_open`
+- `faraday/faraday-core/src/multisig_check/` (Check a multisig setup): `Moves`
+- `faraday/faraday-core/src/ots_check/` (Check a timestamp): `Moves`, `Region` x3, `region_close`, `region_open`
+- `faraday/faraday-core/src/screens/check_message.rs` (Check a signed message): `Moves`, `page_begin`
+- `faraday/faraday-core/src/screens/message.rs` (Sign a message): `Moves`
+- `faraday/faraday-core/src/screens/nonce_check.rs` (the nonce check of a signed PSBT or finished transaction): `Moves`, `Region` x3, `region_close`, `region_open`
+- `faraday/faraday-core/src/screens/spend.rs` (Spend: sign a transaction): `Moves`
+
+Tools and explorers:
+- `faraday/faraday-core/src/explore/` (Explore: a loaded key at any path): `page_begin`
+- `faraday/faraday-core/src/lightning/` (A Lightning node's key): `page_begin`
+- `faraday/faraday-core/src/silent/` (Silent payments, receiving): `Moves`
+- `faraday/faraday-core/src/tools/` (Tools: the six calculators): `Moves`, `page_begin`
+- `faraday/faraday-core/src/vanity/` (Vanity addresses): `Moves`
+
+Drawing support: frame bands, picture, budget:
+- `faraday/faraday-core/src/drawing.rs` (what a frame works out once): `Layer`, `Slot`
+- `faraday/faraday-core/src/fade.rs` (cross-fade on a change of screen or sheet): `Layer`, `Plan` x2
+- `faraday/faraday-core/src/work/` (the draw-budget and timing tests): `Slot`
+
+Faraday Starter (`faraday/faraday-starter/src/`):
+- `faraday/faraday-starter/src/draw.rs` (the Starter's pages): `Region` x3, `backdrop`, `region_close`, `region_open`
+- `faraday/faraday-starter/src/scroll.rs` (the Starter's page and sheet under a finger): `Slot`
+
+
+Named in this file but called by no app module (`ui.` method calls and imported items matched): bar_shown beside elevation elevation_faded fades_into from_zero frost max moves on own_bar page panned region region_begin restore scrolled shadow_faded snapshot
+
 ## Rules and refusals
 
 - Page content gets `foot_room` added to its scroll max (clearance for a floating button), only outside a sheet (`faraday/faraday-ui/src/region.rs:~443-448`).
@@ -70,4 +155,3 @@ None.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
