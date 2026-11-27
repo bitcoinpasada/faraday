@@ -1,0 +1,53 @@
+# The check, `just`, on GitHub's Linux runners: every push to next, every pull
+# request against it, and by hand. It runs what the justfile's default runs
+# (check, clippy, fmt, deny, vet) and nothing else: no image, no app for
+# publishing, no release, no signature. It reads only: no secrets, the
+# checkout's token not kept, GitHub's own actions pinned by commit. Its cache
+# holds the downloaded crates, the installed tools and compiled dependencies,
+# never Faraday's own crates, written only by a push to next.
+#
+# The parts of main's check that next has no code for yet (the sharded tests,
+# the lints, the gate and warm jobs, the 32-bit target) come with that code.
+name: check
+
+on:
+  push:
+    branches: [next]
+  pull_request:
+    branches: [next]
+  workflow_dispatch:
+    inputs:
+      uncached:
+        description: Compile everything, with no cached dependencies
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The history is read by the lints that look at commits and trailers.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          deps: check
+      - name: just
+        run: just
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/next'
+        uses: ./.github/actions/save-deps
