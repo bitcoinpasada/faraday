@@ -91,9 +91,6 @@ pub fn reduce_chroma(width: usize, height: usize, chroma: &[u8], factor: usize) 
 mod tests {
     use super::*;
 
-    /// Invariant: A frame is reduced so that its shorter side is at most the preview maximum.
-    /// Regression: The reduction factor leaves a frame larger than the preview maximum.
-    /// Owner: adapter
     #[test]
     fn the_factor_keeps_the_shorter_side_under_the_maximum() {
         assert_eq!(reduce_factor(640, 480), 2, "480 halves to 240");
@@ -102,9 +99,6 @@ mod tests {
         assert_eq!(reduce_factor(1, 1), 1);
     }
 
-    /// Invariant: A reduced frame holds the average of each block of the frame.
-    /// Regression: The reduction takes one pixel of a block instead of its average.
-    /// Owner: adapter
     #[test]
     fn reduce_box_averages_every_block() {
         // 4 x 4, values 0..16, reduced by 2: each output is the mean of

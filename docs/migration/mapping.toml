@@ -455,8 +455,8 @@ fate = "copy"
 next = ["adapters/faraday-scanner"]
 changed = [
     "`Cargo.toml`: the `[package.metadata.faraday]` block; `faraday-draw` becomes `faraday-tokens`, the workspace crates' dependency paths to `core/`'s layout",
-    "`src/scan.rs`: the preview maximum is read from `faraday_tokens::dims::PREVIEW_MAX` (its value copied from `faraday-draw`'s `tokens.rs`); the two tests carry their headers",
-    "`src/lib.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`; the tests carry their headers",
+    "`src/scan.rs`: the preview maximum is read from `faraday_tokens::dims::PREVIEW_MAX` (its value copied from `faraday-draw`'s `tokens.rs`); its tests are listed in `tools/test-headers.copied`",
+    "`src/lib.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`; its tests are listed in `tools/test-headers.copied`",
 ]
 
 [[module]]

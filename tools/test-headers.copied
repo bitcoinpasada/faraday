@@ -1,6 +1,8 @@
 # The copied tests (docs/spec/07-tests.md section 4.1): the Rust files of the copied crates that hold a
 # test and carry no header. A list that only falls: a file is never added after its crate is copied.
 
+adapters/faraday-scanner/src/lib.rs
+adapters/faraday-scanner/src/scan.rs
 core/faraday-bip/src/aezeed.rs
 core/faraday-bip/src/aez.rs
 core/faraday-bip/src/base64.rs

@@ -447,9 +447,6 @@ mod tests {
     use super::*;
     use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 
-    /// Invariant: A code's outline from grid points far outside the frame has a length and a corner clamped to the frame.
-    /// Regression: Grid points far off the frame wrap an integer and give a wild outline.
-    /// Owner: adapter
     #[test]
     fn far_off_grid_points_give_a_length_and_a_clamped_corner_without_a_wrap() {
         let far = rqrr::Point {
@@ -494,10 +491,6 @@ mod tests {
         m.to_luma(scale, QUIET_ZONE)
     }
 
-    /// Invariant: Closing the scanner on a frame crafted to take the whole search budget waits no longer than that budget.
-    /// Regression: A crafted frame keeps the scanner busy past the budget after the sheet is closed.
-    /// Owner: adapter
-    ///
     /// A frame whose search takes all of its budget (`rqrr`'s `PATCHES.md`):
     /// closing the sheet on it waits for that much and no longer.
     #[test]
@@ -535,10 +528,6 @@ mod tests {
         }
     }
 
-    /// Invariant: A stop set during a crafted frame's search ends it at its next budget check.
-    /// Regression: The search runs its whole budget after a stop is asked.
-    /// Owner: adapter
-    ///
     /// A stop set during a crafted frame's search ends it at its next
     /// budget check: counted in the search's own work, a frame that costs
     /// the search work costs less once stopped.
@@ -571,9 +560,6 @@ mod tests {
         assert!(halted < free, "{halted} against {free}");
     }
 
-    /// Invariant: A code that is read is outlined where it is in the frame.
-    /// Regression: The outline of a read code is drawn off the code's place.
-    /// Owner: adapter
     #[test]
     fn a_read_code_is_outlined_where_it_is() {
         let (w, h, px) = frame(6);
@@ -617,9 +603,6 @@ mod tests {
         None
     }
 
-    /// Invariant: A dense QR code in a full frame is read.
-    /// Regression: The reduction of a frame for scanning loses a dense code's modules.
-    /// Owner: adapter
     #[test]
     fn a_dense_code_reads_at_full_frame() {
         let (payload, px, version) = dense_frame(1500, 3);
@@ -630,9 +613,6 @@ mod tests {
         );
     }
 
-    /// Invariant: A QR code printed light on dark is read.
-    /// Regression: An inverted code is not read.
-    /// Owner: adapter
     #[test]
     fn a_light_on_dark_code_reads() {
         let (payload, px, _) = dense_frame(300, 6);
@@ -646,9 +626,6 @@ mod tests {
         }
     }
 
-    /// Invariant: The scanner's worker reads a code from a frame and reports what each pass saw.
-    /// Regression: The worker drops a read code or reports nothing for a pass.
-    /// Owner: adapter
     #[test]
     fn the_worker_reads_and_reports() {
         let (w, h, px) = frame(4);
@@ -717,9 +694,6 @@ mod tests {
         (payload, luma)
     }
 
-    /// Invariant: A dense QR code in a blurred 1080p frame is read.
-    /// Regression: A blurred frame of a camera's size loses a dense code the scanner could read.
-    /// Owner: adapter
     #[test]
     fn a_dense_code_reads_in_a_blurred_1080p_frame() {
         for inverted in [false, true] {
@@ -734,9 +708,6 @@ mod tests {
         }
     }
 
-    /// Invariant: A code seen in the reduced copy and not read there is read from the whole frame on the next pass.
-    /// Regression: A code found only in the reduced copy is never retried at full size.
-    /// Owner: adapter
     #[test]
     fn a_code_seen_in_the_copy_and_not_read_is_read_whole_on_the_next_pass() {
         // Four pixels a module in a 1080p frame: the copy, a third of
