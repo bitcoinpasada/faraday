@@ -82,7 +82,7 @@ the domain's tests and examples name these paths to read fixtures and to time, a
 | **io-rt** | R3: `std::fs`, `std::net`, `std::process`, `std::env` |
 | **mint** | R2, R10: `Compute::new` and `Compute::unchecked` (allowed only under `#[expect(..., reason)]`) |
 | **keys** | the key boundary and costly-work paths of `main`'s `faraday/clippy.toml` (70 paths: seeds in hand, signing, vault open and seal, master keys) |
-| **app** | A16: `AskFor::into_parts`, `ChangeFor::into_parts`; 04: `Show::new`; R4: `Runtime::record_ink` |
+| **app** | A16: `AskFor::into_parts`, `ChangeFor::into_parts`, `Effects::into_list`, `Job::into_parts`; R1 and 05 §6: `Memo::new`, `Memo::end_frame`, `Memo::clear`; 04: `Show::new`; R4: `Runtime::record_ink` |
 | **owner** | A35: `Job::heavy`, `Job::seal` |
 
 | Directory | `clippy.toml` holds | Notes |
