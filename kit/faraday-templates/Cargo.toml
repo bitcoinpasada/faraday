@@ -12,6 +12,9 @@ faraday-atoms = { path = "../faraday-atoms" }
 faraday-tokens = { path = "../faraday-tokens" }
 faraday-strings = { path = "../../core/faraday-strings" }
 
+[dev-dependencies]
+faraday-atoms = { path = "../faraday-atoms", features = ["testing"] }
+
 [lints]
 workspace = true
 
