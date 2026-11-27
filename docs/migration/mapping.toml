@@ -419,7 +419,7 @@ changed = []
 [[module]]
 main = "faraday/faraday-disk/tests/leak.rs"
 fate = "drop"
-why = "07 §6.1 (F336): a scan of the blocks a file's read and write free, which next's leak tests do not make; the buffers are Faraday's wiping types, whose wipe their own crate tests"
+why = "07 §6.1 (F336): a scan of the blocks a file's read and write free, a freed-memory scan of a whole flow, which next's leak tests do not make"
 
 [[module]]
 main = "faraday/faraday-grant"

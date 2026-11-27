@@ -251,7 +251,8 @@ and when the note on show changes, the runtime draws one frame, in this order (0
    ("layout settles in one frame"). Reason: a fact sent every frame would make every frame
    dispatch and draw again (01 V2). A laid fact is an answer of the layout and is never refused
    (03 §2.2).
-7. The frame is kept for a fade or a sheet's frost only when its `secret` flag is clear (V19).
+7. The frame is kept for a fade or a sheet's frost only when its `secret` flag is clear, but as
+   a step fade's source, emptied when that fade out ends or is cut short (04 V19, F337).
 
 The frame keeps its hit targets, focus, pointer state and the kit's motion state (K5) until the
 next frame. No model or state holds any of them (V3).
@@ -814,8 +815,8 @@ pub struct KeptImage<'a> { pub id: ComponentId, pub taken_at: u64, pub secret: b
   (04 §11), so the screens check reads both. It is a wiping list, replaced at the next frame and
   dropped at a lock.
 - The kept images are the runtime's alone (04 K16), in wiping buffers; `taken_at` is the number
-  of the frame they were copied from, so the check knows which frame's text they showed. By V19 no
-  kept image has `secret` set.
+  of the frame they were copied from, so the check knows which frame's text they showed. By V19
+  only a step fade's source has `secret` set, and only while its fade out runs.
 - `Mark::Hides` is recorded when the event's press was a hiding press (`Pressed::hides`, from the
   `#[hides]` mark on the press type's variant, 04 V24). A lock and a hide are marks too.
   `Notice::Left` is sent inside the app by its navigation and the runtime does not see it (but the

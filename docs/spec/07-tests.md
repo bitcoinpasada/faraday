@@ -520,6 +520,7 @@ This answers section 03's question, and places the tests sections 01, 02 and 08 
 | A15 | an event and the messages it causes settle before the next event | `runtime` | one |
 | A23, P9 | a stale or wrong answer is dropped or reaches the feature as its fault | `runtime` | case |
 | A28 | a lock waits for a running job's answer and drops it | `runtime` | one, with a job that blocks until stopped |
+| V19 | a step fade's kept source from a card that shows a secret is empty when the fade out ends, at a lock, at a hide and when the page is left; a fade towards such a card keeps nothing | `runtime` | way the copy ends, and the fade towards |
 | §3.3 of 03 | a handle whose thing is gone reads `None`, and an id is never reused in a model | `app` | the session owner |
 | P11, A34 | a write that fails part-way leaves no file and zeroes what it wrote | `adapter` | way it fails (TS9) |
 | P12 | a file over the limit is refused before the ask | `app` | feature that reads |

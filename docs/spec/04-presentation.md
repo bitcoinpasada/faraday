@@ -578,12 +578,19 @@ A page turn and a step's fade through blend kept copies of whole frames (`main`'
 inventory `features/motion.md`). The runtime keeps them, beside the last frame, in wiping
 buffers (02 P13).
 
-- **Rule V19.** The runtime keeps no copy of a frame whose `FrameOut::secret` is set: no fade
-  source, no frost under a sheet, no moved-frame reuse. A change from or to such a frame is drawn
-  at once. Held by the runtime, which reads the flag before keeping a copy, and §11, which sets it.
-  This is `main`'s rule that a frame which showed a secret is never kept for a fade.
-- So a step's fade through is not drawn from or to a card that shows a secret, and a card that
-  shows one is not drawn live from state while a fade runs: the change is drawn at once.
+- **Rule V19.** The runtime keeps one copy of a frame whose `FrameOut::secret` is set, and only
+  one: the source of a step's fade through (`Turn::Step`) away from a card that shows a secret
+  (F337). That copy is read only while the fade out runs (about 48 ms of `STEP_MS`, which the
+  Motion speed setting does not scale), and is emptied when the fade out ends, when it is cut
+  short (another change, a lock, a hide, the page left), whichever comes first. Every other kept
+  copy of such a frame is refused: no page turn's source, no frost under a sheet, no moved-frame
+  reuse, and no fade towards a card that shows a secret, which is drawn at once. Held by the
+  runtime, which reads the flag before keeping a copy, by §11, which sets it, and by the runtime
+  test of 07 §8 (V19). On `main` the fade from such a card was drawn live from state (F318 point 7
+  and F296 point 2); on `next` the step's state is dropped at the press (03 A29's `hide`), so the
+  fade reads the kept copy instead and the card's secret leaves state at once.
+- So the incoming card of the fade is drawn live each frame, and a card that shows a secret is
+  never drawn live from state after the step has changed.
 
 ## 9. Drawn text after the frame is painted
 
@@ -640,7 +647,7 @@ note when the person moved away.
 ## 11. Secrets on the screen
 
 A kit model's text says whether it is a secret, so that a frame that shows one is known and no
-copy of it is kept (V19). 01 §6.5 names the type.
+copy of it is kept but a step fade's source (V19). 01 §6.5 names the type.
 
 ```rust
 /// In the kit's atoms: every text a kit model holds. Its variants are private.
@@ -681,7 +688,9 @@ no text of a planted secret is drawn and no kept image of a frame that showed on
   turn's and a step fade's source frames, and a moved frame's reused rows. The motion store holds
   no pixels (K9). The runtime gives them read-only beside the last frame, each with the `secret`
   flag of the frame it was copied from, in wiping buffers (02 P13), so the check reads them with
-  no hook in the kit (01 R4, 07 TS15). By V19 no kept image has the flag set; the check holds V19.
+  no hook in the kit (01 R4, 07 TS15). By V19 only a step fade's source may have the flag set,
+  and none is left at the frame after its fade out, a lock, a hide or a page left; the check holds
+  V19.
 
 ## 12. The UI kit by atomic level
 
@@ -877,7 +886,7 @@ How `main`'s cases land (inventory file in brackets):
 | V13, V14 | a memo key holds every input; entries and inputs Public, no `Compute` | the refill check inside `Memo::get`; the bounds; `lint-leak-reveals` |
 | V15 to V17 | layout facts to the next frame or as messages; no coordinate; settle in one frame | the signatures; `Laid`; the runtime; a runtime test |
 | V18 | one-shot and timed changes outside drawing | `Fx::View`; the runtime's clock |
-| V19, K12 | no kept copy of a frame that shows a secret; secret text is marked | `FrameOut::secret`; `Shown`'s constructors; `lint-leak-reveals` |
+| V19, K12 | no kept copy of a frame that shows a secret but a step fade's source, emptied when its fade out ends; secret text is marked | `FrameOut::secret`; `Shown`'s constructors; `lint-leak-reveals` |
 | V20, V21 | drawn text wiped after paint; the ink record only for tours | the canvas's wiping types; the runtime; `disallowed-methods` on `Runtime::record_ink` |
 | V22, V23 | costly work in update or a job, kept by inputs; layout arithmetic is drawing | V2; `costs-lint`; `Derived`'s bounds; timings |
 | K9 to K11 | the motion store: numbers only, keyed by anchor, bounded | `Motion`; the kit's signatures; a runtime test |
