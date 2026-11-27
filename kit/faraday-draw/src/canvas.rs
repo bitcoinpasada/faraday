@@ -69,7 +69,9 @@ pub struct Canvas {
     /// Where each string and icon drawn since the last [`Canvas::clear`]
     /// or [`Canvas::restore`] left its ink, while [`Canvas::record_ink`] has it on: what the
     /// snapshot tool's audit reads. Off on a device.
-    ink: Option<Vec<Ink>>,
+    ink: Option<Vec<Inked>>,
+    /// What is drawn now comes from a secret ([`Canvas::mark_secret`]).
+    secret: bool,
     /// Lines of text drawn, ever: what a test compares to say a frame
     /// draws only what is seen ([`Canvas::lines_drawn`]).
     lines: u64,
@@ -95,13 +97,22 @@ pub struct Canvas {
     list: List,
 }
 
+/// What one frame drew, in drawing order; kept only while the record is on (04 §9, V21).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Ink(pub Vec<Inked>);
+
+/// The call list a frame records and the canvas replays in bands.
+pub struct Calls(List);
+
 /// One thing a frame drew and the box its visible ink covers.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Ink {
+pub struct Inked {
     /// What was drawn.
     pub kind: InkKind,
     /// The box of its ink inside the clip it was drawn in, in pixels.
     pub rect: Rect,
+    /// It was drawn from a `Shown::secret` (04 K12).
+    pub secret: bool,
 }
 
 /// What an [`Ink`] is.
@@ -166,6 +177,7 @@ impl Canvas {
             paths: Vec::new(),
             cut: Vec::new(),
             ink: None,
+            secret: false,
             lines: 0,
             kept: None,
             layer: Vec::new(),
@@ -383,6 +395,22 @@ impl Canvas {
         self.ink = on.then(Vec::new);
     }
 
+    /// Marks what is drawn next as drawn from a secret, in the ink record, until it is
+    /// unmarked.
+    pub fn mark_secret(&mut self, on: bool) {
+        self.secret = on;
+    }
+
+    /// The call list recorded and not yet painted, taken out of the canvas.
+    pub fn take_calls(&mut self) -> Calls {
+        Calls(core::mem::take(&mut self.list))
+    }
+
+    /// Puts a call list taken by [`Canvas::take_calls`] back, to be replayed.
+    pub fn put_calls(&mut self, calls: Calls) {
+        self.list = calls.0;
+    }
+
     /// Whether the ink is being recorded ([`Canvas::record_ink`]).
     pub fn recording_ink(&self) -> bool {
         self.ink.is_some()
@@ -391,7 +419,7 @@ impl Canvas {
     /// What was drawn since the last [`Canvas::clear`] or
     /// [`Canvas::restore`] and where, while recording is on; empty
     /// otherwise.
-    pub fn ink(&self) -> &[Ink] {
+    pub fn ink(&self) -> &[Inked] {
         self.ink.as_deref().unwrap_or(&[])
     }
 
@@ -440,7 +468,11 @@ impl Canvas {
         if let (Some(ink), Some(rect)) = (&mut self.ink, rect)
             && !rect.is_empty()
         {
-            ink.push(Ink { kind: kind(), rect });
+            ink.push(Inked {
+                kind: kind(),
+                rect,
+                secret: self.secret,
+            });
         }
     }
 
