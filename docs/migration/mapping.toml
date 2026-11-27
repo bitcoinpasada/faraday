@@ -270,7 +270,11 @@ changed = [
 main = "faraday/faraday-plan"
 fate = "copy"
 next = ["core/faraday-plan"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`tests/note_text.rs`: the corpus files' path to `fuzz/faraday/corpus/plan_text/`",
+    "`tests/text.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`",
+]
 
 [[module]]
 main = "faraday/faraday-fat"
@@ -293,7 +297,10 @@ changed = [
 main = "faraday/faraday-core-wallet"
 fate = "copy"
 next = ["core/faraday-core-wallet"]
-changed = []
+changed = [
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout; `faraday-intake` removed",
+    "`src/lib.rs`: `SecretText` is `faraday_text::secret::SecretText` and `network_name` is `faraday_strings::network_name` (01 §2.3)",
+]
 
 [[module]]
 main = "faraday/faraday-qr"
@@ -320,7 +327,14 @@ main = "faraday/faraday-intake"
 fate = "copy"
 next = ["core/faraday-intake"]
 changed = [
-    "`src/lib.rs`: `ROOM` and `is_otpauth` leave for `faraday-text` and `faraday-codec`, which are already copied",
+    "`Cargo.toml`: the `[package.metadata.faraday]` block; the workspace crates' dependency paths to `core/`'s layout",
+    "`src/lib.rs`: `secret_buf`, `ROOM` and `is_otpauth` leave for `faraday-text` and `faraday-codec`, which are already copied (`room()` builds on `faraday_text::secret::ROOM`)",
+    "`src/secret_buf.rs`: dropped here, it is `faraday-text`'s `secret` module (its own row below)",
+    "`src/wallet.rs`: `network_name` leaves for `faraday-strings`; `Refusal` keeps the one variant the readers return, `NotAWallet`, and its sentence, and loses the variants of a key or wallet joining the session, which are `faraday_keys::Refusal`'s (01 §2.3: intake keeps its own answer for what it parses)",
+    "`src/caravan.rs`: `network_name` is `faraday_strings::network_name`",
+    "`tests/all/secret_buf.rs`: `SecretText` is `faraday_text::secret::SecretText`",
+    "`tests/all/wallet_files.rs`: the `Err(other)` arm of `refusal` dropped, no value reaches it with the one variant",
+    "`tests/all/common.rs`: the test token minted with `Compute::new(Hooks { .. })` (05 §5.2) in place of `Compute::new(count)`; the interop fixtures' path to `tools/vectors/interop/`",
 ]
 
 [[module]]

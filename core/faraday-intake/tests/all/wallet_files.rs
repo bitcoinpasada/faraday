@@ -1,0 +1,818 @@
+//! Other wallets' files, read by the description reader and by the
+//! readers it calls (`caravan`, `electrum`, `single_key`, `specter_diy`).
+//! The files are
+//! the ones those wallets' own test suites carry
+//! (`faraday/faraday-core/tests/vectors/interop/README.md`); each reads as
+//! the wallet it holds, with the first address it shows, and a malformed
+//! or wrong one is refused.
+
+use crate::common::{interop, parse};
+use faraday_bip::keys::Network;
+use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
+use faraday_intake::wallet::{
+    Refusal, carried_name, first_address, holds_secret, json_label, read_wallet,
+};
+use faraday_intake::{caravan, electrum, single_key, specter_diy};
+
+fn wallet(path: &str) -> WalletPolicy {
+    let c = crate::common::compute();
+    read_wallet(&c, &interop(path)).unwrap_or_else(|e| panic!("{path}: {}", &*e.text()))
+}
+
+fn refusal(path: &str) -> String {
+    let c = crate::common::compute();
+    match read_wallet(&c, &interop(path)) {
+        Err(Refusal::NotAWallet(why)) => String::from(&*why),
+        Ok(_) => panic!("{path} was read as a wallet"),
+    }
+}
+
+fn first(policy: &WalletPolicy) -> (Network, String) {
+    let (n, a) = first_address(&crate::common::compute(), policy).unwrap();
+    (n, String::from(&*a))
+}
+
+/// The quorum and the number of keys of a multisig wallet.
+fn quorum(policy: &WalletPolicy) -> (usize, usize, Wrapper) {
+    match policy.template() {
+        Template::Multi {
+            threshold, wrapper, ..
+        } => (threshold, policy.keys().len(), wrapper),
+        other => panic!("not a multisig: {other:?}"),
+    }
+}
+
+#[test]
+fn a_coldcard_multisig_setup_file_reads_as_its_2_of_4_with_every_key() {
+    let w = wallet("sparrow/cc-multisig-export-1.txt");
+    let (m, n, wrapper) = quorum(&w);
+    assert_eq!((m, n), (2, 4));
+    assert!(matches!(wrapper, Wrapper::Wsh));
+    let fingerprints: Vec<String> = w
+        .keys()
+        .iter()
+        .map(|k| k.fingerprint().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        fingerprints,
+        ["0f056943", "6ba6cfd0", "747b698e", "7bb026be"]
+    );
+    assert_eq!(
+        first(&w),
+        (
+            Network::Mainnet,
+            "bc1qafdvz3k4sjwn5lmq44yk5tzag4tyfq72mcqq5nzrsqepmsynrt9st3z2k9".to_string()
+        )
+    );
+}
+
+#[test]
+fn a_coldcard_setup_file_sparrow_writes_reads_as_its_2_of_3_with_every_key() {
+    let w = wallet("bluewallet/fromsparrow-coldcard.txt");
+    let (m, n, wrapper) = quorum(&w);
+    assert_eq!((m, n), (2, 3));
+    assert!(matches!(wrapper, Wrapper::Wsh));
+    let fingerprints: Vec<String> = w
+        .keys()
+        .iter()
+        .map(|k| k.fingerprint().unwrap().to_string())
+        .collect();
+    assert_eq!(fingerprints, ["a3909080", "7ab71df0", "f11b9ff2"]);
+}
+
+#[test]
+fn a_coldcard_nested_testnet_setup_file_reads_on_testnet_at_its_first_address() {
+    let w = wallet("sparrow/cc-multisig-export-2.txt");
+    let (m, n, wrapper) = quorum(&w);
+    assert_eq!((m, n), (2, 4));
+    assert!(matches!(wrapper, Wrapper::ShWsh));
+    assert_eq!(
+        first(&w),
+        (
+            Network::Testnet,
+            "2MzrH47gyB7r4a9MUvEGq4qSM5amPbe6DMS".to_string()
+        )
+    );
+}
+
+#[test]
+fn a_coldcard_setup_file_whose_cosigners_derive_differently_reads_with_each_ones_own_path() {
+    let w = wallet("sparrow/cc-multisig-export-multideriv.txt");
+    assert_eq!(quorum(&w).0, 3);
+    let d = w.to_descriptor();
+    assert!(d.contains("/47h/0h/0h/1h]"), "{}", &*d);
+    assert_eq!(
+        first(&w).1,
+        "bc1qhkcnw08rcwhwr9lq6tfczd9jz5zrp7fcatxfq0wwfqafzhcfer3qm59y4m"
+    );
+}
+
+#[test]
+fn a_coldcard_setup_file_with_a_cosigner_missing_or_no_policy_is_refused() {
+    for path in [
+        "sparrow/cc-multisig-export-missingkey.txt",
+        "sparrow/cc-multisig-export-nopolicy.txt",
+    ] {
+        let c = crate::common::compute();
+        assert!(
+            matches!(read_wallet(&c, &interop(path)), Err(Refusal::NotAWallet(_))),
+            "{path}"
+        );
+    }
+}
+
+#[test]
+fn single_account_exports_read_as_the_wallet_and_first_address_their_makers_show() {
+    for (path, start, address) in [
+        (
+            "sparrow/jade-keystore.txt",
+            "wpkh([73c5da0a/84h/0h/0h]",
+            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+        ),
+        (
+            "sparrow/keystone-singlesig-keystore-1.txt",
+            "wpkh([5271C071/84h/0h/0h]",
+            "bc1q9unqc738dxjg5mk8zqtz33zg59cahrj29s24lp",
+        ),
+        (
+            "sparrow/specter-diy-keystore.txt",
+            "wpkh([b317ec86/84h/1h/0h]",
+            "tb1q685z47r72vmqxskvrgc6y6vln7rgwald3463el",
+        ),
+        (
+            "sparrow/cc-singlesig-keystore-1.json",
+            "wpkh([0f056943/84h/1h/123h]",
+            "tb1qc58ys2dphtphg6yuugdf3d0kufmk0tye044g3l",
+        ),
+        (
+            "bluewallet/coldcardQ.json",
+            "wpkh([b68af6e4/84h/0h/0h]",
+            "bc1q8tart7tv6da6ylqauf2fde23vwgpsakxznkf7c",
+        ),
+    ] {
+        let w = wallet(path);
+        assert!(w.to_descriptor().starts_with(start), "{path}");
+        assert_eq!(first(&w).1, address, "{path}");
+    }
+}
+
+#[test]
+fn a_file_of_a_kind_that_is_not_a_wallet_is_refused_with_a_reason() {
+    for path in [
+        "bluewallet/cobo-crypto-account.txt",
+        "bluewallet/sparrow-crypto-output.txt",
+        "bluewallet/quicklook-preview-sample.txn",
+    ] {
+        assert!(!refusal(path).is_empty(), "{path}");
+    }
+}
+
+#[test]
+fn a_caravan_multisig_config_reads_as_its_2_of_3_with_every_key() {
+    let text = interop("sparrow/caravan-multisig-export-1.json");
+    let v = parse(&text);
+    assert!(caravan::looks_like(&v));
+    let d = caravan::descriptor(&v).unwrap();
+    assert!(d.starts_with("wsh(sortedmulti(2,"), "{}", d.as_str());
+    for fp in ["8188029f", "a15e8133", "d31cf7f9"] {
+        assert!(
+            d.contains(&format!("[{fp}/48'/0'/0'/2']")),
+            "{fp}: {}",
+            d.as_str()
+        );
+    }
+    let w = wallet("sparrow/caravan-multisig-export-1.json");
+    assert_eq!(quorum(&w).0, 2);
+    assert_eq!(w.keys().len(), 3);
+    assert_eq!(
+        first(&w).1,
+        "bc1qycv3tcefpavtj0nqrwgunel3e4rjquxz9wdgtm8xtmr9m80r2ylsw24vzc"
+    );
+}
+
+#[test]
+fn a_caravan_config_whose_quorum_does_not_match_its_keys_is_refused() {
+    for path in [
+        "sparrow/caravan-multisig-export-2.json",
+        "sparrow/caravan-multisig-export-3.json",
+    ] {
+        let v = parse(&interop(path));
+        assert!(caravan::looks_like(&v));
+        assert!(caravan::descriptor(&v).is_err(), "{path}");
+        assert!(refusal(path).contains("quorum"), "{path}");
+    }
+}
+
+#[test]
+fn a_caravan_config_with_a_key_that_has_no_origin_is_refused() {
+    let v = parse(&interop("bluewallet/caravan-multisig.json"));
+    assert!(caravan::looks_like(&v));
+    let why = caravan::descriptor(&v).unwrap_err();
+    assert!(why.contains("bip32Path"), "{}", why.as_str());
+}
+
+#[test]
+fn a_caravan_config_whose_network_start_script_or_key_version_disagrees_with_it_is_refused() {
+    let c = crate::common::compute();
+    let text = interop("sparrow/caravan-multisig-export-1.json");
+    for changed in [
+        text.replace("\"mainnet\"", "\"testnet\""),
+        text.replace("\"startingAddressIndex\": 0", "\"startingAddressIndex\": 5"),
+        text.replace("\"P2WSH\"", "\"P2TR\""),
+    ] {
+        assert!(read_wallet(&c, &changed).is_err(), "{changed}");
+    }
+    // A key whose SLIP-132 version names nested multisig, in a P2WSH
+    // config: Unchained's Ypub.
+    let ypub = interop("bluewallet/unchained.json")
+        .split('"')
+        .find(|t| t.starts_with("Ypub"))
+        .unwrap()
+        .to_string();
+    let first_xpub = text
+        .split('"')
+        .find(|t| t.starts_with("xpub6"))
+        .unwrap()
+        .to_string();
+    let e = read_wallet(&c, &text.replace(&first_xpub, &ypub)).expect_err("Ypub in P2WSH");
+    assert!(e.text().contains(&ypub[..8]), "{}", &*e.text());
+}
+
+#[test]
+fn json_that_is_not_a_caravan_config_is_not_taken_for_one() {
+    for path in [
+        "bluewallet/coldcardQ.json",
+        "sparrow/electrum-singlesig-wallet.json",
+    ] {
+        assert!(!caravan::looks_like(&parse(&interop(path))), "{path}");
+    }
+}
+
+#[test]
+fn an_electrum_single_key_file_reads_as_its_nested_segwit_wallet() {
+    let text = interop("sparrow/electrum-singlesig-wallet.json");
+    let v = parse(&text);
+    assert!(electrum::looks_like(&v));
+    assert!(!electrum::holds_secret(&v));
+    assert!(!holds_secret(&text));
+    let d = electrum::descriptor(&v).unwrap();
+    assert!(d.starts_with("sh(wpkh([ab543c67/49h/0h/0h]xpub"), "{d}");
+    let w = wallet("sparrow/electrum-singlesig-wallet.json");
+    assert_eq!(
+        first(&w),
+        (
+            Network::Mainnet,
+            "3C36uuKHxSGtPbJ4xYvPXdqWVKpWvCuGWJ".to_string()
+        )
+    );
+}
+
+#[test]
+fn an_electrum_multisig_file_reads_as_its_2_of_4_on_testnet() {
+    let w = wallet("sparrow/electrum-multisig-wallet.json");
+    let (m, n, wrapper) = quorum(&w);
+    assert_eq!((m, n), (2, 4));
+    assert!(matches!(wrapper, Wrapper::ShWsh));
+    assert_eq!(
+        first(&w),
+        (
+            Network::Testnet,
+            "2MzrH47gyB7r4a9MUvEGq4qSM5amPbe6DMS".to_string()
+        )
+    );
+}
+
+#[test]
+fn an_electrum_keystore_with_two_fingerprints_is_read_only_when_they_agree() {
+    let c = crate::common::compute();
+    let text = interop("sparrow/electrum-multisig-wallet.json");
+    let xfp = "\"ckcc_xfp\": 3503269483";
+    assert!(text.contains(xfp));
+    let with =
+        |root: &str| text.replacen(xfp, &format!("\"root_fingerprint\": \"{root}\", {xfp}"), 1);
+    let plain = read_wallet(&c, &text).expect("the file as written");
+    let same = read_wallet(&c, &with("6ba6cfd0")).expect("both fingerprints equal");
+    assert_eq!(same.keys().len(), plain.keys().len());
+    let fingerprints = |w: &WalletPolicy| -> Vec<String> {
+        w.keys()
+            .iter()
+            .map(|k| k.fingerprint().unwrap().to_string())
+            .collect()
+    };
+    assert!(fingerprints(&same).contains(&"6ba6cfd0".to_string()));
+    assert_eq!(fingerprints(&same), fingerprints(&plain));
+    assert!(read_wallet(&c, &with("aabbccdd")).is_err());
+}
+
+#[test]
+fn an_electrum_file_holding_a_private_key_is_called_a_secret_and_not_read_as_a_wallet() {
+    let path = "bluewallet/fromsparrow-electrum.json";
+    let text = interop(path);
+    assert!(electrum::holds_secret(&parse(&text)));
+    assert!(holds_secret(&text));
+    assert!(refusal(path).contains("Electrum"));
+}
+
+#[test]
+fn an_electrum_secret_is_found_wherever_the_file_puts_it() {
+    let file = |keystore: &str| format!("{{\"wallet_type\":\"standard\",\"keystore\":{keystore}}}");
+    for secret in [
+        r#"{"xprv":"xprv9s21ZrQH143K"}"#,
+        r#"{"seed":"abandon abandon"}"#,
+        r#"{"keypairs":{"02ab":"L1"}}"#,
+        r#"{"x\u0070rv":"xprv9s21ZrQH143K"}"#,
+    ] {
+        assert!(holds_secret(&file(secret)), "{secret}");
+    }
+    for none in [
+        r#"{"xpub":"xpub6C"}"#,
+        r#"{"xprv":null,"seed":"","keypairs":{}}"#,
+        r#"{"xprv":"  "}"#,
+    ] {
+        assert!(!holds_secret(&file(none)), "{none}");
+    }
+    let multi = |second: &str| {
+        format!("{{\"wallet_type\":\"2of2\",\"x1/\":{{\"xpub\":\"a\"}},\"x2/\":{second}}}")
+    };
+    assert!(holds_secret(&multi(r#"{"seed":"abandon"}"#)));
+    assert!(!holds_secret(&multi(r#"{"xpub":"b"}"#)));
+    // A file with no wallet_type is no Electrum file.
+    assert!(!holds_secret(r#"{"keystore":{"xprv":"xprv9s21ZrQH143K"}}"#));
+}
+
+#[test]
+fn a_text_that_is_not_an_electrum_file_is_not_called_a_secret_one() {
+    assert!(!holds_secret(&interop(
+        "bluewallet/coldcardmk4-generic.json"
+    )));
+    assert!(!holds_secret(&interop(
+        "bluewallet/coldcardmk4-descriptor.txt"
+    )));
+    assert!(!electrum::encrypted_whole(
+        "{\"wallet_type\": \"standard\"}"
+    ));
+    assert!(electrum::encrypted_whole("QklFMQM="));
+}
+
+#[test]
+fn a_specter_wallet_file_reads_with_its_name_its_script_and_its_first_address() {
+    let text = interop("sparrow/specter-wallet.json");
+    assert_eq!(json_label(&text).as_deref(), Some("specter-wallet"));
+    let w = wallet("sparrow/specter-wallet.json");
+    assert!(
+        w.to_descriptor()
+            .starts_with("sh(wpkh([4df18faa/49h/0h/0h]xpub")
+    );
+    assert_eq!(first(&w).1, "33c64CnvBKZUu5VDqYANEjFFCzvcFJUs11");
+}
+
+#[test]
+fn a_specter_multisig_file_reads_as_a_3_of_n_multi_with_its_first_address() {
+    let text = interop("sparrow/specter-multisig-wallet.json");
+    assert_eq!(json_label(&text).as_deref(), Some("specter-multisig"));
+    let w = wallet("sparrow/specter-multisig-wallet.json");
+    assert_eq!(quorum(&w).0, 3);
+    assert!(w.to_descriptor().starts_with("wsh(multi(3,"));
+    assert_eq!(
+        first(&w).1,
+        "bc1qp2z49y5m7dfca5944adfs9fydwawjeunnu8250h5t5jy4pyfma0qquw47e"
+    );
+}
+
+#[test]
+fn a_wallet_files_label_over_several_lines_is_one_line_of_text() {
+    let text = "{\"label\": \" Savings\\ndescriptor: wpkh(x)\u{2028}line: y\\r\\u0085\\t \", \"descriptor\": \"\"}";
+    assert_eq!(
+        json_label(text).as_deref(),
+        Some("Savingsdescriptor: wpkh(x)line: y")
+    );
+    // A label of control characters and spaces alone is no label.
+    assert_eq!(json_label("{\"label\": \"\\n\\t\\u2029 \"}"), None);
+}
+
+#[test]
+fn text_with_no_label_has_no_json_label() {
+    assert_eq!(json_label(&interop("sparrow/jade-keystore.txt")), None);
+    assert_eq!(json_label("{\"label\": \"  \"}"), None);
+    assert_eq!(json_label("not json"), None);
+}
+
+#[test]
+fn a_cobo_or_keystone_file_reads_as_its_account_key_with_the_path_it_states() {
+    let v = parse(&interop("sparrow/cobo-singlesig-keystore-1.json"));
+    let key = single_key::read(&v).unwrap().unwrap();
+    assert_eq!(key.source, single_key::Source::Cobo);
+    assert_eq!(key.script, faraday_bip::slip132::Script::NativeSegwit);
+    assert!(
+        key.key.starts_with("[73c5da0a/84h/0h/0h]xpub"),
+        "{}",
+        key.key
+    );
+    let d = key.descriptor().unwrap();
+    assert_eq!(d, format!("wpkh({}/<0;1>/*)", key.key));
+    let w = wallet("sparrow/cobo-singlesig-keystore-1.json");
+    assert_eq!(first(&w).1, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+}
+
+#[test]
+fn a_coldcard_file_for_wasabi_reads_as_the_bip_84_account_in_its_master_key() {
+    let text = interop("bluewallet/coldcardmk4-wasabi.json");
+    let key = single_key::read(&parse(&text)).unwrap().unwrap();
+    assert_eq!(key.source, single_key::Source::Wasabi);
+    assert!(
+        key.key.starts_with("[086ee178/84h/0h/0h]xpub"),
+        "{}",
+        key.key
+    );
+    // Its wallet is the Coldcard's own export of the same account.
+    assert_eq!(
+        wallet("bluewallet/coldcardmk4-wasabi.json").to_descriptor(),
+        wallet("bluewallet/coldcardmk4-generic.json").to_descriptor()
+    );
+}
+
+#[test]
+fn json_that_is_not_a_single_key_file_is_not_read_as_one() {
+    for path in [
+        "bluewallet/coldcardQ.json",
+        "sparrow/electrum-singlesig-wallet.json",
+        "sparrow/caravan-multisig-export-1.json",
+    ] {
+        assert!(single_key::read(&parse(&interop(path))).is_none(), "{path}");
+    }
+}
+
+#[test]
+fn a_single_key_file_with_a_damaged_fingerprint_or_key_is_refused() {
+    let text = interop("bluewallet/coldcardmk4-wasabi.json");
+    let fp = text.split("\"MasterFingerprint\": \"").nth(1).unwrap()[..8].to_string();
+    let bad_fp = text.replace(&fp, "ZZZZZZZZ");
+    assert!(single_key::read(&parse(&bad_fp)).unwrap().is_err());
+    let xpub = text.split("\"ExtPubKey\": \"").nth(1).unwrap();
+    let xpub = &xpub[..xpub.find('"').unwrap()];
+    let mut damaged = xpub.to_string();
+    damaged.replace_range(20..21, if &damaged[20..21] == "A" { "B" } else { "A" });
+    let bad_key = text.replace(xpub, &damaged);
+    assert!(single_key::read(&parse(&bad_key)).unwrap().is_err());
+}
+
+#[test]
+fn the_wasabi_file_faraday_writes_reads_back_as_the_same_key() {
+    let w = wallet("bluewallet/coldcardmk4-generic.json");
+    assert!(single_key::wasabi_writes(&w));
+    let file = single_key::wasabi_file(&w).unwrap();
+    let back = single_key::read(&parse(&file)).unwrap().unwrap();
+    let original = single_key::read(&parse(&interop("bluewallet/coldcardmk4-wasabi.json")))
+        .unwrap()
+        .unwrap();
+    assert_eq!(back, original);
+}
+
+#[test]
+fn only_a_bip_84_account_0_wallet_has_a_wasabi_file() {
+    let nested = wallet("sparrow/electrum-singlesig-wallet.json");
+    assert!(!single_key::wasabi_writes(&nested));
+    assert!(single_key::wasabi_file(&nested).is_none());
+    let multi = wallet("sparrow/cc-multisig-export-1.txt");
+    assert!(!single_key::wasabi_writes(&multi));
+}
+
+#[test]
+fn the_files_faraday_writes_for_other_wallets_read_back_as_the_same_wallet() {
+    let c = crate::common::compute();
+    let multi = wallet("sparrow/caravan-multisig-export-1.json");
+    assert!(caravan::writes(&multi));
+    let file = caravan::file("Vault", &multi, Network::Mainnet).unwrap();
+    let again = caravan::descriptor(&parse(&file)).unwrap();
+    assert_eq!(
+        read_wallet(&c, &again).unwrap().to_descriptor(),
+        multi.to_descriptor()
+    );
+    let multi = wallet("sparrow/electrum-multisig-wallet.json");
+    assert!(electrum::writes(&multi));
+    let file = electrum::file(&multi).unwrap();
+    assert_eq!(
+        read_wallet(&c, &file).unwrap().to_descriptor(),
+        multi.to_descriptor()
+    );
+}
+
+#[test]
+fn a_descriptor_in_a_receive_and_change_pair_or_alone_is_one_wallet_with_one_first_address() {
+    let one = wallet("sparrow/descriptor-multipath.txt");
+    let pair = wallet("sparrow/descriptor-receive-change1.txt");
+    let labelled = wallet("sparrow/descriptor-labelled.txt");
+    assert_eq!(first(&pair), first(&one));
+    let second_pair = wallet("sparrow/descriptor-receive-change2.txt");
+    assert_eq!(second_pair.to_descriptor(), one.to_descriptor());
+    assert_eq!(first(&labelled).0, Network::Mainnet);
+    let alone = wallet("sparrow/descriptor-receive.txt");
+    assert_eq!(
+        first(&alone).1,
+        "bc1qg6stutzna28k472gr2hfnvvz63503qv8x2hsv9"
+    );
+}
+
+// Specter DIY's `addwallet` (`docs/INTEROP.md` §5, Specter DIY addwallet).
+
+#[test]
+fn sparrows_specter_diy_export_reads_as_its_2_of_3_named_sparrow_multisig() {
+    let text = interop("sparrow/specter-diy-export.txt");
+    let w = wallet("sparrow/specter-diy-export.txt");
+    let (m, n, wrapper) = quorum(&w);
+    assert_eq!((m, n), (2, 3));
+    assert!(matches!(wrapper, Wrapper::Wsh));
+    assert!(matches!(w.template(), Template::Multi { sorted: true, .. }));
+    let fingerprints: Vec<String> = w
+        .keys()
+        .iter()
+        .map(|k| k.fingerprint().unwrap().to_string())
+        .collect();
+    assert_eq!(fingerprints, ["7fd1bbf4", "8ff26349", "ff3305c2"]);
+    // Keys written without a derivation are the wallet's two chains.
+    assert_eq!(w.to_descriptor().matches("/<0;1>/*").count(), 3);
+    assert_eq!(carried_name(&text).as_deref(), Some("Sparrow Multisig"));
+    assert_eq!(first(&w).0, Network::Mainnet);
+}
+
+#[test]
+fn faradays_addwallet_for_sparrows_wallet_is_sparrows_own_text() {
+    let text = interop("sparrow/specter-diy-export.txt");
+    let w = wallet("sparrow/specter-diy-export.txt");
+    assert!(specter_diy::writes(&w));
+    assert_eq!(
+        specter_diy::command("Sparrow Multisig", &w).as_deref(),
+        Some(text.trim())
+    );
+}
+
+#[test]
+fn an_addwallet_command_faraday_writes_reads_back_as_the_same_wallet_with_its_name() {
+    let c = crate::common::compute();
+    for path in [
+        "sparrow/specter-diy-keystore.txt",
+        "sparrow/caravan-multisig-export-1.json",
+        "sparrow/descriptor-multipath.txt",
+    ] {
+        let w = wallet(path);
+        let cmd = specter_diy::command("Vault & Co", &w).unwrap();
+        let back = read_wallet(&c, &cmd).unwrap_or_else(|e| panic!("{path}: {}", &*e.text()));
+        assert_eq!(back.to_descriptor(), w.to_descriptor(), "{path}");
+        assert_eq!(carried_name(&cmd).as_deref(), Some("Vault & Co"), "{path}");
+    }
+}
+
+#[test]
+fn an_addwallet_command_with_its_keys_derived_reads_those_derivations() {
+    let c = crate::common::compute();
+    let w = wallet("sparrow/specter-diy-export.txt");
+    let d = w.to_descriptor();
+    let a = read_wallet(&c, &format!("addwallet W&{}", &*d)).unwrap();
+    assert_eq!(a.to_descriptor(), d);
+    // Other chains are not taken for the two default ones: refused, as
+    // every descriptor of them is.
+    let other = d.replace("/<0;1>/*", "/<2;3>/*");
+    assert!(read_wallet(&c, &format!("addwallet W&{other}")).is_err());
+}
+
+#[test]
+fn an_addwallet_command_faraday_cannot_verify_is_refused() {
+    let c = crate::common::compute();
+    let text = interop("sparrow/specter-diy-export.txt");
+    let w = wallet("sparrow/specter-diy-export.txt");
+    let d = w.to_descriptor_checksummed();
+    // The checksum, where there is one, is checked: Specter DIY drops it.
+    assert!(read_wallet(&c, &format!("addwallet W&{}", &*d)).is_ok());
+    let last = d.chars().last().unwrap();
+    let wrong = format!(
+        "{}{}",
+        &d[..d.len() - 1],
+        if last == 'q' { 'p' } else { 'q' }
+    );
+    assert!(read_wallet(&c, &format!("addwallet W&{wrong}")).is_err());
+    // No descriptor after the `&`, or a key alone.
+    let none = read_wallet(&c, "addwallet Sparrow Multisig&").unwrap_err();
+    assert!(none.text().contains("addwallet"), "{}", &*none.text());
+    let key = interop("sparrow/specter-diy-keystore.txt");
+    assert!(read_wallet(&c, &format!("addwallet K&{}", key.trim())).is_err());
+    // A multisig key with no origin, as every multisig wallet refuses.
+    let bare = text.replacen("[7fd1bbf4/48h/0h/0h/2h]", "", 1);
+    assert!(read_wallet(&c, &bare).is_err());
+}
+
+// BIP-392's `sp()` (`docs/INTEROP.md` §5, BIP-392 sp()).
+
+#[test]
+fn keystones_sp_and_specter_diys_key_alone_read_as_one_silent_payments_wallet_of_0f056943() {
+    let keystone = wallet("sparrow/keystone-singlesig-sp-keystore-1.txt");
+    let specter = wallet("sparrow/specter-diy-sp-keystore.txt");
+    let (k, s) = (keystone.silent().unwrap(), specter.silent().unwrap());
+    assert_eq!(k, s);
+    assert_eq!(k.fingerprint.to_string(), "0f056943");
+    assert_eq!(k.account, 0);
+    assert_eq!(k.labels, 0);
+    assert_eq!(k.network, Network::Testnet);
+    // What is kept is the record, which holds no scan key.
+    let record = keystone.to_text();
+    assert!(record.starts_with("faraday-silent 1"), "{}", &*record);
+    assert!(!record.contains("spscan"), "{}", &*record);
+    // The files hold the scan key, which sees payments and spends none:
+    // each is a wallet file in Files. The spend key in its place is a
+    // secret.
+    for path in [
+        "sparrow/keystone-singlesig-sp-keystore-1.txt",
+        "sparrow/specter-diy-sp-keystore.txt",
+        "sparrow/cc-singlesig-sp-keystore-1.json",
+    ] {
+        let text = interop(path);
+        assert!(!holds_secret(&text), "{path}");
+        assert!(
+            holds_secret(&text.replacen("spscan1", "spspend1", 1)),
+            "{path}"
+        );
+    }
+}
+
+#[test]
+fn coldcards_export_with_a_silent_payments_account_still_reads_as_its_bip_84_wallet() {
+    let w = wallet("sparrow/cc-singlesig-sp-keystore-1.json");
+    assert!(w.silent().is_none());
+    assert!(w.to_descriptor().starts_with("wpkh([0f056943/84h/1h/0h]"));
+}
+
+#[test]
+fn an_sp_descriptor_with_no_origin_or_a_wrong_one_is_refused_by_name() {
+    let c = crate::common::compute();
+    let text = interop("sparrow/keystone-singlesig-sp-keystore-1.txt");
+    let bare = text.replace("[0f056943/352h/1h/0h]", "");
+    match read_wallet(&c, &bare) {
+        Err(Refusal::NotAWallet(why)) => {
+            assert_eq!(why, "This sp() descriptor names no key origin");
+        }
+        other => panic!("{other:?}"),
+    }
+    let moved = text.replace("/352h/1h/0h]", "/352h/0h/0h]");
+    assert!(read_wallet(&c, &moved).is_err());
+    let damaged = text.replacen("tspscan1q05", "tspscan1q06", 1);
+    assert!(read_wallet(&c, &damaged).is_err());
+}
+
+fn core_list(descs: &[&str]) -> String {
+    let items: Vec<String> = descs
+        .iter()
+        .map(|d| format!("{{\"desc\":\"{d}\"}}"))
+        .collect();
+    format!(
+        "{{\"wallet_name\":\"w\",\"descriptors\":[{}]}}",
+        items.join(",")
+    )
+}
+
+fn read_text(text: &str) -> Result<WalletPolicy, String> {
+    read_wallet(&crate::common::compute(), text).map_err(|e| String::from(&*e.text()))
+}
+
+const SPECTER_KEYS: [&str; 2] = [
+    "[ca9a2b19/48h/0h/0h/2h]xpub6EhbRDNhmMX863W8RujJyAMw1vtM4MHXnsk14paK1ZBEH75k44gWqfaraXCrzg6w9pzC2yLc28vAdUfpB9ShuEB1HA9xMs6BjmRi4PKbt1K",
+    "[046b9450/48h/0h/0h/2h]xpub6Ej6a311KAYh6jUAnD4zHhgtgemM4DfMksQUNbAzXCQEkjKf5Ep2WLmMtJkmR4MHm8aEy648kzZo4cphwYhMpfwfYvHRQY4u2e4ijWzohwE",
+];
+
+#[test]
+fn a_json_file_with_a_single_key_and_a_multisig_descriptor_loads_the_multisig_in_either_order() {
+    let key = "[a262308d/86h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz";
+    let tr = format!("tr({key}/<0;1>/*)");
+    let multi = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*))",
+        SPECTER_KEYS[0], SPECTER_KEYS[1]
+    );
+    let a = read_text(&core_list(&[&tr, &multi])).unwrap();
+    let b = read_text(&core_list(&[&multi, &tr])).unwrap();
+    assert!(a.to_descriptor().starts_with("wsh(sortedmulti(2,"));
+    assert_eq!(a.to_descriptor(), b.to_descriptor());
+}
+
+#[test]
+fn a_json_file_with_two_different_multisig_descriptors_is_refused() {
+    let multi = |k: &str| {
+        format!(
+            "wsh(sortedmulti(2,{}/<0;1>/*,{k}/<0;1>/*))",
+            SPECTER_KEYS[0]
+        )
+    };
+    let one = multi(SPECTER_KEYS[1]);
+    let other = multi(
+        "[747b698e/48h/0h/0h/2h]xpub6Eb6Z1xtmWRiWKgRpHf6dHiEagGd6FLiBXrnma1nFK4PGRYqSVqVyJaxna5Mb8etSP4ATKVAvKnXG1a9HZauoAawuSDJT5RgH2HqEVHZVHY",
+    );
+    let why = read_text(&core_list(&[&one, &other])).unwrap_err();
+    assert!(why.contains("more than one wallet"), "{why}");
+}
+
+const SINGLE_KEY: &str = "[a262308d/84h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz";
+
+fn multi_at(chain: u8) -> String {
+    format!(
+        "wsh(sortedmulti(2,{}/{chain}/*,{}/{chain}/*))",
+        SPECTER_KEYS[0], SPECTER_KEYS[1]
+    )
+}
+
+#[test]
+fn a_json_file_with_a_descriptor_that_does_not_read_is_refused() {
+    let bad = format!("{}#aaaaaaaa", multi_at(0));
+    let a = format!("wpkh({SINGLE_KEY}/0/*)");
+    let b = format!("wpkh({SINGLE_KEY}/1/*)");
+    assert!(read_text(&core_list(&[&bad, &a, &b])).is_err());
+}
+
+#[test]
+fn a_lone_receive_descriptor_among_several_is_not_a_wallet_of_its_own() {
+    let a = format!("wpkh({SINGLE_KEY}/0/*)");
+    let b = format!("wpkh({SINGLE_KEY}/1/*)");
+    let w = read_text(&core_list(&[&multi_at(0), &a, &b])).unwrap();
+    assert!(w.to_descriptor().starts_with("wpkh("));
+    let other = format!("pkh({}/1/*)", SPECTER_KEYS[1]);
+    assert!(read_text(&core_list(&[&a, &other])).is_err());
+}
+
+#[test]
+fn a_core_list_with_a_multisig_pair_and_a_wpkh_pair_loads_the_multisig() {
+    let a = format!("wpkh({SINGLE_KEY}/0/*)");
+    let b = format!("wpkh({SINGLE_KEY}/1/*)");
+    let w = read_text(&core_list(&[&a, &b, &multi_at(0), &multi_at(1)])).unwrap();
+    assert!(w.to_descriptor().starts_with("wsh(sortedmulti(2,"));
+}
+
+#[test]
+fn a_musig_wallet_among_several_json_descriptors_loads_in_either_order() {
+    let musig = format!("tr(musig({},{})/<0;1>/*)", SPECTER_KEYS[0], SPECTER_KEYS[1]);
+    let single = format!("wpkh({SINGLE_KEY}/<0;1>/*)");
+    let a = read_text(&core_list(&[&musig, &single])).unwrap();
+    let b = read_text(&core_list(&[&single, &musig])).unwrap();
+    assert!(a.to_descriptor().starts_with("tr(musig("));
+    assert_eq!(a.to_descriptor(), b.to_descriptor());
+}
+
+#[test]
+fn the_reason_shown_for_a_descriptor_that_does_not_read_is_its_own() {
+    let a = format!("wpkh({SINGLE_KEY}/0/*)");
+    let own = format!("wpkh({SINGLE_KEY}/<0;1>/*)#aaaaaaaa");
+    let alone = read_text(&core_list(&[&own])).unwrap_err();
+    let among = read_text(&core_list(&[&a, &own])).unwrap_err();
+    assert_eq!(alone, among);
+}
+
+fn wpkh_pair_lines(key: &str) -> String {
+    format!("wpkh({key}/0/*)\nwpkh({key}/1/*)\n")
+}
+
+#[test]
+fn a_text_file_with_two_different_wallets_of_one_kind_is_refused_but_one_written_twice_loads() {
+    let (k0, k1) = (SPECTER_KEYS[0], SPECTER_KEYS[1]);
+    let two = format!("{}{}", wpkh_pair_lines(k0), wpkh_pair_lines(k1));
+    let why = read_text(&two).unwrap_err();
+    assert!(why.contains("more than one wallet"), "{why}");
+    let twice = format!("{}{}", wpkh_pair_lines(k0), wpkh_pair_lines(k0));
+    assert!(read_text(&twice).is_ok());
+}
+
+const KEY_A: &str = "[793cc70b/48h/0h/0h/2h]xpub6ErVmcYYHmavsMgxEcTZyzN5sqth1ZyRpFNJC26ij1wYGC2SBKYrgt9yariSbn7HLRoZUvhUhmPfsRTPrdhhGFscpPZzmch6UTdmRP1aZUj";
+
+fn why(text: &str) -> String {
+    match read_wallet(&crate::common::compute(), text) {
+        Err(Refusal::NotAWallet(why)) => String::from(&*why),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn a_wallet_with_a_repeated_key_or_keys_of_two_networks_is_refused_with_its_own_reason() {
+    let repeated = format!("wsh(sortedmulti(2,{KEY_A}/<0;1>/*,{KEY_A}/<0;1>/*))");
+    assert_eq!(why(&repeated), "a key is used more than once");
+    let tpub = "[b3118e52/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
+    let mixed = format!("wsh(sortedmulti(2,{KEY_A}/<0;1>/*,{tpub}/<0;1>/*))");
+    assert_eq!(why(&mixed), "keys are of more than one network");
+}
+
+fn silent_record() -> faraday_text::Text {
+    wallet("sparrow/keystone-singlesig-sp-keystore-1.txt").to_text()
+}
+
+fn json_string(text: &str) -> String {
+    format!("{text:?}")
+}
+
+#[test]
+fn a_silent_payments_wallet_beside_a_bip_84_wallet_in_a_json_file_is_refused_in_either_order() {
+    let single = format!("\"wpkh({SINGLE_KEY}/<0;1>/*)\"");
+    let silent = json_string(&silent_record());
+    for list in [[&silent, &single], [&single, &silent]] {
+        let text = format!(
+            "{{\"descriptors\":[{{\"desc\":{}}},{{\"desc\":{}}}]}}",
+            list[0], list[1]
+        );
+        let why = read_text(&text).unwrap_err();
+        assert!(why.contains("more than one wallet"), "{why}");
+    }
+    let alone = format!("{{\"descriptors\":[{{\"desc\":{silent}}}]}}");
+    assert!(read_text(&alone).is_ok());
+}

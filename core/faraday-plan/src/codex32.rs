@@ -1,0 +1,548 @@
+//! A seed kept as codex32 strings (`docs/CODEX32.md` §9.4, §9.5): the
+//! seed's codex32 form on the plan, its strings as things the map
+//! places, what the checks count of them, and The standard way for a key
+//! that already has a set.
+//!
+//! A string is named by its seed and its share index, the index as its
+//! bech32 value (`s`, the secret, is 16), so a chip, a plan line and a
+//! check read the same string the same way whatever else changes: a
+//! share added later has an index of its own, and a lost one replaced has
+//! the index it had.
+//!
+//! **The form is a set that exists** (§9.4): the key was made by Make
+//! codex32 shares or loaded from strings, so its strings are on paper
+//! already; its `k` and indices are the set's, fixed, and the checklist
+//! checks them rather than making any. A key of words is never given a
+//! form: the plan does not split its seed into strings (§9.2).
+
+use super::*;
+use faraday_text::{Text, text};
+use faraday_vault::codex32::{SetFacts, State};
+
+/// The bech32 characters, in value order.
+pub use faraday_bip::codex32::CHARSET;
+
+/// The secret's share index, as its value.
+pub const SECRET: usize = 16;
+
+/// A share index's character, from its value.
+pub fn index_char(j: usize) -> char {
+    char::from(CHARSET[j % 32])
+}
+
+/// A share index's value, from its character (either case).
+pub fn index_of(c: u8) -> Option<usize> {
+    faraday_bip::codex32::charval(c).map(usize::from)
+}
+
+/// A seed's codex32 form on the plan.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct C32 {
+    /// The seed, by its place among the wallet's.
+    pub seed: usize,
+    /// How many strings rebuild the seed: 0 for the secret alone, else 2
+    /// to 9.
+    pub k: u8,
+    /// Each string's length in characters.
+    pub length: u8,
+    /// The strings' share indices, as values, in their order: a split's
+    /// in BIP 93's order, a share added after them.
+    pub indices: Vec<usize>,
+    /// The set's identifier.
+    pub identifier: [u8; 4],
+    /// Pieces of the set known to exist whose index is not known
+    /// (§9.4, loaded from strings): counted, never placed.
+    pub unknown: u8,
+}
+
+impl C32 {
+    /// The set that exists, from the facts its key keeps: the strings
+    /// destroyed are not among those to place.
+    pub fn of_set(seed: usize, set: &SetFacts) -> C32 {
+        C32 {
+            seed,
+            k: set.threshold,
+            length: set.length,
+            indices: set
+                .strings
+                .iter()
+                .filter(|&&(_, s)| s != State::Destroyed)
+                .filter_map(|&(c, _)| index_of(c))
+                .collect(),
+            identifier: set.identifier,
+            unknown: set.unknown,
+        }
+    }
+
+    /// How many strings rebuild the seed: one for the secret alone.
+    pub fn need(&self) -> usize {
+        usize::from(self.k).max(1)
+    }
+
+    /// How many strings the set has, known or not.
+    pub fn n(&self) -> usize {
+        self.indices.len() + usize::from(self.unknown)
+    }
+
+    /// The identifier as text.
+    pub fn id_text(&self) -> Text {
+        self.identifier.iter().map(|&b| char::from(b)).collect()
+    }
+
+    /// The form's plan line: `codex32 {seed} {k} {length} {indices} {id}
+    /// {unknown}`, the indices as their characters.
+    pub(crate) fn to_line(&self) -> Text {
+        let indices: Text = self.indices.iter().map(|&j| index_char(j)).collect();
+        text!(
+            "codex32 {} {} {} {} {} {}\n",
+            self.seed,
+            self.k,
+            self.length,
+            if indices.is_empty() {
+                "-"
+            } else {
+                indices.as_str()
+            },
+            &*self.id_text(),
+            self.unknown
+        )
+    }
+
+    /// [`C32::to_line`]'s value read back (after `codex32 `); `None` for
+    /// anything that is not a form `seeds` seeds could have, a plan saved
+    /// with a set the plan was to make (identifier `-`) among it.
+    pub(crate) fn from_value(value: &str, seeds: usize) -> Option<C32> {
+        let mut parts = value.split(' ');
+        let seed: usize = parts.next()?.parse().ok()?;
+        let k: u8 = parts.next()?.parse().ok()?;
+        let length: u8 = parts.next()?.parse().ok()?;
+        let indices: Vec<usize> = match parts.next()? {
+            "-" => Vec::new(),
+            s => s.bytes().map(index_of).collect::<Option<Vec<usize>>>()?,
+        };
+        let identifier = <[u8; 4]>::try_from(parts.next()?.as_bytes()).ok()?;
+        let unknown: u8 = parts.next()?.parse().ok()?;
+        let form = C32 {
+            seed,
+            k,
+            length,
+            indices,
+            identifier,
+            unknown,
+        };
+        let facts = SetFacts {
+            threshold: k,
+            identifier,
+            length,
+            unknown,
+            strings: form
+                .indices
+                .iter()
+                .map(|&j| (CHARSET[j], State::Made))
+                .collect(),
+        };
+        (seed < seeds && parts.next().is_none() && facts.is_sound()).then_some(form)
+    }
+}
+
+/// A codex32 string a vault of the round after a lock takes and this
+/// session does not hold (`docs/CODEX32.md` §9.5): the share the plan
+/// keeps there, by its set, its index and its seed's key. Public: no
+/// string, only its header.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Wanted {
+    /// The seed's key's fingerprint.
+    pub key: [u8; 4],
+    /// The set's threshold.
+    pub k: u8,
+    /// The set's identifier.
+    pub identifier: [u8; 4],
+    /// Each string's length in characters.
+    pub length: u8,
+    /// The share index, as its character in lower case.
+    pub index: u8,
+}
+
+impl Wanted {
+    /// The share as named on screen: its index in upper case.
+    pub fn share(&self) -> Text {
+        let mut out = Text::new();
+        out.push(char::from(u8::to_ascii_uppercase(&self.index)));
+        out
+    }
+
+    /// The identifier as text.
+    pub fn id_text(&self) -> Text {
+        self.identifier.iter().map(|&b| char::from(b)).collect()
+    }
+}
+
+/// Whether `w` is a codex32 string of a seed, in any form: on paper, its
+/// Codex32QR drawn, a file of either, a share record in a vault.
+pub fn string_of(w: What) -> Option<(usize, usize)> {
+    match w {
+        What::Written(c) if c.form == KeyForm::Codex32 => c.part(),
+        _ => None,
+    }
+}
+
+impl Answers {
+    /// Seed `i`'s codex32 form, where it has one.
+    pub fn c32(&self, i: usize) -> Option<&C32> {
+        self.codex32.iter().find(|f| f.seed == i)
+    }
+
+    /// Sets seed `i`'s codex32 form, replacing the one it had, or takes
+    /// it off with `None`. It records nothing as rotated away: only a
+    /// rotation does ([`Answers::rotate_c32`]). Pieces the map placed
+    /// whose index the new form lacks leave the map.
+    pub fn set_c32(&mut self, shape: &Shape, i: usize, form: Option<C32>) {
+        let keep: Vec<usize> = form.as_ref().map_or(Vec::new(), |f| f.indices.clone());
+        self.codex32.retain(|f| f.seed != i);
+        if let Some(f) = form {
+            self.codex32.push(f);
+            self.codex32.sort_by_key(|f| f.seed);
+        }
+        if self.map.is_none() && keep.is_empty() {
+            return;
+        }
+        let mut m = stored_map(shape, self);
+        for s in &mut m {
+            s.holds
+                .retain(|(w, _)| string_of(*w).is_none_or(|(si, j)| si != i || keep.contains(&j)));
+        }
+        self.set_map(m);
+    }
+
+    /// Rotates seed `i` to the new set `form`: the set it had, if its
+    /// threshold or identifier differs, is recorded as rotated away
+    /// ([`Answers::rotated`], `docs/CODEX32.md` §9.7 step 5), then
+    /// [`Answers::set_c32`]. The only call that records a set.
+    pub fn rotate_c32(&mut self, shape: &Shape, i: usize, form: C32) {
+        if let Some(old) = self.c32(i).map(|o| (i, o.k, o.identifier))
+            && old != (i, form.k, form.identifier)
+            && !self.rotated.contains(&old)
+        {
+            self.rotated.push(old);
+        }
+        self.set_c32(shape, i, Some(form));
+    }
+
+    /// Whether seed `i`'s set named `id` was rotated away, whatever its
+    /// threshold: its strings are destroyed and its identifier refused.
+    pub fn rotated_id(&self, i: usize, id: [u8; 4]) -> bool {
+        self.rotated.iter().any(|&(x, _, r)| x == i && r == id)
+    }
+}
+
+/// The distinct strings of seed `i` the spots `at` keep on the map
+/// `boxes`, by index.
+pub fn strings_at(boxes: &[Spot], i: usize, at: &dyn Fn(At) -> bool) -> Vec<usize> {
+    let mut js: Vec<usize> = boxes
+        .iter()
+        .filter(|s| at(s.at))
+        .flat_map(|s| s.holds.iter())
+        .filter_map(|(w, _)| string_of(*w).filter(|&(si, _)| si == i).map(|(_, j)| j))
+        .collect();
+    js.sort_unstable();
+    js.dedup();
+    js
+}
+
+/// Costs a map of the plan. The standard way for a wallet some of whose
+/// keys already have a codex32 set (§9.5, `docs/BACKUP-FLOW.md` §17.21): as The standard way
+/// places it, with each such seed's strings on paper in place of its
+/// words, one string per place: the seed's own place keeps its first
+/// string, and each further string a place of its own, with the whole
+/// description as the standard way puts it at every place. `sets` is
+/// each seed's set, where its key here has one. Read-only until Customize
+/// backup, as any new plan.
+pub fn standard(c: &Compute, shape: &Shape, sets: &[Option<SetFacts>]) -> Answers {
+    standard_over(c, shape, sets, Answers::preset(shape, Preset::Standard))
+}
+
+/// Costs what [`standard`] costs. [`standard`] over the answers `a`: The
+/// standard way with other things placed already, such as a setup's sticks.
+pub fn standard_over(
+    c: &Compute,
+    shape: &Shape,
+    sets: &[Option<SetFacts>],
+    mut a: Answers,
+) -> Answers {
+    let forms: Vec<C32> = sets
+        .iter()
+        .enumerate()
+        .filter(|&(i, s)| s.is_some() && shape.seeds.get(i).is_some_and(|s| s.here))
+        .filter_map(|(i, s)| s.as_ref().map(|s| C32::of_set(i, s)))
+        .filter(|f| !f.indices.is_empty())
+        .collect();
+    if forms.is_empty() {
+        return a;
+    }
+    let mut m = map(c, shape, &a);
+    for f in &forms {
+        let i = f.seed;
+        let home = m.iter().position(|s| {
+            matches!(s.at, At::Place(_))
+                && s.holds
+                    .iter()
+                    .any(|(w, _)| matches!(w, What::Written(c) if c.form == KeyForm::Words && c.on_paper() && c.seed == i))
+        });
+        for s in &mut m {
+            s.holds
+                .retain(|(w, _)| !matches!(w, What::Written(c) if c.form == KeyForm::Words && c.on_paper() && c.seed == i));
+        }
+        let sheet = |m: &[Spot]| {
+            m.iter().any(|s| {
+                matches!(s.at, At::Place(_)) && s.holds.iter().any(|(w, _)| *w == What::Sheet)
+            })
+        };
+        let with_sheet = sheet(&m);
+        for (n, &j) in f.indices.iter().enumerate() {
+            let string = (What::codex32_share(i, j), Tag::Secret);
+            match home.filter(|_| n == 0) {
+                Some(h) => m[h].holds.insert(0, string),
+                None => {
+                    let p = m.iter().filter(|s| matches!(s.at, At::Place(_))).count();
+                    let mut holds = vec![string];
+                    if with_sheet {
+                        holds.push((What::Sheet, Tag::Public));
+                    }
+                    let at = m
+                        .iter()
+                        .rposition(|s| matches!(s.at, At::Place(_) | At::Stick(..)))
+                        .map_or(0, |x| x + 1);
+                    m.insert(
+                        at,
+                        Spot {
+                            at: At::Place(p),
+                            holds,
+                        },
+                    );
+                }
+            }
+        }
+    }
+    a.codex32 = forms;
+    a.set_map(m);
+    a
+}
+
+/// `a` brought in step with the sets its keys have (`docs/CODEX32.md`
+/// §9.4): a seed here whose key has a set takes that set as its form,
+/// fixed, in place of one the plan was to make or an older record of it.
+/// A plan saved before the set existed reads with it, its strings not
+/// placed yet. It records nothing as rotated away (only a rotation does),
+/// and a set the plan lists as rotated away does not replace the form: the
+/// form stays, so its strings are still the plan's.
+pub fn sync(a: &mut Answers, shape: &Shape, sets: &[Option<SetFacts>]) {
+    for (i, set) in sets.iter().enumerate() {
+        let Some(set) = set else {
+            continue;
+        };
+        if !shape.seeds.get(i).is_some_and(|s| s.here) {
+            continue;
+        }
+        let form = C32::of_set(i, set);
+        if a.c32(i) != Some(&form) && !a.rotated_id(i, form.identifier) {
+            a.set_c32(shape, i, Some(form));
+        }
+    }
+}
+
+/// The most places a plan of `shape` and `a` has: [`max_places`], and
+/// each codex32 seed's further strings a place more (§9.5: three places
+/// for 2 of 3), and a Seed XOR or SLIP-39 set's further parts the same.
+pub fn max_places_of(shape: &Shape, a: &Answers) -> usize {
+    max_places(shape)
+        + a.codex32
+            .iter()
+            .map(|f| f.indices.len().saturating_sub(1))
+            .sum::<usize>()
+        // A Seed XOR set's parts and a SLIP-39 set's shares each may have
+        // a place of their own (F276).
+        + a.xor
+            .iter()
+            .map(|x| x.n().saturating_sub(1))
+            .sum::<usize>()
+        + a.slip39
+            .iter()
+            .map(|z| z.groups.iter().map(|g| g.made.len()).sum::<usize>().saturating_sub(1))
+            .sum::<usize>()
+}
+
+/// How a codex32 string is copied by hand at a place, and so which of
+/// the Starter's codex32 templates it takes (`docs/CODEX32.md` §9.3, §11):
+/// the string written, its Codex32QR drawn on the 29 × 29 grid, or both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PaperCopy {
+    /// The string written in boxes.
+    Written,
+    /// Its Codex32QR drawn on the grid.
+    Codex32Qr,
+    /// Both.
+    Both,
+}
+
+impl PaperCopy {
+    /// Written (`s`), drawn (`q`), both, or neither.
+    fn of(s: bool, q: bool) -> Option<PaperCopy> {
+        match (s, q) {
+            (true, false) => Some(PaperCopy::Written),
+            (false, true) => Some(PaperCopy::Codex32Qr),
+            (true, true) => Some(PaperCopy::Both),
+            (false, false) => None,
+        }
+    }
+
+    /// Whether the Codex32QR is drawn.
+    pub fn drawn(self) -> bool {
+        self != PaperCopy::Written
+    }
+
+    /// Whether the string is written.
+    pub fn written(self) -> bool {
+        self != PaperCopy::Codex32Qr
+    }
+}
+
+/// How string `j` of seed `i` is copied by hand across the plan's places:
+/// written, drawn as its Codex32QR, or both; `None` where no place keeps
+/// it on paper.
+pub fn paper_copy(m: &Mapped, i: usize, j: usize) -> Option<PaperCopy> {
+    let on = |want: &dyn Fn(What) -> bool| {
+        m.map
+            .iter()
+            .filter(|s| matches!(s.at, At::Place(_)))
+            .any(|s| s.holds.iter().any(|(w, _)| want(*w)))
+    };
+    PaperCopy::of(
+        on(&|w| w == What::codex32_share(i, j)),
+        on(&|w| w == What::codex32_qr_paper(i, j)),
+    )
+}
+
+/// The blank templates the codex32 strings on paper take, by length and
+/// copy: (characters, what is copied, how many), each string at each
+/// place copied by hand on one (`docs/CODEX32.md` §9.3): written, its
+/// Codex32QR drawn, or both on one template.
+pub fn templates_of(a: &Answers, m: &Mapped) -> Vec<(u8, PaperCopy, usize)> {
+    let mut out: Vec<(u8, PaperCopy, usize)> = Vec::new();
+    for s in m.map.iter().filter(|s| matches!(s.at, At::Place(_))) {
+        let mut strings: Vec<(usize, usize)> =
+            s.holds.iter().filter_map(|(w, _)| string_of(*w)).collect();
+        strings.sort_unstable();
+        strings.dedup();
+        for (i, j) in strings {
+            let has = |w: What| s.holds.iter().any(|(x, _)| *x == w);
+            let copy = PaperCopy::of(
+                has(What::codex32_share(i, j)),
+                has(What::codex32_qr_paper(i, j)),
+            );
+            let (Some(copy), Some(f)) = (copy, a.c32(i)) else {
+                continue;
+            };
+            match out
+                .iter_mut()
+                .find(|(l, c, _)| *l == f.length && *c == copy)
+            {
+                Some((_, _, n)) => *n += 1,
+                None => out.push((f.length, copy, 1)),
+            }
+        }
+    }
+    out.sort_unstable();
+    out
+}
+
+/// The strings of seed `i` on paper at the plan's places, by index, each
+/// once, in the set's order: what its checklist item makes or checks.
+pub fn paper_strings(a: &Answers, m: &Mapped, i: usize) -> Vec<usize> {
+    let placed = strings_at(&m.map, i, &|at| matches!(at, At::Place(_)));
+    a.c32(i).map_or(Vec::new(), |f| {
+        f.indices
+            .iter()
+            .copied()
+            .filter(|j| placed.contains(j))
+            .collect()
+    })
+}
+
+/// The places that keep string `j` of seed `i`, on paper.
+pub fn places_of_string(m: &Mapped, i: usize, j: usize) -> Vec<usize> {
+    m.map
+        .iter()
+        .filter_map(|s| match s.at {
+            At::Place(p)
+                if s.holds
+                    .iter()
+                    .any(|(w, _)| matches!(w, What::Written(c) if c.form == KeyForm::Codex32 && c.on_paper() && c.part() == Some((i, j)))) =>
+            {
+                Some(p)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+impl Mapped {
+    /// The codex32 strings the map keeps in vault `v`, each as a share
+    /// record (`docs/VAULT.md` §7 type 15): seed and index, of a set split
+    /// with a threshold of 2 or more (the secret is the seed, kept as a
+    /// key record).
+    pub fn vault_strings(&self, a: &Answers, v: usize) -> Vec<(usize, usize)> {
+        let mut out: Vec<(usize, usize)> = holds_in(&self.map, At::Vault(v))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::Written(c)
+                    if c.is(KeyForm::Codex32, Writing::Codex32String, Medium::Paper) =>
+                {
+                    c.part()
+                }
+                _ => None,
+            })
+            .filter(|&(i, j)| j != SECRET && a.c32(i).is_some_and(|f| f.k >= 2))
+            .collect();
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+
+    /// The codex32 strings the map keeps as files on a stick at a place:
+    /// each seed and index, of a set split with a threshold of 2 or more.
+    pub fn stick_strings(&self, a: &Answers) -> Vec<(usize, usize)> {
+        let mut out: Vec<(usize, usize)> = self
+            .map
+            .iter()
+            .filter(|s| matches!(s.at, At::Stick(..)))
+            .flat_map(|s| s.holds.iter())
+            .filter_map(|(w, _)| match *w {
+                What::Written(c) if c.form == KeyForm::Codex32 && c.medium == Medium::File => {
+                    c.part()
+                }
+                _ => None,
+            })
+            .filter(|&(i, j)| j != SECRET && a.c32(i).is_some_and(|f| f.k >= 2))
+            .collect();
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+}
+
+/// The base of a codex32 string's mark among the marks a vault was sealed
+/// with (`backup_flow::wallet::sealed_marks`), above the seeds', the
+/// description's, the shares' and the passphrases'.
+const VAULT_MARK: usize = 6_000_000;
+
+/// Costs a map of the plan. Each codex32 string the plan `(shape, a)`
+/// keeps in vault `v` ([`Mapped::vault_strings`]) as a sealed mark,
+/// `VAULT_MARK + 32 * seed + index`: one added to or taken from the vault
+/// after the lock is a change of what it holds (`docs/CODEX32.md` §9.5).
+pub fn vault_marks(c: &Compute, shape: &Shape, a: &Answers, v: usize) -> Vec<usize> {
+    Mapped::of(c, shape, a)
+        .vault_strings(a, v)
+        .into_iter()
+        .map(|(s, j)| VAULT_MARK + 32 * s + j)
+        .collect()
+}

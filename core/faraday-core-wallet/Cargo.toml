@@ -1,8 +1,11 @@
 [package]
 name = "faraday-core-wallet"
-version = "0.0.0"
+version = "0.2.0"
+description = "A Bitcoin Core descriptor wallet's records, read and checked, never written (F229)"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
@@ -12,6 +15,12 @@ faraday-keys = { path = "../faraday-keys" }
 faraday-sqlite = { path = "../faraday-sqlite" }
 faraday-strings = { path = "../faraday-strings" }
 faraday-text = { path = "../faraday-text" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[features]
+# `extended_key_bytes_for_crosscheck`: the key decoder, so the cross-check can
+# compare it with another base58check. Turned on by tools/crosscheck only.
+crosscheck = []
 
 [lints]
 workspace = true
