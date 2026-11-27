@@ -320,11 +320,23 @@ and the presentation kernel maps one to the other.** Reason: the kit may not nam
 the kernel may not name the kit (01 §1), as with `Drawn`. Turned down: one `Width` in the tokens crate, which
 would make the kernel depend on the kit.
 
+**Decision: `FlowModel` has private fields and is built by `FlowModel::new` and the `with_*`
+methods, which `disallowed-methods` refuses outside the presentation kernel's fill.** Reason: a
+struct that takes every field is no better than public fields, so `new` takes the fields every flow
+has and the optional parts (choices, under, cancel, asking, refused, busy) are named by consuming
+`with_*` methods; with that, V12 is held by the code and a feature cannot fill a flow's model by
+hand. Turned down: public fields (nothing stops a feature building the model); a `new` taking all
+twelve fields (the same as public ones).
+
 - **Rule V12.** Every step flow's model is filled by the one blanket impl; a flow writes only
   `ShowFlow`. Held by `lint-layers`, which refuses an `impl Present for` a type that implements
-  `StepFlow` (so no `Page` either, `Present` being its supertrait), by `FlowModel::new` in
-  `disallowed-methods` outside the presentation kernel, and by K8 (the step-flow template takes
-  only `FlowModel`).
+  `StepFlow` (so no `Page` either, `Present` being its supertrait), by `FlowModel`'s
+  private fields (built only by `FlowModel::new`, which takes the fields every flow has: heading,
+  title, card, back, width and the step anchor, and the consuming `with_choices`, `with_under`,
+  `with_cancel`, `with_asking`, `with_refused` and `with_busy` for the optional parts), by those
+  methods in `disallowed-methods` (in `kit/clippy.toml` and `app/clippy.toml`, the two files whose
+  crates can name the template) with the fill carrying one `#[allow(clippy::disallowed_methods)]`,
+  and by K8 (the step-flow template takes only `FlowModel`).
 - `Flow<F>`'s fields are private to the kernel. The fill reads them through `Flow::inner()`,
   `asking()`, `refused()` and `again()`, read accessors the kernel gives (03 §9.1).
 
@@ -654,17 +666,30 @@ copy of it is kept but a step fade's source (V19). 01 §6.5 names the type.
 
 ```rust
 /// In the kit's atoms: every text a kit model holds. Its variants are private.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Shown<'s>(Kind<'s>);
-enum Kind<'s> { Plain(&'s str), Secret(&'s str) }
+enum Kind<'s> { Plain(&'s str), Made(Text), Secret(&'s str) }
 
 impl<'s> Shown<'s> {
     /// Text that is no secret: a `Text` the app holds, or a fixed string.
     pub fn plain(text: impl Into<PlainRef<'s>>) -> Self;   // `From` only for `&'s Text` and `&'static str`
     /// A secret on show: a `SecretText`, a reveal's text or the passphrase part's view.
     pub fn secret(text: &'s str) -> Self;
+    /// Plain text `present` made (the step heading "Step N of M", a `ShowFlow::choice` line, a
+    /// filled refusal or label), held by the model for the frame. Never a secret.
+    pub fn made(text: Text) -> Shown<'static>;
 }
 ```
+
+A kit model holds borrowed text or plain text it made, for one frame; a secret is only ever
+borrowed (`Shown::secret` takes a `&'s str` and nothing owned). `Shown` is `Clone` and not `Copy`:
+a model borrows it, or clones it where it must.
+
+**Decision: `Shown` has one owned, plain-only form, `Shown::made`.** Reason: a text filled in
+`present` is owned by nothing that lives for `'s`, so a model could not borrow it; the model
+already lives for one frame, so the owned form keeps "for one frame", and no secret constructor
+takes owned text, so a secret cannot be made plain or owned. Turned down: a frame's text room in
+`Show` (`Show::keep(Text) -> &'s Text`), which needs new `unsafe` or an arena dependency.
 
 - **Rule K12.** A kit model's text field is a `Shown`, and a secret on show (a reveal guard's
   words, typed seed words, a typed passphrase with its eye open, a vault record's password) is
@@ -902,11 +927,3 @@ How `main`'s cases land (inventory file in brackets):
 - Section 07: the tests this section names: the runtime's laid-facts settling (V17), the memo's
   refill check inside `Memo::get` (V13) run by the update tests that present and by the tours,
   and the runtime test that Back lands where the person was (K11).
-- Where text `present` makes lives for the frame. `Shown<'s>` borrows (§11, 01 §6.5), and
-  `Shown::plain` takes only a `&'s Text` or a `&'static str`. A text filled in `present` (the
-  step heading "Step N of M", a `ShowFlow::choice` line, a `Line::Filled` refusal or label) is
-  made in `present` and owned by nothing that lives for `'s`, so a model cannot borrow it. One
-  answer is a frame's text room in `Show` (a `Show::keep(Text) -> &'s Text`, wiped by the runtime
-  when the frame ends); another is an owned plain form of `Shown`, which 01 §6.5's table ("only
-  borrowed text for one frame") would have to allow. Section 01 and this section decide it
-  together.

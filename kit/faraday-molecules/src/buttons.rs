@@ -104,7 +104,7 @@ pub fn draw_items<A: Pressed>(
             } else {
                 Look::from(b.style)
             };
-            ui.showing(b.label, |ui| {
+            ui.showing(&b.label, |ui| {
                 ui.offered(&b.offered, |ui, press, off| {
                     ui.button_wrapped((x, by, w, tall), &lines, look.when(!off), press);
                 });
@@ -201,6 +201,6 @@ fn fits<A: Pressed>(
 ) -> bool {
     let n = items.len() as f32;
     let share = (w - (n - 1.0) * GAP) / n;
-    let words = |i: usize| rule.get(i).copied().unwrap_or(items[i].label).as_str();
+    let words = |i: usize| rule.get(i).unwrap_or(&items[i].label).as_str();
     (0..items.len()).all(|i| ui.measure_as(LABEL_L, words(i)) + BUTTON_PAD <= share)
 }

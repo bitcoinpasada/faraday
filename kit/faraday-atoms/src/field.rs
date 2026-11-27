@@ -36,10 +36,10 @@ pub fn draw<A: Pressed>(
     (x, y, w): (f32, f32, f32),
 ) -> f32 {
     let mut top = y;
-    if let Some(label) = m.label {
+    if let Some(label) = &m.label {
         top += ui.field_label(x, top, label.as_str());
     }
-    let error = m.error.map(|e| e.as_str());
+    let error = m.error.as_ref().map(Shown::as_str);
     let fh = ui.field_h();
     let off = matches!(
         m.offered,
@@ -50,7 +50,7 @@ pub fn draw<A: Pressed>(
     } else {
         ui.field_box((x, top, w), m.focused, error)
     };
-    ui.showing(m.text, |ui| {
+    ui.showing(&m.text, |ui| {
         ui.offered(&m.offered, |ui, press, off| match press {
             Some(action) if !off => {
                 ui.hit_drawn(x, top, w, fh, action.clone());

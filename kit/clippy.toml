@@ -94,6 +94,13 @@ disallowed-methods = [
     { path = "faraday_bip::codex32::Codex32::derive_share", reason = "key boundary (docs/KEYS.md): a codex32 share derived: faraday_keys::codex32::WorkSet does it" },
     { path = "faraday_keys::Held::release", reason = "key boundary (docs/KEYS.md): a held secret leaves its guard only at a named site, under #[expect]" },
     { path = "faraday_keys::vault::IntoRecord::into_record", reason = "key boundary (docs/KEYS.md): a held secret leaves its guard only at a named site, under #[expect]" },
+    { path = "faraday_templates::flow::FlowModel::new", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_choices", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_under", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_cancel", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_asking", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_refused", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_busy", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
 ]
 
 disallowed-types = [

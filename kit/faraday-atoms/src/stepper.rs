@@ -22,7 +22,7 @@ pub struct StepperModel<'s, A> {
 
 /// Draws the stepper's row at (x, y) in a width `w`, design units.
 pub fn draw<A: Pressed>(m: &StepperModel<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) {
-    ui.showing(m.label, |ui| {
+    ui.showing(&m.label, |ui| {
         ui.stepper(
             at,
             m.label.as_str(),

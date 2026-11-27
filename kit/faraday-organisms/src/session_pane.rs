@@ -69,7 +69,7 @@ pub fn draw<A: Pressed>(
     if ui.theme.is_high_contrast() {
         ui.stroke(cx, top, cw, h, SHAPE_M, Role::Outline);
     }
-    ui.showing(m.heading, |ui| {
+    ui.showing(&m.heading, |ui| {
         ui.text_as(
             cx + PAD + LIST_PAD,
             top + PAD,

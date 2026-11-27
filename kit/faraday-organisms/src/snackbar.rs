@@ -26,7 +26,7 @@ pub fn draw_at<A: Pressed>(m: &SnackbarModel<'_>, ui: &mut Ui<'_, A>, (w, foot):
     ui.fill(x, y, bw, h, SHAPE_XS, Role::InverseSurface);
     let room = bw - 4.0 * GRID;
     let text = ui.fit_as(BODY_M, m.text.as_str(), room);
-    ui.showing(m.text, |ui| {
+    ui.showing(&m.text, |ui| {
         ui.text_mid_as(
             (x + 2.0 * GRID, y, h),
             BODY_M,

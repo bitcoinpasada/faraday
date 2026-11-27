@@ -118,7 +118,7 @@ impl Grid {
     }
 }
 
-fn section_label<A: Pressed>(ui: &mut Ui<'_, A>, x: f32, y: f32, label: Shown<'_>) {
+fn section_label<A: Pressed>(ui: &mut Ui<'_, A>, x: f32, y: f32, label: &Shown<'_>) {
     ui.showing(label, |ui| {
         ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, label.as_str());
     });
@@ -160,7 +160,7 @@ fn row_height<A: Pressed>(ui: &Ui<'_, A>, face: &Face<'_, A>, w: f32) -> f32 {
 
 /// A card's top: the heading's line and the space under it, or the corner radius where it has no
 /// heading.
-fn card_head<A: Pressed>(ui: &Ui<'_, A>, label: Option<Shown<'_>>) -> f32 {
+fn card_head<A: Pressed>(ui: &Ui<'_, A>, label: Option<&Shown<'_>>) -> f32 {
     label.map_or(SHAPE_M, |_| LIST_PAD + ui.line_as(TITLE_S) + GRID)
 }
 
@@ -173,7 +173,9 @@ fn faces<'a, 's, A>(s: &'a Section<'s, A>) -> &'a [Face<'s, A>] {
 
 /// The height of the card of `s` `w` wide.
 fn card_height<A: Pressed>(ui: &Ui<'_, A>, s: &Section<'_, A>, w: f32) -> f32 {
-    card_head(ui, s.label) + faces(s).iter().map(|f| row_height(ui, f, w)).sum::<f32>() + SHAPE_M
+    card_head(ui, s.label.as_ref())
+        + faces(s).iter().map(|f| row_height(ui, f, w)).sum::<f32>()
+        + SHAPE_M
 }
 
 /// The card of `s` at `(x, y)`, `w` wide, `h` tall: the heading, then rows with an icon where
@@ -188,10 +190,10 @@ fn draw_card<A: Pressed>(
         return;
     }
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainer);
-    if let Some(label) = s.label {
+    if let Some(label) = &s.label {
         section_label(ui, x + LIST_PAD, y + LIST_PAD, label);
     }
-    let mut ry = y + card_head(ui, s.label);
+    let mut ry = y + card_head(ui, s.label.as_ref());
     for (n, face) in faces(s).iter().enumerate() {
         let rh = row_height(ui, face, w);
         if n > 0 && MENU_ROW_DIVIDERS {
@@ -260,7 +262,7 @@ fn draw_row<A: Pressed>(
         } else {
             Role::OnSurfaceVariant
         };
-        ui.showing(face.line, |ui| {
+        ui.showing(&face.line, |ui| {
             ui.wrap_as((tx, top + name_h, room), BODY_M, muted, line);
         });
         let mut gx = x + w - LIST_PAD - CHEVRON - GRID;
@@ -386,7 +388,7 @@ fn sections<A: Pressed>(
             i += run;
             continue;
         }
-        if let Some(label) = all[i].label {
+        if let Some(label) = &all[i].label {
             section_label(ui, x, y + used, label);
             used += ui.line_as(TITLE_S) + GRID;
         }

@@ -402,7 +402,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
 
     /// Draws what `f` draws of a text shown: a secret on show sets the frame's `secret` flag and
     /// marks the ink it leaves (04 §11).
-    pub fn showing<T>(&mut self, text: crate::Shown<'_>, f: impl FnOnce(&mut Self) -> T) -> T {
+    pub fn showing<T>(&mut self, text: &crate::Shown<'_>, f: impl FnOnce(&mut Self) -> T) -> T {
         if text.is_secret() {
             self.secret = true;
             self.c.mark_secret(true);

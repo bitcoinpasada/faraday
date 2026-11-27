@@ -56,8 +56,8 @@ pub fn draw<A: Pressed>(
         wide += GRID + ui.measure(size, W::R, tail);
     }
     let k = ui.fit_factor_of(wide, inner);
-    ui.showing(m.head, |ui| {
-        ui.showing(m.tail, |ui| {
+    ui.showing(&m.head, |ui| {
+        ui.showing(&m.tail, |ui| {
             ui.fixed_text(|ui| {
                 let at = ((x, y, max), (size * k, lead, inner), face);
                 chip_drawn(m, ui, at, offered)
@@ -143,7 +143,7 @@ pub fn draw_busy<A: Pressed>(
 ) -> f32 {
     let h = busy_height(ui);
     let line = ui.fit_as(TITLE_M, m.line.as_str(), w);
-    ui.showing(m.line, |ui| {
+    ui.showing(&m.line, |ui| {
         ui.text_mid_as((x, y, h - PROGRESS_H), TITLE_M, Role::Primary, &line);
     });
     ui.progress((x, y + h - PROGRESS_H, w), m.done, m.phase);

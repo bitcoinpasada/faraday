@@ -29,7 +29,7 @@ pub fn draw<A: Pressed>(
     ui: &mut Ui<'_, A>,
     (x, y, w): (f32, f32, f32),
 ) -> f32 {
-    if let Some(none) = m.none {
+    if let Some(none) = &m.none {
         ui.text_as(x, y, BODY_M, Role::OnSurfaceVariant, none.as_str());
         return ui.advance_as(BODY_M, HOME_RESULTS_LINE);
     }
@@ -37,7 +37,7 @@ pub fn draw<A: Pressed>(
         return 0.0;
     }
     let mut cy = y;
-    ui.showing(m.label, |ui| {
+    ui.showing(&m.label, |ui| {
         ui.text_as(x, cy, TITLE_S, Role::OnSurfaceVariant, m.label.as_str());
     });
     cy += ui.line_as(TITLE_S) + GRID;

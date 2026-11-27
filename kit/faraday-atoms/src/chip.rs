@@ -19,7 +19,7 @@ pub struct ChipModel<'s, A> {
 /// Draws the chip with its top-left at (x, y), design units. Returns its width.
 pub fn draw<A: Pressed>(m: &ChipModel<'_, A>, ui: &mut Ui<'_, A>, (x, y): (f32, f32)) -> f32 {
     let label = m.label.as_str();
-    ui.showing(m.label, |ui| match &m.offered {
+    ui.showing(&m.label, |ui| match &m.offered {
         Some(offered) => ui.offered(offered, |ui, press, _| {
             ui.chip_press(x, y, label, (m.fg, m.bg), press)
         }),

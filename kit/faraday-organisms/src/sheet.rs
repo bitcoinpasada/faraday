@@ -292,7 +292,7 @@ pub fn sheet_head_at<A: Pressed>(
         head.tone,
     );
     let at = (x + ICON, y, w - ICON);
-    let th = ui.showing(head.title, |ui| {
+    let th = ui.showing(&head.title, |ui| {
         ui.wrap_as(at, role, Role::OnSurface, head.title.as_str())
     });
     th.max(line) + GAP
@@ -305,8 +305,8 @@ pub fn kv<A: Pressed>(
     (key, value): (Shown<'_>, Shown<'_>),
     tone: Paint,
 ) -> f32 {
-    ui.showing(key, |ui| {
-        ui.showing(value, |ui| {
+    ui.showing(&key, |ui| {
+        ui.showing(&value, |ui| {
             let vy =
                 ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, key.as_str()) + GAP_SMALL;
             let vh = ui.wrap_as((x, y + vy, w), BODY_M, tone, value.as_str());

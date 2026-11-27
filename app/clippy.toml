@@ -105,6 +105,13 @@ disallowed-methods = [
     { path = "faraday_runtime::Runtime::record_ink", reason = "R4: the ink record is for the tour root" },
     { path = "faraday_kernel::Job::heavy", reason = "A35: only the shared owners build heavy jobs" },
     { path = "faraday_kernel::Job::seal", reason = "A35: only the shared owners build the seal" },
+    { path = "faraday_templates::flow::FlowModel::new", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_choices", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_under", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_cancel", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_asking", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_refused", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_busy", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
 ]
 
 disallowed-types = [

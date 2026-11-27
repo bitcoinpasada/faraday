@@ -88,6 +88,10 @@ where
 }
 
 /// Fills the step-flow template's model from `StepFlow` and `ShowFlow`, once, for every flow.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "V12: this fill is the one caller of FlowModel::new and its with_* methods"
+)]
 pub fn fill<'s, F: ShowFlow>(
     _flow: &'s Flow<F>,
     _view: &View<'s>,

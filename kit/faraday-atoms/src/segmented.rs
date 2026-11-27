@@ -29,7 +29,7 @@ pub fn draw<A: Pressed>(m: &SegmentedModel<'_, A>, ui: &mut Ui<'_, A>, at: (f32,
         .iter()
         .map(|(l, a)| (l.as_str(), a.clone()))
         .collect();
-    let secret = m.options.iter().map(|o| o.0).find(Shown::is_secret);
+    let secret = m.options.iter().map(|o| &o.0).find(|s| s.is_secret());
     match secret {
         Some(s) => ui.showing(s, |ui| {
             ui.segmented_with(at, m.size, &options, m.chosen, m.slide, m.off)

@@ -94,7 +94,7 @@ pub struct TopBarModel<'s, A> {
 }
 
 /// A large badge's count as it is written.
-fn count_label(n: usize, many: Shown<'_>) -> String {
+fn count_label(n: usize, many: &Shown<'_>) -> String {
     if n > 999 {
         many.as_str().to_string()
     } else {
@@ -137,7 +137,7 @@ pub fn badge<A: Pressed>(
     ui: &mut Ui<'_, A>,
     glyph: (f32, f32, f32),
     badge: Badge,
-    many: Shown<'_>,
+    many: &Shown<'_>,
 ) {
     let (gx, gy, gs) = glyph;
     match badge {
@@ -161,7 +161,7 @@ fn flow_pill<A: Pressed>(
     (gx, gy, gs): (f32, f32, f32),
     own: Badge,
     flows: usize,
-    many: Shown<'_>,
+    many: &Shown<'_>,
 ) {
     if flows == 0 {
         return;
@@ -193,7 +193,7 @@ fn item<A: Pressed>(
     ui: &mut Ui<'_, A>,
     (x, y, w, h): (f32, f32, f32, f32),
     d: &Dest<'_, A>,
-    many: Shown<'_>,
+    many: &Shown<'_>,
 ) {
     let top = y + ((h - item_content(ui)) / 2.0).max(0.0);
     let px = x + (w - NAV_PILL_W) / 2.0;
@@ -244,7 +244,7 @@ fn item<A: Pressed>(
         ui.line(role.size, role.face.into()),
         room,
     );
-    ui.showing(d.label, |ui| {
+    ui.showing(&d.label, |ui| {
         ui.text_fit_as(band, role, fg, label);
     });
 }
@@ -262,7 +262,7 @@ pub fn draw_bar<A: Pressed>(m: &NavModel<'_, A>, ui: &mut Ui<'_, A>, (y, w): (f3
     let on_bar = || m.dests.iter().filter(|d| d.bar);
     let iw = w / on_bar().count().max(1) as f32;
     for (i, d) in on_bar().enumerate() {
-        item(ui, (i as f32 * iw, y, iw, NAV_BAR_H), d, m.many);
+        item(ui, (i as f32 * iw, y, iw, NAV_BAR_H), d, &m.many);
     }
 }
 
@@ -397,7 +397,7 @@ pub fn draw_top<A: Pressed>(m: &TopBarModel<'_, A>, ui: &mut Ui<'_, A>, w: f32) 
             ui,
             (w - GAP_SMALL, APP_BAR_H / 2.0),
             Icon::Power,
-            (action.clone(), false, *tip),
+            (action.clone(), false, tip),
         ),
         None => w,
     }
@@ -468,7 +468,7 @@ pub fn icon_action<A: Pressed>(
     ui: &mut Ui<'_, A>,
     (right, mid): (f32, f32),
     icon: impl Into<Glyph>,
-    (action, on, label): (A, bool, Shown<'_>),
+    (action, on, label): (A, bool, &Shown<'_>),
 ) -> f32 {
     let (x, y) = (right - TOUCH, (mid - TOUCH / 2.0).max(0.0));
     // Lit: a toggled icon button's selected state, its container secondary-container and its
@@ -496,7 +496,7 @@ pub fn help<A: Pressed>(ui: &mut Ui<'_, A>, right: f32, action: A, label: Shown<
         ui,
         (right, APP_BAR_H / 2.0),
         Icon::Help,
-        (action, false, label),
+        (action, false, &label),
     )
 }
 
@@ -636,7 +636,7 @@ pub fn draw_search<A: Pressed>(
     let typed = m.typed.as_str();
     let clear = if typed.is_empty() { 0.0 } else { TOUCH };
     let room = (x + w - tx - SEARCH_INSET - clear).max(0.0);
-    ui.showing(m.typed, |ui| {
+    ui.showing(&m.typed, |ui| {
         if typed.is_empty() {
             let shown = ui.fit_as(BODY_L, m.hint.as_str(), room);
             ui.text_mid_as((tx, y, h), BODY_L, Role::OnSurfaceVariant, &shown);

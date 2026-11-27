@@ -60,7 +60,7 @@ pub struct HoldModel<'s, A> {
 
 /// Draws the hold at (x, y), as wide as its label and no wider than `room`. Returns its width.
 pub fn draw<A: Pressed>(m: &HoldModel<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
-    ui.showing(m.label, |ui| {
+    ui.showing(&m.label, |ui| {
         ui.offered(&m.offered, |ui, press, _| {
             ui.hold_button(at, (m.label.as_str(), m.tone), m.held, press)
         })

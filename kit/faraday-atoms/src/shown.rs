@@ -3,12 +3,13 @@
 use faraday_text::Text;
 
 /// Every text a kit model holds. Its variants are private.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Shown<'s>(Kind<'s>);
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Kind<'s> {
     Plain(&'s str),
+    Made(Text),
     Secret(&'s str),
 }
 
@@ -48,10 +49,17 @@ impl<'s> Shown<'s> {
         Shown(Kind::Secret(text))
     }
 
+    /// The plain text `present` made, held by the model for the frame (04 §11). Never a secret:
+    /// no secret constructor takes owned text.
+    pub fn made(text: Text) -> Shown<'static> {
+        Shown(Kind::Made(text))
+    }
+
     /// The text, to draw.
-    pub fn as_str(&self) -> &'s str {
-        match self.0 {
+    pub fn as_str(&self) -> &str {
+        match &self.0 {
             Kind::Plain(s) | Kind::Secret(s) => s,
+            Kind::Made(t) => t.as_str(),
         }
     }
 
@@ -104,4 +112,40 @@ pub fn thousands(n: u64) -> Text {
         out.push(ch);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::testing::*;
+
+    fn drawn(label: Shown<'_>) -> bool {
+        let mut c = canvas(160);
+        frame(&mut c, &at_rest(None), |ui| {
+            crate::button::draw(
+                &crate::button::ButtonModel {
+                    label,
+                    style: crate::Style::Filled,
+                    offered: crate::offered::Offered::Yes(P(1)),
+                    chosen: false,
+                    icon: None,
+                },
+                ui,
+                (10.0, 10.0, None, 40.0),
+            );
+        })
+        .secret
+    }
+
+    /// Invariant: Text `present` made is held as plain text: it is never a secret and drawing it leaves the frame's secret flag unset.
+    /// Regression: The owned form is marked secret, or a secret is made from owned text, so the frame's flag and the ink's mark disagree with what is on show.
+    /// Owner: kit
+    #[test]
+    fn made_text_is_never_secret_and_does_not_flag_the_frame() {
+        let made = Shown::made(faraday_text::text!("Step {} of {}", 2, 3));
+        assert!(!made.is_secret());
+        assert_eq!(made.as_str(), "Step 2 of 3");
+        assert!(!drawn(made));
+        assert!(drawn(Shown::secret("abandon")));
+    }
 }

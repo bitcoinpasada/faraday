@@ -34,7 +34,7 @@ pub fn draw<A: Pressed>(
     } else {
         Look::from(m.style)
     };
-    ui.showing(m.label, |ui| {
+    ui.showing(&m.label, |ui| {
         ui.offered(&m.offered, |ui, press, off| {
             ui.button_offered(
                 (x, y, w, h),

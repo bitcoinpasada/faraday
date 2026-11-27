@@ -79,7 +79,7 @@ pub enum Organism<'s, A> {
 fn fact<A: Pressed>(
     ui: &mut Ui<'_, A>,
     (x, y, w): (f32, f32, f32),
-    (label, value, mono): (Shown<'_>, Shown<'_>, bool),
+    (label, value, mono): (&Shown<'_>, &Shown<'_>, bool),
 ) -> f32 {
     let value_role = if mono { BODY_M.mono() } else { BODY_M };
     ui.showing(label, |ui| {
@@ -97,17 +97,17 @@ fn fact<A: Pressed>(
 fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
     let (x, y, w) = at;
     match b {
-        Block::Heading(s) => ui.showing(*s, |ui| {
+        Block::Heading(s) => ui.showing(s, |ui| {
             ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, s.as_str());
             ui.advance_as(BODY_S, 22.0)
         }),
-        Block::Headline(s) => ui.showing(*s, |ui| {
+        Block::Headline(s) => ui.showing(s, |ui| {
             let role = sheet_head(ui.compact);
             let h = ui.wrap_as((x, y, w), role, Role::OnSurface, s.as_str());
             h + GAP
         }),
         Block::Para(m) => flow_text::draw(m, ui, at),
-        Block::Fact { label, value, mono } => fact(ui, at, (*label, *value, *mono)),
+        Block::Fact { label, value, mono } => fact(ui, at, (label, value, *mono)),
         Block::Rows(rows) => {
             let mut cy = y;
             for r in rows {
@@ -115,7 +115,7 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
             }
             cy - y
         }
-        Block::Caution(s) => ui.showing(*s, |ui| {
+        Block::Caution(s) => ui.showing(s, |ui| {
             ui.wrap_as((x, y, w), BODY_M, Role::Warning, s.as_str())
         }),
         Block::Buttons(items) => draw_items(items, &[], false, ui, at),

@@ -18,7 +18,7 @@ pub struct PillModel<'s, A> {
 /// Draws the pill with its top-left at (x, y), design units. Returns its width.
 pub fn draw<A: Pressed>(m: &PillModel<'_, A>, ui: &mut Ui<'_, A>, (x, y): (f32, f32)) -> f32 {
     let label = m.label.as_str();
-    ui.showing(m.label, |ui| match &m.offered {
+    ui.showing(&m.label, |ui| match &m.offered {
         Some(offered) => ui.offered(offered, |ui, press, _| match press {
             Some(word) => ui.word_pill(x, y, label, word),
             None => ui.pill(x, y, TAG_H, label),

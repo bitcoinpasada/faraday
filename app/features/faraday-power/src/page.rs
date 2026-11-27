@@ -25,14 +25,14 @@ impl Power {
         let (cw, _) = page_room(ui);
         let (x, width) = page_span(ui.compact, 0.0, cw);
         let page = Content(vec![
-            Block::Heading(model.title),
+            Block::Heading(model.title.clone()),
             Block::Fact {
-                label: model.row,
-                value: model.check,
+                label: model.row.clone(),
+                value: model.check.clone(),
                 mono: false,
             },
             Block::Buttons(vec![faraday_organisms::ButtonModel {
-                label: model.exit.label,
+                label: model.exit.label.clone(),
                 style: model.exit.style,
                 offered: model.exit.offered.clone(),
                 chosen: false,

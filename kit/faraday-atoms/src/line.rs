@@ -78,7 +78,7 @@ pub struct LineModel<'s> {
 
 /// Draws the line with its top-left at (x, y), design units. Returns its width.
 pub fn draw<A: Pressed>(m: &LineModel<'_>, ui: &mut Ui<'_, A>, (x, y): (f32, f32)) -> f32 {
-    ui.showing(m.text, |ui| {
+    ui.showing(&m.text, |ui| {
         ui.text_as(x, y, m.role, m.color, m.text.as_str())
     })
 }

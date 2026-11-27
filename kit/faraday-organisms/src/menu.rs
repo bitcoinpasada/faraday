@@ -86,7 +86,10 @@ const TICK: f32 = ICON_GLYPH_BUTTON + ICON_GAP;
 /// Costs measuring every line. The width the popup takes for `m`'s lines: the widest with its
 /// room, between Material's least and most.
 pub fn width<A: Pressed>(m: &MenuModel<'_, A>, ui: &Ui<'_, A>) -> f32 {
-    let mut widest = m.title.map_or(0.0, |t| ui.measure_as(LABEL_M, t.as_str()));
+    let mut widest = m
+        .title
+        .as_ref()
+        .map_or(0.0, |t| ui.measure_as(LABEL_M, t.as_str()));
     let mut under = 0.0;
     for line in &m.lines {
         match line {
@@ -154,7 +157,7 @@ fn lines<A: Pressed>(m: &MenuModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, 
             MenuLine::Head(name) => {
                 let room = w - 2.0 * MENU_ITEM_PAD;
                 let at = (x + MENU_ITEM_PAD, cy, hh, room);
-                ui.showing(*name, |ui| {
+                ui.showing(name, |ui| {
                     ui.text_fit_as(at, LABEL_M, Role::OnSurfaceVariant, name.as_str())
                 });
                 under = MENU_INDENT;
@@ -162,7 +165,7 @@ fn lines<A: Pressed>(m: &MenuModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, 
             }
             MenuLine::Item(label, offered, chosen) => {
                 let look = Look {
-                    label: *label,
+                    label: label.clone(),
                     offered,
                     chosen: *chosen,
                     tone: Role::OnSurface,
@@ -174,7 +177,7 @@ fn lines<A: Pressed>(m: &MenuModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, 
             }
             MenuLine::Danger(label, offered) => {
                 let look = Look {
-                    label: *label,
+                    label: label.clone(),
                     offered,
                     chosen: false,
                     tone: Role::Error,
@@ -186,7 +189,7 @@ fn lines<A: Pressed>(m: &MenuModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, 
             }
             MenuLine::Icon(icon, label, offered) => {
                 let look = Look {
-                    label: *label,
+                    label: label.clone(),
                     offered,
                     chosen: false,
                     tone: Role::OnSurface,
@@ -257,7 +260,7 @@ fn item<A: Pressed>(
             ix += ICON_GLYPH_BUTTON + ICON_GAP;
         }
         let room = (x + w - MENU_ITEM_PAD - TICK - ix).max(0.0);
-        ui.showing(look.label, |ui| {
+        ui.showing(&look.label, |ui| {
             ui.text_fit_as((ix, y, h, room), LABEL_L.regular(), fg, look.label.as_str());
         });
         if chosen {
@@ -275,11 +278,11 @@ pub fn draw<A: Pressed>(m: &MenuModel<'_, A>, ui: &mut Ui<'_, A>, (w, h): (f32, 
     if ui.compact {
         let body = |ui: &mut Ui<'_, A>, (x, y, iw): (f32, f32, f32)| {
             let mut cy = y;
-            if let Some(t) = m.title {
+            if let Some(t) = &m.title {
                 let head = Head {
                     icon: m.icon,
                     tone: Role::OnSurface.paint(),
-                    title: t,
+                    title: t.clone(),
                 };
                 cy += sheet::sheet_head_at(ui, (x, cy, iw), &head);
             }
@@ -342,7 +345,7 @@ pub fn draw<A: Pressed>(m: &MenuModel<'_, A>, ui: &mut Ui<'_, A>, (w, h): (f32, 
         Region::new(m.scroll, clip).on(Role::SurfaceContainer),
         |ui| {
             let mut cy = y + MENU_PAD_V;
-            if let Some(t) = m.title {
+            if let Some(t) = &m.title {
                 let hh = head_h(ui);
                 let at = (x + MENU_ITEM_PAD, cy, hh, pw - 2.0 * MENU_ITEM_PAD);
                 ui.showing(t, |ui| {

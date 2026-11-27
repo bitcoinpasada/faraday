@@ -40,7 +40,7 @@ pub struct TagModel<'s> {
 
 /// Draws the tag with its top-left at (x, y), design units. Returns its width.
 pub fn draw<A: Pressed>(m: &TagModel<'_>, ui: &mut Ui<'_, A>, (x, y): (f32, f32)) -> f32 {
-    ui.showing(m.label, |ui| ui.tag(x, y, m.label.as_str(), m.status))
+    ui.showing(&m.label, |ui| ui.tag(x, y, m.label.as_str(), m.status))
 }
 
 impl<A: Pressed> Ui<'_, A> {

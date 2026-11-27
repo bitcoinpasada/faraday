@@ -46,7 +46,7 @@ fn lines<A: Pressed>(m: &RowModel<'_, A>, ui: &Ui<'_, A>, w: f32) -> usize {
 /// before it.
 fn head_room<A: Pressed>(m: &RowModel<'_, A>, ui: &Ui<'_, A>, w: f32) -> f32 {
     let inner = w - 2.0 * LIST_PAD;
-    match m.trailing {
+    match &m.trailing {
         Some((t, _)) => inner - ui.measure_as(LABEL_S, t.as_str()) - GAP,
         None => inner,
     }
@@ -117,8 +117,8 @@ pub fn draw<A: Pressed>(
     if !ui.shows(y, h) {
         return h;
     }
-    ui.showing(m.headline, |ui| {
-        ui.showing(m.supporting, |ui| drawn(m, ui, (x, y, w), h))
+    ui.showing(&m.headline, |ui| {
+        ui.showing(&m.supporting, |ui| drawn(m, ui, (x, y, w), h))
     });
     h
 }
@@ -151,8 +151,8 @@ fn drawn<A: Pressed>(
     };
     let (tx, inner) = (x + LIST_PAD, w - 2.0 * LIST_PAD);
     let room = head_room(m, ui, w);
-    if let Some((t, tone)) = m.trailing {
-        let tone = if m.chosen { ink } else { tone };
+    if let Some((t, tone)) = &m.trailing {
+        let tone = if m.chosen { ink } else { *tone };
         ui.text_right_as((x + w - LIST_PAD, top, line), LABEL_S, tone, t.as_str());
     }
     let headline = m.headline.as_str();

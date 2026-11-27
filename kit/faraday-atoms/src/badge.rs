@@ -16,7 +16,7 @@ pub struct BadgeModel<'s> {
 
 /// Draws the badge with its top-left at (x, y), design units.
 pub fn draw<A: Pressed>(m: &BadgeModel<'_>, ui: &mut Ui<'_, A>, (x, y): (f32, f32)) {
-    ui.showing(m.label, |ui| {
+    ui.showing(&m.label, |ui| {
         ui.badge(x, y, m.label.as_str(), m.done, m.open)
     });
 }

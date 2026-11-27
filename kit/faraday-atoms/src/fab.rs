@@ -23,7 +23,7 @@ pub fn draw<A: Pressed>(
     ui: &mut Ui<'_, A>,
     (right, bottom): (f32, f32),
 ) -> f32 {
-    ui.showing(m.label, |ui| {
+    ui.showing(&m.label, |ui| {
         ui.offered(&m.offered, |ui, press, off| match press {
             Some(action) if !off => ui.fab(right, bottom, m.icon, m.label.as_str(), action),
             _ => 0.0,

@@ -430,7 +430,9 @@ Every text a kit model holds is a `Shown<'s>`, a kit atoms type whose variants a
 (section 04 §11). `Shown::plain` takes only a `&'s Text` or a `&'static str`; `Shown::secret`
 takes a `SecretText`'s text, a reveal's text or the passphrase part's read view. So a revealed
 secret a model shows is a borrow of a reveal guard (§8.2), marked secret, and a borrowed secret
-cannot be made plain.
+cannot be made plain. `Shown::made` takes a `Text` that `present` made (the step heading, a
+choice line, a filled refusal or label) and holds it for the frame, plain and never secret: no
+secret constructor takes owned text, so a secret is only ever borrowed.
 
 ## 7. The runtime, adapters, roots and tools
 
@@ -524,7 +526,7 @@ where printed sheets are made.
 | Port | Only in transit, in wiping types: a pasted text, a file's bytes read from a stick, a camera frame, a file's bytes to write | The port's event and effect types use the wiping types for these fields |
 | Application | In state, only in `faraday-keys` types (the key store, an open vault) and the wiping types (typed words before Done, a typed passphrase in its part) | A message moves one; it never copies one |
 | Presentation | Only a borrow of a reveal guard, for one frame | §8.2 |
-| Kit | Only borrowed text for one frame | `Shown<'s>` from the model, a secret marked by `Shown::secret` (§6.5) |
+| Kit | Borrowed text, or plain text `present` made, for one frame; a secret only borrowed | `Shown<'s>` from the model, a secret marked by `Shown::secret`, made text by `Shown::made`, never secret (§6.5) |
 | Runtime | Only what the model it owns holds, what moves through its queue and jobs, and the carry it holds between the drop and the next start or Keep | It drops the model at a lock (§8.4); the carry's secret bytes are the Inbox's and Outbox's alone (section 05 §7.3) |
 | Adapters | Only in transit, as the port's types | Written or read, never kept |
 
