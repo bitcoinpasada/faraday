@@ -2736,14 +2736,8 @@ feature = ["starter-app"]
 
 [[module]]
 main = "faraday/faraday-starter/examples/icon.rs"
-fate = "port"
-next = []
-feature = ["starter-app"]
-why = "no destination on next: nothing in 09 names a tool or example that draws the Starter's menu icon from its mark"
-
-
-# ----------------------------------------------------------------------
-# faraday-starter: tests/ (the old tests are not ported or read, 10 §10, TS4)
+fate = "drop"
+why = "the example drew the Starter's menu icon once, to make `faraday/shells/starter/assets/icon.png`; on next that PNG is a committed asset (`roots/faraday-starter-shell/assets/icon.png`, 09 §1) and nothing draws it at build time"
 
 [[module]]
 main = "faraday/faraday-starter/tests/all"
@@ -2784,26 +2778,30 @@ changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/lib.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-atoms/src/lib.rs", "kit/faraday-atoms/src/ui.rs", "kit/faraday-atoms/src/button.rs", "kit/faraday-atoms/src/field.rs", "kit/faraday-atoms/src/fab.rs", "kit/faraday-atoms/src/chip.rs", "kit/faraday-atoms/src/tag.rs", "kit/faraday-atoms/src/frame_out.rs", "kit/faraday-atoms/src/hits.rs", "kit/faraday-atoms/src/focus.rs"]
+feature = ["ui-press", "ui-controls"]
 changed = ["the 3,000-line frame and its controls split by control and by level; Ui gains the FrameOut of 04 §7"]
 
 [[module]]
 main = "faraday/faraday-ui/src/controls.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-atoms/src/check.rs", "kit/faraday-atoms/src/switch.rs", "kit/faraday-atoms/src/segmented.rs", "kit/faraday-atoms/src/stepper.rs", "kit/faraday-atoms/src/progress.rs", "kit/faraday-atoms/src/icon_button.rs", "kit/faraday-atoms/src/pill.rs", "kit/faraday-atoms/src/badge.rs"]
+feature = ["ui-controls"]
 changed = ["split one control per file"]
 
 [[module]]
 main = "faraday/faraday-ui/src/press.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-atoms/src/hits.rs", "kit/faraday-atoms/src/offered.rs"]
+feature = ["ui-press"]
 changed = ["press and hit records become Hit/Offered of 04 §7"]
 
 [[module]]
 main = "faraday/faraday-ui/src/region.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-atoms/src/region.rs"]
+feature = ["ui-regions"]
 changed = []
 
 [[module]]
@@ -2820,14 +2818,16 @@ changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/lists.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-molecules/src/row.rs", "kit/faraday-molecules/src/options.rs", "kit/faraday-molecules/src/kind_rows.rs"]
+feature = ["sheets-parts"]
 changed = ["split by row kind"]
 
 [[module]]
 main = "faraday/faraday-ui/src/parts.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-molecules/src/code_box.rs", "kit/faraday-molecules/src/address.rs", "kit/faraday-molecules/src/words.rs", "kit/faraday-molecules/src/qr.rs", "kit/faraday-molecules/src/caution.rs", "kit/faraday-molecules/src/status.rs"]
+feature = ["sheets-parts"]
 changed = ["split by part; qr_code takes its secret-wiping from kit/faraday-draw (09 §3.1)"]
 
 [[module]]
@@ -2844,32 +2844,37 @@ changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/stick.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-molecules/src/stick_pill.rs"]
+feature = ["ui-controls"]
 changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/appearance.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-molecules/src/appearance.rs", "kit/faraday-molecules/src/chips.rs"]
+feature = ["ui-theme"]
 changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/flow.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-molecules/src/buttons.rs", "kit/faraday-molecules/src/pads.rs"]
+feature = ["flow-container"]
 changed = ["the flow's chrome pieces; the flow container itself is kit/faraday-templates/src/flow.rs"]
 
 [[module]]
 main = "faraday/faraday-ui/src/sheet.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/sheet.rs"]
+feature = ["ui-sheets"]
 changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/menu.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/menu.rs"]
+feature = ["menu-pages"]
 changed = []
 
 [[module]]
@@ -2886,8 +2891,9 @@ changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/keyboard.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/keyboard.rs"]
+feature = ["keyboard"]
 changed = []
 
 [[module]]
@@ -2898,50 +2904,58 @@ changed = ["the How block's list"]
 
 [[module]]
 main = "faraday/faraday-ui/src/demo.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/demo_only.rs"]
+feature = ["practice-demo"]
 changed = ["what a page offers only in Practice"]
 
 [[module]]
 main = "faraday/faraday-ui/src/nav/mod.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/nav.rs"]
+feature = ["ui-navigation"]
 changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/nav/app_bar.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/nav.rs"]
+feature = ["ui-navigation"]
 changed = ["one file for the nav organism"]
 
 [[module]]
 main = "faraday/faraday-ui/src/nav/bar.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/nav.rs"]
+feature = ["ui-navigation"]
 changed = ["one file for the nav organism"]
 
 [[module]]
 main = "faraday/faraday-ui/src/nav/rail.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/nav.rs"]
+feature = ["ui-navigation"]
 changed = ["one file for the nav organism"]
 
 [[module]]
 main = "faraday/faraday-ui/src/nav/chip.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-molecules/src/chips.rs"]
+feature = ["ui-navigation"]
 changed = ["09 §3.1 puts nav::chip at the molecules"]
 
 [[module]]
 main = "faraday/faraday-ui/src/pal/mod.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-tokens/src/palette.rs"]
+feature = ["ui-theme"]
 changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/pal/schemes.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-tokens/src/palette.rs"]
+feature = ["ui-theme"]
 changed = ["the generated scheme values"]
 
 [[module]]
@@ -2977,8 +2991,9 @@ changed = []
 
 [[module]]
 main = "core/faraday-draw/src/canvas.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-draw/src/canvas.rs"]
+feature = ["draw-base"]
 changed = []
 
 [[module]]
@@ -2989,14 +3004,16 @@ changed = []
 
 [[module]]
 main = "core/faraday-draw/src/canvas/list.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-draw/src/canvas.rs", "kit/faraday-draw/src/picture.rs"]
+feature = ["draw-base"]
 changed = ["the call list stays with the canvas; replay as Picture (04 §7)"]
 
 [[module]]
 main = "core/faraday-draw/src/canvas/list/bands.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-draw/src/canvas.rs"]
+feature = ["draw-base"]
 changed = []
 
 [[module]]
@@ -3007,8 +3024,9 @@ changed = []
 
 [[module]]
 main = "core/faraday-draw/src/color.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-tokens/src/palette.rs"]
+feature = ["ui-theme"]
 changed = ["Colour and the theme's roles, at the tokens level"]
 
 [[module]]
@@ -3019,14 +3037,16 @@ changed = []
 
 [[module]]
 main = "core/faraday-draw/src/fonts/mod.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-draw/src/fonts.rs"]
+feature = ["draw-base"]
 changed = []
 
 [[module]]
 main = "core/faraday-draw/src/fonts/generated.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-draw/src/fonts.rs"]
+feature = ["draw-base"]
 changed = ["baked by tools/fontbake, now writing this path"]
 
 [[module]]
@@ -3037,8 +3057,9 @@ changed = []
 
 [[module]]
 main = "core/faraday-draw/src/layout.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-tokens/src/dims.rs"]
+feature = ["tokens"]
 changed = ["the display facts sizes depend on, as tokens"]
 
 [[module]]
@@ -3055,26 +3076,30 @@ changed = []
 
 [[module]]
 main = "core/faraday-draw/src/tokens.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-tokens/src/dims.rs", "kit/faraday-tokens/src/elevation.rs", "kit/faraday-tokens/src/motion.rs", "kit/faraday-tokens/src/type_roles.rs"]
+feature = ["tokens"]
 changed = ["split by token kind"]
 
 [[module]]
 main = "core/faraday-draw/src/widgets/mod.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-draw/src/icons.rs"]
+feature = ["draw-base"]
 changed = []
 
 [[module]]
 main = "core/faraday-draw/src/widgets/icon.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-draw/src/icons.rs"]
+feature = ["draw-base"]
 changed = []
 
 [[module]]
 main = "core/faraday-draw/src/widgets/keyboard.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-organisms/src/keyboard.rs"]
+feature = ["keyboard"]
 changed = ["the key geometry moves with the keyboard organism"]
 
 [[module]]
@@ -3150,8 +3175,8 @@ why = "10 §10, TS4: the memory test of the replaced Faraday struct, not ported"
 [[module]]
 main = "faraday/clippy.toml"
 fate = "rewrite"
-next = ["core/clippy.toml", "kit/clippy.toml", "app/clippy.toml", "app/owners/clippy.toml", "runtime/clippy.toml", "adapters/clippy.toml", "roots/clippy.toml", "roots/faraday-snapshot/clippy.toml", "tools/clippy.toml"]
-contract = "09 §1.4: the keys set (70 paths) is carried into every directory's clippy.toml with the mint, io and app sets"
+next = ["kit/clippy.toml", "app/clippy.toml", "app/owners/clippy.toml", "runtime/clippy.toml", "adapters/clippy.toml", "roots/clippy.toml", "roots/faraday-snapshot/clippy.toml", "tools/clippy.toml"]
+contract = "09 §1.4: the keys set (70 paths) is carried into every directory's clippy.toml with the mint, io and app sets, but `core/`'s, which is the copy of main's `core/clippy.toml`"
 
 [[module]]
 main = "docs/screenshots"
