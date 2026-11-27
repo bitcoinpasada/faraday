@@ -835,6 +835,7 @@ pub enum Style { Filled, Tonal, Outlined, Text, Elevated, Error }
   Demo's host strip and the "Demo only" card (`practice-demo.md`). A new one is a kit change and a
   row of DESIGN §4.
 - Built: the keyboard (its layouts and keys), the ways in, the viewfinder, the QR copy grid and a row's details (`kit/faraday-organisms/src/{keyboard,ways_in,viewfinder,qr_grid,row_details}.rs`), each a model and a `draw` over its box.
+- Built: the step-flow template (`kit/faraday-templates/src/flow.rs`, `flow/compact.rs`): the heading and title, the card, Your choices (beside the card where the room holds the pair, else under it) with `under` in the pane, the foot (refusal, busy line held still under Reduce motion, Back and Cancel), the asking dialog over the page, and on the small panel the page per step with the card's last row of buttons in the pin bar; `FlowModel::new` also takes `FlowWords` (Your choices, Back, Cancel), since the template names no strings crate. Not built: the pick, the take-away and the lead row, Your choices as the bar's button and sheet, the current row's mark.
 
 ### 12.4 The templates
 

@@ -159,9 +159,19 @@ fn part<A: Pressed>(o: &Organism<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)
 
 /// Draws the content from (x, y), `w` wide: its blocks in order, a gap between them (a list's
 /// rows, which carry their own padding, apart). Returns the height it took.
-pub fn draw<A: Pressed>(m: &Content<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(m: &Content<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
+    draw_blocks(&m.0, ui, at)
+}
+
+/// [`draw`] for some of a content's blocks: the small panel's step page draws all but the last
+/// block, which it pins at the panel's foot.
+pub fn draw_blocks<A: Pressed>(
+    blocks: &[Block<'_, A>],
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
     let mut cy = y;
-    for (i, b) in m.0.iter().enumerate() {
+    for (i, b) in blocks.iter().enumerate() {
         if i > 0 {
             cy += GAP;
         }
