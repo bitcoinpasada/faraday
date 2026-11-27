@@ -13,9 +13,6 @@ faraday-files = { path = "../../core/faraday-files" }
 faraday-strings = { path = "../../core/faraday-strings" }
 faraday-text = { path = "../../core/faraday-text" }
 
-[dev-dependencies]
-faraday-leak-scan = { path = "../../tools/faraday-leak-scan" }
-
 [lints]
 workspace = true
 
