@@ -90,6 +90,9 @@ pub struct Parts<'a, 's, A: Pressed> {
     pub on_placed: Option<OnPlaced<A>>,
     /// The scroll of the tile in a pair, which scrolls within the window's height.
     pub scroll: Option<Anchor>,
+    /// The session pane glides to its new place when the pair moves (a change of window or of
+    /// page layout), keyed by this anchor.
+    pub glide: Option<Anchor>,
 }
 
 impl<A: Pressed> Parts<'_, '_, A> {
@@ -101,6 +104,7 @@ impl<A: Pressed> Parts<'_, '_, A> {
             guide: None,
             on_placed: None,
             scroll: None,
+            glide: None,
         }
     }
 }
@@ -557,7 +561,9 @@ pub fn draw_with<A: Pressed>(
         Left::Session(left) => {
             let pane_need = session_pane::page_content_h(left, ui, p.pane_w);
             let both = level(pane_need, tile_need, avail);
-            session_pane::draw_page(left, ui, (x0 + p.pane_x, y, p.pane_w, both));
+            let at = (x0 + p.pane_x, y, p.pane_w, both);
+            let at = glided(ui, parts.glide, at);
+            session_pane::draw_page(left, ui, at);
             both
         }
         Left::Own => {
@@ -581,6 +587,25 @@ pub fn draw_with<A: Pressed>(
         }
     }
     both
+}
+
+/// The box `at` of the session pane, or, where the page asks for a glide, where the pane stands
+/// on its way from its last place ([`Ui::glide_rect`], a step's time).
+fn glided<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    id: Option<Anchor>,
+    at: (f32, f32, f32, f32),
+) -> (f32, f32, f32, f32) {
+    let Some(id) = id else { return at };
+    let to = ui.rect(at.0, at.1, at.2, at.3);
+    let r = ui.glide_rect(id, to, STEP_MS);
+    let f = ui.f;
+    (
+        r.x as f32 / f,
+        r.y as f32 / f,
+        r.w as f32 / f,
+        r.h as f32 / f,
+    )
 }
 
 /// The pane above the tile in the menu page's one column, centred.
@@ -673,8 +698,8 @@ pub fn page_turn(motion: Motion, speed_ms: u64) -> Option<(Turn, u64)> {
 
 /// How far a change of page begun at `began_ms` has come at the frame's time, 0 to 1, and what
 /// it does: `None` for a change shown at once (Motion Off, or Reduce motion) or one that is
-/// over. The time is the frame's (`Ui::now_ms`); the blending of the kept frames is the
-/// runtime's (04 §8.3), eased by the emphasized curve.
+/// over. The time is the frame's (`Ui::now_ms`), the progress eased by the atoms' emphasized curve;
+/// the blending of the kept frames is the runtime's (04 §8.3).
 pub fn turn_at<A: Pressed>(
     ui: &Ui<'_, A>,
     (motion, speed_ms): (Motion, u64),
@@ -685,7 +710,7 @@ pub fn turn_at<A: Pressed>(
     }
     let (turn, ms) = page_turn(motion, speed_ms)?;
     let t = faraday_atoms::motion::progress(began_ms, ui.now_ms(), ms);
-    (t < 1.0).then_some((turn, t))
+    (t < 1.0).then_some((turn, faraday_atoms::motion::turn_ease(t)))
 }
 
 #[cfg(test)]
@@ -860,6 +885,30 @@ mod tests {
         }
     }
 
+    /// Invariant: A pair that moves glides its session pane from its old place, and one that asks for no glide stands at its place at once.
+    /// Regression: The pane jumping when the window changes size, or never reaching its place.
+    /// Owner: kit
+    #[test]
+    fn the_session_pane_glides_to_a_moved_pair() {
+        let mut c = canvas(160);
+        let mut store = MotionStore::new();
+        let mut hits = Vec::new();
+        for (now, room) in [(0, 1366.0_f32), (10, 1920.0), (5000, 1920.0)] {
+            let out = frame_in(&mut c, &at_rest(None), (&mut store, now), |ui| {
+                let m = panes(Tile::Card, false, Narrow::OneColumn);
+                let mut parts = Parts::none();
+                parts.glide = Some(Anchor {
+                    scope: "panes",
+                    n: 1,
+                });
+                draw_with(&m, ui, (0.0, room), 8.0, parts, |_, _| 120.0);
+            });
+            hits.push(format!("{:?}", out.pace));
+        }
+        assert_eq!(hits[0], hits[2]);
+        assert_ne!(hits[1], hits[2]);
+    }
+
     /// Invariant: A change of page under Off is shown at once; Smooth goes through the surface and Crossfade blends, both for the Speed's time.
     /// Regression: A person who turned motion off still seeing a fade.
     /// Owner: kit
@@ -890,8 +939,11 @@ mod tests {
                 },
             );
         }
-        assert_eq!(seen[0], Some((Turn::Through, 0.0)));
-        assert_eq!(seen[1], Some((Turn::Through, 0.5)));
+        let eased = |p: Option<(Turn, f32)>| p.map(|(_, e)| e);
+        assert_eq!(seen[0].map(|(t, _)| t), Some(Turn::Through));
+        assert!(eased(seen[0]).unwrap().abs() < 1e-3);
+        let mid = eased(seen[1]).unwrap();
+        assert!(mid > 0.0 && mid < 1.0);
         assert_eq!(seen[2], None);
     }
 }
