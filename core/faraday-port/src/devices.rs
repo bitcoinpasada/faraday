@@ -22,8 +22,7 @@ pub struct UsbDevice {
     pub interfaces: alloc::vec::Vec<Interface>,
 }
 
-/// An input device the adapter holds back until the person lets it in.
-// Spec: 02 §3.6 leaves this open (the id's type).
+/// The adapter's number for an input device it holds back until the person lets it in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct InputId(pub u32);
 

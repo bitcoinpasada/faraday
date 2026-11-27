@@ -5,8 +5,7 @@ use faraday_text::Text;
 use crate::ask::{AskId, request};
 use crate::bytes::Bytes;
 
-/// The adapter's name for a camera.
-// Spec: 02 §4.4 leaves this open (the id's type).
+/// The adapter's name for a camera, as `CameraInfo::id` gives it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CameraId(pub Text);
 
@@ -37,6 +36,8 @@ pub enum Failure {
     NotFound,
     Unavailable,
     Unsupported,
+    /// P9: the wrong answer for the ask.
+    Adapter,
 }
 
 pub struct CameraFrame {

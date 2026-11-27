@@ -12,7 +12,6 @@ use crate::bytes::Bytes;
 pub struct StickId(pub Text);
 
 /// A SHA-256 hash.
-// Spec: 02 §4.1 uses `Sha256` without saying which crate holds it; the port holds it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Sha256(pub [u8; 32]);
 
@@ -67,8 +66,8 @@ pub enum Unrenamed {
     Failed(Failure),
 }
 
-/// Why naming a stick was refused.
-// Spec: 02 §4.1 leaves this open (its variants).
+/// Why naming a stick was refused: a label FAT cannot hold, or a failure (a folder stick's
+/// is `Unsupported`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NameRefused {
     Invalid,
@@ -135,7 +134,6 @@ pub enum StorageAnswer {
     /// Free and size; 0 and 0 for a folder.
     Space(Result<Room, Failure>),
     Zeroing(Result<Zeroing, Failure>),
-    // Spec: 02 §4.1 lists no answer for `MakeEmpty`; this one is its.
     Emptied(Result<(), Failure>),
     Renamed(Result<(), Unrenamed>),
     Named(Result<(), NameRefused>),
@@ -159,7 +157,6 @@ pub enum Wiped {
 }
 
 /// A stick's free space and size, in bytes.
-// Spec: 02 §4.1 names the answer `Space`, which is the ask's name here; it is `Room`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Room {
     pub free: u64,

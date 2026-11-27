@@ -27,13 +27,13 @@ Its modules:
 
 | Module | Holds |
 |---|---|
-| `event` | `Event` and every unasked fact (§3) |
-| `ask` | `Ask`, `Answer`, `AskId`, the `Request` trait, every ask's own type (§2, §4) |
+| `event` | `Event`, `Start`, `Abilities`, `Machine`, `Scheme`, `Time`, `Input`, `Key` and every unasked fact (§3) |
+| `ask` | `Ask`, `Answer`, `AskId`, the `Request` trait, every ask's own type, `Failure`, `OsError` (§2, §4, §7.2) |
 | `order` | `Order`: effects with no answer (§4.9) |
 | `frame` | `Frame`, `Rect`, `Moved`, `Region`, `Pace` (§5) |
-| `values` | the display's and the machine's facts the kit may name (P4): `Display`, `Orientation`, `Point`, `Medium`, and `Anchor` |
+| `values` | the display's and the machine's facts the kit may name (P4): `Display`, `Preview`, `Orientation`, `Point`, `Medium`, and `Anchor` |
 | `bytes` | `Bytes`, `EntropyBytes` and the rule of what wipes (§6) |
-| `storage`, `host`, `camera`, `devices`, `system` | each family's value types (§4) |
+| `storage`, `host`, `camera`, `devices`, `system` | each family's value types (§4): `storage` also holds `StickId`, `StickInfo` and `Sha256`; `camera` holds `CameraId`; `devices` holds `UsbDevice`, `InputId` and `Edid` |
 
 `Anchor` is the name the app gives a place it draws; the kernel's view orders and the kit's motion
 store key by it (section 04, K10):
@@ -86,7 +86,9 @@ is the only caller of `carry` with an `Ask`: it mints the `AskId` (§2.2).
 
 **Decision: every effect whose outcome the app shows is an ask, answered exactly once, also by an
 adapter that cannot carry it.** An adapter without a clipboard answers `Failure::Unsupported`; an
-adapter without randomness answers `Failure::Unavailable`. Reason: one rule (one ask, one answer)
+adapter without randomness answers `Failure::Unavailable`. The camera's and the system's own
+failures have their `Unsupported` too, and an answer with no failure in it is answered with
+nothing known, as P9 gives it. Reason: one rule (one ask, one answer)
 lets the app's `update` handle every outcome as a message and lets a pure update test cover it.
 Turned down: `main`'s exceptions, where a shell with no randomness leaves the request
 unanswered and the stick shell ignores `StoreSettings` and `PreviewSize`, which leave the app
@@ -145,8 +147,11 @@ impl<M: Message> AskFor<M> {
 - **Rule P9.** An answer whose generation is neither 0 nor the lock scope's current build is
   dropped by the runtime, and its payload wipes as it drops (§6). Generation 0 is never stale: no
   lock and no `Exit::Reset` (§4.9) drops it. An answer of the wrong kind for its ask (`R::take`
-  fails) reaches the feature as `R::fault()`, which is that ask's `Failure::Adapter` (or, for
-  `Ask::Memory`, `None`: nothing known); the runtime notes the fault for
+  fails) reaches the feature as `R::fault()`, which is that ask's adapter failure:
+  `Failure::Adapter`, `camera::Failure::Adapter` or `system::Reason::Adapter` (for `Keep`, with an
+  empty carry: the carry went to the adapter). An answer with no failure in it gives nothing
+  known: `None` for `Ask::Memory`, `ReadBitLocker` and `JudgeBoot`, empty lists for
+  `ListBootFiles` and `FindImages`, `()` for `CheckAgain`. The runtime notes the fault for
   diagnostics. Held by an update test of the runtime (section 07).
 - **Rule P10.** An adapter echoes the `AskId` and never makes one. Its answers also repeat the
   request's own identifying fields where they have them (the stick, the file's name), so that an
@@ -242,6 +247,10 @@ pub struct Machine {
     pub memory_total_mib: Option<u32>,
     pub cores: u16,
 }
+
+/// `Start::scheme` is `None` where the computer's setting says neither
+/// or cannot be read; the app then opens in Light.
+pub enum Scheme { Light, Dark }
 ```
 
 `Medium`, `BootMedium`, `SecureBootAtStart` and `StickInfo` move from `faraday-core` into the port
@@ -267,7 +276,14 @@ pub struct Display {
     /// Faraday Demo's preview of a device's size, and the size chosen.
     pub preview: Option<Preview>,
 }
+
+/// Sent by an adapter that can preview. `chosen` is the size shown, in
+/// dp, as `Order::PreviewSize` asks it; `None` is the window's own size.
+pub struct Preview { pub chosen: Option<(u16, u16)> }
 ```
+
+`Preview` and `Order::PreviewSize` count in dp, as on `main`; every other size in the port is in
+pixels.
 
 **Decision: the display's facts are what some feature reads, and no more.** `main`'s
 `SecureHardware`, `BootState`, `buttons`, `camera_fixed`, `inset_top` and `inset_bottom` are
@@ -342,6 +358,9 @@ pub enum DevicesFact {
     Gone { id: InputId },
     Trust { pointer: bool, keyboard: bool },
 }
+
+/// The adapter's number for a held-back input device, as on `main`.
+pub struct InputId(pub u32);
 ```
 
 `UsbDevice` (port, vendor, product, strings, interfaces) moves from `faraday-core`'s `devices`
@@ -450,13 +469,23 @@ pub enum StorageAnswer {
     Codes(Result<Codes, Failure>),             // the picture's bytes and each code's payload
     Written(Result<Written, Failure>),         // Wrote { wrote_as } | NameTaken { on_stick, sha }
     Wiped(Result<Wiped, Failure>),             // Zeroed | NameOnly
-    Space(Result<Space, Failure>),             // free, size; 0 and 0 for a folder
+    Space(Result<Room, Failure>),              // free, size; 0 and 0 for a folder
     Zeroing(Result<Zeroing, Failure>),         // next, total, done
+    Emptied(Result<(), Failure>),              // MakeEmpty's
     Renamed(Result<(), Unrenamed>),            // Taken | SameVault | Failed(Failure)
-    Named(Result<(), NameRefused>),
+    Named(Result<(), NameRefused>),            // Invalid | Failed(Failure)
     Hashed(Result<Sha256, Failure>),
 }
+
+pub struct Sha256(pub [u8; 32]);
+pub struct Room { pub free: u64, pub size: u64 }   // in bytes
 ```
+
+The space answer's type is `Room`, since `Space` is already the ask's own type (§2.2).
+`MakeEmpty` is answered `Emptied`, where `main` answered it as a zeroing step at cluster 2 of 0;
+the app then asks `ZeroFree` itself. `NameRefused::Invalid` is a label FAT cannot hold, which the
+app has already checked before it asks; a folder stick, which has no label, answers
+`Failed(Unsupported)`. `Sha256` is the port's own type of the 32 bytes, in `storage`.
 
 These are `main`'s `StorageCommand` and their answers from `StorageEvent`, with each answer tied
 to its ask by `AskId` (`features/storage.md`, `features/stick-visit.md`,
@@ -543,7 +572,9 @@ Starter saved.
 
 `camera::On { camera: Option<CameraId> }` starts a stream on the chosen camera, or the adapter's
 first, and is answered `Started { stream }` once frames flow or the camera is on, or a
-`camera::Failure` (`Refused`, `InUse`, `NotFound`, `Unavailable`, `Unsupported`). Choosing another
+`camera::Failure` (`Refused`, `InUse`, `NotFound`, `Unavailable`, `Unsupported`, and `Adapter`
+for P9). `CameraId` is a `Text` newtype, the adapter's name for a camera as `CameraInfo::id`
+gives it, like `StickId`. Choosing another
 camera on the scan sheet is `Order::CameraOff` then a new `camera::On` with its id, so the choice
 gets a real answer. This replaces `main`'s `take_camera`, read by the shell from the app, whose
 failure was only printed.
@@ -648,12 +679,49 @@ own `Close` is `Order::Exit(End)`. `OpenDemo` and `DemoClosed` are not effects: 
 one model, and Faraday Demo is its lock scope, beside the Starter's own composite (section 01,
 §7.2; section 05, §7.9). What `OpenDemo` did on the computer is one ask,
 `SystemAsk::PrepareDemoSticks`: the desktop adapter makes the Demo's sticks folder and its
-`BOOTSTICK` and `STICK-2`, answered `Ok` or a `Failure` naming the folder, which the Starter
-shows as `main` shows `DesktopStarted(Err)` (`features/starter-app.md`). On `Ok` the Starter's
+`BOOTSTICK` and `STICK-2`, answered `Ok` or `Reason::File { path, detail }` naming the folder,
+which the Starter shows as `main` shows `DesktopStarted(Err)` (`features/starter-app.md`). On `Ok` the Starter's
 composite sends `Top::Open` and the runtime builds the scope at the next generation, with a start
 it makes from its own facts; no adapter sends a second `Start`. Closing Faraday Demo inside the
 Starter (its Quit, or the Starter's Back over it) is a Close: the runtime drops the scope and
 sends `Order::Exit(Exit::Reset(generation))`; the Starter goes on.
+
+Each ask's answer, and the `StarterEvent` it replaces:
+
+| `SystemAsk` | `SystemAnswer` | On `main` |
+|---|---|---|
+| `WriteStick(WriteOrder)` | `WriteStick(Result<(), Reason>)` | `Written` |
+| `Install` | `Install(Result<Text, Reason>)` | `InstallDone` |
+| `Uninstall` | `Uninstall(Result<Uninstalled, Reason>)`, `Uninstalled { boot_entry_kept: Option<Reason> }` | `UninstallDone`, and `BootEntryKept` before it |
+| `RemoveBootEntry` | `RemoveBootEntry(Result<(), Reason>)` | `BootEntryRemoved` |
+| `RestartIntoFirmware`, `RestartFromStick { device }` | `RestartIntoFirmware(Result<(), Reason>)`, `RestartFromStick(..)` | `RestartFailed`, `StickRestartFailed`; a restart that happens ends the process, and nothing waits for its `Ok` |
+| `ReadBitLocker` | `ReadBitLocker(Option<BitLocker>)` | `BitLocker` |
+| `BitLocker(step)` | `BitLocker { step, result: Result<(), Reason> }` | `BitLockerDone` |
+| `ReadRecoveryKey` | `RecoveryKey(Result<Vec<RecoveryKey>, Reason>)` | `RecoveryKey` |
+| `ReadVersion { disk, serial, size, source }` | `VersionRead { disk, serial, size, version: Version }`, `Version { result, signed }` | `VersionRead` |
+| `ListBootFiles` | `BootFiles { folder, files }` | `BootFiles` |
+| `JudgeBoot { disk, serial, size, sha256, want, source }` | `BootJudged { ..., signed: Option<bool> }` | `BootJudged` |
+| `CheckBootFile { path, source }` | `BootFileChecked { path, result: Result<(BootFile, BootSigner), Reason> }` | `BootFileChecked` |
+| `FindImages { dropped }` | `ImagesFound(Vec<ImageFinding>)` | `ImagesFound` |
+| `CheckAgain` | `CheckedAgain` | none |
+| `PrepareDemoSticks` | `PrepareDemoSticks(Result<(), Reason>)` | `DesktopStarted` |
+
+The rest of `StarterEvent` are `SystemFact`s (§3.8), the answers of `HostAsk::Save` and `Open`
+and of `Ask::Print` (`TemplateSaved`, `TemplateOpened`, `NotesOpened`), or `Start::settings`
+(`TextKept`). `CheckAgain` is an ask though its result comes as `SystemFact::Concerns`: its answer
+comes after the facts it sent, so the Starter knows the check is done.
+
+The family's failure is `system::Reason`, `main`'s, with `Unsupported` for an adapter that has no
+system (§2.1) and `Adapter` added for P9. Its value types are `main`'s, with three changes:
+
+- `Os` has no macOS: it is not being developed.
+- `RecoveryKey { drive, id, key: SecretText }` has public fields and no checks: the port holds no
+  behaviour (P6), and the app checks its shape (P25). Its hand-written `Debug` names the drive
+  only (P16).
+- `ReleaseFault::Fat` holds `FatFault`, the port's copy of `faraday_fat::Error` variant for
+  variant (with `FatBoot`, `FatCorrupt`, `FatName` for its inner enums), which the Starter's
+  adapter maps. Reason: the app words it (P24), and the port does not depend on `faraday-fat`
+  (P5). Turned down: the adapter's wording of it as `Text`.
 
 ## 5. The frame out
 
@@ -674,8 +742,15 @@ pub struct Frame<'a> {
 }
 ```
 
-The frame is borrowed from the runtime's last frame (R4) and lives until the root's next call
-into the runtime. `main`'s `Parts::inner` (one app's frame held inside another's) is dropped: the
+```rust
+/// The rows the adapter last took inside `band` now stand `dy` rows lower
+/// (higher for a negative `dy`), but for the rows the move brought into
+/// view, which the frame painted. `None` for a frame drawn whole.
+pub struct Moved { pub band: Rect, pub dy: i16 }
+```
+
+An adapter that ignores `moved` is right, as on `main`. The frame is borrowed from the runtime's last frame (R4) and
+lives until the root's next call into the runtime. `main`'s `Parts::inner` (one app's frame held inside another's) is dropped: the
 Demo's strip is a feature of the same model, so there is one frame.
 
 **Decision: a press in a `MovesWindow` region is the window adapter's.** It starts a drag after
@@ -770,6 +845,10 @@ pub enum Failure {
     LeftBehind(Text), // P11: a failed write's temporary file, by name, that could not be removed
     Os(OsError),      // the operating system's code, for diagnostics
 }
+
+/// As `std::io::Error::raw_os_error` gives it: an errno, or a Windows
+/// error code.
+pub struct OsError(pub i32);
 ```
 
 - **Rule P22.** An effect that fails comes back as an answer carrying its `Failure`; no adapter
@@ -879,7 +958,8 @@ contract.
 | `Command::RequestEntropy` | `Ask::Entropy` |
 | `Command::Orientation`, `PreviewSize` | `Order::Turn`, `Order::PreviewSize` |
 | `Command::Vibrate` | `Order::Vibrate` |
-| `StorageCommand::Read`, `ReadQr`, `Write`, `Wipe`, `StickSpace`, `ZeroFree`, `MakeEmpty`, `Rename`, `NameStick`, `Hash` | `StorageAsk` (§4.1) |
+| `StorageCommand::Read`, `ReadQr`, `Write`, `Wipe`, `StickSpace`, `ZeroFree`, `MakeEmpty`, `Rename`, `NameStick`, `Hash` | `StorageAsk` (§4.1); `StickSpace` is answered `StorageAnswer::Space(Room)`, and `MakeEmpty`, which `main` answered as a zeroing step, `StorageAnswer::Emptied` |
+| `StarterEvent::*` | `SystemAnswer`, `SystemFact`, the answers of `HostAsk` and `Ask::Print`, and `Start::settings` (§4.10) |
 | `StorageCommand::SaveBoxes`, `ForgetBoxes`, `StorageEvent::Restored`, `NotKept` | `Ask::Keep`, `Ask::Forget`, `Start::carried`, `Answer::Kept(Err)` |
 | `StorageCommand::Print` | `Ask::Print` |
 | `StorageCommand::ReadHost`, `SaveDownload`, `OpenDownloads`, `OpenInstitute` | `HostAsk::Read`, `Save`, `Open(Downloads)`, `Open(Institute)` |
@@ -921,7 +1001,7 @@ Not carried, each with its reason:
 |---|---|---|
 | P5, P6 | one `no_std` crate of types, no I/O, no wording | `lint-layers`; the attribute; `clippy.toml`; `lint-strings` |
 | P7, P8 | an answer returns as the asker's message; its context is `Public` and its reply a `fn` | the compiler (the kernel's signature) |
-| P9, P10 | stale and wrong answers; ids echoed | an update test of the runtime |
+| P9, P10 | stale and wrong answers, each ask's fault; ids echoed | an update test of the runtime |
 | P11, P12 | writes whole or not at all, read back; sizes checked twice | the storage and host adapters; adapter and update tests |
 | P13 | the frame and its copies wipe | buffer types; a stick adapter test |
 | P14, P16 | payloads wipe and are not `Clone`; `Debug` prints no secret | the compiler; `lint-secrets` |
