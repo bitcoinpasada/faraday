@@ -6,7 +6,7 @@ use std::sync::Arc;
 use faraday_kernel::{FactsChanged, shared};
 use faraday_port as port;
 
-use crate::root::{Addr, Root};
+use crate::root::{Addr, Root, has_outside};
 use crate::runtime::Runtime;
 
 /// One event's cascade is bounded (R8).
@@ -60,6 +60,9 @@ pub(crate) enum Item<R: Root> {
     /// of an answer. Past the bound it is carried into the next event (R8).
     Owed(Addr<R>),
     Notice(Part, Pending),
+    /// The runtime's own: the next step of a lock or an end (§7.2, §7.7), after the notices queued
+    /// before it.
+    Wind,
 }
 
 pub(crate) struct Queue<R: Root> {
@@ -68,6 +71,14 @@ pub(crate) struct Queue<R: Root> {
     carried: VecDeque<Item<R>>,
     /// Dispatches of the event being handled.
     pub(crate) dispatched: u32,
+}
+
+/// Whether a top state is in the lock scope: the part outside it is not (§7.9).
+pub(crate) fn in_scope<R: Root>(part: Part) -> bool {
+    match part {
+        Part::Outside | Part::Settings => !has_outside::<R>(),
+        _ => true,
+    }
 }
 
 impl<R: Root> Queue<R> {
@@ -98,6 +109,18 @@ impl<R: Root> Queue<R> {
     pub(crate) fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
+
+    /// §7.2 step 7: what is queued for the scope's top states is dropped; what is for the part
+    /// outside the scope stays.
+    pub(crate) fn drop_scope(&mut self) {
+        let outside = |item: &Item<R>| match item {
+            Item::Msg(addr) | Item::Owed(addr) => !in_scope::<R>(addr.part()),
+            Item::Notice(part, _) => !in_scope::<R>(*part),
+            Item::Wind => false,
+        };
+        self.items.retain(outside);
+        self.carried.retain(outside);
+    }
 }
 
 impl<R: Root> Runtime<R> {
@@ -117,7 +140,13 @@ impl<R: Root> Runtime<R> {
         if let Some(clean) = self.clean_marker() {
             self.out.push(clean);
         }
-        std::mem::take(&mut self.out)
+        let out = std::mem::take(&mut self.out);
+        if self.phase != crate::runtime::Phase::Ended {
+            for effect in &out {
+                self.log_port(&effect.kind());
+            }
+        }
+        out
     }
 
     /// Steps 2 and 3: pop the front item, dispatch it, until the queue is empty or the bound.
@@ -134,6 +163,7 @@ impl<R: Root> Runtime<R> {
             match item {
                 Item::Msg(addr) | Item::Owed(addr) => self.dispatch(addr),
                 Item::Notice(part, pending) => self.dispatch_notice(part, pending),
+                Item::Wind => self.lock_next(),
             }
         }
     }
@@ -145,6 +175,7 @@ impl<R: Root> Runtime<R> {
             self.fault("an event before Start");
             return;
         }
+        self.log_port(&event.kind());
         match event {
             Event::Start(start) => self.started_by(start),
             Event::Time(time) => self.timed(time),
@@ -173,8 +204,10 @@ impl<R: Root> Runtime<R> {
     pub(crate) fn bound_reached(&mut self) {
         self.fault("a cascade past the bound");
         while let Some(item) = self.queue.pop() {
-            if let Item::Owed(addr) = item {
-                self.queue.carried.push_back(Item::Owed(addr));
+            match item {
+                Item::Owed(addr) => self.queue.carried.push_back(Item::Owed(addr)),
+                Item::Wind => self.queue.carried.push_back(Item::Wind),
+                _ => {}
             }
         }
     }

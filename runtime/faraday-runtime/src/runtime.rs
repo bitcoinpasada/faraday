@@ -149,6 +149,9 @@ impl<R: Root> Runtime<R> {
             effects.extend(self.settle_with(|runtime| runtime.job_answered(answer)));
         }
         self.running = self.pool.running();
+        if self.waiting_for_jobs() {
+            effects.extend(self.settle_with(|runtime| runtime.lock_next()));
+        }
         effects.extend(self.run_inline());
         effects
     }
@@ -169,21 +172,6 @@ impl<R: Root> Runtime<R> {
             self.faults.remove(0);
         }
         self.faults.push(what);
-    }
-
-    /// Turn the log on or off (§8). The dev card's verbose run, the tour root and tests.
-    pub fn log(&mut self, _on: bool) {
-        todo!()
-    }
-
-    #[expect(
-        unreachable_code,
-        unused_variables,
-        reason = "`todo!()` has no iterator type to return"
-    )]
-    pub fn log_lines(&self) -> impl Iterator<Item = &crate::log::LogLine> + '_ {
-        let line: Option<&crate::log::LogLine> = todo!();
-        line.into_iter()
     }
 }
 

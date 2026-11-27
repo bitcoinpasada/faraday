@@ -1,7 +1,7 @@
 //! What a lock wipes, and what one build of the scope leaves the next (03 §2.3; 05 §7.3).
 
 use faraday_port::bytes::Bytes;
-use faraday_port::storage::Files;
+use faraday_port::storage::{Carry, Files};
 use faraday_text::Text;
 
 use crate::message::Public;
@@ -40,8 +40,16 @@ pub struct Loss(pub &'static str);
 pub struct Carried {
     inbox: Files,
     outbox: Files,
-    entries: Vec<(CarryName, Bytes)>,
+    entries: Vec<Entry>,
     only_copy: bool,
+}
+
+/// One named entry: the encoding of a `Public` value, with the flags of its name.
+struct Entry {
+    name: Text,
+    first: bool,
+    any_mode: bool,
+    bytes: Bytes,
 }
 
 /// "<feature>.<entry>", a constant of the feature's crate. Compared by `name` alone.
@@ -54,14 +62,18 @@ pub struct CarryName {
 
 impl CarryName {
     /// A feature's crate declares each of its names as a `const` (09 §4.1).
-    pub const fn new(_name: &'static str, _first: bool, _any_mode: bool) -> Self {
-        todo!()
+    pub const fn new(name: &'static str, first: bool, any_mode: bool) -> Self {
+        CarryName {
+            name,
+            first,
+            any_mode,
+        }
     }
 }
 
 impl PartialEq for CarryName {
-    fn eq(&self, _other: &Self) -> bool {
-        todo!()
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
     }
 }
 
@@ -89,26 +101,117 @@ impl Carried {
         }
     }
 
-    pub fn put<V: CarryValue>(&mut self, _name: CarryName, _value: &V) {
-        todo!()
+    /// An entry under `name`; one already under that name is replaced.
+    pub fn put<V: CarryValue>(&mut self, name: CarryName, value: &V) {
+        let bytes = value.encode();
+        self.entries.retain(|entry| entry.name.as_str() != name.name);
+        self.entries.push(Entry {
+            name: Text::of(name.name),
+            first: name.first,
+            any_mode: name.any_mode,
+            bytes,
+        });
     }
 
-    /// Once; then `None`.
-    pub fn take<V: CarryValue>(&mut self, _name: CarryName) -> Option<V> {
-        todo!()
+    /// Once; then `None`. An entry that cannot be read is gone all the same (05 R22).
+    pub fn take<V: CarryValue>(&mut self, name: CarryName) -> Option<V> {
+        let at = self
+            .entries
+            .iter()
+            .position(|entry| entry.name.as_str() == name.name)?;
+        let entry = self.entries.remove(at);
+        V::decode(entry.bytes.expose())
     }
 
     /// The session's crate only: a held file, its bytes moved, never copied.
-    pub fn put_file(&mut self, _to: FileBox, _name: Text, _bytes: Bytes) {
-        todo!()
+    pub fn put_file(&mut self, to: FileBox, name: Text, bytes: Bytes) {
+        match to {
+            FileBox::Inbox => self.inbox.push((name, bytes)),
+            FileBox::Outbox => self.outbox.push((name, bytes)),
+        }
     }
 
-    pub fn take_files(&mut self, _from: FileBox) -> Files {
-        todo!()
+    pub fn take_files(&mut self, from: FileBox) -> Files {
+        match from {
+            FileBox::Inbox => core::mem::take(&mut self.inbox),
+            FileBox::Outbox => core::mem::take(&mut self.outbox),
+        }
     }
 
     /// Something carried has no other copy (05 §7.6). The session's crate only.
     pub fn mark_only_copy(&mut self) {
-        todo!()
+        self.only_copy = true;
+    }
+
+    /// The runtime's: whether something carried has no other copy.
+    pub fn only_copy(&self) -> bool {
+        self.only_copy
+    }
+
+    /// The runtime's: what the carry maps onto (05 §7.3). Each entry is a file of `kept` named by
+    /// its name, the entries marked `first` before the rest; `only_copy` is not in it.
+    pub fn into_carry(mut self) -> Carry {
+        let mut kept: Files = Vec::with_capacity(self.entries.len());
+        let entries = core::mem::take(&mut self.entries);
+        let (first, rest): (Vec<Entry>, Vec<Entry>) =
+            entries.into_iter().partition(|entry| entry.first);
+        for entry in first.into_iter().chain(rest) {
+            kept.push((entry.name, entry.bytes));
+        }
+        Carry {
+            inbox: core::mem::take(&mut self.inbox),
+            outbox: core::mem::take(&mut self.outbox),
+            kept,
+        }
+    }
+
+    /// The runtime's: a carry read back, each file of `kept` an entry by its name. `only_copy` is
+    /// the runtime's to say, which it held aside (05 §7.3).
+    pub fn from_carry(carry: Carry, only_copy: bool) -> Carried {
+        let Carry {
+            inbox,
+            outbox,
+            kept,
+        } = carry;
+        Carried {
+            inbox,
+            outbox,
+            entries: kept
+                .into_iter()
+                .map(|(name, bytes)| Entry {
+                    name,
+                    first: false,
+                    any_mode: false,
+                    bytes,
+                })
+                .collect(),
+            only_copy,
+        }
+    }
+
+    /// The runtime's: a copy of the entries alone, no file. Entries are `Public` values, so the
+    /// copy holds nothing secret; the runtime reads the mode asked for from it.
+    pub fn entries_only(&self) -> Carried {
+        Carried {
+            inbox: Vec::new(),
+            outbox: Vec::new(),
+            entries: self
+                .entries
+                .iter()
+                .map(|entry| Entry {
+                    name: Text::of(entry.name.as_str()),
+                    first: entry.first,
+                    any_mode: entry.any_mode,
+                    bytes: Bytes::new(entry.bytes.expose().clone()),
+                })
+                .collect(),
+            only_copy: false,
+        }
+    }
+
+    /// The runtime's: a lock that changes the mode carries only the entries marked `any_mode`
+    /// (05 §7.3). The files stay.
+    pub fn keep_any_mode(&mut self) {
+        self.entries.retain(|entry| entry.any_mode);
     }
 }

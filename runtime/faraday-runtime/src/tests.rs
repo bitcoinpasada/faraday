@@ -13,8 +13,8 @@ use faraday_bip::keys::Network;
 use faraday_kernel::settings;
 use faraday_kernel::shared::{self, AnyChange, ChangeId, Done, Empty, Owner};
 use faraday_kernel::{
-    AtLock, Carried, Ctx, Edits, Effects, Feature, Holds, Job, JobKind, Message, Mode, Notice,
-    Show, Top, View, session, vaults,
+    AtLock, Carried, CarryName, CarryValue, Ctx, Edits, Effects, End, Feature, Holds, Job,
+    JobKind, Lock, Message, Mode, Notice, Public, Show, Top, View, session, vaults,
 };
 use faraday_port as port;
 use faraday_port::event::{Event, Start, Time};
@@ -52,6 +52,10 @@ enum Msg {
     Held(u32),
     Share,
     Open,
+    Lock(Lock),
+    End(End),
+    /// A carry that holds an only copy, as the session puts (§7.6).
+    Hold1,
 }
 
 impl Message for Msg {
@@ -60,9 +64,31 @@ impl Message for Msg {
     }
 
     fn public(&self) -> Option<&dyn core::fmt::Debug> {
-        None
+        match self {
+            Msg::Look => Some(&"look"),
+            _ => None,
+        }
     }
 }
+
+/// What the app carries across a lock.
+#[derive(Public, Copy, PartialEq, Eq)]
+struct Token(u8);
+
+impl CarryValue for Token {
+    fn encode(&self) -> faraday_port::bytes::Bytes {
+        faraday_port::bytes::Bytes::new(vec![self.0])
+    }
+
+    fn decode(bytes: &[u8]) -> Option<Token> {
+        match bytes {
+            [token] => Some(Token(*token)),
+            _ => None,
+        }
+    }
+}
+
+const TOKEN: CarryName = CarryName::new("test.token", false, false);
 
 /// A change the test owner is given: it sets Seal amounts.
 struct SetSeal(bool);
@@ -137,12 +163,14 @@ struct Probe<P>(PhantomData<P>);
 
 struct ProbeState<P> {
     typed: bool,
+    /// Whether this state marks its carry as holding an only copy.
+    only_copy: bool,
     settings: shared::Settings,
     empty: Empty,
     place: PhantomData<P>,
 }
 
-impl<P> AtLock for ProbeState<P> {
+impl<P: Place> AtLock for ProbeState<P> {
     fn holds(&self) -> Holds {
         Holds {
             kept: false,
@@ -152,9 +180,13 @@ impl<P> AtLock for ProbeState<P> {
         }
     }
 
-    fn hide(&mut self) {}
+    fn hide(&mut self) {
+        log(format!("{}:hide", P::NAME));
+    }
 
-    fn at_lock(&mut self) {}
+    fn at_lock(&mut self) {
+        log(format!("{}:at_lock", P::NAME));
+    }
 }
 
 impl<P> Borrow<shared::Settings> for ProbeState<P> {
@@ -222,11 +254,17 @@ impl<P: Place> Feature for Probe<P> {
     type Out = Top;
     type Refusal = NoRefusal;
 
-    fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (ProbeState<P>, Effects<Msg, Top>) {
+    fn start(carried: &mut Carried, _cx: &Ctx<'_>) -> (ProbeState<P>, Effects<Msg, Top>) {
         log(format!("{}:start", P::NAME));
+        if P::NAME == "app"
+            && let Some(Token(token)) = carried.take::<Token>(TOKEN)
+        {
+            log(format!("app:carried {token}"));
+        }
         (
             ProbeState {
                 typed: false,
+                only_copy: false,
                 settings: default_settings(),
                 empty: Empty::new(),
                 place: PhantomData,
@@ -304,6 +342,12 @@ impl<P: Place> Feature for Probe<P> {
                 settings::Changed::Choices,
             ))),
             Msg::Open => Effects::none().out(Top::Open),
+            Msg::Lock(lock) => Effects::none().out(Top::Lock(lock)),
+            Msg::End(end) => Effects::none().out(Top::End(end)),
+            Msg::Hold1 => {
+                state.only_copy = true;
+                Effects::none()
+            }
         }
     }
 
@@ -320,6 +364,16 @@ impl<P: Place> Feature for Probe<P> {
 
     fn refuses(_state: &ProbeState<P>, _msg: &Msg, _view: &View<'_>) -> Option<NoRefusal> {
         None
+    }
+
+    fn carry(state: &mut ProbeState<P>, into: &mut Carried) {
+        log(format!("{}:carry", P::NAME));
+        if P::NAME == "app" {
+            into.put(TOKEN, &Token(7));
+            if state.only_copy {
+                into.mark_only_copy();
+            }
+        }
     }
 }
 
@@ -841,4 +895,295 @@ fn a_memo_entry_lives_one_frame_unless_used_and_clear_empties_it() {
     assert_eq!(get(&runtime, 10), 11);
     runtime.memo_empty();
     assert_eq!(get(&runtime, 20), 21);
+}
+
+fn exit_of(effects: &[Effect]) -> Option<&port::Exit> {
+    effects.iter().find_map(|effect| match effect {
+        Effect::Order(Order::Exit(exit)) => Some(exit),
+        _ => None,
+    })
+}
+
+fn keep_asked(effects: Vec<Effect>) -> Option<(AskId, port::storage::Carry)> {
+    effects.into_iter().find_map(|effect| match effect {
+        Effect::Ask(id, Ask::Keep(carry)) => Some((id, carry)),
+        _ => None,
+    })
+}
+
+fn device_that_ends_its_process() -> Runtime<Device> {
+    let mut runtime = started(Device::new());
+    runtime.facts.facts.abilities.lock_ends_process = true;
+    runtime
+}
+
+/// Invariant: A lock runs hide, carry and wipe in that order, asks the adapter to keep the carry, and the process ends with the lock's exit only once the keep is answered; the next process starts from what was carried.
+/// Regression: A lock that wipes before it carries loses what the next scope needs; one that exits before the keep is answered loses the carry; one whose carry is not read at the next start rebuilds an empty scope.
+/// Owner: runtime
+#[test]
+fn a_lock_runs_its_order_and_the_process_ends_with_the_lock_after_the_keep() {
+    let mut runtime = device_that_ends_its_process();
+    let lock = Lock {
+        seal: true,
+        idle: false,
+    };
+    let effects = send(&mut runtime, Addr::App(Msg::Lock(lock)));
+    let log = take_log();
+    let at = |what: &str| log.iter().position(|line| line == what);
+    assert!(at("session:hide") < at("vaults:Given, settings seen seal=false"));
+    assert!(at("vaults:Given, settings seen seal=false") < at("settings:carry"));
+    assert!(at("app:carry") < at("settings:at_lock"));
+    assert_eq!(at("outside:carry"), None);
+    assert_eq!(runtime.phase(), Phase::Locking);
+    assert!(exit_of(&effects).is_none());
+    let (id, carry) = keep_asked(effects).expect("the keep is asked");
+    assert_eq!(carry.kept.len(), 1);
+    assert!(runtime.tops.app.is_none() && runtime.tops.session.is_none());
+
+    let effects = runtime.event(Event::Answer(id, Answer::Kept(Ok(()))));
+    assert!(matches!(exit_of(&effects), Some(port::Exit::Lock)));
+    assert_eq!(runtime.phase(), Phase::Ended);
+    assert!(runtime.event(Event::CloseAsked).is_empty());
+
+    // The next process: its `Start` brings the carry.
+    let mut next = Runtime::new(Device::new(), Arc::new(NoWake), Workers::Inline);
+    next.frame.skip = true;
+    let Event::Start(mut start) = start_event() else {
+        return;
+    };
+    start.carried = Some(carry);
+    take_log();
+    next.event(Event::Start(start));
+    assert!(take_log().contains(&"app:carried 7".to_string()));
+    assert_eq!(next.started, faraday_kernel::Started::Lock);
+}
+
+/// Invariant: A lock that does not end the process drops the scope, tells the adapters with `Exit::Reset` of the dropped generation before the next scope's first effect, and builds the next scope from the carry in hand with no keep.
+/// Regression: An in-process lock that asks `Keep` hands the Inbox to an adapter for nothing; one that sends `Reset` after the next scope's asks lets an adapter drop the new scope's asks.
+/// Owner: runtime
+#[test]
+fn an_in_process_lock_resets_the_adapters_and_rebuilds_from_the_carry() {
+    let mut runtime = started(Device::new());
+    let before = runtime.generation;
+    let effects = send(
+        &mut runtime,
+        Addr::App(Msg::Lock(Lock {
+            seal: false,
+            idle: true,
+        })),
+    );
+    assert!(matches!(
+        exit_of(&effects),
+        Some(port::Exit::Reset(generation)) if *generation == before
+    ));
+    assert!(keep_asked(effects).is_none());
+    assert_eq!(runtime.phase(), Phase::Running);
+    assert_eq!(runtime.generation, before + 1);
+    assert_eq!(runtime.started, faraday_kernel::Started::Lock);
+    assert!(take_log().contains(&"app:carried 7".to_string()));
+}
+
+/// Invariant: A lock with a job running asks it to stop and waits for it; the job's answer is delivered to no top state and the lock then finishes.
+/// Regression: A lock that finishes before the job returns leaves a signing job's copy of the keys live; one that delivers the answer puts a stopped job's result on a screen the lock ended.
+/// Owner: runtime
+#[test]
+fn a_lock_waits_for_a_running_job_and_delivers_no_answer_after_it() {
+    let mut runtime = started_on_threads();
+    send(&mut runtime, Addr::App(Msg::Hold));
+    woken_until(&mut runtime, |runtime| {
+        runtime.pool.running().iter().any(|r| r.done == 2)
+    });
+    send(
+        &mut runtime,
+        Addr::App(Msg::Lock(Lock {
+            seal: true,
+            idle: false,
+        })),
+    );
+    // The job was asked to stop at once; the lock is done when it has returned.
+    woken_until(&mut runtime, |runtime| runtime.phase() == Phase::Running);
+    assert_eq!(runtime.phase(), Phase::Running);
+    assert_eq!(runtime.generation, 2);
+    assert!(!take_log().iter().any(|line| line.contains("Held")));
+}
+
+/// Invariant: A camera stream running at a lock is turned off by the first step, and no fact of it reaches the root afterwards.
+/// Regression: A frame of the camera that arrives after the hide puts a code on screen the lock took off.
+/// Owner: runtime
+#[test]
+fn no_camera_frame_comes_after_the_lock_turns_the_camera_off() {
+    let mut runtime = started(Device::new());
+    let stream = AskId {
+        generation: 1,
+        n: 3,
+    };
+    runtime.scope.stream = Some(stream);
+    let effects = send(
+        &mut runtime,
+        Addr::App(Msg::Lock(Lock {
+            seal: false,
+            idle: false,
+        })),
+    );
+    let off = effects
+        .iter()
+        .position(|effect| matches!(effect, Effect::Order(Order::CameraOff)));
+    let reset = effects
+        .iter()
+        .position(|effect| matches!(effect, Effect::Order(Order::Exit(_))));
+    assert!(off.is_some() && off < reset);
+    let ended = port::event::CameraFact::Ended {
+        stream,
+        why: port::camera::Failure::Unavailable,
+    };
+    assert!(!runtime.stream_check(&ended));
+}
+
+/// Invariant: An end seals nothing and keeps nothing: it hides, wipes, asks the adapter to forget what it holds where the process ends, and exits with the end asked for; where nothing is held it exits at once.
+/// Regression: An end that seals writes a vault the person chose to power off without; one that exits before the forget leaves a carry file in the RAM directory.
+/// Owner: runtime
+#[test]
+fn an_end_runs_without_a_seal_and_forgets_the_carry_before_it_exits() {
+    let mut runtime = device_that_ends_its_process();
+    let effects = send(&mut runtime, Addr::App(Msg::End(End::PowerOff)));
+    let log = take_log();
+    assert!(log.contains(&"app:at_lock".to_string()));
+    assert!(!log.iter().any(|line| line.starts_with("vaults:Given")));
+    assert!(!log.iter().any(|line| line.ends_with(":carry")));
+    assert!(exit_of(&effects).is_none());
+    let forget = effects
+        .iter()
+        .find_map(|effect| match effect {
+            Effect::Ask(id, Ask::Forget) => Some(*id),
+            _ => None,
+        })
+        .expect("the forget is asked");
+    let effects = runtime.event(Event::Answer(forget, Answer::Forgotten(Ok(()))));
+    assert!(matches!(exit_of(&effects), Some(port::Exit::End)));
+    assert_eq!(runtime.phase(), Phase::Ended);
+
+    let mut restart = started(Device::new());
+    let effects = send(&mut restart, Addr::App(Msg::End(End::RestartComputer)));
+    assert!(matches!(
+        exit_of(&effects),
+        Some(port::Exit::RestartComputer)
+    ));
+}
+
+/// Invariant: When the keep fails the process ends, unless the carry holds an only copy: then the scope is built again in the process from the carry handed back, marked rebuilt; an answer that is not a keep's loses the carry and the rebuilt scope puts up a note.
+/// Regression: A failed keep that always ends the process loses a key waiting for its backup; one that always rebuilds keeps a process that cannot write a stick.
+/// Owner: runtime
+#[test]
+fn a_failed_keep_ends_the_process_unless_an_only_copy_is_held() {
+    let fails = |runtime: &mut Runtime<Device>| {
+        let effects = send(
+            runtime,
+            Addr::App(Msg::Lock(Lock {
+                seal: true,
+                idle: false,
+            })),
+        );
+        let (id, carry) = keep_asked(effects).expect("the keep is asked");
+        runtime.event(Event::Answer(
+            id,
+            Answer::Kept(Err((port::Failure::Adapter, carry))),
+        ))
+    };
+    let mut plain = device_that_ends_its_process();
+    let effects = fails(&mut plain);
+    assert!(matches!(exit_of(&effects), Some(port::Exit::Lock)));
+
+    let mut held = device_that_ends_its_process();
+    send(&mut held, Addr::App(Msg::Hold1));
+    take_log();
+    let effects = fails(&mut held);
+    assert!(matches!(exit_of(&effects), Some(port::Exit::Reset(1))));
+    assert_eq!(held.phase(), Phase::Running);
+    assert_eq!(held.started, faraday_kernel::Started::Rebuilt);
+    assert!(take_log().contains(&"app:carried 7".to_string()));
+
+    let mut lost = device_that_ends_its_process();
+    send(&mut lost, Addr::App(Msg::Hold1));
+    let effects = send(
+        &mut lost,
+        Addr::App(Msg::Lock(Lock {
+            seal: true,
+            idle: false,
+        })),
+    );
+    let (id, _carry) = keep_asked(effects).expect("the keep is asked");
+    lost.event(Event::Answer(id, Answer::Memory(None)));
+    assert_eq!(lost.started, faraday_kernel::Started::Rebuilt);
+    assert!(lost.notes.up().is_some());
+    assert!(!take_log().contains(&"app:carried 7".to_string()));
+}
+
+/// Invariant: The Starter's Quit from inside the scope closes the scope alone: no seal, no forget, `Exit::Reset`, the phase Closed, and the part outside the scope is told it was left and keeps its state.
+/// Regression: A Close that ends the process takes the Starter down with its Demo; one that wipes the Starter's own part loses its page.
+/// Owner: runtime
+#[test]
+fn the_starters_close_drops_the_scope_and_leaves_the_part_outside() {
+    let mut runtime = started(Starter::new());
+    send(&mut runtime, Addr::Outside(Msg::Open));
+    take_log();
+    let effects = send(&mut runtime, Addr::App(Msg::End(End::Quit)));
+    let log = take_log();
+    assert!(matches!(exit_of(&effects), Some(port::Exit::Reset(1))));
+    assert_eq!(runtime.phase(), Phase::Closed);
+    assert!(runtime.tops.app.is_none());
+    assert!(runtime.tops.outside.is_some() && runtime.tops.settings.is_some());
+    assert!(log.contains(&"outside:notice Left".to_string()));
+    assert!(!log.contains(&"outside:at_lock".to_string()));
+    assert!(!log.iter().any(|line| line.starts_with("vaults:Given")));
+}
+
+/// Invariant: A lock and an end empty the memo, and the log is dropped with them; the log keeps the kind of every message and the message itself only where it is public, in a ring of 512 lines.
+/// Regression: A memo that outlives a lock hands a value of the old scope to the next; a log that keeps a withheld message keeps a secret; an unbounded log grows for as long as the verbose run lasts.
+/// Owner: runtime
+#[test]
+fn the_memo_is_empty_after_a_lock_and_an_end_and_the_log_holds_only_public_messages() {
+    use faraday_kernel::Slot;
+    let slot = Slot("test.memo");
+    // The same key with another input: an entry still kept answers with its old value (and a
+    // debug build refuses it), an empty memo fills from the input.
+    let get = |runtime: &Runtime<Device>, input: u32| {
+        *runtime.memo.get(slot, 1_u32, input, fill_plus_one)
+    };
+
+    let mut runtime = started(Device::new());
+    runtime.log(true);
+    send(&mut runtime, Addr::App(Msg::Look));
+    send(&mut runtime, Addr::App(Msg::Fan));
+    let lines: Vec<(String, Option<String>)> = runtime
+        .log_lines()
+        .map(|line| (line.kind.clone(), line.public.clone()))
+        .collect();
+    assert!(lines.contains(&("test.msg".to_string(), Some("\"look\"".to_string()))));
+    assert!(lines.contains(&("test.msg".to_string(), None)));
+    for _ in 0..600 {
+        runtime.log.push(crate::LogLine {
+            time_ms: 0,
+            generation: 1,
+            kind: String::new(),
+            public: None,
+        });
+    }
+    assert_eq!(runtime.log_lines().count(), 512);
+
+    assert_eq!(get(&runtime, 1), 2);
+    send(
+        &mut runtime,
+        Addr::App(Msg::Lock(Lock {
+            seal: false,
+            idle: false,
+        })),
+    );
+    assert!(runtime.log_lines().all(|line| line.generation == 2));
+    assert_eq!(get(&runtime, 5), 6);
+
+    runtime.log(true);
+    send(&mut runtime, Addr::App(Msg::Look));
+    send(&mut runtime, Addr::App(Msg::End(End::PowerOff)));
+    assert_eq!(runtime.log_lines().count(), 0);
+    assert_eq!(get(&runtime, 9), 10);
 }

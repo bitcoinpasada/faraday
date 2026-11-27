@@ -2066,6 +2066,7 @@ dependencies = [
  "faraday-stick-adapter",
  "faraday-storage",
  "faraday-testkit",
+ "faraday-text",
 ]
 
 [[package]]

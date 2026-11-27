@@ -1528,6 +1528,8 @@ macro_rules! words_common {
     storage_answer_zeroing: "an answer that is not zeroing",
     /// The disk process answered a rename with another answer.
     storage_answer_rename: "an answer that is not a rename",
+    /// The note after a lock whose carry could not be kept: what the scope carried is lost.
+    lock_keep_lost: "What the lock carried over was lost.",
         }
     };
 }

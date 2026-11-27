@@ -58,6 +58,13 @@ impl<R: Root> Replies<R> {
         self.next[1] = Counters::default();
     }
 
+    /// §7.2 step 7: the scope's waiting replies are dropped (their contexts are `Public`); the
+    /// part outside the scope keeps its own (generation 0).
+    pub(crate) fn drop_scope(&mut self) {
+        self.asks.retain(|(generation, _), _| *generation == 0);
+        self.changes.retain(|(generation, _), _| *generation == 0);
+    }
+
     pub(crate) fn job_id(&mut self, generation: u32) -> JobId {
         let counters = self.counters(generation);
         let n = counters.job;
@@ -136,7 +143,7 @@ impl<R: Root> Runtime<R> {
     }
 
     /// `Fx::Order`: carried to the root in the order made. `CameraOff` also ends the stream.
-    fn order(&mut self, order: port::Order) {
+    pub(crate) fn order(&mut self, order: port::Order) {
         if matches!(order, port::Order::CameraOff) {
             self.scope.stream = None;
         }
@@ -152,6 +159,27 @@ impl<R: Root> Runtime<R> {
         self.replies.asks.insert((generation, n), (from, reply));
         self.out
             .push(port::Effect::Ask(port::AskId { generation, n }, ask));
+    }
+
+    /// An ask of the runtime's own (§7.2 step 8, §7.7): a new `AskId` of the scope's generation,
+    /// no reply kept, `Effect::Ask` appended.
+    pub(crate) fn ask_own(&mut self, ask: port::Ask) -> port::AskId {
+        let generation = self.generation;
+        let counters = self.replies.counters(generation);
+        let n = counters.ask;
+        counters.ask += 1;
+        let id = port::AskId { generation, n };
+        self.out.push(port::Effect::Ask(id, ask));
+        id
+    }
+
+    /// A change of the runtime's own (§7.2 step 3): a new `ChangeId` of the scope's generation.
+    pub(crate) fn change_id_own(&mut self) -> ChangeId {
+        let generation = self.generation;
+        let counters = self.replies.counters(generation);
+        let n = counters.change;
+        counters.change += 1;
+        ChangeId { generation, n }
     }
 
     /// `Fx::Change`: a new `ChangeId`, the reply kept, `Owner::given` pushed to its owner.
@@ -208,6 +236,16 @@ impl<R: Root> Runtime<R> {
     /// `Event::Answer`: the kept reply called; an answer not in the table is dropped and wiped
     /// as it drops (R11).
     pub(crate) fn answered(&mut self, id: port::AskId, answer: port::Answer) {
+        if self.scope.keep == Some(id) {
+            self.scope.keep = None;
+            self.kept(answer);
+            return;
+        }
+        if self.scope.forget == Some(id) {
+            self.scope.forget = None;
+            self.forgotten();
+            return;
+        }
         let Some((part, reply)) = self.replies.asks.remove(&(id.generation, id.n)) else {
             self.fault("an answer with no ask waiting");
             return;
@@ -262,7 +300,7 @@ impl<R: Root> Runtime<R> {
     }
 
     /// `Fx::Out`: handled as 05 §1.1 says.
-    pub(crate) fn top(&mut self, _from: Part, top: Top) {
+    pub(crate) fn top(&mut self, from: Part, top: Top) {
         match top {
             Top::Hide => self.notify(Pending::Hide),
             Top::Shared(changed) => self.notify(Pending::Shared(Arc::new(changed))),
@@ -274,7 +312,16 @@ impl<R: Root> Runtime<R> {
                 }
             }
             Top::End(end) => {
-                if matches!(self.phase, Phase::Running | Phase::Closed) {
+                // A Quit from inside the scope, where a part stands outside it, closes the scope
+                // alone (§7.7, §7.9).
+                let inside = matches!(from, Part::Session | Part::Vaults | Part::App);
+                if self.phase == Phase::Running
+                    && has_outside::<R>()
+                    && end == faraday_kernel::End::Quit
+                    && inside
+                {
+                    self.close_scope();
+                } else if matches!(self.phase, Phase::Running | Phase::Closed) {
                     self.begin_end(end);
                 } else {
                     self.fault("an End while one is under way");
@@ -294,6 +341,13 @@ impl<R: Root> Runtime<R> {
     /// One message to its top state through `route` (A9), with `View` built as R13 says.
     pub(crate) fn dispatch(&mut self, addr: Addr<R>) {
         let part = addr.part();
+        match &addr {
+            Addr::Settings(m) => self.log_message(m),
+            Addr::Session(m) => self.log_message(m),
+            Addr::Vaults(m) => self.log_message(m),
+            Addr::App(m) => self.log_message(m),
+            Addr::Outside(m) => self.log_message(m),
+        }
         self.deliver(part, Some(addr), None);
     }
 

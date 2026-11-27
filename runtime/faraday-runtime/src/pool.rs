@@ -217,15 +217,27 @@ impl Pool {
         }
     }
 
-    /// R16: every queued job dropped (a seal kept at a lock), every running one asked to stop.
-    pub(crate) fn stop_all(&mut self, keep_seals: bool) {
-        self.inline.retain(|job| keep_seals && job.seal);
+    /// R16: every queued job of the scope dropped (a seal kept at a lock), every running one asked
+    /// to stop. A job of generation 0 belongs to the part outside the scope and is left alone
+    /// unless `whole`, the end of the process.
+    pub(crate) fn stop_all(&mut self, keep_seals: bool, whole: bool) {
+        self.inline
+            .retain(|job| !(whole || job.id.generation != 0) || (keep_seals && job.seal));
         for state in [&mut self.heavy, &mut self.light] {
             state.stop_where(
-                |job| !(keep_seals && job.seal),
-                |busy| !(keep_seals && busy.seal),
+                |job| (whole || job.id.generation != 0) && !(keep_seals && job.seal),
+                |busy| (whole || busy.id.generation != 0) && !(keep_seals && busy.seal),
             );
         }
+    }
+
+    /// Whether a job of the scope is still running, a seal included; generation 0's are not the
+    /// scope's unless `whole`.
+    pub(crate) fn scope_running(&self, whole: bool) -> bool {
+        [&self.heavy, &self.light]
+            .into_iter()
+            .filter_map(|state| state.busy.as_ref())
+            .any(|busy| whole || busy.id.generation != 0)
     }
 
     /// Whether a job of the pool is still running, a seal included.
