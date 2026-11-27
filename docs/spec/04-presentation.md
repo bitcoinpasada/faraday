@@ -582,6 +582,7 @@ clock (`MotionStore::scroll_region`), and a hold held to its end sends its press
   second of the person's view, not a fact of any feature, and 03 §9.2 keeps geometry out of
   state. Turned down: an offset in each feature's state, set by a message per pan event.
 - Built: a pan (a trackpad or a finger past the slop) follows the fingers and stretches like rubber past an end; a lift coasts on at the speed the last moves saw, or springs a stretch back, advanced from the frame clock (`MotionStore::{pan_region, release_region, advance}`); Enter or Space held on a focused hold fills it and sends its press once at the end.
+- Built: Reduce motion (`Settings::appearance.motion` Off) makes a sheet or menu fully in on its first frame, the overlay bar go without fading, and a pan stop at an end with no coast or stretch; a wheel notch and the arrow keys, Page Up/Down, Home and End glide a region to the offset a jump would reach (`MotionStore::glide_region`), or jump under Reduce motion.
 
 ### 8.2 What an update may ask of the view
 

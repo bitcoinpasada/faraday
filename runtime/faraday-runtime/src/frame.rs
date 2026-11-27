@@ -10,7 +10,7 @@ use faraday_atoms::{
 use faraday_crypto::Secret;
 use faraday_draw::canvas::{Calls, Canvas};
 use faraday_draw::geom::Rect as Target;
-use faraday_kernel::{Note, NoteUp, Running, ViewOrder, session, shared, vaults};
+use faraday_kernel::{Note, NoteUp, Running, ViewOrder, session, settings, shared, vaults};
 use faraday_port as port;
 use faraday_port::event::{Input, Key, TouchPhase};
 use faraday_port::values::{Pace, Point};
@@ -605,6 +605,7 @@ impl<R: Root> Runtime<R> {
         ui.set_kept(&lent_frosts);
         ui.set_rows(&lent_rows);
         ui.set_now_ms(clock.now_ms);
+        ui.set_reduce_motion(settings.appearance.motion == Some(settings::MotionStyle::Off));
         ui.size_class();
         root.frame(&lent_tops, &view, &show, &mut ui);
         let mut out = ui.finish();
@@ -738,6 +739,11 @@ impl<R: Root> Runtime<R> {
                 Some(press) if key == Key::Enter => self.pressed(press),
                 _ => self.root_input(&Input::Key(key)),
             },
+            Key::Up | Key::Down | Key::PageUp | Key::PageDown | Key::Home | Key::End => {
+                if !self.key_scroll(key) {
+                    self.root_input(&Input::Key(key));
+                }
+            }
             _ => self.root_input(&Input::Key(key)),
         }
     }
@@ -847,18 +853,85 @@ impl<R: Root> Runtime<R> {
 
     /// Moves the region of the top layer under `at` by `dy` pixels (down is positive): the motion
     /// store's offset and the time its scrollbar shows from are set from the frame's clock when
-    /// the offset changes (04 §8.1). A wheel: it takes the content there and stops any coast.
+    /// the offset changes (04 §8.1). A wheel: the content glides there, stopping any coast (at
+    /// once under Reduce motion).
     fn scroll(&mut self, at: Point, dy: f32) {
         let f = self.scale().max(0.1);
         let Some((id, max, _)) = self.region_at(at) else {
             return;
         };
-        if self
-            .motion
-            .scroll_region(id, dy / f, max, self.clock.now_ms)
-        {
+        self.glide(id, dy / f, max);
+    }
+
+    /// Asks the region `id` to glide `by` units (a jump under Reduce motion).
+    fn glide(&mut self, id: ComponentId, by: f32, max: f32) -> bool {
+        self.sync_motion();
+        let moved = self.motion.glide_region(id, by, max, self.clock.now_ms);
+        if moved {
             self.frame.want_motion();
         }
+        moved
+    }
+
+    /// Whether the person's Reduce motion is on, given to the motion store before it moves.
+    fn sync_motion(&mut self) {
+        let off = self.tops.settings.as_ref().is_some_and(|s| {
+            Borrow::<shared::Settings>::borrow(s).appearance.motion
+                == Some(settings::MotionStyle::Off)
+        });
+        self.motion.set_rigid(off);
+    }
+
+    /// An arrow key, Page Up or Down, Home or End scrolls the region under the focused press,
+    /// or else the top layer's last region: a notch, a page less a notch, or
+    /// the whole way. Whether there was a region to move.
+    fn key_scroll(&mut self, key: Key) -> bool {
+        let at = self.frame.pointer.focused.as_ref().and_then(|focused| {
+            let out = self.frame.out.as_ref()?;
+            let hit = out.hits.iter().find(|hit| hit.press == *focused)?;
+            Some(Point {
+                x: hit.rect.x + hit.rect.w / 2,
+                y: hit.rect.y + hit.rect.h / 2,
+            })
+        });
+        let region = at
+            .and_then(|at| self.region_at(at))
+            .or_else(|| self.top_region());
+        let Some((id, max, view)) = region else {
+            return false;
+        };
+        if max <= 0.0 {
+            return false;
+        }
+        let page = (view - WHEEL_NOTCH_UNITS).max(WHEEL_NOTCH_UNITS);
+        let by = match key {
+            Key::Down => WHEEL_NOTCH_UNITS,
+            Key::Up => -WHEEL_NOTCH_UNITS,
+            Key::PageDown => page,
+            Key::PageUp => -page,
+            Key::End => max,
+            Key::Home => -max,
+            _ => return false,
+        };
+        self.glide(id, by, max);
+        true
+    }
+
+    /// The last region the top layer drew, as `region_at` gives one.
+    fn top_region(&self) -> Option<(ComponentId, f32, f32)> {
+        let out = self.frame.out.as_ref()?;
+        let top = out.hits.iter().map(|hit| hit.layer).max().unwrap_or(0);
+        let region = out
+            .regions
+            .iter()
+            .rev()
+            .find(|region| region.layer == top)?;
+        let f = self.scale().max(0.1);
+        Some((
+            ComponentId(out.page, region.id),
+            (region.extent.h - region.view.h).max(0) as f32 / f,
+            region.view.h as f32 / f,
+        ))
     }
 
     /// The fingers moved the region under `at` by `dy` pixels: it follows them at once and
@@ -866,6 +939,7 @@ impl<R: Root> Runtime<R> {
     fn pan(&mut self, at: Point, dy: f32) {
         let f = self.scale().max(0.1);
         let now_ms = self.clock.now_ms;
+        self.sync_motion();
         let state = match self.frame.pan {
             Some(state) => state,
             None => {
@@ -899,6 +973,7 @@ impl<R: Root> Runtime<R> {
     /// The fingers lifted: a stretch springs back, a flick coasts on.
     fn release_pan(&mut self) {
         let f = self.scale().max(0.1);
+        self.sync_motion();
         if let Some(state) = self.frame.pan.take()
             && self.motion.release_region(state.id, f, self.clock.now_ms)
         {
@@ -916,6 +991,7 @@ impl<R: Root> Runtime<R> {
         {
             self.release_pan();
         }
+        self.sync_motion();
         let last = self.frame.motion_ms.replace(now_ms);
         let dt = match last {
             Some(t) if now_ms.saturating_sub(t) <= 4 * MAX_STEP_MS => now_ms.saturating_sub(t),

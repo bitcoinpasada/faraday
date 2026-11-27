@@ -7,6 +7,11 @@ use faraday_port::values::Anchor;
 /// anchor).
 pub struct MotionStore {
     entries: Vec<(ComponentId, Motion)>,
+    /// How far each region still has to glide, units (down is positive): a wheel notch or an
+    /// arrow key asked for it and the offset follows ([`MotionStore::glide_region`]).
+    glides: Vec<(ComponentId, f32)>,
+    /// Reduce motion: nothing coasts, stretches or glides; each goes to its end at once.
+    rigid: bool,
 }
 
 impl MotionStore {
@@ -18,7 +23,21 @@ impl MotionStore {
     pub fn new() -> MotionStore {
         MotionStore {
             entries: Vec::new(),
+            glides: Vec::new(),
+            rigid: false,
         }
+    }
+
+    /// Sets Reduce motion (04 §8.1): while it is on a pan follows the fingers and stops at an
+    /// end, a lift leaves no coast or spring, and a glide is a jump. The runtime's, from the
+    /// person's setting, before it handles an input and each tick.
+    pub fn set_rigid(&mut self, rigid: bool) {
+        self.rigid = rigid;
+    }
+
+    /// Whether Reduce motion is on.
+    pub fn rigid(&self) -> bool {
+        self.rigid
     }
 
     /// The entry of a component, if a frame kept one.
@@ -47,7 +66,8 @@ impl MotionStore {
         if (moved - offset).abs() < f32::EPSILON {
             return false;
         }
-        // A wheel takes the content where it asks: a coast or a stretch stops.
+        // A jump takes the content where it asks: a coast, a stretch or a glide stops.
+        self.glides.retain(|(k, _)| *k != id);
         self.set(
             id,
             Motion::Region {
@@ -56,6 +76,41 @@ impl MotionStore {
                 stretch: 0.0,
                 extent: max,
                 // 0 means the content has not moved since the region opened.
+                bar_shown_ms: now_ms.max(1),
+            },
+        );
+        true
+    }
+
+    /// A wheel notch or an arrow key asks the region `id` to move by `by` units (down is
+    /// positive) within `0..=max`: it glides there, each frame closing the share of what is left
+    /// that `GLIDE_TAU_MS` gives, and a notch before the last has ended adds to it; it ends where
+    /// a jump of the same would, and stops hard at an end. Under Reduce motion it is that jump.
+    /// A coast stops. Returns whether the offset changed or will.
+    pub fn glide_region(&mut self, id: ComponentId, by: f32, max: f32, now_ms: u64) -> bool {
+        if self.rigid {
+            return self.scroll_region(id, by, max, now_ms);
+        }
+        let (offset, velocity, stretch, _) = self.region_of(&id);
+        let left = self
+            .glides
+            .iter()
+            .find(|(k, _)| *k == id)
+            .map_or(0.0, |(_, l)| *l);
+        let target = (offset + left + by).clamp(0.0, max.max(0.0));
+        let left = target - offset;
+        self.glides.retain(|(k, _)| *k != id);
+        if left.abs() < f32::EPSILON {
+            return false;
+        }
+        self.glides.push((id, left));
+        self.set(
+            id,
+            Motion::Region {
+                offset,
+                velocity: if stretch == 0.0 { 0.0 } else { velocity },
+                stretch,
+                extent: max,
                 bar_shown_ms: now_ms.max(1),
             },
         );
@@ -89,6 +144,10 @@ impl MotionStore {
         if max <= 0.0 {
             return false;
         }
+        if self.rigid {
+            return self.scroll_region(id, by, max, now_ms);
+        }
+        self.glides.retain(|(k, _)| *k != id);
         let recent = !began && last > 0 && now_ms.saturating_sub(last) <= PAN_RECENT_MS;
         let dt = if recent {
             now_ms.saturating_sub(last).max(1)
@@ -204,7 +263,7 @@ impl MotionStore {
     /// springs back, critically damped. `f` is pixels per unit. Returns whether anything moved.
     pub fn advance(&mut self, dt_ms: u64, f: f32, panning: Option<ComponentId>) -> bool {
         let dt = dt_ms.min(MAX_STEP_MS) as f32;
-        let mut moved = false;
+        let mut moved = self.advance_glides(dt, f);
         for (id, motion) in &mut self.entries {
             let Motion::Region {
                 offset,
@@ -216,6 +275,12 @@ impl MotionStore {
             else {
                 continue;
             };
+            if self.rigid && (*velocity != 0.0 || *stretch != 0.0) {
+                // Reduce motion: what coasted or stretched is at rest at once.
+                (*velocity, *stretch) = (0.0, 0.0);
+                moved = true;
+                continue;
+            }
             if Some(*id) == panning || (*velocity == 0.0 && *stretch == 0.0) || dt == 0.0 {
                 continue;
             }
@@ -250,8 +315,39 @@ impl MotionStore {
         moved
     }
 
+    /// Moves each glide on by `dt` ms: it closes `1 - e^(-dt / GLIDE_TAU_MS)` of what is left,
+    /// all of it once under half a pixel (or at once under Reduce motion). Returns whether any
+    /// moved.
+    fn advance_glides(&mut self, dt: f32, f: f32) -> bool {
+        if self.glides.is_empty() {
+            return false;
+        }
+        let rigid = self.rigid;
+        let entries = &mut self.entries;
+        self.glides.retain_mut(|(id, left)| {
+            let Some(Motion::Region { offset, extent, .. }) =
+                entries.iter_mut().find(|(k, _)| k == id).map(|(_, m)| m)
+            else {
+                return false;
+            };
+            if dt == 0.0 && !rigid {
+                return true;
+            }
+            let step = if rigid || (*left * f).abs() < 0.5 {
+                *left
+            } else {
+                *left * (1.0 - (-dt / GLIDE_TAU_MS).exp())
+            };
+            *offset = (*offset + step).clamp(0.0, extent.max(0.0));
+            *left -= step;
+            *left != 0.0 && *offset > 0.0 && *offset < *extent
+        });
+        true
+    }
+
     /// Drops a component's entry.
     pub fn remove(&mut self, id: &ComponentId) {
+        self.glides.retain(|(k, _)| k != id);
         self.entries.retain(|(k, _)| k != id);
     }
 
@@ -318,6 +414,9 @@ const COAST_STOP_PX_MS: f32 = 0.02;
 /// The spring that takes a stretch back: critically damped, at this angular frequency per
 /// millisecond, so it settles in about 300 ms.
 const SPRING_OMEGA: f32 = 0.02;
+/// How quickly a wheel notch's glide closes: the share of what is left falls by e every this
+/// many milliseconds.
+const GLIDE_TAU_MS: f32 = 45.0;
 /// How stiff the rubber is: the iOS constant.
 const RUBBER: f32 = 0.55;
 /// The longest step an advance takes, so a frame the panel missed does not throw the content.
@@ -419,6 +518,9 @@ impl<A: crate::Pressed> crate::Ui<'_, A> {
         span_ms: u64,
         curve: faraday_tokens::motion::Easing,
     ) -> f32 {
+        if self.reduce {
+            return 1.0;
+        }
         let key = ComponentId(self.page, id);
         let (at, began_ms) = match self.motion.get(&key) {
             Some(Motion::Shown { at, began_ms }) => (*at, *began_ms),
@@ -450,6 +552,14 @@ impl<A: crate::Pressed> crate::Ui<'_, A> {
             _ => return 0,
         };
         let age = self.now_ms.saturating_sub(moved);
+        if self.reduce {
+            // No fade: the bar stays, then goes.
+            if age < BAR_STAY_MS {
+                self.moving = true;
+                return 255;
+            }
+            return 0;
+        }
         if age < BAR_STAY_MS + BAR_FADE_MS {
             self.moving = true;
         }

@@ -217,6 +217,8 @@ pub enum Key {
     BackTab,
     Home,
     End,
+    PageUp,
+    PageDown,
     SelectAll,
     Paste,
 }

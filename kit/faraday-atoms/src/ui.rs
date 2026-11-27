@@ -92,6 +92,8 @@ pub struct Ui<'f, A: Pressed> {
     pub(crate) press_down: Box<dyn Fn(&A) -> bool + 'f>,
     /// The frame's time in milliseconds on the runtime's clock (04 §8.1).
     pub(crate) now_ms: u64,
+    /// Reduce motion is on: what would fade or slide is at its end (04 §8.1).
+    pub(crate) reduce: bool,
     /// While a press draws its state layer: whether the pointer is over its target.
     pub(crate) over: Option<bool>,
     /// 0 for the page, then 1 for the lowest sheet over it and up (04 §7.1).
@@ -211,6 +213,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             hover,
             press_down,
             now_ms: 0,
+            reduce: false,
             over: None,
             layer: 0,
             ox: 0.0,
@@ -334,6 +337,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             hover,
             press_down,
             now_ms: self.now_ms,
+            reduce: self.reduce,
             over: None,
             layer: self.layer,
             ox: self.ox,
@@ -538,6 +542,18 @@ impl<'f, A: Pressed> Ui<'f, A> {
     /// frame draws (04 §8.1).
     pub fn set_now_ms(&mut self, now_ms: u64) {
         self.now_ms = now_ms;
+    }
+
+    /// The runtime's only: sets Reduce motion from the person's setting once before the frame
+    /// draws (04 §8.1): a sheet or a menu is fully in on its first frame, and the overlay
+    /// scrollbar goes without fading.
+    pub fn set_reduce_motion(&mut self, on: bool) {
+        self.reduce = on;
+    }
+
+    /// Whether Reduce motion is on.
+    pub fn reduce_motion(&self) -> bool {
+        self.reduce
     }
 
     /// The frame's time, milliseconds on the runtime's clock; 0 where the runtime gave none.

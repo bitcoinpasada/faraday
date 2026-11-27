@@ -1547,6 +1547,107 @@ fn a_pull_past_the_end_springs_back() {
     assert_eq!(region_state(&runtime), (0.0, 0.0), "back at its end");
 }
 
+fn draw_shown(_view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    ui.set_page(PAGE);
+    let shown = ui.shown_fraction(SHEET, 400, [0.0, 0.0, 1.0, 1.0]);
+    log(format!("shown:{shown}"));
+}
+
+/// Invariant: With Reduce motion on a sheet is fully open on its first frame; with it off the same sheet opens over its time.
+/// Regression: Reduce motion is read nowhere, so a person who asked for none still sees every sheet slide and fade in.
+/// Owner: runtime
+#[test]
+fn with_reduce_motion_on_a_sheet_is_fully_open_on_its_first_frame() {
+    let first = |off: bool| {
+        let mut runtime = drawing(draw_region);
+        if off {
+            runtime
+                .tops
+                .settings
+                .as_mut()
+                .expect("settings")
+                .settings
+                .appearance
+                .motion = Some(settings::MotionStyle::Off);
+        }
+        DRAW.set(Some(draw_shown));
+        at(&mut runtime, 1_000);
+        take_log()
+            .into_iter()
+            .find_map(|line| line.strip_prefix("shown:").map(str::to_string))
+            .expect("the sheet drew")
+    };
+    assert_eq!(first(true), "1");
+    assert_eq!(first(false), "0");
+}
+
+/// Invariant: Page Down moves a scrolled list by a page less a notch, and End to its end.
+/// Regression: The keys reach no region, so a keyboard cannot scroll a long list.
+/// Owner: runtime
+#[test]
+fn page_down_moves_a_scrolled_list_by_a_page() {
+    use port::event::Key;
+    let mut runtime = drawing(draw_region);
+    at(&mut runtime, 1_000);
+    key(&mut runtime, Key::PageDown, true);
+    for i in 1..=60 {
+        at(&mut runtime, 1_000 + 16 * i);
+    }
+    // A page of 200 units less a notch of 56.
+    assert!((region_state(&runtime).0 - 144.0).abs() < 0.01);
+    key(&mut runtime, Key::End, true);
+    for i in 61..=300 {
+        at(&mut runtime, 1_000 + 16 * i);
+    }
+    let end = region_state(&runtime).0;
+    assert!(end > 144.0, "End goes on past the page: {end}");
+    key(&mut runtime, Key::Down, true);
+    for i in 301..=340 {
+        at(&mut runtime, 1_000 + 16 * i);
+    }
+    assert_eq!(region_state(&runtime).0, end, "and stops hard at the end");
+    key(&mut runtime, Key::Home, true);
+    for i in 341..=700 {
+        at(&mut runtime, 1_000 + 16 * i);
+    }
+    assert_eq!(region_state(&runtime).0, 0.0, "Home goes back to the top");
+}
+
+/// Invariant: A wheel notch glides to its target over some frames and ends where a jump would have; with Reduce motion on it is the jump.
+/// Regression: The wheel jumps at once, or glides to a different offset than it was asked for.
+/// Owner: runtime
+#[test]
+fn the_wheels_glide_ends_at_the_offset_a_jump_would() {
+    use port::values::Pace;
+    let notch = 56.0;
+    let mut runtime = drawing(draw_region);
+    at(&mut runtime, 1_000);
+    wheel(&mut runtime, 48);
+    wheel(&mut runtime, 48);
+    at(&mut runtime, 1_016);
+    let part = region_state(&runtime).0;
+    assert!(part > 0.0 && part < 2.0 * notch, "on its way: {part}");
+    for i in 2..=60 {
+        at(&mut runtime, 1_000 + 16 * i);
+    }
+    assert!((region_state(&runtime).0 - 2.0 * notch).abs() < 0.01);
+    at(&mut runtime, 5_000);
+    assert_eq!(runtime.frame.pace(), Pace::Rest);
+
+    let mut runtime = drawing(draw_region);
+    runtime
+        .tops
+        .settings
+        .as_mut()
+        .expect("settings")
+        .settings
+        .appearance
+        .motion = Some(settings::MotionStyle::Off);
+    at(&mut runtime, 1_000);
+    wheel(&mut runtime, 48);
+    assert_eq!(region_state(&runtime).0, notch, "at once");
+}
+
 /// Invariant: The frost under a sheet is made once when the sheet opens, kept while it stays over the same page, and gone when the sheet closes.
 /// Regression: The page is blurred again at every frame the sheet is up; or a frost outlives its sheet in the runtime's memory.
 /// Owner: runtime
