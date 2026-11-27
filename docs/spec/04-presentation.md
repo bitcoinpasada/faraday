@@ -765,6 +765,7 @@ container (`flow.rs`, `flow/`) and `screens/menu_page.rs`, and the frame of `scr
 levels once it is carried (08 §4.4).
 
 - Built: the address, caution, code box, destination, guide block, kind rows, multi-select, pad, QR and word molecules (`kit/faraday-molecules/src/`), each a model and a `draw` over its box.
+- Built: the organisms `nav` (the navigation bar, the rail, the top app bar with its close button, Home's head with the mode pill, and the sidebar), `tooltip` (`Tips` and `TipModel`), `demo_only` (the "Demo only" card), and the content organism's address and caution blocks (`kit/faraday-organisms/src/`).
 
 - **Rule K13.** A sheet of `main`'s `screens/sheets.rs` (Lock, Power, Idle, Devices, Scan, QR, New
   input, Guide, secret out, wallet confirm) is a page of the feature that owns it, drawn on the

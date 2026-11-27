@@ -7,17 +7,20 @@
 //! on-surface-variant; hover and press are state layers, and the focus ring follows the shape the
 //! state layer takes. The bars carry no rule along their edge.
 //!
-//! Not built here: the rail and the expanded rail's destination row (the wide window's, which the
-//! device does not draw), the close button and the bar's actions' `under_bar` flag.
+//! Not built here: the bar's actions' `under_bar` flag, which the top bar's `under` anchor holds.
 
 use faraday_atoms::button::{self, ButtonModel, Look};
 use faraday_atoms::hits::Shape;
+use faraday_atoms::mark::NameSuffix;
+use faraday_atoms::tag::Status;
 use faraday_atoms::{Anchor, Glyph, Icon, Offered, Pressed, Shown, Ui, W};
 use faraday_tokens::dims::{
-    APP_BAR_H, BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, BODY_L, CARET_MIN, GAP_SMALL,
-    HOME_SEARCH_MIN, LABEL_M, MARGIN_COMPACT, MENU_GAP, MODE_PILL_HEIGHT, NAV_BAR_H, NAV_ICON,
-    NAV_LABEL_GAP, NAV_PILL_H, NAV_PILL_W, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET,
-    TITLE_L, TITLE_M, TITLE_S, TOUCH,
+    APP_BAR_H, BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, BODY_L, BODY_S, BUTTON_H,
+    CARET_MIN, GAP, GAP_SMALL, GRID, HOME_SEARCH_MIN, ICON_BUTTON, ICON_GLYPH, ICON_SMALL, LABEL_L,
+    LABEL_M, MARGIN_COMPACT, MENU_GAP, MODE_PILL_HEIGHT, MODE_PILL_PAD, NAV_BAR_H, NAV_ICON,
+    NAV_ICON_GAP, NAV_ITEM_H, NAV_LABEL_GAP, NAV_PILL_H, NAV_PILL_W, NAV_RAIL_TOP, PAD,
+    RAIL_MARK_H, RAIL_MARK_W, RAIL_W, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET, TAG_H,
+    TITLE_L, TITLE_M, TITLE_S, TOUCH, shape_full,
 };
 use faraday_tokens::elevation::ELEVATION_SHEET;
 use faraday_tokens::palette::{BADGE, ON_BADGE, Paint, Role};
@@ -249,10 +252,155 @@ fn item<A: Pressed>(
     });
 }
 
-/// Draws the navigation as the rail. Not built: the wide window's rail is not on the device's
-/// path.
-pub fn draw<A: Pressed>(_m: &NavModel<'_, A>, _ui: &mut Ui<'_, A>) {
-    todo!()
+/// The tonal icon button directly under a rail's destinations: Scan.
+pub struct RailButton<'s, A> {
+    /// Its icon.
+    pub icon: Icon,
+    /// Its label, the button's tooltip.
+    pub label: Shown<'s>,
+    /// What a press on it does.
+    pub press: A,
+}
+
+/// What a rail holds besides the destinations of [`NavModel`] (its top ones, from the top).
+pub struct RailModel<'s, A> {
+    /// The destinations from the top, and the words of a count past 999.
+    pub nav: NavModel<'s, A>,
+    /// Under a divider: what is opened, then closed (the guide, Settings).
+    pub under: Vec<Dest<'s, A>>,
+    /// At its foot (Lock, Power off).
+    pub foot: Vec<Dest<'s, A>>,
+    /// The button directly under the last destination, on every page.
+    pub button: Option<RailButton<'s, A>>,
+    /// The shield mark above the first destination (no wordmark).
+    pub mark: bool,
+}
+
+/// Draws the navigation as the rail down the window's left, `h` tall, on the surface as the page
+/// is (Material's navigation rail, `docs/THEMES.md` §7), a divider at its edge. Each destination
+/// takes `NAV_ITEM_H` where the rail has room and never less than a touch target, so a low
+/// window keeps every one in reach.
+pub fn draw<A: Pressed>(m: &RailModel<'_, A>, ui: &mut Ui<'_, A>, h: f32) {
+    ui.fill(0.0, 0.0, RAIL_W, h, 0.0, Role::Surface);
+    ui.fill(RAIL_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
+    let many = &m.nav.many;
+    let n = m.nav.dests.len() + m.under.len() + m.foot.len();
+    let divider = if m.under.is_empty() { 0.0 } else { 2.0 * GAP };
+    let button_h = if m.button.is_some() {
+        TOUCH + GRID
+    } else {
+        0.0
+    };
+    // On a window too short for every destination at a touch target, the space under the mark
+    // gives way first, so nothing meets the button.
+    let full = h - 2.0 * NAV_RAIL_TOP - divider - button_h - RAIL_MARK_H - NAV_RAIL_TOP;
+    let short = (n as f32 * TOUCH - full).max(0.0);
+    let mark_gap = (NAV_RAIL_TOP - short).max(0.0);
+    let mark = if m.mark { RAIL_MARK_H + mark_gap } else { 0.0 };
+    let room = h - 2.0 * NAV_RAIL_TOP - divider - button_h - mark;
+    // Taller by what its label's line grows (`docs/TEXT-SIZE.md` §5).
+    let ih = (room / n.max(1) as f32).clamp(TOUCH, NAV_ITEM_H + ui.line_grown_as(LABEL_M));
+    let mut y = NAV_RAIL_TOP;
+    if m.mark {
+        ui.mark(
+            (RAIL_W - RAIL_MARK_W) / 2.0,
+            NAV_RAIL_TOP,
+            RAIL_MARK_W,
+            RAIL_MARK_H,
+        );
+        y += mark;
+    }
+    for d in &m.nav.dests {
+        item(ui, (0.0, y, RAIL_W, ih), d, many);
+        y += ih;
+    }
+    if !m.under.is_empty() {
+        ui.rule(PAD, y + GAP, RAIL_W - 2.0 * PAD, Role::OutlineVariant);
+        y += divider;
+        for d in &m.under {
+            item(ui, (0.0, y, RAIL_W, ih), d, many);
+            y += ih;
+        }
+    }
+    if let Some(b) = &m.button {
+        let at = (
+            (RAIL_W - ICON_BUTTON) / 2.0,
+            y + GRID + (TOUCH - ICON_BUTTON) / 2.0,
+        );
+        ui.showing(&b.label, |ui| {
+            ui.tonal_icon_button(at, b.icon, b.label.as_str(), b.press.clone());
+        });
+        y += button_h;
+    }
+    // The foot from the bottom up, never over what is above it.
+    let foot_top = (h - NAV_RAIL_TOP - m.foot.len() as f32 * ih).max(y);
+    for (i, d) in m.foot.iter().enumerate() {
+        item(ui, (0.0, foot_top + i as f32 * ih, RAIL_W, ih), d, many);
+    }
+}
+
+/// An expanded rail's destination `d` at `(x, y, w)`, `w` wide and a touch target tall: its icon
+/// and label in a row, on a pill while it is current, and `end` at its right end in the label's
+/// colour. `d.flows`, the number of flows in progress there, is a second badge in the same
+/// colour as the first: on the icon's corner, or just under the tab's own badge when it has one.
+/// The whole row is pressable.
+pub fn destination_row<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+    d: &Dest<'_, A>,
+    (many, end): (&Shown<'_>, Option<&Shown<'_>>),
+) {
+    let r = TOUCH / 2.0;
+    if d.current {
+        ui.fill(x, y, w, TOUCH, r, Role::SecondaryContainer);
+    }
+    let fg = if d.current {
+        Role::OnSecondaryContainer
+    } else {
+        Role::OnSurfaceVariant
+    };
+    let pill = Shape::new(x, y, w, TOUCH, r);
+    ui.offered(&d.offered, |ui, press, _| {
+        if let Some(a) = press {
+            ui.press_to(pill, (x, y, w, TOUCH), fg.paint(), a);
+        }
+    });
+    let ix = x + PAD;
+    let iy = y + (TOUCH - ICON_SMALL) / 2.0;
+    ui.icon(ix, iy, ICON_SMALL, d.icon, NAV_ICON, fg);
+    let inset = (ICON_SMALL - NAV_ICON) / 2.0;
+    let glyph = (ix + inset, iy + inset, NAV_ICON);
+    badge(ui, glyph, d.badge, many);
+    let own = !matches!(d.badge, Badge::None | Badge::Count(0));
+    let low = if own { BADGE_LARGE + 2.0 } else { 0.0 };
+    badge(
+        ui,
+        (glyph.0, glyph.1 + low, glyph.2),
+        Badge::Count(d.flows),
+        many,
+    );
+    let tx = ix + ICON_SMALL + NAV_ICON_GAP;
+    let right = x + w - PAD;
+    let end_w = end.map_or(0.0, |e| {
+        ui.showing(e, |ui| ui.measure_as(LABEL_M.regular(), e.as_str())) + GRID
+    });
+    // Material's label large, the current destination's heavier.
+    let role = if d.current {
+        LABEL_L
+    } else {
+        LABEL_L.regular()
+    };
+    // A one-line slot: larger text fits down to Standard, and is shortened there only where it
+    // still does not fit (`docs/TEXT-SIZE.md` §3).
+    let room = right - tx - end_w;
+    ui.showing(&d.label, |ui| {
+        ui.text_fit_as((tx, y, TOUCH, room), role, fg, d.label.as_str());
+    });
+    if let Some(e) = end {
+        ui.showing(e, |ui| {
+            ui.text_right_as((right, y, TOUCH), LABEL_M.regular(), fg, e.as_str());
+        });
+    }
 }
 
 /// Draws the navigation as the bar across the window at `y`, `w` wide: surface-container, with
@@ -751,10 +899,196 @@ pub fn draw_group<A: Pressed>(
     x
 }
 
+/// A close button in a `TOUCH` square at (x, y): Material's standard icon button, `ICON_BUTTON`
+/// across in the middle of its target, its state layer on hover and press, the mark at
+/// `ICON_GLYPH` in on-surface-variant, and `tip` its plain tooltip. The mark is the
+/// multiplication sign, as the vault search's clear is: the icon face has no close glyph. Learn's
+/// pane and the Starter's top app bar close with it.
+pub fn close_button<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    (x, y): (f32, f32),
+    action: A,
+    tip: &Shown<'_>,
+) {
+    close_button_in(ui, (x, y), action, tip, Role::OnSurfaceVariant);
+}
+
+/// [`close_button`] with the mark and state layer in `role`: over a sheet's scrim, which darkens
+/// the bar, the mark reads in on-surface.
+pub fn close_button_in<A: Pressed>(
+    ui: &mut Ui<'_, A>,
+    (x, y): (f32, f32),
+    action: A,
+    tip: &Shown<'_>,
+    role: Role,
+) {
+    let edge = (TOUCH - ICON_BUTTON) / 2.0;
+    let (bx, by) = (x + edge, y + edge);
+    let button = Shape::new(bx, by, ICON_BUTTON, ICON_BUTTON, shape_full(ICON_BUTTON));
+    ui.press_to(button, (x, y, TOUCH, TOUCH), role.paint(), action.clone());
+    let mark = "\u{d7}";
+    let mw = ui.measure(ICON_GLYPH, W::R, mark);
+    ui.text_mid(
+        bx + (ICON_BUTTON - mw) / 2.0,
+        by,
+        ICON_BUTTON,
+        ICON_GLYPH,
+        W::R,
+        role,
+        mark,
+    );
+    ui.tip_plain((x, y, TOUCH, TOUCH), &action, tip.as_str());
+}
+
+/// The mode pill: the mode's name in the warning tone's container, which opens the mode sheet
+/// (`docs/MODES.md` §3): Testnet, Practice, where the app is not on mainnet.
+pub struct ModePill<'s, A> {
+    /// The mode's name.
+    pub label: Shown<'s>,
+    /// What a press on it does.
+    pub press: A,
+    /// The small menu arrow after the label, on the layout with the sidebar only.
+    pub arrow: bool,
+}
+
+/// The mode pill's own width.
+pub fn mode_pill_width<A: Pressed>(m: &ModePill<'_, A>, ui: &Ui<'_, A>) -> f32 {
+    let arrow = if m.arrow { GAP_SMALL + NAV_ICON } else { 0.0 };
+    ui.measure_as(LABEL_M, m.label.as_str()) + 2.0 * MODE_PILL_PAD + arrow
+}
+
+/// Draws the mode pill at (x, y), in its tone's container, never a tint (`docs/DESIGN.md` §3).
+/// In a bar `bar_h` tall its press target is the touch floor high and kept inside the bar, so it
+/// is not cut where the pill stands against the bar's upper or lower edge. Returns its width.
+pub fn draw_mode_pill<A: Pressed>(
+    m: &ModePill<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y): (f32, f32),
+    bar_h: Option<f32>,
+) -> f32 {
+    let w = mode_pill_width(m, ui);
+    let h = MODE_PILL_HEIGHT;
+    let (bg, fg) = Status::Warning.roles();
+    ui.fill(x, y, w, h, h / 2.0, bg);
+    let mut ty = y + h / 2.0 - TOUCH / 2.0;
+    if let Some(bar_h) = bar_h {
+        ty = ty.min(bar_h - TOUCH);
+    }
+    ui.press_to(
+        Shape::new(x, y, w, h, h / 2.0),
+        (x, ty.max(0.0), w, TOUCH),
+        fg.paint(),
+        m.press.clone(),
+    );
+    ui.showing(&m.label, |ui| {
+        ui.text_mid_as((x + MODE_PILL_PAD, y, h), LABEL_M, fg, m.label.as_str());
+        if m.arrow {
+            let ax = x + MODE_PILL_PAD + ui.measure_as(LABEL_M, m.label.as_str()) + GAP_SMALL;
+            ui.icon(
+                ax,
+                y + (h - NAV_ICON) / 2.0,
+                NAV_ICON,
+                Icon::ChevronDown,
+                NAV_ICON,
+                fg,
+            );
+        }
+    });
+    w
+}
+
+/// Home's head on the small panel: the mark and the name; off mainnet, the mode pill at the
+/// right, which opens the mode sheet.
+pub struct HeadModel<'s, A> {
+    /// The word after the wordmark (DEMO in the desktop app, OFFLINE on the device).
+    pub suffix: NameSuffix,
+    /// The mode pill; none on mainnet.
+    pub pill: Option<ModePill<'s, A>>,
+    /// Where what stands at the head's right end besides the pill begins: the name ends before
+    /// it, and before the pill where that is further left.
+    pub right: f32,
+}
+
+/// Draws the head at `y`, `w` wide, at the page's margin: the mark, the name fitted between them
+/// and the pill, which is left off where nothing is left of the name's room (the name then gives
+/// way to the mark alone).
+pub fn draw_head<A: Pressed>(m: &HeadModel<'_, A>, ui: &mut Ui<'_, A>, (y, w): (f32, f32)) {
+    let margin = MARGIN_COMPACT;
+    ui.mark(margin, y, 20.0, 23.0);
+    let pw = m.pill.as_ref().map_or(0.0, |p| mode_pill_width(p, ui));
+    // The name where it ends before the pill; the app's word (DEMO, OFFLINE) under FARADAY where
+    // the two do not fit side by side; the mark alone where the pill leaves no room for it.
+    let (nx, ny) = (margin + 28.0, y + 6.0);
+    let pill_x = w - margin - pw;
+    let start = if m.pill.is_some() { pill_x } else { w - margin };
+    let room = m.right.min(start) - GAP;
+    ui.wordmark_fitted((nx, ny, room - nx), 11.0, Role::OnSurface, m.suffix);
+    if let Some(p) = &m.pill {
+        draw_mode_pill(p, ui, (pill_x, y - 2.0), None);
+    }
+}
+
+/// The sidebar: the tabs, what is under way, and, at its foot, what holds the idle lock
+/// (`docs/LAYOUT.md` §3).
+pub struct SidebarModel<'s, A> {
+    /// Its width.
+    pub w: f32,
+    /// Raised on a menu page, flat in a flow with no line (F331); a High contrast theme casts
+    /// no shadow, so its outline stands in both.
+    pub raised: bool,
+    /// The word after the wordmark.
+    pub suffix: NameSuffix,
+    /// The tabs, each one of Material's destinations, from just under the name.
+    pub tabs: Vec<Dest<'s, A>>,
+    /// The words of a count past 999.
+    pub many: Shown<'s>,
+    /// Scan, a tonal button directly under the last tab on every page.
+    pub scan: ButtonModel<'s, A>,
+    /// What holds the idle lock, as a plain neutral tag at the foot; none where nothing does.
+    pub lock_held: Option<Shown<'s>>,
+}
+
+/// The shield's box at the sidebar's top left; what stands at the foot is as far above it as
+/// the box's top is from the top.
+const MARK_X: f32 = 24.0;
+const MARK_TOP: f32 = 20.0;
+const MARK_W: f32 = 24.0;
+const MARK_H: f32 = 32.0;
+
+/// Draws the sidebar `h` tall from the window's left: the mark, the name with its word centred
+/// on the mark, its capitals 9 tall, each tab a touch target tall as an icon and label in a row
+/// (the current one on a pill), Scan under the last, the lock tag at the foot.
+pub fn draw_sidebar<A: Pressed>(m: &SidebarModel<'_, A>, ui: &mut Ui<'_, A>, h: f32) {
+    if m.raised {
+        ui.shadow(0.0, 0.0, m.w, h, 0.0, ELEVATION_SHEET);
+    }
+    ui.fill(0.0, 0.0, m.w, h, 0.0, Role::SurfaceContainerLow);
+    if ui.theme.is_high_contrast() {
+        ui.stroke(0.0, 0.0, m.w, h, 0.0, Role::Outline);
+    }
+    ui.mark(MARK_X, MARK_TOP, MARK_W, MARK_H);
+    ui.wordmark_named(58.0, 31.5, 9.0, Role::OnSurface, m.suffix);
+    let mut y = 64.0;
+    let (x, w) = (12.0, m.w - 24.0);
+    for d in &m.tabs {
+        destination_row(ui, (x, y, w), d, (&m.many, None));
+        y += TOUCH;
+    }
+    button::draw(&m.scan, ui, (x, y + GRID, Some(w), BUTTON_H));
+    if let Some(tag) = &m.lock_held {
+        let (tx, ty) = (16.0, h - MARK_TOP - TAG_H);
+        let room = m.w - 32.0 - ui.chip_width("");
+        ui.showing(tag, |ui| {
+            let text = ui.fit_as(BODY_S, tag.as_str(), room);
+            ui.tag(tx, ty, &text, Status::Neutral);
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use faraday_atoms::ui::testing::{P, at_rest, canvas, pixel};
+    use faraday_atoms::ui::testing::{P, at_rest, canvas, frame, pixel};
     use faraday_atoms::{ComponentId, Motion, MotionStore, Theme};
 
     /// The page's scroll, keyed by this anchor.
@@ -799,5 +1133,107 @@ mod tests {
             bars.push(pixel(&c, 600, 4));
         }
         assert_ne!(bars[0], bars[1]);
+    }
+
+    fn dest(n: u8, current: bool) -> Dest<'static, P> {
+        Dest {
+            icon: Icon::House.into(),
+            label: Shown::plain("Home"),
+            offered: Offered::Yes(P(n)),
+            current,
+            badge: Badge::None,
+            flows: 0,
+            bar: true,
+        }
+    }
+
+    /// Invariant: On a window too short for every destination at its full height the rail keeps each destination a touch target below the last, Scan under them all.
+    /// Regression: A low window packs the rail's destinations closer than a finger's width, or draws Scan over the last one.
+    /// Owner: kit
+    #[test]
+    fn a_low_rail_keeps_every_destination_a_touch_target_apart() {
+        let m = RailModel {
+            nav: NavModel {
+                dests: (0..5).map(|i| dest(i, i == 0)).collect(),
+                many: Shown::plain("999+"),
+            },
+            under: vec![dest(5, false)],
+            foot: vec![dest(6, false)],
+            button: Some(RailButton {
+                icon: Icon::Scan,
+                label: Shown::plain("Scan"),
+                press: P(9),
+            }),
+            mark: true,
+        };
+        let mut c = canvas(160);
+        let mut touch = 0;
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            touch = ui.px(ui.touch);
+            draw(&m, ui, 440.0);
+        });
+        let mut tops: Vec<i32> = out
+            .hits
+            .iter()
+            .filter(|h| h.press != P(9))
+            .map(|h| h.rect.y)
+            .collect();
+        tops.sort();
+        assert_eq!(tops.len(), 7);
+        assert!(tops.windows(2).all(|w| w[1] - w[0] >= touch), "{tops:?}");
+        let scan = out.hits.iter().find(|h| h.press == P(9)).unwrap().rect.y;
+        assert!(scan >= tops[5] + touch, "{scan} {tops:?}");
+    }
+
+    /// Invariant: The sidebar's tabs stand one touch target apart from just under the name, and Scan stands under the last tab.
+    /// Regression: The tabs overlap or Scan is drawn over the last tab, as when the row height is dropped.
+    /// Owner: kit
+    #[test]
+    fn the_sidebar_stacks_its_tabs_and_puts_scan_under_the_last() {
+        let m = SidebarModel {
+            w: 280.0,
+            raised: true,
+            suffix: NameSuffix::Offline,
+            tabs: (0..4).map(|i| dest(i, i == 1)).collect(),
+            many: Shown::plain("999+"),
+            scan: ButtonModel {
+                label: Shown::plain("Scan"),
+                style: faraday_atoms::Style::Tonal,
+                offered: Offered::Yes(P(9)),
+                chosen: false,
+                icon: Some(Icon::Scan),
+            },
+            lock_held: None,
+        };
+        let mut c = canvas(160);
+        let mut touch = 0;
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            touch = ui.px(ui.touch);
+            draw_sidebar(&m, ui, 480.0);
+        });
+        let ys: Vec<i32> = (0..4)
+            .map(|i| out.hits.iter().find(|h| h.press == P(i)).unwrap().rect.y)
+            .collect();
+        assert!(ys.windows(2).all(|w| w[1] - w[0] == touch), "{ys:?}");
+        let scan = out.hits.iter().find(|h| h.press == P(9)).unwrap().rect.y;
+        assert!(scan >= ys[3] + touch);
+    }
+
+    /// Invariant: The mode pill's press target stays inside the bar it stands in.
+    /// Regression: A pill against the bar's lower edge takes a press target that runs past the bar and is cut.
+    /// Owner: kit
+    #[test]
+    fn the_mode_pill_keeps_its_press_target_inside_the_bar() {
+        let m = ModePill {
+            label: Shown::plain("Testnet"),
+            press: P(1),
+            arrow: false,
+        };
+        let mut c = canvas(160);
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            draw_mode_pill(&m, ui, (100.0, 40.0), Some(56.0));
+        });
+        let hit = &out.hits[0];
+        assert!(hit.target.y + hit.target.h <= 56, "{:?}", hit.target);
     }
 }
