@@ -19,19 +19,20 @@ onward.
 
 The kernel is one crate (`layer = "app"`, `role = "kernel"`). It depends on the port, the domain
 crates whose types it names (`faraday-text`, `faraday-crypto`, `faraday-bip`, `faraday-psbt`,
-`faraday-keys`, `faraday-strings`) and its derive crate. It holds no feature's types (A1).
+`faraday-keys`, `faraday-vault`, `faraday-strings`) and its derive crate. It holds no feature's
+types (A1).
 
 | Module | Holds |
 |---|---|
 | `feature` | `Feature`, `Notice`, `route` (§2); `Top`, `Lock`, `End`, what the top states tell the runtime (section 05, §1.1) |
-| `message` | `Message`, `Public`, `Withheld`, the derives (§3) |
+| `message` | `Message`, `Public`, `Never`, the derives (§3) |
 | `effects` | `Effects`, `Fx`, `AskFor`, `ChangeFor`, `Job`, `Route`, `Note`, `ViewOrder` (§4) |
 | `cx` | `Ctx`, `View`, `Facts`, `Mode`, `Clock`, `Running`, `Started` (§5); `Show`, `Memo`, `Slot`, `Edits`, `Derived` (section 04, §3, §6, §13) |
 | `shared` | `Change`, `Done`, `ChangeId`, `Owner`, and the read traits and change types of the session, the vaults and the settings (§7) |
 | `flow` | `StepFlow`, `Flow`, `FlowMsg`, `Steps`, `CancelOffer`, `Ending` (§9) |
 | `lock` | `AtLock`, `Holds`, `Loss` (§2.3); `Carried`, `CarryName`, `CarryValue` (section 05, §7.3) |
 | `nav` | `Nav<P>`, the one navigation every frame uses (section 06, §4.3) |
-| `handle` | `KeyId`, `WalletId`, `FileId`, `Ticket`, `Waiting` (§3.3, §8); `Tool`, the enum of tools two composites name (section 06) |
+| `handle` | `KeyId`, `WalletId`, `FileId`, `Ticket`, `Waiting` (§3.3, §8); `ScanFor`, `Gate`, `SampleAsk` and `Tool`, the asks two composites name (section 06, section 09 §4.1) |
 | `words` | `Worded`, `Refused`, `Line`, the wording of `port::Failure` (§10) |
 
 The derive crate (`role = "kernel"`, a proc-macro crate) derives `Message`, `Public` and `AtLock`.
@@ -193,12 +194,19 @@ pub trait Public: Clone + core::fmt::Debug + Send + 'static + __private::Sealed 
 
 `#[derive(Message)]` on an enum makes every variant public unless it is marked `#[withheld]`; a
 variant not so marked whose fields are not all `Public` fails to compile. A withheld variant logs
-its kind alone. `#[derive(Public)]` on a type requires every field to be `Public`.
+its kind alone. `#[derive(Public)]` on a type requires every field to be `Public`. The attribute is
+the only mark of a withheld variant: the kernel has no `Withheld` type.
+
+```rust
+/// The out of a part (section 09 §4.3), which tells its owner nothing: `Effects<Msg, Never>`.
+pub enum Never {}
+impl Message for Never { /* no variant to log */ }
+```
 
 - **Rule A14.** Only the derive implements `Public` and `__private::Sealed`. `lint-secrets` refuses a
   hand-written `impl Public` or `impl Sealed` outside the kernel, which writes the impls for
   `bool`, the integers, `char`, `Text`, `Fingerprint`, `Network`, `Txid`, `Sha256`, the handles,
-  the port's kinds, ids and values (`AskId`, `StickId`, `EventKind`, `Anchor`), the kernel's
+  the port's kinds, ids and values (`AskId`, `StickId`, `EventKind`, `Anchor`, `Orientation`), the kernel's
   `Edits` and `Slot`, `Option`, `Vec`, arrays and tuples
   of `Public`. No wiping secret type (`SecretText`, `Secret`, `Bytes`, `EntropyBytes`), no
   `faraday-keys` store and no part holding a typed passphrase is `Public`. Held by the compiler and
@@ -562,25 +570,83 @@ pub mod session {
         /// Counts every change to what the session holds; a memo's key (section 04, V13).
         fn edits(&self) -> Edits;
     }
-    pub struct WalletView { /* id, name, policy (faraday-bip), origin, source, checked, network */ }
+    pub struct KeyView<'a> { pub fingerprint: Fingerprint, pub name: &'a Text, pub held: bool,
+                             pub sample: bool, pub made_online: bool }
+    pub struct WalletView { pub id: WalletId, pub name: Text, pub policy: WalletPolicy,
+                            pub source: WalletSource, pub checked: bool, pub network: Network }
+    /// Where a wallet came from, as `present` words it: `main`'s `source` text and `Origin` in one.
+    #[derive(Public, Clone, PartialEq, Eq)]
+    pub enum WalletSource {
+        Made,           // Make a new wallet: "Made here", worded on its own
+        TypedWords,     // Spend from a backup's own Typed words step
+        TypedSeeds,     // Seeds' own Typed seeds step
+        Vault(Text),    // a vault's own wallet: the vault's name
+        Named(Text),    // anything else, as read: a file's name, a search
+    }
     pub struct FileView { pub id: FileId, pub name: Text, pub kind: FileKind, pub secret: bool }
+    /// What a held file is, as the file classification (section 09 §4.3, `faraday-secrets`) reads it:
+    /// `main`'s `wallet::FileKind`, variant for variant.
+    #[derive(Public, Copy, PartialEq, Eq)]
+    pub enum FileKind { Psbt, Wallet, SecretWallet, KeyWithSecret, Transaction, Sheet, Message, Key,
+                        Words, Share, Vault, Entries, EfiImage, Kdbx, KdbxOther, Pdf, SeedPart,
+                        KeyLine, Text, Gpg, CoreWallet, KruxCode, Other }
     /// What waits in the session: `handle::Waiting` is the ticket holder of §8.1, so this is
     /// `WaitingItem`, and `waiting()` returns `&[WaitingItem]`.
     pub enum WaitingItem { Psbt(WalletId), Held(KeyId) }   // a PSBT to sign; a key held for its backup
     pub enum Changed { KeyCame(KeyId), KeyGone(KeyId), WalletCame(WalletId), WalletGone(WalletId),
                        FileCame(FileId), FileGone(FileId), HeldReleased(KeyId), Network(Network) }
 }
-pub mod vaults { pub trait Read { fn open(&self) -> &faraday_keys::vault::OpenVaults; fn edits(&self) -> Edits; } }
-pub struct Settings { /* idle lock and off minutes, QR speed, time offset, appearance, scale, rotation */ }
-impl Settings { pub fn edits(&self) -> Edits; }
+pub mod vaults {
+    pub trait Read {
+        fn open(&self) -> &faraday_keys::vault::OpenVaults;  // each vault, its records and their marks
+        fn current(&self) -> Option<VaultId>;                 // the vault a save goes to (main's `current`)
+        fn edits(&self) -> Edits;
+    }
+    pub enum Changed { Opened(VaultId), Closed(VaultId), Edited(VaultId) }
+}
+pub mod settings {
+    /// The person's choices: the settings owner's state, lent to `View` (§5).
+    pub struct Settings {
+        pub idle_lock_min: u16,           // 0: never
+        pub idle_off_min: u16,            // 0: never; offline only
+        pub qr_frame_ms: u32,             // each frame of an animated code
+        pub zone_min: Option<i16>,        // minutes east of UTC; None until chosen
+        pub offset_secs: i64,             // Set the time's offset against the adapter's clock
+        pub checked: bool,                // the clock was set or kept by the person
+        pub appearance: Appearance,
+        pub scale_pct: u16,
+        pub rotation: port::Orientation,  // where the display offers it (port::Display)
+        pub seal_amounts: bool,           // Remembered: amounts kept with a seal
+        pub nonce_history: bool,          // Remembered: the nonce check's history
+    }
+    impl Settings { pub fn edits(&self) -> Edits; }
+    /// The kernel's own appearance values; the runtime maps them to the kit's `Theme` and
+    /// `TextSize` when it builds the `Ui` (section 04 §12.2), since the kernel names no kit type.
+    #[derive(Public, Copy, PartialEq, Eq)]
+    pub struct Appearance { pub theme: ThemeId, pub dark: bool, pub contrast: Contrast,
+                            pub text: TextSize, pub motion: Option<MotionStyle>, pub speed: MotionSpeed }
+    #[derive(Public, Copy, PartialEq, Eq)] pub struct ThemeId(pub u8);   // its place in the kit's scheme table
+    #[derive(Public, Copy, PartialEq, Eq)] pub enum Contrast { Standard, Medium, High }
+    #[derive(Public, Copy, PartialEq, Eq)] pub enum TextSize { Standard, Large, Larger }
+    /// `None` in `Appearance` until the person chooses: Off for a screen not the device's own panel.
+    #[derive(Public, Copy, PartialEq, Eq)] pub enum MotionStyle { Smooth, Crossfade, Off }
+    #[derive(Public, Copy, PartialEq, Eq)] pub enum MotionSpeed { Quick, Medium, Relaxed }
+    /// What the settings owner says changed: the clock set or kept, or any other choice.
+    pub enum Changed { Clock, Choices }
+}
 ```
 
 `WalletView`, `KeyView` and `FileView` are kernel types of public data (A1); `main`'s `Wallet`
 holds no secret (inventory `features/wallets.md`) and becomes `WalletView`, its caches kept by
-the session. A `FileView` is public data only: its name, kind and whether it holds a
+the session. **Decision: a wallet's source is one typed value, `WalletSource`.** Reason: `main`'s
+source is text that the adding code sometimes words ("Made here"), and an update forms no text
+(A30); `present` words each variant, and Spend from a backup and Seeds match the typed ones.
+Turned down: `main`'s pair of a source text and an `Origin`, whose statement case would be wording
+formed in `update`. A `FileView` is public data only: its name, kind and whether it holds a
 secret, never its bytes or any text read from them; the bytes are taken by a change. Text read
 lossily from a file's bytes (to show it) is kept only for a file of a kind that holds no secret,
-in the state of the feature that shows it, and never in `FileView`.
+in the state of the feature that shows it, and never in `FileView`. `View::clock`'s `offset_secs`
+and `set` are the runtime's copy of the settings' `offset_secs` and `checked`.
 
 ### 7.3 Changing: `ChangeFor<M>`
 
@@ -604,6 +670,8 @@ pub mod shared {
     }
     pub enum AnyChange { Session(session::Change), Vaults(vaults::Change), Settings(settings::Change) }
     pub enum Done { Session(session::Done), Vaults(vaults::Done), Settings(settings::Done) }
+    /// What an owner says came, went or changed; sent to every feature as `Notice::Shared` (§2.4).
+    pub enum Changed { Session(session::Changed), Vaults(vaults::Changed), Settings(settings::Changed) }
     /// Minted by the runtime, as AskId is.
     #[derive(Public, Copy, PartialEq, Eq)] pub struct ChangeId { pub generation: u32, pub n: u32 }
 
@@ -647,15 +715,46 @@ The session's changes, from the inventory's uses (`features/wallets.md`, `add-ke
 
 | Change | Moves in | Done |
 |---|---|---|
-| `AddKey` | the key as `faraday-keys`' input type (words, seed, xprv, share set) and its passphrase | `Result<KeyId, faraday_keys::Refusal>` |
+| `AddKey` | the key as a `KeyInput` (below) and its passphrase (`SecretText`) | `Result<KeyId, faraday_keys::Refusal>` |
 | `RemoveKey`, `RemoveAll` | | `Result<(), Refusal>` |
 | `AddWallet` | policy, name, source | `Result<WalletId, AddRefusal>`; `AddRefusal::Unconfirmed(Confirm)` for a wallet of several keys (F254) |
 | `ConfirmWallet`, `RemoveWallet`, `RenameWallet`, `MarkChecked`, `Follow(Network)` | | `Result<_, Refusal>` |
-| `Sign` | wallet, PSBT, the spend's MuSig2 round | after the session's sign job: the PSBT and the round, moved back |
+| `Sign` | wallet, PSBT (`Bytes`), the spend's MuSig2 round (`Option<faraday_psbt::MusigSession>`) | after the session's sign job, `Result<Signed, Refusal>`: the PSBT and the round, moved back |
 | `Draw` | what for, how many bytes | `Result<EntropyBytes, NoRandomness>` |
 | `Seed`, `AddOwn` | the adapter's entropy; the person's own accumulator | `()` |
-| `PutOutbox`, `TakeFile`, `RemoveFile`, `RenameFile`, `MarkWritten` | the file's bytes (`Bytes`) | `Result<FileId, Refusal>` |
+| `PutOutbox`, `TakeFile`, `RemoveFile`, `RenameFile`, `MarkWritten` | the file's bytes (`Bytes`) | `Result<FileId, Refusal>`; `TakeFile` the bytes |
 | `Hold`, `Release` | key and copy written | `()` |
+
+```rust
+/// A key as it comes in: each variant a wiping type, moved in (K-3).
+pub enum KeyInput { Words(SecretText), Seed(Bytes), Xprv(SecretText), Shares(Vec<SecretText>) }
+/// F254's sheet: the wallet of several keys the person is shown before it comes in. The
+/// session checks it again at `ConfirmWallet`.
+pub struct Confirm { pub policy: WalletPolicy, pub name: Option<Text>, pub source: WalletSource }
+pub enum AddRefusal { Unconfirmed(Confirm), Refused(faraday_keys::Refusal) }
+/// `Sign`'s answer. `MusigSession` is `faraday-psbt`'s: never `Clone`, its secret nonces wiped
+/// when it drops, each taken out by value when it signs.
+pub struct Signed { pub psbt: Bytes, pub round: Option<faraday_psbt::MusigSession> }
+```
+
+**Decision: the MuSig2 round a spend keeps is the domain's `faraday_psbt::MusigSession`,
+moved into `Sign` and back in `Signed`.** Reason: it is the type that already holds the secret
+nonces, wipes them and lets none sign twice (`main`'s `core/faraday-psbt/src/musig.rs`). Turned
+down: a kernel wrapper type, a second place for the same rule.
+
+The vault owner's changes, from the inventory's writes into an open vault from outside the vault
+area (`features/child-keys.md`, `silent-payments.md`, `secrets.md`, `wallet-backup.md`,
+`tools.md`'s Lightning):
+
+| Change | Moves in | Done |
+|---|---|---|
+| `Put` | the vault (`None`: the current one) and a record (`faraday_vault::Record`, which may hold a secret) | `Result<(), faraday_keys::Refusal>`: no vault open, no room |
+| `Close` | `seal`; the runtime's alone (above) | `()` |
+
+The settings owner's change is `Set(Choice)`, one choice of `Settings` (`IdleLock`, `IdleOff`,
+`QrFrame`, `Zone`, `Appearance`, `Scale`, `Rotation`, `SealAmounts`, `NonceHistory`), answered
+`()`; Faraday Demo's Settings page and Set the time are the owner's own pages and change it in its
+`update`, and the Starter's Appearance sends `Set` (section 06 §4.1).
 
 ### 7.4 Two cases worked through
 
@@ -785,6 +884,24 @@ impl<F: StepFlow> Feature for F {
     type Refusal = FlowRefusal<F::Refusal>;
     // update is the runner (§9.2); start, notice, refuses and carry call F's
     // (carry forwards to `state.inner`).
+}
+
+/// The steps in order, and whether their count is known ("Step N of M" or "Step N").
+pub struct Steps<S> { pub list: Vec<S>, pub known: bool }
+pub enum CancelOffer { Now, Ask(Loss), NotOffered }
+pub enum Back { Stepped, Leave }
+/// How a step's card is laid out (LAYOUT §14 on `main`).
+pub enum Width { Column, Wide, Full }
+/// How a flow ended: Back from its first step, a Cancel, or its last step done.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub enum Ending { Left, Cancelled, Finished }
+/// What the runner refuses itself (A29), or the flow's own refusal.
+#[derive(Public)]
+pub enum FlowRefusal<R: Refused> {
+    Running,        // Back, Open and Cancel while the step runs
+    BackStop,       // Back or Open to `back_stop()` or before
+    NotOffered,     // Cancel where `cancel()` is `NotOffered`
+    Own(R),
 }
 ```
 

@@ -6,11 +6,13 @@ use faraday_bip::policy::WalletPolicy;
 use faraday_keys::{Keys, Refusal};
 use faraday_port::bytes::{Bytes, Entropy, EntropyBytes};
 use faraday_port::storage::Sha256;
+use faraday_psbt::MusigSession;
 use faraday_text::{SecretText, Text};
 
 use super::change;
 use crate::cx::Edits;
 use crate::handle::{FileId, KeyId, WalletId};
+use crate::message::Public;
 
 pub trait Read {
     /// Reveals are `faraday-keys`' (K-1).
@@ -43,23 +45,28 @@ pub struct WalletView {
     pub id: WalletId,
     pub name: Text,
     pub policy: WalletPolicy,
-    pub origin: WalletOrigin,
     pub source: WalletSource,
     pub checked: bool,
     pub network: Network,
 }
 
-/// Where a wallet's keys come from.
-// Spec: 03 §7.2 lists `origin` and `source` in `WalletView` without their types.
-pub struct WalletOrigin(());
-
-/// How a wallet came in.
-// Spec: 03 §7.2 lists `origin` and `source` in `WalletView` without their types.
-pub struct WalletSource(());
+/// Where a wallet came from, as `present` words it: `main`'s `source` text and `Origin` in one.
+#[derive(Public, PartialEq, Eq)]
+pub enum WalletSource {
+    /// Make a new wallet: "Made here", worded on its own.
+    Made,
+    /// Spend from a backup's own Typed words step.
+    TypedWords,
+    /// Seeds' own Typed seeds step.
+    TypedSeeds,
+    /// A vault's own wallet: the vault's name.
+    Vault(Text),
+    /// Anything else, as read: a file's name, a search.
+    Named(Text),
+}
 
 /// A file held: its name, kind and whether it holds a secret; never its bytes or any text read
 /// from them.
-// Spec: 03 §7.2 describes `FileView` in prose.
 pub struct FileView {
     pub id: FileId,
     pub name: Text,
@@ -67,11 +74,35 @@ pub struct FileView {
     pub secret: bool,
 }
 
-// Spec: 03 §7.2 says `FileView` has a kind without shaping it.
-pub struct FileKind(());
+/// What a held file is, as the file classification reads it: `main`'s `wallet::FileKind`.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub enum FileKind {
+    Psbt,
+    Wallet,
+    SecretWallet,
+    KeyWithSecret,
+    Transaction,
+    Sheet,
+    Message,
+    Key,
+    Words,
+    Share,
+    Vault,
+    Entries,
+    EfiImage,
+    Kdbx,
+    KdbxOther,
+    Pdf,
+    SeedPart,
+    KeyLine,
+    Text,
+    Gpg,
+    CoreWallet,
+    KruxCode,
+    Other,
+}
 
 /// One thing the session holds until it is dealt with.
-// Spec: 03 §7.2 writes this type `Waiting`, which `handle` gives to the ticket holder (§8.1).
 pub enum WaitingItem {
     /// A PSBT waiting to be signed.
     Psbt(WalletId),
@@ -90,31 +121,34 @@ pub enum Changed {
     Network(Network),
 }
 
-/// A wallet of several keys comes in only through the sheet that shows its keys (F254).
-// Spec: 03 §7.3 names `Confirm` without a shape.
-pub struct Confirm(());
+/// A wallet of several keys comes in only through the sheet that shows its keys (F254): the
+/// wallet the person is shown. The session checks it again at `ConfirmWallet`.
+pub struct Confirm {
+    pub policy: WalletPolicy,
+    pub name: Option<Text>,
+    pub source: WalletSource,
+}
 
 pub enum AddRefusal {
     Unconfirmed(Confirm),
     Refused(Refusal),
 }
 
-/// A key's input type: words, seed, xprv, share set.
-// Spec: 03 §7.3 says `faraday-keys`' input type and names none.
-pub struct KeyInput(());
-
-/// The spend's MuSig2 round; its secret nonces move in and back.
-// Spec: 03 §7.3 names the round without a type.
-pub struct MusigRound(());
+/// A key as it comes in: each variant a wiping type, moved in.
+pub enum KeyInput {
+    Words(SecretText),
+    Seed(Bytes),
+    Xprv(SecretText),
+    Shares(Vec<SecretText>),
+}
 
 /// `Draw`'s answer when the seed never came.
 pub struct NoRandomness;
 
-/// What `Sign` is answered with: the PSBT and the round, moved back.
-// Spec: 03 §7.3 says "the PSBT and the round, moved back".
+/// What `Sign` is answered with: the PSBT and the spend's MuSig2 round, moved back.
 pub struct Signed {
     pub psbt: Bytes,
-    pub round: Option<MusigRound>,
+    pub round: Option<MusigSession>,
 }
 
 pub struct AddKey {
@@ -148,7 +182,7 @@ pub struct Follow(pub Network);
 pub struct Sign {
     pub wallet: WalletId,
     pub psbt: Bytes,
-    pub round: Option<MusigRound>,
+    pub round: Option<MusigSession>,
 }
 
 pub struct Draw {

@@ -112,7 +112,6 @@ impl<F: StepFlow> AtLock for Flow<F> {
 }
 
 /// What the runner itself refuses (A29), or the flow's own refusal.
-// Spec: 03 §9.1 names `FlowRefusal` without variants; A29's refusals are the plainest.
 #[derive(Public)]
 pub enum FlowRefusal<R: Refused> {
     /// Back, Open and Cancel while the step runs.
@@ -176,7 +175,6 @@ impl<F: StepFlow> Feature for F {
 }
 
 /// The steps in order, and whether their count is known ("Step N of M" or "Step N").
-// Spec: 03 §9.1 names `Steps` without a shape.
 pub struct Steps<S> {
     pub list: Vec<S>,
     pub known: bool,
@@ -195,8 +193,7 @@ pub enum Back {
     Leave,
 }
 
-/// How a flow ended.
-// Spec: 03 §9.1 names `Ending` and `Ending::Left` without the other variants.
+/// How a flow ended: Back from its first step, a Cancel, or its last step done.
 #[derive(Public, Copy, PartialEq, Eq)]
 pub enum Ending {
     Left,

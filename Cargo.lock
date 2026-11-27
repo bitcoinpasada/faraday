@@ -688,6 +688,7 @@ dependencies = [
  "faraday-psbt",
  "faraday-strings",
  "faraday-text",
+ "faraday-vault",
 ]
 
 [[package]]

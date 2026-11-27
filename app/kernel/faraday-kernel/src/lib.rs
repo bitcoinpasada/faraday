@@ -42,7 +42,7 @@ pub use flow::{
 };
 pub use handle::{FileId, Gate, KeyId, SampleAsk, ScanFor, Ticket, Tool, Waiting, WalletId};
 pub use lock::{AtLock, Carried, CarryName, CarryValue, FileBox, Holds, Loss};
-pub use message::{Message, Never, Public, Withheld};
+pub use message::{Message, Never, Public};
 pub use nav::{Frame, FrameSheet, Holder, Nav};
 pub use shared::{AnyChange, Change, ChangeId, Done, Owner, session, settings, vaults};
 pub use words::{Drawn, Line, Refused, Worded};

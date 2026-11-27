@@ -76,7 +76,6 @@ pub struct Facts {
 }
 
 /// The sticks the runtime knows of (`SticksFact`).
-// Spec: 03 §5 gives `Sticks` as "attached, listed, boot medium, problems" without a shape.
 pub struct Sticks {
     pub attached: bool,
     pub listed: Vec<StickInfo>,
@@ -86,7 +85,6 @@ pub struct Sticks {
 }
 
 /// `HostFact::Downloads`: the folder and its files with their sizes.
-// Spec: 03 §5 names `Downloads` as `port::HostFact::Downloads`, latest.
 pub struct Downloads {
     pub dir: Text,
     pub files: Vec<(Text, u64)>,
@@ -101,7 +99,6 @@ pub enum SelfTest {
 }
 
 /// The latest of each `port::SystemFact` but `WriteProgress`.
-// Spec: 03 §5 gives `SystemFacts` without a shape; one field per fact is the plainest.
 pub struct SystemFacts {
     pub computer: Option<Computer>,
     pub disks: Vec<Disk>,
@@ -115,7 +112,6 @@ pub struct SystemFacts {
 }
 
 /// Which fact of `View::facts` changed (`Notice::Facts`).
-// Spec: 03 §2.4 names `FactsChanged` and lists "sticks, display, cameras, time".
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FactsChanged {
     Sticks,

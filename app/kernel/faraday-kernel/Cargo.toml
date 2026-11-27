@@ -12,6 +12,7 @@ faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-bip = { path = "../../../core/faraday-bip" }
 faraday-psbt = { path = "../../../core/faraday-psbt" }
 faraday-keys = { path = "../../../core/faraday-keys" }
+faraday-vault = { path = "../../../core/faraday-vault" }
 faraday-strings = { path = "../../../core/faraday-strings" }
 faraday-kernel-derive = { path = "../faraday-kernel-derive" }
 

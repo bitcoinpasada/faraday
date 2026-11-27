@@ -1,4 +1,4 @@
-//! `Message`, `Public` and `Withheld`, and the derives (03 §3).
+//! `Message`, `Public` and `Never`, and the derives (03 §3).
 
 use core::fmt::Debug;
 
@@ -6,7 +6,7 @@ use faraday_bip::keys::{Fingerprint, Network};
 use faraday_port::AskId;
 use faraday_port::event::EventKind;
 use faraday_port::storage::{Sha256, StickId};
-use faraday_port::values::Anchor;
+use faraday_port::values::{Anchor, Orientation};
 use faraday_text::Text;
 
 use crate::__private::Sealed;
@@ -23,10 +23,6 @@ pub trait Message: Send + 'static {
 
 /// Holds no secret: may be logged, replayed, cloned and kept in a reply's context. Sealed (§3.2).
 pub trait Public: Clone + Debug + Send + 'static + Sealed {}
-
-/// The mark of a variant whose payload is never logged: its kind alone is.
-// Spec: 03 §1 lists `Withheld` among the message module's items without a shape.
-pub struct Withheld;
 
 macro_rules! public {
     ($($t:ty),* $(,)?) => {
@@ -60,6 +56,7 @@ public!(
     StickId,
     EventKind,
     Anchor,
+    Orientation,
 );
 
 impl<T: Public> Sealed for Option<T> {}
@@ -80,8 +77,7 @@ macro_rules! public_tuples {
 
 public_tuples!((A)(A, B)(A, B, C)(A, B, C, D));
 
-/// The out of a part: it tells its owner nothing (03 §1; 09 §4.3).
-// Spec: 09 §4.3 writes `Effects<Msg, Never>` without defining `Never`.
+/// The out of a part: it tells its owner nothing (03 §3.1; 09 §4.3).
 pub enum Never {}
 
 impl Message for Never {

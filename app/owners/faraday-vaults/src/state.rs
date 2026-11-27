@@ -1,6 +1,6 @@
 use faraday_kernel::vaults;
 use faraday_kernel::{AtLock, Edits};
-use faraday_keys::vault::OpenVaults;
+use faraday_keys::vault::{OpenVaults, VaultId};
 
 #[derive(AtLock)]
 pub struct State {
@@ -20,6 +20,10 @@ pub struct State {
 
 impl vaults::Read for State {
     fn open(&self) -> &OpenVaults {
+        todo!()
+    }
+
+    fn current(&self) -> Option<VaultId> {
         todo!()
     }
 

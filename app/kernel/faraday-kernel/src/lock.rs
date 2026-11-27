@@ -33,7 +33,6 @@ pub struct Holds {
 }
 
 /// What a lock would lose, for the Lock sheet.
-// Spec: 03 §2.3 names `Loss` without a shape; a name of the loss is the plainest.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Loss(pub &'static str);
 
