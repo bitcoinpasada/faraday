@@ -1,0 +1,1316 @@
+# The mapping of `main` at d89dde5de onto `next` (docs/spec/10-migration.md §4). Migration kind, set by the folder (08 §4.1).
+# Rows are grouped by `main`'s crate. Every file of the tag has one row; a directory row covers what no
+# more specific row names. Checked by `python3 -I -B tools/migration.py check`.
+
+
+# ----------------------------------------------------------------------
+# Root files and the places `.github/`, `.config/`, `.claude/` keep (09 §1.1)
+
+[[module]]
+main = ".gitignore"
+fate = "copy"
+next = [".gitignore"]
+changed = []
+
+[[module]]
+main = "LICENSE"
+fate = "copy"
+next = ["LICENSE"]
+changed = []
+
+[[module]]
+main = "deny.toml"
+fate = "copy"
+next = ["deny.toml"]
+changed = []
+
+[[module]]
+main = "rust-toolchain.toml"
+fate = "copy"
+next = ["rust-toolchain.toml"]
+changed = []
+
+[[module]]
+main = ".config/nextest.toml"
+fate = "copy"
+next = [".config/nextest.toml"]
+changed = []
+
+[[module]]
+main = ".github"
+fate = "copy"
+next = [".github"]
+changed = []
+
+[[module]]
+main = ".claude/agents/reviewer.md"
+fate = "rewrite"
+next = [".claude/agents/reviewer.md"]
+contract = "08 §8.4"
+
+[[module]]
+main = "CLAUDE.md"
+fate = "rewrite"
+next = ["CLAUDE.md"]
+contract = "08 §4.4 (DOC5a)"
+
+[[module]]
+main = "CONTRIBUTING.md"
+fate = "rewrite"
+next = ["CONTRIBUTING.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "README.md"
+fate = "rewrite"
+next = ["README.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "SECURITY.md"
+fate = "rewrite"
+next = ["SECURITY.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "Cargo.toml"
+fate = "rewrite"
+next = ["Cargo.toml"]
+contract = "09 §1.3"
+
+[[module]]
+main = "justfile"
+fate = "rewrite"
+next = ["justfile"]
+contract = "09 §1.1"
+
+[[module]]
+main = "Cargo.lock"
+fate = "drop"
+why = "next has its own lockfile, which cargo keeps; main's pins are not carried, and `cargo vet` and `cargo deny` hold the dependencies (09 §1.3)"
+
+
+# ----------------------------------------------------------------------
+# core/: the domain crates copied with their tests (09 §2.1)
+
+[[module]]
+main = "core/faraday-text"
+fate = "copy"
+next = ["core/faraday-text"]
+changed = []
+
+[[module]]
+main = "core/faraday-crypto"
+fate = "copy"
+next = ["core/faraday-crypto"]
+changed = []
+
+[[module]]
+main = "core/faraday-bip"
+fate = "copy"
+next = ["core/faraday-bip"]
+changed = []
+
+[[module]]
+main = "core/faraday-psbt"
+fate = "copy"
+next = ["core/faraday-psbt"]
+changed = []
+
+[[module]]
+main = "core/faraday-codec"
+fate = "copy"
+next = ["core/faraday-codec"]
+changed = []
+
+[[module]]
+main = "core/faraday-entropy"
+fate = "copy"
+next = ["core/faraday-entropy"]
+changed = []
+
+[[module]]
+main = "core/faraday-selftest"
+fate = "copy"
+next = ["core/faraday-selftest"]
+changed = []
+
+[[module]]
+main = "core/faraday-shell-api"
+fate = "copy"
+next = ["core/faraday-port"]
+changed = []
+
+[[module]]
+main = "core/clippy.toml"
+fate = "copy"
+next = ["core/clippy.toml"]
+changed = []
+
+
+# ----------------------------------------------------------------------
+# faraday/: the domain crates copied with their tests (09 §2.1), placed in core/
+
+[[module]]
+main = "faraday/faraday-handwriting"
+fate = "copy"
+next = ["core/faraday-handwriting"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-boot"
+fate = "copy"
+next = ["core/faraday-boot"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-payload"
+fate = "copy"
+next = ["core/faraday-payload"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-keys"
+fate = "copy"
+next = ["core/faraday-keys"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-vault"
+fate = "copy"
+next = ["core/faraday-vault"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-pgp"
+fate = "copy"
+next = ["core/faraday-pgp"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-sb"
+fate = "copy"
+next = ["core/faraday-sb"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-kef"
+fate = "copy"
+next = ["core/faraday-kef"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-ots"
+fate = "copy"
+next = ["core/faraday-ots"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-plan"
+fate = "copy"
+next = ["core/faraday-plan"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-fat"
+fate = "copy"
+next = ["core/faraday-fat"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-sqlite"
+fate = "copy"
+next = ["core/faraday-sqlite"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-core-wallet"
+fate = "copy"
+next = ["core/faraday-core-wallet"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-qr"
+fate = "copy"
+next = ["core/faraday-qr"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-files"
+fate = "copy"
+next = ["core/faraday-files"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-intake"
+fate = "copy"
+next = ["core/faraday-intake"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-forms"
+fate = "copy"
+next = ["core/faraday-forms"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-paper"
+fate = "copy"
+next = ["core/faraday-paper"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-strings"
+fate = "copy"
+next = ["core/faraday-strings"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-guide"
+fate = "copy"
+next = ["core/faraday-guide"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-samples"
+fate = "copy"
+next = ["core/faraday-samples"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/check_samples.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/chip_caret.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/core_wallet_sample.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/demo_strip.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives the Demo's host, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/guide_key.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/hsm.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/kef_sample.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/load.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/ots_sample.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/passphrase.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/pi_panel.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/psbt.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/pull.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/signer_check.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/use_sample.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it drives `Faraday`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/files.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it loads the samples into a `wallet::Session`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/wallets.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it loads the samples into a `wallet::Session`, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+[[module]]
+main = "faraday/faraday-samples/tests/all/handouts.rs"
+fate = "drop"
+why = "10 §7.2 (MG9): it compares the samples with `faraday_core::testkit::demo_samples`, a copy kept for `faraday-core`'s tests, so it is dropped whole; what it held is the application's, and is written as update tests of `faraday-strip` and of the features that load samples (inventory practice-demo.md), not from this test (TS4)"
+
+
+# ----------------------------------------------------------------------
+# adapters/: the process adapters, the capture adapters and the stick shell's I/O files (09 §6)
+
+[[module]]
+main = "faraday/faraday-disk"
+fate = "copy"
+next = ["adapters/faraday-disk"]
+changed = []
+
+[[module]]
+main = "faraday/faraday-grant"
+fate = "copy"
+next = ["adapters/faraday-grant"]
+changed = []
+
+[[module]]
+main = "faraday/shells/camera"
+fate = "copy"
+next = ["adapters/faraday-camera"]
+changed = []
+
+[[module]]
+main = "faraday/shells/v4l2"
+fate = "copy"
+next = ["adapters/faraday-v4l2"]
+changed = []
+
+[[module]]
+main = "faraday/shells/mediafoundation"
+fate = "copy"
+next = ["adapters/faraday-mediafoundation"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/evdev.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/evdev.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/hid.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/hid.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/touch.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/touch.rs"]
+changed = []
+
+[[module]]
+main = "faraday/shells/stick/src/files.rs"
+fate = "copy"
+next = ["adapters/faraday-stick-adapter/src/files.rs"]
+changed = []
+
+
+# ----------------------------------------------------------------------
+# faraday-core: what no reading is needed for (10 §10, 10 §5.4)
+
+[[module]]
+main = "faraday/faraday-core/examples/wallet_2of3_demo.rs"
+fate = "drop"
+why = "10 §10: the example that prints the early mock-ups' wallet is not ported; nothing on next holds a rule of it"
+
+[[module]]
+main = "faraday/faraday-core/tests/vectors/interop"
+fate = "copy"
+next = ["tools/vectors/interop"]
+changed = []
+
+
+# ----------------------------------------------------------------------
+# build/: the image build and the build list (09 §1.1)
+
+[[module]]
+main = "faraday/image"
+fate = "copy"
+next = ["build/image"]
+changed = []
+
+[[module]]
+main = "faraday/build"
+fate = "copy"
+next = ["build"]
+changed = []
+
+[[module]]
+main = "faraday/builds.toml"
+fate = "copy"
+next = ["build/builds.toml"]
+changed = []
+
+[[module]]
+main = "faraday/release-key.asc"
+fate = "copy"
+next = ["build/release-key.asc"]
+changed = []
+
+[[module]]
+main = "faraday/faraday.just"
+fate = "copy"
+next = ["build/build.just"]
+changed = []
+
+
+# ----------------------------------------------------------------------
+# fuzz/, third_party/, supply-chain/ (09 §1.1)
+
+[[module]]
+main = "fuzz"
+fate = "copy"
+next = ["fuzz"]
+changed = []
+
+[[module]]
+main = "faraday/fuzz"
+fate = "copy"
+next = ["fuzz/faraday"]
+changed = []
+
+[[module]]
+main = "third_party"
+fate = "copy"
+next = ["third_party"]
+changed = []
+
+[[module]]
+main = "supply-chain/audits.toml"
+fate = "copy"
+next = ["supply-chain/audits.toml"]
+changed = []
+
+[[module]]
+main = "supply-chain/config.toml"
+fate = "copy"
+next = ["supply-chain/config.toml"]
+changed = []
+
+[[module]]
+main = "supply-chain/imports.lock"
+fate = "copy"
+next = ["supply-chain/imports.lock"]
+changed = []
+
+
+# ----------------------------------------------------------------------
+# tools/: crates, data and scripts (09 §8, 08 §8)
+
+[[module]]
+main = "tools/costs-lint"
+fate = "copy"
+next = ["tools/costs-lint"]
+changed = []
+
+[[module]]
+main = "tools/fontbake"
+fate = "copy"
+next = ["tools/fontbake"]
+changed = []
+
+[[module]]
+main = "tools/op-cost"
+fate = "copy"
+next = ["tools/op-cost"]
+changed = []
+
+[[module]]
+main = "tools/crosscheck"
+fate = "copy"
+next = ["tools/crosscheck"]
+changed = []
+
+[[module]]
+main = "tools/vectors"
+fate = "copy"
+next = ["tools/vectors"]
+changed = []
+
+[[module]]
+main = "tools/reference"
+fate = "copy"
+next = ["tools/reference"]
+changed = []
+
+[[module]]
+main = "tools/wordlists"
+fate = "copy"
+next = ["tools/wordlists"]
+changed = []
+
+[[module]]
+main = "tools/themes"
+fate = "copy"
+next = ["tools/themes"]
+changed = []
+
+[[module]]
+main = "tools/scripts"
+fate = "copy"
+next = ["tools/scripts"]
+changed = []
+
+[[module]]
+main = "tools/vault"
+fate = "copy"
+next = ["tools/vault"]
+changed = []
+
+[[module]]
+main = "tools/diceware"
+fate = "copy"
+next = ["tools/diceware"]
+changed = []
+
+[[module]]
+main = "tools/fonts"
+fate = "copy"
+next = ["tools/fonts"]
+changed = []
+
+[[module]]
+main = "faraday/tools/alloc-count"
+fate = "copy"
+next = ["tools/faraday-alloc-count"]
+changed = []
+
+[[module]]
+main = "faraday/tools/leak-scan"
+fate = "copy"
+next = ["tools/faraday-leak-scan"]
+changed = []
+
+[[module]]
+main = "faraday/tools/binary-crate.py"
+fate = "copy"
+next = ["tools/binary-crate.py"]
+changed = []
+
+[[module]]
+main = "faraday/tools/core-check.py"
+fate = "copy"
+next = ["tools/core-check.py"]
+changed = []
+
+[[module]]
+main = "faraday/tools/disk-test.py"
+fate = "copy"
+next = ["tools/disk-test.py"]
+changed = []
+
+[[module]]
+main = "faraday/tools/qemu-check.py"
+fate = "copy"
+next = ["tools/qemu-check.py"]
+changed = []
+
+[[module]]
+main = "faraday/tools/sb-ovmf-check.py"
+fate = "copy"
+next = ["tools/sb-ovmf-check.py"]
+changed = []
+
+[[module]]
+main = "faraday/tools/stick-qemu.py"
+fate = "copy"
+next = ["tools/stick-qemu.py"]
+changed = []
+
+[[module]]
+main = "faraday/tools/stage-release.sh"
+fate = "copy"
+next = ["tools/stage-release.sh"]
+changed = []
+
+[[module]]
+main = "tools/lint-layout.py"
+fate = "drop"
+why = "`lint-layout`: its code map is of `faraday-core`'s modules and its lists go with the `Faraday` struct (08 §8.2); `lint-layers` holds the layering"
+
+[[module]]
+main = "tools/lint-layout.counts"
+fate = "drop"
+why = "the counts of the dropped `lint-layout` (08 §8.2); `lint-layers` holds the layering"
+
+[[module]]
+main = "tools/lint-components.py"
+fate = "drop"
+why = "`lint-components`: it finds hand-made copies of standard parts inside one crate (08 §8.2); the templates, organisms and parts, held by K6, K8 and A3 in `lint-layers`, hold the rule"
+
+[[module]]
+main = "tools/lint-components.counts"
+fate = "drop"
+why = "the counts of the dropped `lint-components` (08 §8.2); K6, K8 and A3 in `lint-layers` hold the rule"
+
+[[module]]
+main = "tools/test_lint_components.py"
+fate = "drop"
+why = "the test of the dropped `lint-components` (08 §8.2); `tools/tests/` tests `lint-layers`"
+
+[[module]]
+main = "tools/lint-check-tiles.py"
+fate = "drop"
+why = "`lint-check-tiles`: a script checking that every Check row's flow has a Tools tile (08 §8.2); the compiler holds it: one enum of the tools a menu page opens (07 §5.4)"
+
+[[module]]
+main = "tools/clippy.py"
+fate = "copy"
+next = ["tools/clippy.py"]
+changed = []
+
+[[module]]
+main = "tools/decisions-index.py"
+fate = "copy"
+next = ["tools/decisions-index.py"]
+changed = []
+
+[[module]]
+main = "tools/docs-index.py"
+fate = "copy"
+next = ["tools/docs-index.py"]
+changed = []
+
+[[module]]
+main = "tools/fuzz-common.sh"
+fate = "copy"
+next = ["tools/fuzz-common.sh"]
+changed = []
+
+[[module]]
+main = "tools/fuzz-corpus-export.sh"
+fate = "copy"
+next = ["tools/fuzz-corpus-export.sh"]
+changed = []
+
+[[module]]
+main = "tools/fuzz-join.py"
+fate = "copy"
+next = ["tools/fuzz-join.py"]
+changed = []
+
+[[module]]
+main = "tools/fuzz-plan.py"
+fate = "copy"
+next = ["tools/fuzz-plan.py"]
+changed = []
+
+[[module]]
+main = "tools/fuzz-release.sh"
+fate = "copy"
+next = ["tools/fuzz-release.sh"]
+changed = []
+
+[[module]]
+main = "tools/image-metadata.py"
+fate = "copy"
+next = ["tools/image-metadata.py"]
+changed = []
+
+[[module]]
+main = "tools/impact.py"
+fate = "copy"
+next = ["tools/impact.py"]
+changed = []
+
+[[module]]
+main = "tools/lint-all.py"
+fate = "copy"
+next = ["tools/lint-all.py"]
+changed = []
+
+[[module]]
+main = "tools/lint-builds.py"
+fate = "copy"
+next = ["tools/lint-builds.py"]
+changed = []
+
+[[module]]
+main = "tools/lint-crosscheck.sh"
+fate = "copy"
+next = ["tools/lint-crosscheck.sh"]
+changed = []
+
+[[module]]
+main = "tools/lint-docs.py"
+fate = "copy"
+next = ["tools/lint-docs.py"]
+changed = []
+
+[[module]]
+main = "tools/lint-fuzz-parsers.py"
+fate = "copy"
+next = ["tools/lint-fuzz-parsers.py"]
+changed = []
+
+[[module]]
+main = "tools/lint-guide.allow"
+fate = "copy"
+next = ["tools/lint-guide.allow"]
+changed = []
+
+[[module]]
+main = "tools/lint-guide.py"
+fate = "copy"
+next = ["tools/lint-guide.py"]
+changed = []
+
+[[module]]
+main = "tools/lint-keys-tests.sh"
+fate = "copy"
+next = ["tools/lint-keys-tests.sh"]
+changed = []
+
+[[module]]
+main = "tools/lint-leak-reveals.py"
+fate = "copy"
+next = ["tools/lint-leak-reveals.py"]
+changed = []
+
+[[module]]
+main = "tools/lint-secrets.sh"
+fate = "copy"
+next = ["tools/lint-secrets.sh"]
+changed = []
+
+[[module]]
+main = "tools/lint-standards.py"
+fate = "copy"
+next = ["tools/lint-standards.py"]
+changed = []
+
+[[module]]
+main = "tools/lint-standards.toml"
+fate = "copy"
+next = ["tools/lint-standards.toml"]
+changed = []
+
+[[module]]
+main = "tools/lint-strings.sh"
+fate = "copy"
+next = ["tools/lint-strings.sh"]
+changed = []
+
+[[module]]
+main = "tools/lint-themes.sh"
+fate = "copy"
+next = ["tools/lint-themes.sh"]
+changed = []
+
+[[module]]
+main = "tools/lint-tokens.sh"
+fate = "copy"
+next = ["tools/lint-tokens.sh"]
+changed = []
+
+[[module]]
+main = "tools/lint-tree.sh"
+fate = "copy"
+next = ["tools/lint-tree.sh"]
+changed = []
+
+[[module]]
+main = "tools/lint-upstream.py"
+fate = "copy"
+next = ["tools/lint-upstream.py"]
+changed = []
+
+[[module]]
+main = "tools/op-cost.py"
+fate = "copy"
+next = ["tools/op-cost.py"]
+changed = []
+
+[[module]]
+main = "tools/secret-names.txt"
+fate = "copy"
+next = ["tools/secret-names.txt"]
+changed = []
+
+[[module]]
+main = "tools/vet-refresh.py"
+fate = "copy"
+next = ["tools/vet-refresh.py"]
+changed = []
+
+[[module]]
+main = "tools/warm-compile.sh"
+fate = "copy"
+next = ["tools/warm-compile.sh"]
+changed = []
+
+[[module]]
+main = "tools/README.md"
+fate = "rewrite"
+next = ["tools/README.md"]
+contract = "08 §4.4"
+
+
+# ----------------------------------------------------------------------
+# docs/: the documents 08 §4.4 carries, rewrites or leaves behind; decisions (08 §5.2)
+
+[[module]]
+main = "docs/SECURITY-MODEL.md"
+fate = "copy"
+next = ["docs/SECURITY-MODEL.md"]
+changed = []
+
+[[module]]
+main = "docs/STANDARDS.md"
+fate = "copy"
+next = ["docs/STANDARDS.md"]
+changed = []
+
+[[module]]
+main = "docs/ESTABLISHED.md"
+fate = "copy"
+next = ["docs/ESTABLISHED.md"]
+changed = []
+
+[[module]]
+main = "docs/AUDIT.md"
+fate = "copy"
+next = ["docs/AUDIT.md"]
+changed = []
+
+[[module]]
+main = "docs/AUDIT-SUBMISSIONS.md"
+fate = "copy"
+next = ["docs/AUDIT-SUBMISSIONS.md"]
+changed = []
+
+[[module]]
+main = "docs/KEYS.md"
+fate = "copy"
+next = ["docs/KEYS.md"]
+changed = []
+
+[[module]]
+main = "docs/VAULT.md"
+fate = "copy"
+next = ["docs/VAULT.md"]
+changed = []
+
+[[module]]
+main = "docs/KEF.md"
+fate = "copy"
+next = ["docs/KEF.md"]
+changed = []
+
+[[module]]
+main = "docs/CODEX32.md"
+fate = "copy"
+next = ["docs/CODEX32.md"]
+changed = []
+
+[[module]]
+main = "docs/GPG-PAPERKEY.md"
+fate = "copy"
+next = ["docs/GPG-PAPERKEY.md"]
+changed = []
+
+[[module]]
+main = "docs/COMPARE.md"
+fate = "copy"
+next = ["docs/COMPARE.md"]
+changed = []
+
+[[module]]
+main = "docs/SEED-CONVERSION.md"
+fate = "copy"
+next = ["docs/SEED-CONVERSION.md"]
+changed = []
+
+[[module]]
+main = "docs/CRYPTO-LEARN.md"
+fate = "copy"
+next = ["docs/CRYPTO-LEARN.md"]
+changed = []
+
+[[module]]
+main = "docs/CROSSCHECK.md"
+fate = "copy"
+next = ["docs/CROSSCHECK.md"]
+changed = []
+
+[[module]]
+main = "docs/KERNEL-PATCHES.md"
+fate = "copy"
+next = ["docs/KERNEL-PATCHES.md"]
+changed = []
+
+[[module]]
+main = "docs/HARDWARE.md"
+fate = "copy"
+next = ["docs/HARDWARE.md"]
+changed = []
+
+[[module]]
+main = "docs/IMAGES.md"
+fate = "copy"
+next = ["docs/IMAGES.md"]
+changed = []
+
+[[module]]
+main = "docs/STICK-IDENTITY.md"
+fate = "copy"
+next = ["docs/STICK-IDENTITY.md"]
+changed = []
+
+[[module]]
+main = "docs/INTEROP.md"
+fate = "copy"
+next = ["docs/INTEROP.md"]
+changed = []
+
+[[module]]
+main = "docs/DESIGN.md"
+fate = "copy"
+next = ["docs/DESIGN.md"]
+changed = []
+
+[[module]]
+main = "docs/LAYOUT.md"
+fate = "copy"
+next = ["docs/LAYOUT.md"]
+changed = []
+
+[[module]]
+main = "docs/THEMES.md"
+fate = "copy"
+next = ["docs/THEMES.md"]
+changed = []
+
+[[module]]
+main = "docs/TEXT-SIZE.md"
+fate = "copy"
+next = ["docs/TEXT-SIZE.md"]
+changed = []
+
+[[module]]
+main = "docs/TEXT-CURSOR.md"
+fate = "copy"
+next = ["docs/TEXT-CURSOR.md"]
+changed = []
+
+[[module]]
+main = "docs/MOTION.md"
+fate = "copy"
+next = ["docs/MOTION.md"]
+changed = []
+
+[[module]]
+main = "docs/M3-CHECKS.md"
+fate = "copy"
+next = ["docs/M3-CHECKS.md"]
+changed = []
+
+[[module]]
+main = "docs/ORIENTATION.md"
+fate = "copy"
+next = ["docs/ORIENTATION.md"]
+changed = []
+
+[[module]]
+main = "docs/DRAW-COST.md"
+fate = "copy"
+next = ["docs/DRAW-COST.md"]
+changed = []
+
+[[module]]
+main = "docs/FLOWS.md"
+fate = "copy"
+next = ["docs/FLOWS.md"]
+changed = []
+
+[[module]]
+main = "docs/BACKUP-FLOW.md"
+fate = "copy"
+next = ["docs/BACKUP-FLOW.md"]
+changed = []
+
+[[module]]
+main = "docs/SPEND-FROM-BACKUP.md"
+fate = "copy"
+next = ["docs/SPEND-FROM-BACKUP.md"]
+changed = []
+
+[[module]]
+main = "docs/SIGNER-CHECK.md"
+fate = "copy"
+next = ["docs/SIGNER-CHECK.md"]
+changed = []
+
+[[module]]
+main = "docs/WALLETS.md"
+fate = "copy"
+next = ["docs/WALLETS.md"]
+changed = []
+
+[[module]]
+main = "docs/HOME.md"
+fate = "copy"
+next = ["docs/HOME.md"]
+changed = []
+
+[[module]]
+main = "docs/QR.md"
+fate = "copy"
+next = ["docs/QR.md"]
+changed = []
+
+[[module]]
+main = "docs/SCANNING.md"
+fate = "copy"
+next = ["docs/SCANNING.md"]
+changed = []
+
+[[module]]
+main = "docs/TOTP.md"
+fate = "copy"
+next = ["docs/TOTP.md"]
+changed = []
+
+[[module]]
+main = "docs/OWN-RANDOMNESS.md"
+fate = "copy"
+next = ["docs/OWN-RANDOMNESS.md"]
+changed = []
+
+[[module]]
+main = "docs/STICK-SETUP.md"
+fate = "copy"
+next = ["docs/STICK-SETUP.md"]
+changed = []
+
+[[module]]
+main = "docs/KEY-FORMS.md"
+fate = "copy"
+next = ["docs/KEY-FORMS.md"]
+changed = []
+
+[[module]]
+main = "docs/MODES.md"
+fate = "copy"
+next = ["docs/MODES.md"]
+changed = []
+
+[[module]]
+main = "docs/DEMO.md"
+fate = "copy"
+next = ["docs/DEMO.md"]
+changed = []
+
+[[module]]
+main = "docs/DESKTOP-HOST.md"
+fate = "copy"
+next = ["docs/DESKTOP-HOST.md"]
+changed = []
+
+[[module]]
+main = "docs/STARTER.md"
+fate = "copy"
+next = ["docs/STARTER.md"]
+changed = []
+
+[[module]]
+main = "docs/GUIDE-IN-APP.md"
+fate = "copy"
+next = ["docs/GUIDE-IN-APP.md"]
+changed = []
+
+[[module]]
+main = "docs/WORKSPACE.md"
+fate = "copy"
+next = ["docs/WORKSPACE.md"]
+changed = []
+
+[[module]]
+main = "docs/DEVELOPING.md"
+fate = "rewrite"
+next = ["docs/DEVELOPING.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/IMPACT.md"
+fate = "rewrite"
+next = ["docs/IMPACT.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/COMPUTE.md"
+fate = "rewrite"
+next = ["docs/COMPUTE.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/WORKERS.md"
+fate = "rewrite"
+next = ["docs/WORKERS.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/AT-LOCK.md"
+fate = "rewrite"
+next = ["docs/AT-LOCK.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/SECRET-LEAKS.md"
+fate = "rewrite"
+next = ["docs/SECRET-LEAKS.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/SPEED.md"
+fate = "rewrite"
+next = ["docs/SPEED.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/FRAMES.md"
+fate = "rewrite"
+next = ["docs/FRAMES.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/FLOW-CONTAINER.md"
+fate = "rewrite"
+next = ["docs/FLOW-CONTAINER.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/MENU-PAGE.md"
+fate = "rewrite"
+next = ["docs/MENU-PAGE.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/HUB-LAYOUT.md"
+fate = "rewrite"
+next = ["docs/HUB-LAYOUT.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/SESSION-PANE.md"
+fate = "rewrite"
+next = ["docs/SESSION-PANE.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/README.md"
+fate = "rewrite"
+next = ["docs/README.md"]
+contract = "08 §4.4"
+
+[[module]]
+main = "docs/crypto"
+fate = "copy"
+next = ["docs/crypto"]
+changed = []
+
+[[module]]
+main = "docs/deps"
+fate = "copy"
+next = ["docs/deps"]
+changed = []
+
+[[module]]
+main = "docs/guide"
+fate = "copy"
+next = ["docs/guide"]
+changed = []
+
+[[module]]
+main = "docs/DECISIONS.md"
+fate = "copy"
+next = ["docs/DECISIONS.md"]
+changed = []
+
+[[module]]
+main = "docs/decisions"
+fate = "copy"
+next = ["docs/decisions"]
+changed = []
+
+[[module]]
+main = "docs/history/decisions"
+fate = "copy"
+next = ["docs/history/decisions"]
+changed = []
+
+[[module]]
+main = "docs/STRUCTURE-PASS.md"
+fate = "drop"
+why = "08 §4.4: left behind; read on `main` at the tag. Its §6, the dependency policy F71 names, moves into `docs/deps/README.md` with the domain's copy"
+
+[[module]]
+main = "docs/history/ANTI-EXFIL.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/COMPARE-LOG.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/LARGE-FILES.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/MAC-LOG.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/NEW-WALLET.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/NOSTR.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/PREVIEW-SIZE.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/SCAN-TO-SIGN.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/SIGNER-CHECK-LOG.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"
+
+[[module]]
+main = "docs/history/SIMPLIFY.md"
+fate = "drop"
+why = "10 §10: how `main` was built stays at the tag and at the tag `history/docs-2026-11`; `next`'s `docs/history/` starts with the decisions alone (08 §4.5)"

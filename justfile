@@ -27,3 +27,8 @@ lint:
 # The lints' own tests: each rule refused on a fixture tree.
 lint-tests:
     python3 -I -B -m unittest discover -s tools/tests -p 'test_*.py'
+
+# The mapping check (10 §4, MG4): every file of `main` at its tag has a row. Not in `lint` yet:
+# it fails until the mapping is whole (the rows of the ported and rewritten crates are not written).
+lint-migration:
+    python3 -I -B tools/migration.py check
