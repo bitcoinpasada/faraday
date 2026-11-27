@@ -46,6 +46,115 @@ None of its own. Values and shapes (paths full):
 - Stick tones feed the stick pill (`ui-sheets`) and the backup board; viewfinder colours the camera overlay; `BADGE` the navigation badges (`ui-navigation`).
 - Brand: the wordmark with suffix Offline, Demo or Starter is drawn by each app.
 
+Callers at main `d89dde5de` in `faraday-core`, the shells and the Starter, by module with the screen it draws and the number of call sites (`x2`); `git grep -n -w <item>` at that commit gives the lines.
+
+Home, menu pages, panes, sidebar and navigation:
+- `faraday/faraday-core/src/action.rs` (the press vocabulary (`Action`)): `TextSize`, `Theme`
+- `faraday/faraday-core/src/compact/` (the small panel (no sidebar): Home as the menu and its pages): `Paint` x3, `fill` x10, `mark`, `on_selected` x2, `selected_or` x2, `stroke` x5, `wordmark_fitted`
+- `faraday/faraday-core/src/flow.rs` (what every flow shares): `fill` x2
+- `faraday/faraday-core/src/flow/` (the flow container, Your choices sheet and step cards): `fill` x2
+- `faraday/faraday-core/src/menu.rs` (the ⋮ menu): `Paint` x2, `fill`, `stroke`
+- `faraday/faraday-core/src/moved.rs` (the moved frame (scroll step)): `TextSize` x2, `Theme` x2
+- `faraday/faraday-core/src/nav/` (navigation by window class (rail, bar, app bar)): `fill`, `stroke`
+- `faraday/faraday-core/src/panes/` (list and detail panes): `Paint` x2
+- `faraday/faraday-core/src/screens/bar_search.rs` (the search in the app bar and Home): `stroke`
+- `faraday/faraday-core/src/screens/catalog.rs` (Tools, every flow on one page): `fill` x5, `stroke` x2
+- `faraday/faraday-core/src/screens/guide_pane.rs` (the guide's supporting pane): `fill`
+- `faraday/faraday-core/src/screens/home.rs` (Home): `fill` x3, `stroke`
+- `faraday/faraday-core/src/screens/hub_layout/` (the pane container): `fill` x3, `stroke` x2
+- `faraday/faraday-core/src/screens/menu_page.rs` (the menu page container): `fill` x4, `stroke`
+- `faraday/faraday-core/src/screens/mod.rs` (the screen dispatch and sheet/frame composition): `fill` x3
+- `faraday/faraday-core/src/screens/parts.rs` (rows, buttons, fields and word cells two or more screens draw): `Color` x10, `card`, `fill` x14, `on_selected` x2, `selected_or` x2, `stroke` x6
+- `faraday/faraday-core/src/screens/row_details.rs` (a row's details in the second pane): `fill`, `stroke`
+- `faraday/faraday-core/src/screens/scan_frame.rs` (the scanner's camera picture and overlay): `fill` x3
+- `faraday/faraday-core/src/screens/session_pane/` (the session pane): `dot` x3, `fill` x4, `stroke`
+- `faraday/faraday-core/src/screens/sheets.rs` (the sheets drawn over a screen): `Paint` x6, `fill` x4, `stroke`
+- `faraday/faraday-core/src/screens/sidebar.rs` (the sidebar): `NameSuffix` x4, `fill`, `mark`, `stroke`, `wordmark_named`
+- `faraday/faraday-core/src/ui.rs` (drawing in design units (the app's `Ui` alias and helpers)): `Contrast`, `Mode`, `NameSuffix`, `Paint` x11, `Role` x44, `TextSize`, `Theme`, `ThemeName`, `fill` x2
+
+Settings, Files, Modes, sticks and boot import:
+- `faraday/faraday-core/src/boot_import/` (the boot import list): `card`
+- `faraday/faraday-core/src/codes/` (the TOTP codes screen): `fill` x4, `stroke` x2
+- `faraday/faraday-core/src/modes/` (Modes and the mode pill): `Paint` x3, `fill`
+- `faraday/faraday-core/src/screens/files.rs` (Files: Inbox and Outbox): `Paint` x2, `card` x4, `dot`, `fill` x3
+- `faraday/faraday-core/src/screens/set_time.rs` (Set the time by hand): `card`, `dot` x2, `fill`, `stroke`
+- `faraday/faraday-core/src/screens/settings.rs` (Settings and About): `fill` x2, `stroke`
+- `faraday/faraday-core/src/screens/settings/` (Settings rows): `Contrast` x3, `Mode` x5, `TextSize` x3, `ThemeName` x3
+- `faraday/faraday-core/src/screens/visit.rs` (Files: In Faraday and On the stick): `Paint` x2, `card` x2, `fill` x5, `stroke`
+- `faraday/faraday-core/src/screens/visit_same.rs` (a file in both Faraday and on the stick): `Paint`, `alpha_of`, `fill` x2
+- `faraday/faraday-core/src/stick/` (the stick area): `Contrast`, `Mode`, `TextSize` x7, `Theme` x7, `fill` x3, `on_selected` x3, `selected_or` x2, `stroke` x2
+
+Wallets, vaults and keys: create, add, restore, seeds:
+- `faraday/faraday-core/src/bip85/` (BIP-85 derived children): `fill`, `stroke`
+- `faraday/faraday-core/src/codex32/` (Make codex32 shares (flow, dice screen, worksheet, input panel)): `Color` x12, `Paint` x15, `dot` x5, `fill` x16, `stroke` x8
+- `faraday/faraday-core/src/codex32_correct/` (codex32 error correction): `Paint`, `fill` x3, `stroke` x3
+- `faraday/faraday-core/src/core_wallet/` (Read a Bitcoin Core wallet): `Role` x17
+- `faraday/faraday-core/src/dice_entry/` (Generate with dice on Create a vault): `fill` x2, `on_selected` x2, `selected_or` x2, `stroke`
+- `faraday/faraday-core/src/fresh/` (Add randomness (roller pages)): `Paint` x3, `dot` x4, `fill` x5, `stroke` x4
+- `faraday/faraday-core/src/kef_tool/` (Krux code in Tools): `Role` x5
+- `faraday/faraday-core/src/keygen/` (Making a new key (randomness, word count, words)): `Paint` x3, `dot` x2, `fill` x21, `on_selected` x3, `selected_or` x2, `stroke` x9
+- `faraday/faraday-core/src/pass_field/` (the passphrase field): `fill` x2, `stroke` x2
+- `faraday/faraday-core/src/screens/create.rs` (Create a wallet): `fill`
+- `faraday/faraday-core/src/screens/entry.rs` (typing a seed): `Paint` x2, `fill` x2, `stroke` x2
+- `faraday/faraday-core/src/screens/randomness.rs` (Add randomness): `fill`
+- `faraday/faraday-core/src/screens/vaults_pair.rs` (Vaults as the wide pair): `fill`, `stroke`
+- `faraday/faraday-core/src/screens/wallets.rs` (the Wallets tab and wallet card): `Paint`, `card`, `fill` x3, `stroke`
+- `faraday/faraday-core/src/screens/wallets_pair.rs` (Wallets as the wide pair): `fill`, `stroke`
+- `faraday/faraday-core/src/screens/wallets_start.rs` (Wallets' first page): `fill` x2, `stroke`
+- `faraday/faraday-core/src/seed_check/` (My seed makes my wallet): `Role` x23
+- `faraday/faraday-core/src/seeds/` (a wallet made from the seeds in hand): `fill`, `stroke`
+- `faraday/faraday-core/src/vault/` (Vaults: list, create, load, copy, dice, secrets): `Paint`, `fill` x25, `stroke` x20
+- `faraday/faraday-core/src/wallet/` (Coldcard export of a single-sig account): `Role` x26
+- `faraday/faraday-core/src/wordlist/` (Word lists): `fill`, `on_selected` x2
+
+Back up and spend from a backup:
+- `faraday/faraday-core/src/backup_flow/` (the shared guided backup flow): `Paint` x3, `fill` x2, `stroke` x3
+- `faraday/faraday-core/src/backups/` (the Backups screen): `Paint` x2, `fill` x3, `stroke`
+- `faraday/faraday-core/src/board/` (the backup board (Back up's plan)): `Paint` x10, `fill` x14, `stroke` x6
+- `faraday/faraday-core/src/codex32_backup/` (codex32 strings in a backup): `dot`, `fill` x2, `stroke` x2
+- `faraday/faraday-core/src/glance/` (the wallet at a glance chart): `Paint` x18, `fill` x6, `stroke` x2
+- `faraday/faraday-core/src/plan/` (the backup plan's lists): `dot`, `stroke` x2
+- `faraday/faraday-core/src/screens/backup.rs` (Back up a wallet): `Paint`, `dot` x3, `fill` x2, `stroke`
+- `faraday/faraday-core/src/spend_backup/` (the Spend tab (spend from a backup)): `card` x2, `dot`, `fill` x2, `stroke`
+
+Spend, sign and check:
+- `faraday/faraday-core/src/address_check/` (Check an address): `card`, `fill`
+- `faraday/faraday-core/src/check/` (Check, the tile grid): `fill`
+- `faraday/faraday-core/src/convert/` (Convert a seed): `Role` x25, `fill`, `on_selected` x2, `selected_or` x2, `stroke`
+- `faraday/faraday-core/src/decode/` (Decode a transaction (incl. the nonce pane)): `card`, `fill` x2, `stroke` x2
+- `faraday/faraday-core/src/multisig_check/` (Check a multisig setup): `Role` x18
+- `faraday/faraday-core/src/ots_check/` (Check a timestamp): `Role` x10
+- `faraday/faraday-core/src/screens/check_message.rs` (Check a signed message): `card`, `fill`
+- `faraday/faraday-core/src/screens/nonce_check.rs` (the nonce check of a signed PSBT or finished transaction): `stroke`
+- `faraday/faraday-core/src/screens/spend.rs` (Spend: sign a transaction): `Paint`, `fill` x6, `stroke` x5
+
+Tools and explorers:
+- `faraday/faraday-core/src/explore/` (Explore: a loaded key at any path): `fill` x2, `on_selected`, `selected_or`, `stroke`
+- `faraday/faraday-core/src/lightning/` (A Lightning node's key): `fill`, `stroke`
+- `faraday/faraday-core/src/silent/` (Silent payments, receiving): `Paint`
+- `faraday/faraday-core/src/tools/` (Tools: the six calculators): `fill` x2, `stroke`
+- `faraday/faraday-core/src/vanity/` (Vanity addresses): `fill`, `stroke`
+
+Drawing support: frame bands, picture, budget:
+- `faraday/faraday-core/src/fade.rs` (cross-fade on a change of screen or sheet): `Color` x3, `Role` x3, `Theme` x5
+- `faraday/faraday-core/src/picture.rs` (a QR code as a PNG picture): `Color` x6
+- `faraday/faraday-core/src/work/` (the draw-budget and timing tests): `Mode` x2, `Theme` x4
+
+Faraday Starter (`faraday/faraday-starter/src/`):
+- `faraday/faraday-starter/src/api.rs` (the Starter's boundary to its shell): `TextSize` x2
+- `faraday/faraday-starter/src/appearance.rs` (the Starter's Appearance): `TextSize` x7, `Theme` x3
+- `faraday/faraday-starter/src/demo.rs` (Faraday Demo inside the Starter): `TextSize`
+- `faraday/faraday-starter/src/draw` (the Starter's pages (name, row, nav, guide, home, boot block)): `Paint` x3, `Role` x29, `card`, `fill` x2, `mark`, `on_selected` x2, `wordmark_fitted`
+- `faraday/faraday-starter/src/draw.rs` (the Starter's pages): `NameSuffix`, `Paint` x3, `Role` x134, `card`, `dot`, `fill` x2
+- `faraday/faraday-starter/src/lib.rs` (the Starter's root): `TextSize` x6, `Theme` x4
+
+Shells (`faraday/shells/`):
+- `faraday/shells/demo/src` (the Faraday Demo shell): `TextSize` x3
+- `faraday/shells/starter/src` (the Starter shell): `TextSize`
+
+
+Named in this file but called by no app module (`ui.` method calls and imported items matched): at fill_circle fill_kept fill_rounded_rect from_row from_stored from_words id in_theme is_role medium mix on_stick paint rgb rgba row stroke_rounded_rect with_alpha wordmark wordmark_stacked
+
 ## Rules and refusals
 
 - Scheme row = `(name * 2 + mode) * 3 + contrast`, 60 rows (`faraday/faraday-ui/src/theme.rs:~79-84`); inverse `from_row` (`faraday/faraday-ui/src/theme.rs:~87-93`); mode and contrast orders fixed by their `ALL` arrays (`faraday/faraday-ui/src/theme.rs:~33`, `faraday/faraday-ui/src/theme.rs:~38`). The table is ordered Light then Dark, each at Standard, Medium, High (`faraday/faraday-ui/src/pal/schemes.rs:~221-225`).
@@ -80,6 +189,5 @@ None given to this feature.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - Theme seeds are named in doc comments only.
 - `STICKS_ON_*` line numbers are approximate (about 170-215).

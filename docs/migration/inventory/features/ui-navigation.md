@@ -36,6 +36,93 @@ None outside the app's state.
 - Uses `ui-press`, `ui-text` (fit, wrap), `ui-sheets` tooltips, `ui-theme` (`BADGE`, `ON_BADGE` fixed colours, F311).
 - The mode pill placed by `pill_top` is drawn by the app.
 
+Callers at main `d89dde5de` in `faraday-core`, the shells and the Starter, by module with the screen it draws and the number of call sites (`x2`); `git grep -n -w <item>` at that commit gives the lines.
+
+Home, menu pages, panes, sidebar and navigation:
+- `faraday/faraday-core/src/compact/` (the small panel (no sidebar): Home as the menu and its pages): `AppBar` x3, `Icon` x26, `app_bar` x2, `fill_behind`, `help`, `icon_action` x2, `icon_action_at`, `more` x2, `pill_top`
+- `faraday/faraday-core/src/file_menu.rs` (the file row's menu): `Icon` x5
+- `faraday/faraday-core/src/flow.rs` (what every flow shares): `Icon` x5
+- `faraday/faraday-core/src/flow/` (the flow container, Your choices sheet and step cards): `AppBar`, `Icon`, `app_bar`
+- `faraday/faraday-core/src/in_progress.rs` (flows in progress): `Icon` x7
+- `faraday/faraday-core/src/medium.rs` (what the removable medium is called): `Icon` x4
+- `faraday/faraday-core/src/menu.rs` (the ⋮ menu): `Icon` x8
+- `faraday/faraday-core/src/nav/` (navigation by window class (rail, bar, app bar)): `AppBar` x3, `Badge` x9, `Chip` x2, `Dest` x5, `Icon` x32, `Rail` x2, `RailButton`, `app_bar` x2, `bar`, `help`, `icon_action` x2, `more`, `rail`, `status_chip`
+- `faraday/faraday-core/src/register.rs` (registering a multisig wallet from its spend): `Icon` x3
+- `faraday/faraday-core/src/screens/bar_search.rs` (the search in the app bar and Home): `Icon` x3
+- `faraday/faraday-core/src/screens/catalog.rs` (Tools, every flow on one page): `Icon`
+- `faraday/faraday-core/src/screens/guide_pane.rs` (the guide's supporting pane): `close_button` x2
+- `faraday/faraday-core/src/screens/home.rs` (Home): `Icon` x33
+- `faraday/faraday-core/src/screens/mod.rs` (the screen dispatch and sheet/frame composition): `Icon` x4
+- `faraday/faraday-core/src/screens/parts.rs` (rows, buttons, fields and word cells two or more screens draw): `Icon` x5
+- `faraday/faraday-core/src/screens/row_details.rs` (a row's details in the second pane): `Icon` x17
+- `faraday/faraday-core/src/screens/session_pane/` (the session pane): `Icon` x46
+- `faraday/faraday-core/src/screens/sheets.rs` (the sheets drawn over a screen): `Icon` x20, `Tab` x3, `TabKind`, `tabs`
+- `faraday/faraday-core/src/screens/sidebar.rs` (the sidebar): `Badge`, `Dest`, `Icon` x19, `destination_row`
+
+Settings, Files, Modes, sticks and boot import:
+- `faraday/faraday-core/src/boot_import/` (the boot import list): `Icon` x7
+- `faraday/faraday-core/src/modes/` (Modes and the mode pill): `Icon` x6
+- `faraday/faraday-core/src/samples/` (Faraday's samples (Modes)): `Icon` x3
+- `faraday/faraday-core/src/screens/files.rs` (Files: Inbox and Outbox): `Icon` x20
+- `faraday/faraday-core/src/screens/visit.rs` (Files: In Faraday and On the stick): `Icon` x5, `Tab` x2, `TabKind`, `tabs`
+- `faraday/faraday-core/src/screens/visit_same.rs` (a file in both Faraday and on the stick): `Icon` x4
+- `faraday/faraday-core/src/stick/` (the stick area): `Icon` x11
+
+Wallets, vaults and keys: create, add, restore, seeds:
+- `faraday/faraday-core/src/bip85/` (BIP-85 derived children): `Icon` x4
+- `faraday/faraday-core/src/codex32/` (Make codex32 shares (flow, dice screen, worksheet, input panel)): `Icon` x11, `Tab` x8, `TabKind` x2, `tabs`
+- `faraday/faraday-core/src/codex32_correct/` (codex32 error correction): `Icon` x9
+- `faraday/faraday-core/src/core_wallet/` (Read a Bitcoin Core wallet): `Icon` x4
+- `faraday/faraday-core/src/create_pick.rs` (Create's Keys step as a pick): `Icon` x7
+- `faraday/faraday-core/src/dice_entry/` (Generate with dice on Create a vault): `Icon` x3
+- `faraday/faraday-core/src/kef_form/` (the Krux encrypted code form): `Icon` x4
+- `faraday/faraday-core/src/kef_tool/` (Krux code in Tools): `Icon` x3
+- `faraday/faraday-core/src/keygen/` (Making a new key (randomness, word count, words)): `Icon` x18, `bar_title_one_line` x2, `bar_title_whole`
+- `faraday/faraday-core/src/screens/create.rs` (Create a wallet): `Icon` x3
+- `faraday/faraday-core/src/screens/entry.rs` (typing a seed): `Icon` x9
+- `faraday/faraday-core/src/screens/randomness.rs` (Add randomness): `Icon` x3
+- `faraday/faraday-core/src/screens/vaults_pair.rs` (Vaults as the wide pair): `Icon` x3
+- `faraday/faraday-core/src/screens/wallets.rs` (the Wallets tab and wallet card): `Icon` x7
+- `faraday/faraday-core/src/screens/wallets/` (Wallets actions): `Icon` x16
+- `faraday/faraday-core/src/screens/wallets_pair.rs` (Wallets as the wide pair): `Icon` x4
+- `faraday/faraday-core/src/screens/wallets_start.rs` (Wallets' first page): `Icon` x9
+- `faraday/faraday-core/src/seeds/` (a wallet made from the seeds in hand): `Icon` x9
+- `faraday/faraday-core/src/vault/` (Vaults: list, create, load, copy, dice, secrets): `Icon` x48
+- `faraday/faraday-core/src/wallet/` (Coldcard export of a single-sig account): `Icon` x4
+- `faraday/faraday-core/src/ways_in/` (the ways a key reaches a screen): `Icon` x7
+
+Back up and spend from a backup:
+- `faraday/faraday-core/src/backup_flow/` (the shared guided backup flow): `Icon` x18
+- `faraday/faraday-core/src/board/` (the backup board (Back up's plan)): `Icon` x20
+- `faraday/faraday-core/src/codex32_backup/` (codex32 strings in a backup): `Icon` x3
+- `faraday/faraday-core/src/glance/` (the wallet at a glance chart): `Icon` x21
+- `faraday/faraday-core/src/screens/backup.rs` (Back up a wallet): `AppBar`, `Icon` x4, `app_bar`, `badge`
+- `faraday/faraday-core/src/spend_backup/` (the Spend tab (spend from a backup)): `Icon` x8
+
+Spend, sign and check:
+- `faraday/faraday-core/src/address_check/` (Check an address): `Icon` x8
+- `faraday/faraday-core/src/address_find/` (Find an address (Explore and the address check's Look further)): `Icon` x4
+- `faraday/faraday-core/src/check/` (Check, the tile grid): `Icon` x5
+- `faraday/faraday-core/src/convert/` (Convert a seed): `Icon` x7
+- `faraday/faraday-core/src/decode/` (Decode a transaction (incl. the nonce pane)): `Icon` x18
+- `faraday/faraday-core/src/invoice/` (Decode a Lightning invoice): `Icon` x4
+- `faraday/faraday-core/src/multisig_check/` (Check a multisig setup): `Icon` x3
+- `faraday/faraday-core/src/ots_check/` (Check a timestamp): `Icon` x4
+- `faraday/faraday-core/src/screens/check_message.rs` (Check a signed message): `Icon` x6
+- `faraday/faraday-core/src/screens/spend.rs` (Spend: sign a transaction): `AppBar`, `Icon` x7, `app_bar`
+
+Tools and explorers:
+- `faraday/faraday-core/src/explore/` (Explore: a loaded key at any path): `Icon` x5
+- `faraday/faraday-core/src/silent/` (Silent payments, receiving): `Icon` x3
+- `faraday/faraday-core/src/tools/` (Tools: the six calculators): `Icon` x4
+
+Faraday Starter (`faraday/faraday-starter/src/`):
+- `faraday/faraday-starter/src/draw` (the Starter's pages (name, row, nav, guide, home, boot block)): `AppBar` x2, `Icon` x13, `Rail` x2, `badge`
+- `faraday/faraday-starter/src/draw.rs` (the Starter's pages): `Icon` x15, `badge`
+
+
+Named in this file but called by no app module (`ui.` method calls and imported items matched): app_bar_fill close_button_in
+
 ## Rules and refusals
 
 Tabs:
@@ -79,5 +166,4 @@ None given to this feature.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - `Warning` appears in this slice in tests only.

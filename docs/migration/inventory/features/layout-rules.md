@@ -75,6 +75,12 @@ Clip:
 - Every primitive honours the clip; a shape crossing it is drawn whole and the outside restored (`core/faraday-draw/src/canvas/surface.rs:~419-454`); a text line wholly outside is skipped (`core/faraday-draw/src/canvas.rs:~1245-1250`).
 - `measured` draws with a zero clip and drops its presses (`faraday/faraday-ui/src/parts.rs:~176-186`).
 
+Rules outside the components, at main `d89dde5de` (paths under `faraday/faraday-core/src/`):
+- Menu page container, `screens/menu_page.rs`: page width `min(cw - 2*PAGE_INSET, MENU_PAGE_W)` centred, compact uses margin `M` (104-111); columns `floor((w+MENU_GAP)/(CATALOG_TILE_MIN+MENU_GAP))` clamped to the page's most (126-134); tiles in a row as tall as the tallest and never under `CATALOG_TILE_H` (145-163); a pane page that cannot be placed stands in Home's column (170-182, 240-244); search bar pinned only where `home_pinned` leaves room for three rows (264-265; rule at `screens/home.rs:828`); section label then `TITLE_S` line plus `GRID` (319-322); row height `max(name+line+2*LIST_PAD_V, LIST_1/LIST_2)` (364-372); section cards 1 to `MENU_CARD_COLUMNS` columns balanced by height (498-559, `balanced_split` 633-644); the card outline is drawn last (413-415); row dividers behind `MENU_ROW_DIVIDERS` (400).
+- Pane container, `screens/hub_layout/`: `Panes::place` (mod.rs:108-132); `pair` (pair.rs:19-47: pane `LIST_PANE`, card up to `COLUMN_MAX`, card narrows to `FLOW_CARD_MIN` then pane to `CHOICES_PANE_MIN`, none under that); `fill` (54-68); `left_of_guide` (73-80); `equal` (85-103); `list_detail` (108-120); `pane_at_right` (126-151); `holds_guide` (mod.rs:196-198); `guide_room` (156-158); `guide_place_at` (173-180, height floor `TOUCH`); `side_panel_w` (203-205); `home_area` (209-215); `stack` (mod.rs:137-140); flow card elevation and High contrast outline (lines.rs:17-29); `limits` (68-74); `place_in_area` (page.rs:114-129); stack-or-pair (page.rs:133-210); tile surface at level 1 with High contrast outline (page.rs:29-37).
+- Screens: `SIDEBAR_W` 240 (`screens/mod.rs:113`); `page_area` (200-251: unit Work, Reading centred, Until centred at `PAGE_AREA_UNTIL_W`); `backup_work_end` (266-273); keyboard lift off a compact panel (328-332); `nav_room` (777-788); `PIN_H` 64 (790); `keygen_wide` (1004-1006).
+- Session pane: columns by `column_count` (`screens/session_pane/mod.rs:317-319`); pair left (`flow/container.rs:56-61`).
+
 ## Domain calls
 
 - `core/faraday-draw/src/tokens.rs`, `core/faraday-draw/src/geom.rs`, `core/faraday-draw/src/text.rs` (see `tokens`, `draw-base`).
@@ -89,6 +95,4 @@ None given to this feature. Fixes that restored layout rules are listed under th
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
-- Rules here are those the inventory read in the component and drawing code; layout rules enforced in faraday-core screens, the pane container and the menu page container are outside this cluster.
 - Whether `choices` and `choices_h` agree was raised; they make the same segmented-or-wrapped decision from the same widths (`faraday/faraday-ui/src/controls.rs:496-552`).

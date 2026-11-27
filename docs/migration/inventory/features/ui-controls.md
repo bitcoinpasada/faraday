@@ -47,6 +47,94 @@ None outside the app's state.
 - Appearance rows are drawn in Settings; theme chips map each chip to a `Theme` in the current mode and contrast (`faraday/faraday-ui/src/appearance.rs:~102-120`).
 - `button_rows`, `wrap_buttons` and sheet button rows that use these buttons are in `ui-sheets`.
 
+Callers at main `d89dde5de` in `faraday-core`, the shells and the Starter, by module with the screen it draws and the number of call sites (`x2`); `git grep -n -w <item>` at that commit gives the lines.
+
+Home, menu pages, panes, sidebar and navigation:
+- `faraday/faraday-core/src/compact/` (the small panel (no sidebar): Home as the menu and its pages): `button` x9, `fab`, `pips`, `tag` x2
+- `faraday/faraday-core/src/flow/` (the flow container, Your choices sheet and step cards): `button`, `chip_press`
+- `faraday/faraday-core/src/register.rs` (registering a multisig wallet from its spend): `HoldTone`, `button`
+- `faraday/faraday-core/src/screens/bar_search.rs` (the search in the app bar and Home): `button`, `button_icon_after`, `button_icon_width` x2, `button_width`
+- `faraday/faraday-core/src/screens/home.rs` (Home): `button`, `button_icon`, `button_icon_width`, `button_width`
+- `faraday/faraday-core/src/screens/mod.rs` (the screen dispatch and sheet/frame composition): `button` x3, `fab`
+- `faraday/faraday-core/src/screens/parts.rs` (rows, buttons, fields and word cells two or more screens draw): `button` x21, `button_height` x3, `code_box`, `code_height`, `fixed_text` x5, `progress` x2, `stepper`, `word_pill`, `wrap_buttons` x5
+- `faraday/faraday-core/src/screens/scan_frame.rs` (the scanner's camera picture and overlay): `progress`
+- `faraday/faraday-core/src/screens/session_pane/` (the session pane): `button`, `button_height`, `checkbox`
+- `faraday/faraday-core/src/screens/sheets.rs` (the sheets drawn over a screen): `HoldTone` x6, `button` x14, `button_height` x4, `button_rows` x7, `segmented` x3, `wrap_buttons`
+- `faraday/faraday-core/src/screens/sidebar.rs` (the sidebar): `button_icon`, `chip_width`, `tag`
+
+Settings, Files, Modes, sticks and boot import:
+- `faraday/faraday-core/src/boot_import/` (the boot import list): `checkbox`, `progress`
+- `faraday/faraday-core/src/codes/` (the TOTP codes screen): `button` x5
+- `faraday/faraday-core/src/modes/` (Modes and the mode pill): `choices`
+- `faraday/faraday-core/src/samples/` (Faraday's samples (Modes)): `code_line`, `multi_list_valued` x2
+- `faraday/faraday-core/src/screens/files.rs` (Files: Inbox and Outbox): `button` x8, `checkbox` x8, `wrap_buttons` x6
+- `faraday/faraday-core/src/screens/set_time.rs` (Set the time by hand): `button` x4, `button_height`, `wrap_buttons`
+- `faraday/faraday-core/src/screens/settings.rs` (Settings and About): `appearance`, `button` x2, `button_height` x3, `choices` x2, `choices_with`, `text_size_row`, `wrap_buttons` x3
+- `faraday/faraday-core/src/screens/visit.rs` (Files: In Faraday and On the stick): `button` x8, `checkbox` x4
+- `faraday/faraday-core/src/stick/` (the stick area): `HoldTone` x3, `button_height` x2, `checkbox`, `progress`
+- `faraday/faraday-core/src/transfer/` (Transfer: the QR link to the online app): `wrap_buttons` x3
+
+Wallets, vaults and keys: create, add, restore, seeds:
+- `faraday/faraday-core/src/bip85/` (BIP-85 derived children): `button` x4
+- `faraday/faraday-core/src/codex32/` (Make codex32 shares (flow, dice screen, worksheet, input panel)): `button` x3, `button_in` x4, `choices`, `fixed_text` x6, `wrap_buttons` x3
+- `faraday/faraday-core/src/codex32_correct/` (codex32 error correction): `checkbox`
+- `faraday/faraday-core/src/core_wallet/` (Read a Bitcoin Core wallet): `button` x5
+- `faraday/faraday-core/src/dice_entry/` (Generate with dice on Create a vault): `button` x3, `word_pill`
+- `faraday/faraday-core/src/kef_form/` (the Krux encrypted code form): `button` x12, `button_rows` x2, `switch_row`
+- `faraday/faraday-core/src/kef_tool/` (Krux code in Tools): `button` x4
+- `faraday/faraday-core/src/keygen/` (Making a new key (randomness, word count, words)): `button` x14, `button_rows` x2, `checkbox`, `tag` x3, `word_pill` x4
+- `faraday/faraday-core/src/screens/create.rs` (Create a wallet): `button` x3, `button_rows` x5, `choices`, `switch_row`
+- `faraday/faraday-core/src/screens/create_making.rs` (Make a new wallet's Keys card): `button_rows` x2, `segmented`
+- `faraday/faraday-core/src/screens/entry.rs` (typing a seed): `button` x11, `button_rows`, `button_width` x2, `wrap_buttons` x2
+- `faraday/faraday-core/src/screens/randomness.rs` (Add randomness): `button` x4, `button_width`, `choices`
+- `faraday/faraday-core/src/screens/restore.rs` (Restore a wallet): `button` x8, `switch_row`, `wrap_buttons` x8
+- `faraday/faraday-core/src/screens/wallets.rs` (the Wallets tab and wallet card): `button` x9, `button_rows`, `checkbox`, `chip_width`, `pips`, `tag` x3, `wrap_buttons`
+- `faraday/faraday-core/src/screens/wallets_start.rs` (Wallets' first page): `button` x2, `wrap_buttons` x2
+- `faraday/faraday-core/src/seed_check/` (My seed makes my wallet): `button` x4, `button_rows` x7, `segmented`
+- `faraday/faraday-core/src/seeds/` (a wallet made from the seeds in hand): `HoldTone`, `button` x2, `button_rows`, `checkbox` x3
+- `faraday/faraday-core/src/vault/` (Vaults: list, create, load, copy, dice, secrets): `HoldTone` x7, `button` x55, `button_width`, `checkbox` x7, `hold_button`, `tag`, `text_button`
+- `faraday/faraday-core/src/wallet/` (Coldcard export of a single-sig account): `checkbox`
+- `faraday/faraday-core/src/ways_in/` (the ways a key reaches a screen): `button`, `button_rows` x3
+- `faraday/faraday-core/src/wordlist/` (Word lists): `button`
+
+Back up and spend from a backup:
+- `faraday/faraday-core/src/backup_flow/` (the shared guided backup flow): `HoldTone`, `button` x16, `code_box` x2, `code_height`
+- `faraday/faraday-core/src/backups/` (the Backups screen): `button` x5
+- `faraday/faraday-core/src/board/` (the backup board (Back up's plan)): `button`, `checkbox`, `wrap_buttons` x6
+- `faraday/faraday-core/src/codex32_backup/` (codex32 strings in a backup): `wrap_buttons`
+- `faraday/faraday-core/src/glance/` (the wallet at a glance chart): `button` x3
+- `faraday/faraday-core/src/plan/` (the backup plan's lists): `multi_list` x2
+- `faraday/faraday-core/src/screens/backup.rs` (Back up a wallet): `badge`, `button` x11, `button_rows` x5, `button_width`, `checkbox`, `wrap_buttons` x3
+- `faraday/faraday-core/src/screens/backup/` (Back up, quick backup): `button` x4
+- `faraday/faraday-core/src/spend_backup/` (the Spend tab (spend from a backup)): `button` x18, `button_height`, `progress`, `tag` x3, `text_button` x3
+
+Spend, sign and check:
+- `faraday/faraday-core/src/address_check/` (Check an address): `button_height`, `button_icon`, `button_icon_width`
+- `faraday/faraday-core/src/address_find/` (Find an address (Explore and the address check's Look further)): `progress`
+- `faraday/faraday-core/src/check/` (Check, the tile grid): `button`
+- `faraday/faraday-core/src/convert/` (Convert a seed): `button` x2, `button_rows` x11, `stepper` x7
+- `faraday/faraday-core/src/decode/` (Decode a transaction (incl. the nonce pane)): `button`, `button_rows`, `wrap_buttons` x4
+- `faraday/faraday-core/src/invoice/` (Decode a Lightning invoice): `button`, `wrap_buttons` x3
+- `faraday/faraday-core/src/multisig_check/` (Check a multisig setup): `button` x6
+- `faraday/faraday-core/src/ots_check/` (Check a timestamp): `button` x4
+- `faraday/faraday-core/src/screens/message.rs` (Sign a message): `button` x6, `wrap_buttons` x3
+- `faraday/faraday-core/src/screens/nonce_check.rs` (the nonce check of a signed PSBT or finished transaction): `wrap_buttons` x2
+- `faraday/faraday-core/src/screens/spend.rs` (Spend: sign a transaction): `HoldTone`, `button` x15, `button_height` x3, `pips` x2, `tag` x6, `text_button`, `wrap_buttons` x8
+
+Tools and explorers:
+- `faraday/faraday-core/src/explore/` (Explore: a loaded key at any path): `progress`
+- `faraday/faraday-core/src/lightning/` (A Lightning node's key): `button`
+- `faraday/faraday-core/src/silent/` (Silent payments, receiving): `button` x2, `tag`
+- `faraday/faraday-core/src/tools/` (Tools: the six calculators): `button` x4
+- `faraday/faraday-core/src/vanity/` (Vanity addresses): `button` x3, `checkbox` x2
+
+Faraday Starter (`faraday/faraday-starter/src/`):
+- `faraday/faraday-starter/src/draw` (the Starter's pages (name, row, nav, guide, home, boot block)): `appearance`, `badge`, `button` x2, `checkbox`, `text_size_row`
+- `faraday/faraday-starter/src/draw.rs` (the Starter's pages): `HoldTone` x3, `badge`, `button` x4, `button_height` x2, `checkbox`, `fixed_text`, `hold_button`, `progress`
+
+
+Named in this file but called by no app module (`ui.` method calls and imported items matched): chip choices_h field_action filled is_dimmed is_off key_in outlined_icon_button pill pill_in segmented_with solid switch theme_chip theme_chips tint_edge tonal_icon_button
+
 ## Rules and refusals
 
 - An off style (Disabled, PrimaryOff, TonalOff, GhostOff) registers no press: `button_drawn` presses only when `!style.is_off()` (`faraday/faraday-ui/src/lib.rs:2300`; `Style::is_off` at `faraday/faraday-ui/src/controls.rs:177-182`). So a disabled option in `choices` takes no press.
@@ -92,7 +180,6 @@ None.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - Of the fix rows, only 7ac5cd6a0 and 10a89d54d were checked against git by the inventory; the others are as given.
 
 - Negative wrap width in `hold_layout` when `room < 2*BUTTON_PAD` was raised and not settled (`faraday/faraday-ui/src/hold.rs:~53-64`).

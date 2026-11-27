@@ -48,8 +48,14 @@ None outside the app's state. Typed characters go to the caller's field.
 
 ## Reach
 
+- `faraday_ui::keyboard::{keyboard, height, Keys, DoneKey, OskPress}`, paths under `faraday/faraday-core/src/`:
+  - `codex32/screen.rs:416,518-519,591-599,812-818`; `codex32/input_panel.rs:217,393-399`; `codex32/pan.rs:287`; `codex32_backup/screen.rs:158-162`.
+  - `compact/mod.rs:1665,1874` (`OskPress` at 543,740,1190,1409-1424,1833-1840).
+  - `keygen/mod.rs:2378,2776`; `wallet_backup.rs:1236,1270`; `action.rs:775`.
+- `faraday_draw` `keyboard::{keys, rows, KeyInput, Modifiers}`: `screens/parts.rs:1478-1530` (`word_keys`); `rows` and `KeyboardKind::Bip39` at `screens/entry.rs:315,339`; `KeyMask`, `key_bit`, `KeyboardKind` in `word_entry.rs`.
+- `key_bottom_reserve` and `keycaps` are used by no app module (the font baker reads `keycaps`, per its doc); the PIN scramble is used by none.
+- The shell's `keyboard` module (`shells/stick/src/keyboard.rs`) is the physical keyboard, not this component.
 - Raised by typing fields (`ui-text`) on Add a key, passphrase fields, the codex32 input panel and worksheet, codex32 backups, dice and coin entry, paths, addresses and the Asian word lists.
-- `keycaps()` lists every character a kind has a key for, in layout order; per its doc the font baker reads it (`core/faraday-draw/src/widgets/keyboard.rs:~402-438`).
 - Its rows push the focused field above the keyboard through the focus box noted by `ui-text` and `ui-regions`.
 - Keys drawn by `key_in` (`ui-controls`), hover and focus only.
 No code in the app passes a PIN scramble seed: both callers of `keyboard::keys` (faraday/faraday-ui/src/keyboard.rs:187, faraday/faraday-core/src/screens/parts.rs:1491) pass `None`, and no caller builds `KeyboardKind::Pin`, so `scrambled_digits` runs only in the crate's tests (core/faraday-draw/src/widgets/keyboard.rs:504, 593-598, 1034-1042).
@@ -99,7 +105,6 @@ None.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - The kana grid comment does not match the grid (`core/faraday-draw/src/widgets/keyboard.rs:~171-178`).
 - Where the "no popup, no press layer" rule of the module doc is enforced (`core/faraday-draw/src/widgets/keyboard.rs:~8-10`); partly answered by `key_in` drawing hover and focus only.
 - `KEY_BOTTOM_RESERVE` is named in a doc comment but only the function `key_bottom_reserve` exists.

@@ -42,6 +42,94 @@ faded list and tip anchors, and pixels of the canvas.
 - Reads the theme (`ui-theme`) for layer colours and the tokens (`tokens`) for opacities and ring sizes.
 - F292 (a dimmed action the app still answers) is the decision behind `answer_hit`.
 
+Callers at main `d89dde5de` in `faraday-core`, the shells and the Starter, by module with the screen it draws and the number of call sites (`x2`); `git grep -n -w <item>` at that commit gives the lines.
+
+Home, menu pages, panes, sidebar and navigation:
+- `faraday/faraday-core/src/compact/` (the small panel (no sidebar): Home as the menu and its pages): `Unpressed` x3, `is_pressed`, `press` x5, `press_box` x3, `press_unpressed`
+- `faraday/faraday-core/src/file_menu.rs` (the file row's menu): `press_box`
+- `faraday/faraday-core/src/flow.rs` (what every flow shares): `press_box`
+- `faraday/faraday-core/src/flow/` (the flow container, Your choices sheet and step cards): `chip_press`, `clip_presses_since` x3, `press_box`, `presses_mark` x3, `presses_rewind`
+- `faraday/faraday-core/src/menu.rs` (the ⋮ menu): `press`, `presses_mark`, `presses_rewind`
+- `faraday/faraday-core/src/nav/` (navigation by window class (rail, bar, app bar)): `press`
+- `faraday/faraday-core/src/pointer.rs` (the pointer, focus and what a press reaches): `focus_step`, `reach_at`
+- `faraday/faraday-core/src/register.rs` (registering a multisig wallet from its spend): `press_box`
+- `faraday/faraday-core/src/screens/catalog.rs` (Tools, every flow on one page): `hit_tip`, `press` x2, `press_box`
+- `faraday/faraday-core/src/screens/guide_pane.rs` (the guide's supporting pane): `drop_presses_inside`
+- `faraday/faraday-core/src/screens/home.rs` (Home): `press`
+- `faraday/faraday-core/src/screens/menu_page.rs` (the menu page container): `press`
+- `faraday/faraday-core/src/screens/mod.rs` (the screen dispatch and sheet/frame composition): `clear_hits` x2, `fade_disabled` x4
+- `faraday/faraday-core/src/screens/parts.rs` (rows, buttons, fields and word cells two or more screens draw): `press`, `press_box` x5
+- `faraday/faraday-core/src/screens/session_pane/` (the session pane): `clip_presses_since` x5, `press`, `press_box`, `presses_mark` x5
+- `faraday/faraday-core/src/screens/sheets.rs` (the sheets drawn over a screen): `clip_presses_since`, `press`, `presses_mark`
+- `faraday/faraday-core/src/ui.rs` (drawing in design units (the app's `Ui` alias and helpers)): `Unpressed`
+
+Settings, Files, Modes, sticks and boot import:
+- `faraday/faraday-core/src/boot_import/` (the boot import list): `press_box` x2
+- `faraday/faraday-core/src/codes/` (the TOTP codes screen): `press`
+- `faraday/faraday-core/src/modes/` (Modes and the mode pill): `press_box`, `press_to` x2
+- `faraday/faraday-core/src/samples/` (Faraday's samples (Modes)): `press_box`
+- `faraday/faraday-core/src/screens/files.rs` (Files: Inbox and Outbox): `press_box` x9, `press_to`
+- `faraday/faraday-core/src/screens/set_time.rs` (Set the time by hand): `press_box`
+- `faraday/faraday-core/src/screens/settings.rs` (Settings and About): `press_box`
+- `faraday/faraday-core/src/screens/visit.rs` (Files: In Faraday and On the stick): `press`, `press_box` x11, `press_to`
+- `faraday/faraday-core/src/stick/` (the stick area): `press_box` x2
+- `faraday/faraday-core/src/transfer/` (Transfer: the QR link to the online app): `press_box` x2
+
+Wallets, vaults and keys: create, add, restore, seeds:
+- `faraday/faraday-core/src/bip85/` (BIP-85 derived children): `press_box`
+- `faraday/faraday-core/src/codex32/` (Make codex32 shares (flow, dice screen, worksheet, input panel)): `clear_hits` x2, `clip_presses_since` x3, `cover_presses`, `is_hovered`, `is_pressed`, `press`, `press_box` x3, `press_to`, `presses_mark` x3
+- `faraday/faraday-core/src/codex32_correct/` (codex32 error correction): `press_box` x2
+- `faraday/faraday-core/src/dice_entry/` (Generate with dice on Create a vault): `press_box`
+- `faraday/faraday-core/src/keygen/` (Making a new key (randomness, word count, words)): `clear_hits` x3, `is_pressed`, `press` x2, `press_box` x6
+- `faraday/faraday-core/src/pass_field/` (the passphrase field): `press_box` x4
+- `faraday/faraday-core/src/screens/entry.rs` (typing a seed): `press_box`
+- `faraday/faraday-core/src/screens/randomness.rs` (Add randomness): `press`
+- `faraday/faraday-core/src/screens/vaults_pair.rs` (Vaults as the wide pair): `press_box`
+- `faraday/faraday-core/src/screens/wallets.rs` (the Wallets tab and wallet card): `press`, `press_box` x3
+- `faraday/faraday-core/src/screens/wallets/` (Wallets actions): `press`
+- `faraday/faraday-core/src/screens/wallets_pair.rs` (Wallets as the wide pair): `press`
+- `faraday/faraday-core/src/screens/wallets_start.rs` (Wallets' first page): `press`, `press_box`
+- `faraday/faraday-core/src/seed_check/` (My seed makes my wallet): `press_box` x2
+- `faraday/faraday-core/src/seeds/` (a wallet made from the seeds in hand): `press_box` x5
+- `faraday/faraday-core/src/vault/` (Vaults: list, create, load, copy, dice, secrets): `hit_tip`, `is_pressed` x3, `press_box` x28
+- `faraday/faraday-core/src/wallet/` (Coldcard export of a single-sig account): `press_box`
+- `faraday/faraday-core/src/wordlist/` (Word lists): `press_box` x2, `press_plain`
+
+Back up and spend from a backup:
+- `faraday/faraday-core/src/backup_flow/` (the shared guided backup flow): `press`, `press_box` x4
+- `faraday/faraday-core/src/backups/` (the Backups screen): `press_box`
+- `faraday/faraday-core/src/board/` (the backup board (Back up's plan)): `clip_presses_since`, `press` x7, `press_box` x7, `press_head`, `press_to` x3, `presses_mark`
+- `faraday/faraday-core/src/codex32_backup/` (codex32 strings in a backup): `press_box`, `press_to`
+- `faraday/faraday-core/src/glance/` (the wallet at a glance chart): `press` x3, `press_box` x2, `presses_mark`, `presses_rewind`
+- `faraday/faraday-core/src/screens/backup.rs` (Back up a wallet): `press`, `press_box` x2, `press_plain`
+- `faraday/faraday-core/src/spend_backup/` (the Spend tab (spend from a backup)): `press_box`
+
+Spend, sign and check:
+- `faraday/faraday-core/src/check/` (Check, the tile grid): `press_box`
+- `faraday/faraday-core/src/convert/` (Convert a seed): `press_box` x3
+- `faraday/faraday-core/src/decode/` (Decode a transaction (incl. the nonce pane)): `press_box` x2
+- `faraday/faraday-core/src/invoice/` (Decode a Lightning invoice): `press_box`
+- `faraday/faraday-core/src/ots_check/` (Check a timestamp): `press_box`
+- `faraday/faraday-core/src/screens/message.rs` (Sign a message): `press_box`
+
+Tools and explorers:
+- `faraday/faraday-core/src/explore/` (Explore: a loaded key at any path): `is_pressed`, `press_box` x2
+- `faraday/faraday-core/src/lightning/` (A Lightning node's key): `press_box`
+- `faraday/faraday-core/src/silent/` (Silent payments, receiving): `press_box`
+- `faraday/faraday-core/src/tools/` (Tools: the six calculators): `press`, `press_box`, `press_to`
+- `faraday/faraday-core/src/vanity/` (Vanity addresses): `press_box` x3
+
+Drawing support: frame bands, picture, budget:
+- `faraday/faraday-core/src/drawing.rs` (what a frame works out once): `take_presses`
+
+Faraday Starter (`faraday/faraday-starter/src/`):
+- `faraday/faraday-starter/src/draw` (the Starter's pages (name, row, nav, guide, home, boot block)): `press_box`, `press_to` x2, `presses_mark`, `presses_rewind`
+- `faraday/faraday-starter/src/draw.rs` (the Starter's pages): `clear_hits`, `press` x2
+- `faraday/faraday-starter/src/scroll.rs` (the Starter's page and sheet under a finger): `take_presses`
+
+
+Named in this file but called by no app module (`ui.` method calls and imported items matched): PressMark Ring answer_hit cut fade_later hit hit_around hit_drawn hit_held hit_quiet is_dimmed press_custom press_segment reach reach_for reveal unreveal
+
 ## Rules and refusals
 
 - A press is taken only inside the current clip; a press box cut by the clip is recorded in `cut` (`faraday/faraday-ui/src/lib.rs:~1948-1952`).
@@ -82,5 +170,4 @@ None.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - Line numbers in this file are from one pass of the inventory and were not re-checked except those written without `~`.
