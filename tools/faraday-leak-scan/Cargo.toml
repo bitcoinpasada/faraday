@@ -10,3 +10,4 @@ unsafe_code = "deny"
 
 [package.metadata.faraday]
 layer = "tool"
+checks = "app"

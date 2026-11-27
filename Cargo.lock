@@ -2152,8 +2152,11 @@ dependencies = [
  "faraday-crypto",
  "faraday-fat",
  "faraday-files",
+ "faraday-keys",
  "faraday-psbt",
  "faraday-qr",
+ "faraday-strings",
+ "faraday-text",
  "faraday-vault",
 ]
 
