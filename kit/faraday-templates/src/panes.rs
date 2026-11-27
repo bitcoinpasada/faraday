@@ -1,8 +1,8 @@
 //! The pane container (09 §3.3, `docs/HUB-LAYOUT.md`): where a page's panes stand and how long a
 //! change of page takes. A page declares its panes and the container places them; the page
 //! places none itself. Built as far as one menu page on the device needs: the session pane at the
-//! left of a tile (the pair) or above it (one column). The detail, equal and pane-at-right
-//! placements, Guide's pane and the stack under This session's card are not built.
+//! left of a tile (the pair) or above it (one column). What is not built stays a `todo!()` arm: the
+//! detail and equal tiles, a pane of the page's own, the pane at the right, the stack.
 
 use faraday_atoms::{Pressed, Ui};
 use faraday_organisms::session_pane::{self, SessionPaneModel};
@@ -22,13 +22,38 @@ pub enum Tile {
     /// The room, where it holds two columns or more, up to `MENU_TILE_WIDE_MAX`; a card's place
     /// where it holds one.
     Fill,
+    /// A detail beside a list pane. Not built.
+    Detail,
+    /// Two columns as wide as each other. Not built.
+    Equal,
+}
+
+/// What stands at a pair's left.
+pub enum Left<'s, A> {
+    /// The session pane, drawn by the container.
+    Session(SessionPaneModel<'s, A>),
+    /// A pane the page draws itself at the place it is given. Not built.
+    Own,
+}
+
+/// What a room too narrow for the pair gets.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Narrow {
+    /// The card, then its pane at the right. Not built.
+    PaneAtRight,
+    /// No pair: the page draws its one column.
+    OneColumn,
 }
 
 /// A page's panes, declared once beside its code: what stands at the left (the session pane's
 /// model, or none) and the width rule of the tile.
 pub struct Panes<'s, A> {
-    pub left: Option<SessionPaneModel<'s, A>>,
+    pub left: Left<'s, A>,
     pub tile: Tile,
+    /// Whether the tile stands under This session's card where the window has the height. Not
+    /// built: a page that asks for it reaches a `todo!()`.
+    pub stacks: bool,
+    pub narrow: Narrow,
 }
 
 /// Where a pair's two panes stand, from the room's left edge.
@@ -85,10 +110,17 @@ impl<A> Panes<'_, A> {
     /// Where the panes stand side by side in a `room` wide; `None` where the page has one
     /// column there.
     pub fn place(&self, room: f32) -> Option<Place> {
-        self.left.as_ref()?;
-        match self.tile {
+        if let Left::Own = self.left {
+            todo!("a pane the page draws itself")
+        }
+        let pair = match self.tile {
             Tile::Fill => fill(room).or_else(|| pair(room)),
             Tile::Card => pair(room),
+            Tile::Detail | Tile::Equal => todo!("the detail and equal placements"),
+        };
+        match (pair, self.narrow) {
+            (None, Narrow::PaneAtRight) => todo!("the pane at the right of the card"),
+            (p, _) => p,
         }
     }
 }
@@ -104,7 +136,13 @@ pub fn draw<A: Pressed>(
     y: f32,
     tile: impl FnOnce(&mut Ui<'_, A>, (f32, f32, f32)) -> f32,
 ) -> f32 {
-    if let (Some(p), Some(left)) = (m.place(room), &m.left) {
+    if m.stacks {
+        todo!("the tile stacked under This session's card");
+    }
+    let Left::Session(left) = &m.left else {
+        todo!("a pane the page draws itself");
+    };
+    if let Some(p) = m.place(room) {
         let pane = session_pane::draw(left, ui, (x0 + p.pane_x, y, p.pane_w));
         let tile = tile(ui, (x0 + p.card_x, y, p.card_w));
         return pane.max(tile);
@@ -114,10 +152,7 @@ pub fn draw<A: Pressed>(
     } else {
         (0.0, room)
     };
-    let above = m
-        .left
-        .as_ref()
-        .map_or(0.0, |left| session_pane::draw(left, ui, (x0 + ox, y, w)));
+    let above = session_pane::draw(left, ui, (x0 + ox, y, w));
     above + tile(ui, (x0 + ox, y + above, w))
 }
 
