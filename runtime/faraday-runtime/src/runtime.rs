@@ -49,6 +49,8 @@ pub struct Runtime<R: Root> {
     pub(crate) notes: Notes,
     /// What the runtime dropped or refused, for diagnostics; the most recent 64.
     pub(crate) faults: Vec<&'static str>,
+    /// What the last event did, for `Seen::marks` (05 §9).
+    pub(crate) marks: Vec<crate::seen::Mark>,
 }
 
 /// The top states as built. The settings owner and `Outside` stand outside the lock scope in the
@@ -126,6 +128,7 @@ impl<R: Root> Runtime<R> {
             started: Started::Power,
             notes: Notes::new(),
             faults: Vec::new(),
+            marks: Vec::new(),
         }
     }
 

@@ -16,6 +16,7 @@ use crate::facts::{Lent, build_view, show_of};
 use crate::queue::Item;
 use crate::root::{Root, Tops};
 use crate::runtime::{Phase, Runtime};
+use crate::seen::Mark;
 
 /// How long a note stays up before the next one comes up, by the runtime's clock (04 §10).
 const TOAST_SHOW_MS: u64 = 4000;
@@ -310,6 +311,15 @@ impl<R: Root> Runtime<R> {
         if send { pending } else { Vec::new() }
     }
 
+    /// A press of the last frame becomes its top state's message; a hiding press (`Pressed::hides`)
+    /// is recorded as `Mark::Hides` for the event (04 §11.1, 05 §9).
+    fn pressed(&mut self, press: R::Press) {
+        if faraday_atoms::Pressed::hides(&press) {
+            self.marks.push(Mark::Hides);
+        }
+        self.queue.push(Item::Msg(R::press(press)));
+    }
+
     /// A touch: the press goes down on the hit under it, and is sent when the contact lifts on
     /// the same hit (R9: against the last frame handed out, the one the person saw).
     fn touch(&mut self, at: Point, phase: TouchPhase) {
@@ -326,7 +336,7 @@ impl<R: Root> Runtime<R> {
                 if let (Some(down), Some(up)) = (down, self.frame.hit_at(at))
                     && down == up
                 {
-                    self.queue.push(Item::Msg(R::press(up)));
+                    self.pressed(up);
                 }
             }
         }
@@ -338,7 +348,7 @@ impl<R: Root> Runtime<R> {
         match key {
             Key::Tab | Key::BackTab => self.move_focus(key == Key::BackTab),
             Key::Enter => match self.frame.pointer.focused.clone() {
-                Some(press) => self.queue.push(Item::Msg(R::press(press))),
+                Some(press) => self.pressed(press),
                 None => self.root_input(&Input::Key(key)),
             },
             _ => self.root_input(&Input::Key(key)),

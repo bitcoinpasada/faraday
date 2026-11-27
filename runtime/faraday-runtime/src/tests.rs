@@ -384,11 +384,11 @@ impl<P: Place> Owner for Probe<P> {
 }
 
 #[derive(Clone, PartialEq)]
-struct Press;
+struct Press(bool);
 
 impl Pressed for Press {
     fn hides(&self) -> bool {
-        false
+        self.0
     }
 }
 
@@ -749,6 +749,21 @@ fn downloads_and_system_facts_are_told_to_every_top_state() {
         take_log().last().map(String::as_str),
         Some("app:notice Facts(System)")
     );
+}
+
+/// Invariant: A press of a hiding variant records `Mark::Hides` for its event, and the next event starts with no marks.
+/// Regression: A runtime that never asks `Pressed::hides` leaves the screens check blind to the presses that hide a secret.
+/// Owner: runtime
+#[test]
+fn a_hiding_press_records_the_hides_mark() {
+    use port::event::{Input, Key};
+    let mut runtime = started(Device::new());
+    runtime.frame.pointer.focused = Some(Press(true));
+    runtime.event(Event::Input(Input::Key(Key::Enter)));
+    assert_eq!(runtime.seen().marks, [crate::Mark::Hides]);
+    runtime.frame.pointer.focused = Some(Press(false));
+    runtime.event(Event::Input(Input::Key(Key::Enter)));
+    assert!(runtime.seen().marks.is_empty());
 }
 
 /// Invariant: A feature that sends itself a message for ever does not stop the screen: the cascade is cut and the next event is handled.

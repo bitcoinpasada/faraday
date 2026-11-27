@@ -134,6 +134,7 @@ impl<R: Root> Runtime<R> {
     /// One event of the runtime's own (a job's end) handled as `settle` handles a port event.
     pub(crate) fn settle_with(&mut self, begin: impl FnOnce(&mut Self)) -> Vec<port::Effect> {
         self.queue.begin();
+        self.marks.clear();
         begin(self);
         self.drain();
         self.draw_after();

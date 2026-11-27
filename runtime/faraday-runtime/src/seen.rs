@@ -17,7 +17,7 @@ impl<R: Root> Runtime<R> {
             kept: &[],
             page: out.map_or(NO_PAGE, |out| out.page),
             sheets: out.map_or(&[], |out| out.sheets.as_slice()),
-            marks: &[],
+            marks: &self.marks,
         }
     }
 
