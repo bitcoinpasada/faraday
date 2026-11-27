@@ -185,6 +185,9 @@ impl<R: Root> Runtime<R> {
             self.order(port::Order::CameraOff);
         }
         self.motion = MotionStore::new();
+        // V19: no kept image of a frame outlives a hide.
+        self.frame.drop_frosts();
+        self.frame.hold_ready = None;
         self.frame.wanted = true;
     }
 

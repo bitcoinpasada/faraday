@@ -152,6 +152,10 @@ impl<A: Pressed> Ui<'_, A> {
             self.c.pop_clip();
         }
         self.stroke(x, y, w, h, r, ink);
+        self.keeps.holds.push(action.clone());
+        if part >= 1.0 {
+            self.keeps.held.push(action.clone());
+        }
         self.press(Shape::new(x, y, w, h, r), ink.paint(), action);
         // The label in two parts: on the part held in the container's
         // on-role, on the rest in the tone.

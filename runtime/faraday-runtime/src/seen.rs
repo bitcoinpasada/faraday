@@ -14,7 +14,17 @@ impl<R: Root> Runtime<R> {
         let out = self.frame.last();
         Seen {
             ink: out.and_then(|out| out.ink.as_ref()),
-            kept: &[],
+            kept: self
+                .frame
+                .frosts
+                .iter()
+                .map(|k| KeptImage {
+                    id: ComponentId(k.page, k.sheet),
+                    taken_at: k.taken_at,
+                    secret: k.secret,
+                    pixels: k.pixels.expose().as_slice(),
+                })
+                .collect(),
             page: out.map_or(NO_PAGE, |out| out.page),
             sheets: out.map_or(&[], |out| out.sheets.as_slice()),
             marks: &self.marks,
@@ -38,7 +48,7 @@ pub struct Seen<'a> {
     /// The last frame's `FrameOut::ink`; `None` unless the record is on.
     pub ink: Option<&'a Ink>,
     /// Every image the runtime keeps: a sheet's frost, a fade's frame.
-    pub kept: &'a [KeptImage<'a>],
+    pub kept: Vec<KeptImage<'a>>,
     /// `FrameOut::page`, set by the screen template.
     pub page: Anchor,
     /// `FrameOut::sheets`, the lowest first.

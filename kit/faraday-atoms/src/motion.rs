@@ -34,6 +34,38 @@ impl MotionStore {
         }
     }
 
+    /// Scrolls the region `id` by `by` units (down is positive) within `0..=max` units and, when
+    /// that moves it, keeps the time `now_ms` as the moment its content last moved, which is
+    /// what shows the overlay scrollbar and fades it (`Motion::Region`). The runtime's, at a
+    /// wheel or a finger. Returns whether the offset changed.
+    pub fn scroll_region(&mut self, id: ComponentId, by: f32, max: f32, now_ms: u64) -> bool {
+        let (offset, velocity, stretch) = match self.get(&id) {
+            Some(Motion::Region {
+                offset,
+                velocity,
+                stretch,
+                ..
+            }) => (*offset, *velocity, *stretch),
+            _ => (0.0, 0.0, 0.0),
+        };
+        let moved = (offset + by).clamp(0.0, max.max(0.0));
+        if (moved - offset).abs() < f32::EPSILON {
+            return false;
+        }
+        self.set(
+            id,
+            Motion::Region {
+                offset: moved,
+                velocity,
+                stretch,
+                extent: max,
+                // 0 means the content has not moved since the region opened.
+                bar_shown_ms: now_ms.max(1),
+            },
+        );
+        true
+    }
+
     /// Drops a component's entry.
     pub fn remove(&mut self, id: &ComponentId) {
         self.entries.retain(|(k, _)| k != id);

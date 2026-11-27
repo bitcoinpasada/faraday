@@ -167,6 +167,8 @@ pub struct Ui<'f, A: Pressed> {
     /// The screen's back link and where in `hits` its own press is ([`Ui::back`]).
     pub(crate) back: Option<(A, usize)>,
     pub(crate) press: PhantomData<fn(A)>,
+    /// The kept frosts lent and the frosts and holds this frame gives back.
+    pub(crate) keeps: crate::keeps::Keeps<'f, A>,
 }
 
 impl<'f, A: Pressed> Ui<'f, A> {
@@ -242,7 +244,14 @@ impl<'f, A: Pressed> Ui<'f, A> {
             cut: Vec::new(),
             back: None,
             press: PhantomData,
+            keeps: crate::keeps::Keeps::new(&[]),
         }
+    }
+
+    /// The frosted pages the runtime kept, for the sheets over them to put back (K16). The
+    /// runtime's only.
+    pub fn set_kept(&mut self, kept: &'f [crate::keeps::KeptFrost<'f>]) {
+        self.keeps.kept = kept;
     }
 
     /// The runtime's only.
@@ -258,6 +267,9 @@ impl<'f, A: Pressed> Ui<'f, A> {
             regions: self.regions,
             laid: self.laid,
             tips: self.tips,
+            holds: self.keeps.holds,
+            held: self.keeps.held,
+            frosts: self.keeps.made,
             secret: self.secret,
             pace: if self.moving {
                 Pace::Moving
@@ -344,6 +356,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             cut: Vec::new(),
             back: None,
             press: PhantomData,
+            keeps: crate::keeps::Keeps::new(self.keeps.kept),
         };
         f(&mut child);
         let Ui {
@@ -365,6 +378,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             tips,
             cut,
             back,
+            keeps,
             ..
         } = child;
         let base = self.hits.len();
@@ -401,6 +415,9 @@ impl<'f, A: Pressed> Ui<'f, A> {
                 text: t.text,
             }));
         self.cut.extend(cut);
+        self.keeps.made.extend(keeps.made);
+        self.keeps.holds.extend(keeps.holds.into_iter().map(lift));
+        self.keeps.held.extend(keeps.held.into_iter().map(lift));
         if self.back.is_none() {
             self.back = back.map(|(a, i)| (lift(a), base + i));
         }

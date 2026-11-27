@@ -18,6 +18,9 @@ pub struct Scrolled {
     pub view: Rect,
     /// The size of all it holds, in pixels.
     pub extent: Size,
+    /// The layer it was drawn on: 0 for the page, then the sheets (04 §7.1). Only the top
+    /// layer's regions take a wheel or a finger.
+    pub layer: u8,
 }
 
 /// The overlay scrollbar's thumb, units wide.
@@ -226,6 +229,7 @@ impl<A: Pressed> Ui<'_, A> {
                 w: view.w + (across * self.f).round() as i32,
                 h: view.h + (max * self.f).round() as i32,
             },
+            layer: self.layer,
         });
         let (_, stretch) = self.region_motion(region.id);
         self.stretch = stretch;

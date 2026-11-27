@@ -27,6 +27,14 @@ pub struct FrameOut<R: Pressed> {
     /// The tooltip anchors the frame drew and the screen template did not take (`Ui::take_tips`):
     /// where each control with a tooltip is, its press and its text.
     pub tips: Vec<crate::icon_button::TipAnchor<R>>,
+    /// The presses of the holds the frame drew (a hold sends its press when it is held to its
+    /// end, never when the contact lifts).
+    pub holds: Vec<R>,
+    /// The holds among them that are full this frame.
+    pub held: Vec<R>,
+    /// The frost made under each sheet this frame for the runtime to keep (K16): none where the
+    /// runtime gave one back.
+    pub frosts: Vec<crate::keeps::MadeFrost>,
     /// A secret was drawn (04 §11).
     pub secret: bool,
     /// Rest or Moving: motion wants another frame.
