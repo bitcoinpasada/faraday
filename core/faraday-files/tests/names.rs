@@ -59,6 +59,10 @@ fn a_name_already_on_a_stick_is_still_read_and_removed() {
 }
 
 /// An empty name is refused in the app's words, never the operating system's message.
+///
+/// Invariant: An empty name is refused with the app's own words, not the operating system's message.
+/// Regression: An empty name reaches the operating system and comes back in its words.
+/// Owner: domain
 #[test]
 fn an_empty_name_is_refused_in_the_apps_words() {
     use faraday_strings::EN;
