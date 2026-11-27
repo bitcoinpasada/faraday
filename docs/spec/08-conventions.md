@@ -446,13 +446,14 @@ alone, which checks the code's shape and not a pair of files.
 | `docs.no-silent-delete` | carried, its `when` widened to `docs/spec/*.md` |
 | `keys.new-reveal` | re-pointed: a new reveal in `faraday-keys` is in `docs/KEYS.md` and `docs/AUDIT.md` and names its leak test, at the path section 07 gives |
 | `keys.forms-registry` | carried |
-| `structure.ratchet-raised` | narrowed: its `when` keeps the counts that remain (`lint-tokens.counts`, `lint-crypto.counts`, the touch-target counts if section 07 keeps them) and drops `lint-layout.counts` and `lint-components.counts` |
+| `structure.ratchet-raised` | narrowed: its `when` keeps the counts that remain (`lint-tokens.counts`, `lint-crypto.counts`, the touch-target counts, which section 07 §5.2 keeps) and drops `lint-layout.counts` and `lint-components.counts` |
 | `design.new-component` | re-pointed: a new component file in a kit crate is in `docs/DESIGN.md` §4, under its level |
 | `design.new-screen` | re-pointed: a new feature's `page` module is in `docs/DESIGN.md` §5 |
 | `design.flow-row` | re-pointed: a new step-flow machine (the trait section 03 names) has its row in `docs/FLOW-CONTAINER.md` |
 | `design.menu-page` | re-pointed at the menu-page template's crate |
 | `deps.page` | carried |
 | `builds.docs` | carried with `builds.toml` |
+| (new) `tests.copied-header` | a change to a test file listed in `test-headers.copied` in `tools/` changes the list (section 07 §4.1) |
 
 A rule enters `next`'s registry with the change that brings the paths it names; until then it is
 absent, not planned. Held by `impact.py lint`, which fails on a rule whose paths match nothing.
@@ -509,7 +510,8 @@ Rules G1 and G2 are held by review; `CONTRIBUTING.md` states them for anyone sen
 ### 8.1 Carried, re-pointed at next's paths
 
 `lint-secrets` (on every application, kit and runtime crate, section 01 K-2), `lint-strings`,
-`lint-tokens`, `lint-docs` (§4.6), `lint-leak-reveals`, `lint-tree`, `lint-fuzz-parsers`,
+`lint-tokens`, `lint-docs` (§4.6), `lint-leak-reveals` (section 07 TS19), `lint-touch-targets`
+(over the tours, section 07 §5.2), `lint-tree`, `lint-fuzz-parsers`,
 `lint-builds`, `costs-lint` (section 01 R2, V2), `lint-standards`, `docs/crypto/verified.py`,
 `docs/crypto/check.py`, `docs/crypto/gen.py`, `lint-upstream`, the cross-check's `facts.py` and
 `judges.py harness`, `lint-themes`, `lint-guide`, `impact.py lint` and `check`, `lint-all`,
@@ -523,11 +525,12 @@ normal graph of anything a root ships.
 |---|---|---|
 | `lint-layout` | its code map is of `faraday-core`'s modules, its lists of `Faraday`'s fields and of files allowed an `impl Faraday` go with that struct | `lint-layers`; clippy's `allow_attributes_without_reason` for the marker's reason (§3.1) |
 | `lint-components` and its own test | its rules find hand-made copies of the standard parts inside one crate | the templates, organisms and parts (§3.2), held by K6, K8 and A3 in `lint-layers` |
+| `lint-check-tiles` | a script checking that every Check row's flow has a Tools tile | the compiler: one enum of the tools a menu page opens (section 07 §5.4) |
 
 ### 8.3 New
 
 - `lint-layers`: section 01.
-- The test-header lint: section 07.
+- `lint-test-headers`: section 07 §4.
 
 ### 8.4 The reviewer's checklist
 

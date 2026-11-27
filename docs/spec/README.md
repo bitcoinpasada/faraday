@@ -18,7 +18,7 @@ answers the question and read only the part needed.
 | 04 Presentation and the UI kit | `present` and `draw`, and the kit's components by atomic level |
 | 05 The runtime | The queue, the memo, the workers, the lock and the restart |
 | 06 The composition roots | The device app, Faraday Demo and the Starter, and the features each holds |
-| 07 The test architecture | One invariant per test, the layer that owns each rule, and the test-header lint |
+| [07 The test architecture](07-tests.md) | One invariant per test, the layer that owns each rule, and the test-header lint |
 | [08 Conventions for next](08-conventions.md) | Its `CLAUDE.md`, its documents and its decisions |
 | 09 The skeleton manifest | Every crate and module, its public types and traits, and its function signatures |
 | 10 The migration method | How each of `main`'s modules is copied, ported, rewritten or dropped |

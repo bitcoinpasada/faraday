@@ -43,6 +43,7 @@ layer = "domain"     # domain | port | kit | app | runtime | adapter | root | to
 level = "organisms"  # kit only: tokens | atoms | molecules | organisms | templates
 role  = "feature"    # app only: kernel | part | feature | composite
 owner = true         # app only: the crate of a shared owner (section 03 §7, A24)
+checks = "app"       # tool only, for a tool crate that holds tests: the layer they check (section 07 §4)
 ```
 
 `lint-layers` reads `cargo metadata --format-version 1 --no-deps --locked`, refuses a workspace
@@ -76,7 +77,9 @@ are added.
   crates made from `faraday-draw`. Held by the attribute itself and by `lint-layers`, which reads
   `no_std = true` from the crate's metadata and checks the attribute is present.
 - **Rule D3.** Domain crates are copied from `main` with their own tests and are changed only to
-  cut the edges in §2.3 and move out the I/O above. Held by review against `main` at `d89dde5de`; section 10 names how.
+  cut the edges in §2.3 and move out the I/O above. A copied test takes its header (section 07
+  §3) when it is next changed, and a header added then is not a change this rule forbids. Held by
+  review against `main` at `d89dde5de`; section 10 names how.
 - **Rule D4.** A domain crate's dev-dependencies are domain crates and test-support tools only
   (§7.3). Its tests are published vectors and outside implementations, as on `main`.
 
