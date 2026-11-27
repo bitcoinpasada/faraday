@@ -1,7 +1,7 @@
 //! The command line (S6: no event is made here).
 
+use faraday_port::Text;
 use faraday_stick_adapter::StickOptions;
-use faraday_text::Text;
 
 /// Where the disk process's two pipes are, and where the carry waits between processes: fixed
 /// paths the startup script makes (06 §5.1).

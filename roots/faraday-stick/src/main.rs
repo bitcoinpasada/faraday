@@ -7,11 +7,10 @@ use std::process::ExitCode;
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 
 use faraday_device_product::Device;
-use faraday_port::{Adapters, Effect, Waker};
+use faraday_port::{Adapters, Effect, Text, Waker};
 use faraday_runtime::{Phase, Root, Runtime, Workers};
 use faraday_stick_adapter::{DeviceAdapters, Stick};
 use faraday_storage::Storage;
-use faraday_text::Text;
 
 /// Wakes the loop: the runtime's workers and every adapter thread hold it.
 struct Gate {

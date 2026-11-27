@@ -11,7 +11,6 @@ faraday-runtime = { path = "../../runtime/faraday-runtime" }
 faraday-port = { path = "../../core/faraday-port" }
 faraday-stick-adapter = { path = "../../adapters/faraday-stick-adapter" }
 faraday-storage = { path = "../../adapters/faraday-storage" }
-faraday-text = { path = "../../core/faraday-text" }
 
 [dev-dependencies]
 faraday-fixture-adapters = { path = "../../tools/faraday-fixture-adapters" }
