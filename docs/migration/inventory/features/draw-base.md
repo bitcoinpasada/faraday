@@ -52,6 +52,20 @@ None; it has no input.
 - Motion (`docs/MOTION.md` §3.5 per the blend module doc) uses the blends.
 - Tokens (`tokens`) give the elevation layers, easing curves and size breakpoints.
 
+Callers at main `d89dde5de`. The apps mostly draw through `faraday-ui`'s `Ui` (its `ui.c` is the `Canvas`); direct uses of the base are these (paths under `faraday/faraday-core/src/` unless a crate is named):
+- Canvas made and owned: `drawing.rs:1011` (`Canvas::new` for the frame), `drawing.rs:782,790` (`canvas`, `canvas_mut`); `picture.rs:78` (a QR code as a PNG); `faraday/faraday-starter/src/lib.rs:2763` and `faraday/faraday-starter/examples/icon.rs:32`; in tests of screens: `codex32_correct/screen.rs:572`, `decode/screen.rs:643`, `fresh/roller/five_screen.rs:391`, `screens/session_pane/pick.rs:525,549,594`.
+- Lock: `forget_glyphs` is called at `at_lock.rs:106` (`impl AtLock for Canvas`; the canvas is an area at `at_lock.rs:184`).
+- Ink records: `drawn_ink` at `drawing.rs:655,673,683,758`; `faraday/faraday-starter/src/draw.rs:2664`, `faraday/faraday-starter/src/lib.rs:1651,1684` and the Starter's `examples/snap.rs:242-246`; `InkKind` is also read by `leaks.rs` and the snapshot tours (`faraday/shells/snapshot`, 7 mentions of `faraday_draw`).
+- Frame blends (motion): `fade.rs:235,355,373,935,1004` call `blend_all_within`, `blend_within` and `blend_noting` of `fade/bands.rs:80-128`, which call `Canvas::blend_noting_banded`, `blend_within_banded` and `blend_all_within_banded` (`fade/bands.rs:90,109,128`); `fade/bands.rs:149,152` call `replay` and `replay_banded` (the call list).
+- Easing: `motion.rs:184` (`easing::ease`), `glide.rs:13` (`ease_path` with `EASE_EMPHASIZED`).
+- Camera luma: `screens/scan_frame.rs:21` (`ui.c.luma`).
+- Geometry and display classes: `Rect` in `glide.rs`, `moved.rs`, `pointer.rs`, `drawing.rs`, `fade.rs`, `screens/parts.rs`, `screens/scan_frame.rs`, `faraday/faraday-starter/src/draw/home.rs`, `faraday/faraday-starter/src/scroll.rs`; `Window`/`WindowClass`/`SizeClass`/`Scale` in `codex32/`, `nav/`, `panes/`, `drawing.rs`, `guide.rs`, `keygen/`, `kef_form/`, `screens/parts.rs`, `faraday/faraday-starter/src/lib.rs:230`, `faraday/shells/stick/src/edid_screens.rs:15`; `LayoutCtx` in `screens/parts.rs`.
+- Text: `wrapped_height` in `picture.rs`; the rest of text measure and wrap through `faraday-ui` (`ui-text`).
+- Keyboard and icons: `keyboard` items by `screens/parts.rs`, `word_entry.rs`, `codex32/`, `codex32_backup/`, `compact/`, `screens/entry.rs` (see `keyboard`); `Icon` is imported from `faraday_draw::widgets` by about 70 modules (every area that draws an icon, and the Starter's `draw/*.rs`).
+- Tokens: read by app modules per the `tokens` file; `faraday/shells/stick/src/camera.rs:353` reads `NO_PICTURE_MS`.
+- The shells present the canvas through the presenter (`faraday/shells/stick/src/main.rs:1229-1349`: `settle`, `skipped`, `present_parts`).
+- Not used by any app module: `Surface`, `GlyphCache`, `Shapes` and `ShapeKey` as names (reached through `Canvas`).
+
 ## Rules and refusals
 
 Canvas and primitives:
@@ -116,7 +130,6 @@ None given to this feature.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - `Scale::IDENTITY` is test-only in effect: its other uses (`core/faraday-draw/src/text.rs:290`, `core/faraday-draw/src/widgets/keyboard.rs:930`) sit after `#[cfg(test)]` lines.
 - One oversize shape can exceed the 1 MiB shape budget on its own (`core/faraday-draw/src/shapes.rs:129`).
 - `ease_path` divides by `1 - join[0]`; if `join[0]` could be 1 this divides by zero (`core/faraday-draw/src/easing.rs:~44-45`).
