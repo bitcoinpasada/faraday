@@ -853,7 +853,8 @@ pub struct Desktop { /* folder sticks, host */ }
 impl Desktop { pub fn new(sticks: Text, downloads: Option<Text>, waker: Arc<dyn Waker>) -> Self; }
 pub struct FolderPlace { /* impl faraday_files::Place over std::fs */ }
 
-// faraday-camera: no edge, so a frame's planes are plain vectors; the capture adapters wipe them
+// faraday-camera: no workspace edge, so a frame's planes are vectors and the frame wipes them on
+// drop itself (`zeroize`'s ZeroizeOnDrop; 02 §6); not Clone
 pub struct Frame { pub width: u16, pub height: u16, pub luma: Vec<u8>, pub chroma: Option<Vec<u8>> }
 
 // faraday-window
