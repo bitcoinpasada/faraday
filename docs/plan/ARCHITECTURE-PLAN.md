@@ -1,7 +1,6 @@
 # Faraday next: architecture plan
 
-**Kind:** Draft
-**Status:** Direction agreed; the full specification is still to be written from the inventory of the current code.
+**Kind:** Migration
 
 This branch starts Faraday again on a new architecture. The current app
 (`main`) is frozen while it is built; `next` replaces it at cut-over. This

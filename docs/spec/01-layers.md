@@ -123,18 +123,19 @@ not depend on `faraday-intake`, `faraday-forms` or any crate that depends on eit
 
 - **Rule P1.** One crate, grown from `main`'s `faraday-shell-api`, is the whole contract between
   the app and every shell: events in (touch, keys, display, sticks and files, camera frames,
-  clipboard, time, randomness), typed effects out (storage, camera, clipboard, print, worker
-  job, vibrate, exit), the frame out. The runtime takes the worker-job effect itself, since it
-  owns the pool; the others go through the root to the adapters. Section 02 gives its types.
+  clipboard, time, randomness), typed effects out (storage, camera, clipboard, print, vibrate,
+  exit), the frame out. A worker job is not a port type: it is the kernel's `Job<M>`, which the
+  runtime takes from `Effects::jobs` itself, since it owns the pool; the port's effects go through
+  the root to the adapters. Section 02 gives its types.
 - **Rule P2.** The port depends on domain crates only, for the value types its events and effects
   carry: the wiping text and secret types, a file's bytes, a display's facts. Held by
   `lint-layers`.
 - **Rule P3.** No application crate depends on an adapter or a root, and no adapter depends on
   the application or the runtime. The root joins them: it hands the runtime's effects to the
   adapters and the adapters' events to the runtime. Held by `lint-layers`.
-- **Rule P4.** The kit may name the port's value types (a display's density and size, its boot
-  and secure-hardware state, which `faraday-draw` reads on `main`) and never its events or
-  effects. Held by `lint-layers` with the port's metadata naming its value module
+- **Rule P4.** The kit may name the port's display value types (`Display`, `Orientation`,
+  `Point` and `Medium`: a display's density, size and kind, which `faraday-draw` reads on `main`)
+  and never its events or effects. Held by `lint-layers` with the port's metadata naming its value module
   (`values = "display"`); a kit crate's use of the port is checked to name only that module.
 
 ## 4. The application
@@ -155,7 +156,8 @@ pub trait Feature {
 }
 
 pub struct Effects<M, O> {
-    pub port: Vec<port::Effect>,  // to the adapters, through the root
+    pub port: Vec<port::Order>,   // to the adapters, through the root; not answered
+    pub asks: Vec<AskFor<M>>,     // answered: the runtime keeps each reply (section 02 §2)
     pub jobs: Vec<Job<M>>,        // to the runtime's worker pool
     pub out: Vec<O>,              // to the parent
 }

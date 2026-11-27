@@ -1,5 +1,8 @@
 # The specification of Faraday next
 
+**Kind:** Spec
+**Open:** Not built.
+
 The specification fills in `docs/plan/ARCHITECTURE-PLAN.md` from the inventory of `main`
 (`docs/migration/inventory/`): the layers and what each may depend on, the port, the
 application, presentation and the UI kit, the runtime, the composition roots, the tests, the
