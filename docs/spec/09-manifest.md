@@ -75,8 +75,9 @@ on at a wrong bound; the per-package speed settings come with the packages they 
 ### 1.4 The clippy configuration of each directory
 
 Clippy reads the nearest `clippy.toml` and nothing above it, so each file below holds every set it
-needs. `tools/clippy.py` (as on `main`) checks that the copies of each set are identical and that
-it names no path that resolves to nothing. The domain's directories carry no io set: D1 is read
+needs. `tools/clippy.py` (as on `main`) checks that the copies of each set are identical, that no file holds a set the
+table below does not give it, and that it names no path that resolves to nothing. It knows a set's
+entries by rules over their paths, kept in the script. The domain's directories carry no io set: D1 is read
 over library code only (`src/` outside `#[cfg(test)]` modules) by `lint-layers`' io rule, since
 the domain's tests and examples name these paths to read fixtures and to time, and clippy's
 `disallowed_methods` cannot be allowed for them without allowing the mint and keys sets.
@@ -89,16 +90,17 @@ the domain's tests and examples name these paths to read fixtures and to time, a
 | **keys** | the key boundary and costly-work paths of `main`'s `faraday/clippy.toml` (70 paths: seeds in hand, signing, vault open and seal, master keys) |
 | **app** | A16: `AskFor::into_parts`, `ChangeFor::into_parts`, `Effects::into_list`, `Job::into_parts`; R1 and 05 §6: `Memo::new`, `Memo::end_frame`, `Memo::clear`; 04: `Show::new`; R4: `Runtime::record_ink` |
 | **owner** | A35: `Job::heavy`, `Job::seal` |
+| **flow** | V12: `FlowModel::new` and its `with_*` methods, allowed in the presentation kernel under `#[allow]` |
 
 | Directory | `clippy.toml` holds | Notes |
 |---|---|---|
 | `core/` | mint, keys | the port included (P6); io is `lint-layers`' (D1). A domain crate with a file of its own refuses `Compute::new` alone: its tests mint with `Compute::unchecked` throughout (or with `Compute::new` under `#[expect]`, as kef's do), which clippy cannot allow for tests alone, and the `unchecked` feature, enabled only by dev-dependencies, keeps it out of shipped code |
 | `core/faraday-{bip,crypto,entropy,keys,vault,pgp,sb,kef}/` | `Compute::new`, and `main`'s own file of that crate | `main`'s per-crate copies |
 | `core/faraday-{psbt,codec,selftest}/` | `Compute::new` | below `faraday-keys`, so the keys set names nothing they can call |
-| `kit/` | io, mint, keys | |
-| `app/` | io, mint, keys, app, owner | every application crate but the owners |
-| `app/owners/` | io, mint, keys, app | A35's calls allowed |
-| `runtime/` | io-rt, mint, keys, app (but `into_parts`) | `Compute::new` under `#[expect]` at the two sites of §5.2 |
+| `kit/` | io, mint, keys, flow | |
+| `app/` | io, mint, keys, app, owner, flow | every application crate but the owners |
+| `app/owners/` | io, mint, keys, app, flow | A35's calls allowed |
+| `runtime/` | io-rt, mint, keys, app (but the runtime's own calls: the `into_parts` and `into_list` entries and `Memo`) | `Compute::new` under `#[expect]` at the two sites of §5.2 |
 | `adapters/` | mint, keys, app | |
 | `roots/` | mint, keys, app | |
 | `roots/faraday-snapshot/` | mint, keys | the tour root may call `record_ink` |

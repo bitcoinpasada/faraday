@@ -1,4 +1,4 @@
-# The shared owners: io, mint, keys and app; A35's calls are allowed.
+# The shared owners: io, mint, keys, app and flow; A35's calls are allowed.
 # Clippy reads the nearest clippy.toml and nothing above it, so this file holds every set the
 # directory needs (docs/spec/09-manifest.md section 1.4). tools/clippy.py checks the copies.
 
@@ -103,6 +103,13 @@ disallowed-methods = [
     { path = "faraday_kernel::Memo::clear", reason = "05 §6: the runtime empties the memo" },
     { path = "faraday_kernel::Show::new", reason = "V8: an update forms no text; only the runtime builds a Show" },
     { path = "faraday_runtime::Runtime::record_ink", reason = "R4: the ink record is for the tour root" },
+    { path = "faraday_templates::flow::FlowModel::new", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_choices", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_under", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_cancel", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_asking", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_refused", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
+    { path = "faraday_templates::flow::FlowModel::with_busy", reason = "V12: a flow's model is filled once, by the presentation kernel's blanket impl (docs/spec/04-presentation.md section 5)" },
 ]
 
 disallowed-types = [
