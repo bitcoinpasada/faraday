@@ -2,6 +2,10 @@
 //! lock and the frame (05; 09 §5).
 
 #![expect(dead_code, reason = "the fields are read once the bodies are written")]
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
 
 mod dispatch;
 mod facts;

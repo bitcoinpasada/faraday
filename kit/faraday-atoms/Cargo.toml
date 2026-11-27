@@ -19,3 +19,4 @@ workspace = true
 [package.metadata.faraday]
 layer = "kit"
 level = "atoms"
+reexports = ["faraday_tokens::TextSize", "faraday_tokens::Theme"]

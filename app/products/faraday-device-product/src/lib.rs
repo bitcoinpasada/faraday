@@ -3,6 +3,10 @@
 //! Section 09 §4.8: the product's shape (06 §2, §4, §5.1).
 
 #![expect(dead_code, reason = "the fields are read once the bodies are written")]
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
 
 mod l1;
 mod model;

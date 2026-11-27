@@ -3,6 +3,10 @@
 //! It holds no feature's types (A1) and names no root and no kit crate.
 
 #![expect(dead_code, reason = "the fields are read once the bodies are written")]
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
 
 // The derives write `::faraday_kernel::..` paths; inside this crate they name the crate itself.
 extern crate self as faraday_kernel;

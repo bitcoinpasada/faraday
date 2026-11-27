@@ -1,6 +1,11 @@
 //! The presentation kernel: `Present`, `Page`, `ShowFlow`, the step-flow fill and the helpers
 //! every `present` shares. Section 09 §4.2 and section 04 §2 to §5.
 
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
+
 pub mod flow;
 pub mod help;
 pub mod screen;

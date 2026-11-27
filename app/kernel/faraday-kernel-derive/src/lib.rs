@@ -5,6 +5,11 @@
 //! `todo!()`. `Public` writes `Clone` and `Debug` as well, since `Public` needs both and the
 //! sketches derive it beside `Copy` alone (03 §3.3).
 
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
+
 use proc_macro::{Delimiter, TokenStream, TokenTree};
 
 /// What a derive needs of the item it is on: its name, its generics as written (bounds kept,

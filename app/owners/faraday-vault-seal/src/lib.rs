@@ -3,6 +3,10 @@
 //! its `Press` and its `Page`.
 
 #![expect(dead_code, reason = "the fields are read once the bodies are written")]
+#![cfg_attr(
+    not(test),
+    deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
+)]
 
 mod model;
 mod msg;
