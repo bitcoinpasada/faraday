@@ -453,11 +453,13 @@ committed between releases (F197); `lint-release` checks the release's record.
 - **Rule TS20.** A cross-check area compares a domain function's result. A rule of the
   application (which file a feature writes, which outputs it shows as change) is an update test,
   and the cross-check reaches it only through the domain function the feature calls. Held by the
-  cross-check server's dependencies: domain crates only.
+  cross-check server's dependencies: domain crates only, and `faraday-draw` for the picture
+  requests alone (section 10 §9.1).
 
-On `main`, three areas (import, review, Core wallet) drive `faraday-core` through its `interop`
-example (inventory `test-kit.md`, `tooling.md`). Section 10 is asked how each maps to a domain
-function.
+On `main`, three areas (import, review, Core wallet) already call domain crates only. The
+cross-check's users of `faraday-core` are the server's `hash`, `tx` and `seedqr` requests and
+`core-check.py`, through `faraday-core`'s `interop` example (inventory `test-kit.md`,
+`tooling.md`); section 10 §9 maps each to a domain function.
 
 ### 7.2 Fuzz targets
 

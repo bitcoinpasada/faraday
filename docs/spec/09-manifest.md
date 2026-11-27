@@ -71,11 +71,14 @@ name: `no_std` (D2), `boundary` (§2.3 there), `wording` (§2.2 there), `owner` 
 
 Clippy reads the nearest `clippy.toml` and nothing above it, so each file below holds every set it
 needs. `tools/clippy.py` (as on `main`) checks that the copies of each set are identical and that
-it names no path that resolves to nothing.
+it names no path that resolves to nothing. The domain's directories carry no io set: D1 is read
+over library code only (`src/` outside `#[cfg(test)]` modules) by `lint-layers`' io rule, since
+the domain's tests and examples name these paths to read fixtures and to time, and clippy's
+`disallowed_methods` cannot be allowed for them without allowing the mint and keys sets.
 
 | Set | What it refuses |
 |---|---|
-| **io** | D1: `std::fs`, `std::net`, `std::process`, `std::env`, `std::thread::spawn`, `SystemTime::now`, `Instant::now` |
+| **io** | D1's names, in the kit and the application: `std::fs`, `std::net`, `std::process`, `std::env`, `std::thread::spawn`, `SystemTime::now`, `Instant::now` |
 | **io-rt** | R3: `std::fs`, `std::net`, `std::process`, `std::env` |
 | **mint** | R2, R10: `Compute::new` and `Compute::unchecked` (allowed only under `#[expect(..., reason)]`) |
 | **keys** | the key boundary and costly-work paths of `main`'s `faraday/clippy.toml` (70 paths: seeds in hand, signing, vault open and seal, master keys) |
@@ -84,9 +87,8 @@ it names no path that resolves to nothing.
 
 | Directory | `clippy.toml` holds | Notes |
 |---|---|---|
-| `core/` | io, mint, keys | the port included (P6) |
-| `core/faraday-{bip,crypto,entropy,keys,vault,pgp,sb,kef}/` | io, mint, and `main`'s own file of that crate | `main`'s per-crate copies, with io added |
-| `core/faraday-files/`, `core/faraday-selftest/` | mint, keys, and io without `std::fs` (files: the FAT `Place` only; selftest: none) | §2.2 |
+| `core/` | mint, keys | the port included (P6); io is `lint-layers`' (D1) |
+| `core/faraday-{bip,crypto,entropy,keys,vault,pgp,sb,kef}/` | mint, and `main`'s own file of that crate | `main`'s per-crate copies |
 | `kit/` | io, mint, keys | |
 | `app/` | io, mint, keys, app, owner | every application crate but the owners |
 | `app/owners/` | io, mint, keys, app | A35's calls allowed |
@@ -141,13 +143,14 @@ last column.
 | `faraday-paper` | `faraday/` | | codec, crypto, strings, tokens | none | ~~draw~~ (to `faraday-tokens`); gains `blank::{sheet_blank, codex32_printed}` |
 | `faraday-strings` | `faraday/` | `wording` | bip, crypto, text | none | gains `network_name` |
 | `faraday-guide` | `faraday/` | `wording` | strings | none | |
-| `faraday-samples` | `faraday/` | `online` | bip, forms, text | bip, codec, crypto, intake, keys, ots, psbt, text, vault | ~~core~~ (normal and dev), ~~host~~, ~~shell-api~~ (dev) |
+| `faraday-samples` | `faraday/` | `online` | bip, forms, text | bip, codec, crypto, intake, keys, ots, psbt, testkit, text, vault | ~~core~~ (normal and dev), ~~host~~, ~~shell-api~~ (dev) |
 
 - **The samples' types** (`SampleKey`, `SampleForm`, `SampleSize`, `SampleKind`, `SampleScript`,
   `SampleWallet`, `SampleInputs`, `SampleHsm`, `Samples`, from `faraday-core`'s `samples` module)
   move into `faraday-samples`' `types` module, over `faraday_forms::Form`. Its copied tests lose
   their `faraday-core` and `faraday-host` edges; a test that needed either is not copied, and is
-  named in section 10's mapping. This is the one copied crate whose tests change beyond D3's cuts.
+  named in section 10's mapping. The test wallets they read come from `faraday-testkit` (section
+  10 §7.2). This is the one copied crate whose tests change beyond D3's cuts.
 - **The moved types' paths:** `faraday_text::secret::{SecretText, ROOM}`;
   `faraday_keys::{Refusal, Makes}`; `faraday_codec::otpauth::is_otpauth`;
   `faraday_strings::network_name`; `faraday_paper::blank`.
@@ -158,9 +161,10 @@ last column.
 ### 2.2 Two domain crates that keep a little I/O
 
 `faraday-files` keeps its rules over `Place`; its FAT `Place` is over `faraday-fat` and does no
-`std::fs`. `faraday-selftest` keeps its vectors. On `main` `faraday-vault` names one clock or I/O
-path (`git grep` of the io set's names finds one file); its port answers that call with an
-argument, as D1 says, and section 10 names the file.
+`std::fs`. `faraday-selftest` keeps its vectors. On `main` the one file of `faraday-vault` that
+names an I/O path (`git grep` of the io set's names) is a `#[cfg(test)]` module reading
+toml-test's vendored cases; it is test code, outside D1's library code, and is copied as it is
+(section 10 §7.1).
 
 ### 2.3 The port
 
@@ -203,7 +207,9 @@ Practice and stays in `faraday-organisms`. Both need same-level edges (asked of 
   `Theme`, `TextSize`, `Contrast`, `Mode` (light, dark). Constants and their helpers only (K2).
 - **`faraday-draw`**: `canvas` (`Canvas`, the call list `Calls`, `Ink`), `surface`, `blend`,
   `geom` (`Rect`, `Size`; `Point` from the port), `text` (`Font`, shaping and measure), `fonts`
-  (the baked fonts), `shapes`, `icons` (`Icon`), `ease`, `qr` (a QR code's modules to squares).
+  (the baked fonts), `shapes`, `icons` (`Icon`), `ease`, `qr` (a QR code's modules to squares),
+  `picture` (`labelled_png`: a labelled picture drawn on `Canvas` in the baked fonts and written as
+  PNG by `faraday_codec::png`; its one string is passed in by its caller; section 10 §6).
 - **`faraday-atoms`**:
 
 ```rust
@@ -712,13 +718,14 @@ All in `tools/`, `layer = "tool"`; nothing a root ships depends on one (T1, `lin
 | `faraday-app-test` | `tools/faraday-app-test/` | | kernel, port, session, settings, vaults, testkit, crypto, keys, bip, psbt | the application's test support (07 §2.2): `TestView`, `test_compute`, `Seen`, `seen`, `answer`, `done` |
 | `faraday-fixture-adapters` | `tools/faraday-fixture-adapters/` | | port, testkit, crypto, text, files, fat | the tour root's, the journeys' and the leak crate's adapters: fixture sticks, fixed randomness, scripted clock and input, recorded print |
 | `faraday-leaks` | `tools/faraday-leaks/` | `checks = "app"` | none | the leak flows (07 §6.2); dev: runtime, device-product, demo-product, starter-product, device, session, vaults, settings, fixture-adapters, leak-scan, keys |
-| `faraday-testkit` | `tools/faraday-testkit/` | | bip, crypto, psbt, codec, qr, files, fat | writes the test kit's sticks; its edge to `faraday-core` cut, what it took from it (`Origin`, the labelled PNG, the backup files) taken from the domain or written here |
+| `faraday-testkit` | `tools/faraday-testkit/` | | bip, crypto, psbt, codec, qr, files, fat, vault, and the other domain crates its test data names | the test data (section 10 §6): the test wallets, seeds and words, the spends, the MuSig2 rounds, the test vaults, the test EFI image, over domain types; its edge to `faraday-core` cut, what it took from it rewritten over the domain; no application edge |
+| `faraday-testkit-sticks` | `tools/testkit-sticks/` | | testkit, backup, and the domain crates the sticks need | writes the test kit's sticks; the backup stick holds what `faraday-backup` writes (section 10 §6) |
 | `faraday-alloc-count` | `tools/faraday-alloc-count/` | | none | the counting allocator |
 | `faraday-leak-scan` | `tools/faraday-leak-scan/` | | none | the leak allocator |
 | `faraday-fontbake` | `tools/fontbake/` | | bip, crypto, draw | bakes the fonts into `faraday-draw` |
 | `costs-lint` | `tools/costs-lint/` | | none | who mints and takes `Compute` (§5.2) |
 | `op-cost` | `tools/op-cost/` | | bip, codec, crypto, entropy, files, intake, psbt | named costly operations' counts (F238); ~~core~~ |
-| `faraday-crosscheck` | `tools/crosscheck/` | | the domain crates of `main`'s list but `faraday-core` (TS20) | the cross-check server |
+| `faraday-crosscheck` | `tools/crosscheck/` | | the domain crates of `main`'s list but `faraday-core` (TS20); draw, for the picture requests alone | the cross-check server; `file_menu::sha256`'s use is its `hash` area's, now `faraday_crypto::sha256_whole` (section 10 §6) |
 
 ```rust
 // faraday-fixture-adapters

@@ -64,11 +64,14 @@ are added.
 
 ### 2.1 What it holds and what it may not do
 
-- **Rule D1.** A domain crate holds no I/O, no UI and no app types. Held by `lint-layers` (no
-  edge above the domain) and by the domain directory's `clippy.toml`, whose `disallowed-methods`
-  and `disallowed-types` refuse `std::fs`, `std::net`, `std::process`, `std::env`,
-  `std::thread::spawn`, `std::time::SystemTime::now` and `std::time::Instant::now`. Time and
-  randomness reach the domain as arguments.
+- **Rule D1.** A domain crate holds no I/O, no UI and no app types. Its library code (`src/`
+  outside `#[cfg(test)]` modules) names none of `std::fs`, `std::net`, `std::process`, `std::env`,
+  `std::thread::spawn`, `std::time::SystemTime::now` and `std::time::Instant::now`; its tests,
+  in-source test modules and examples may, to read fixtures and to time. Time and randomness reach
+  the domain as arguments. Held by `lint-layers`: no edge above the domain, and its io rule, which
+  reads those names over each domain crate's library code. Not by the domain's `clippy.toml`:
+  clippy's `disallowed_methods` is one lint, and allowing it for a test would allow the mint and
+  keys sets too (09 §1.4), in files D3 forbids editing.
 - Two domain crates on `main` do I/O, and that part moves out:
   - `faraday-files` keeps its rules over the `Place` trait (listing, reading, writing with
     read-back, vault write-back, names); its folder `Place`, the one part over `std::fs`, moves to
@@ -88,7 +91,10 @@ are added.
   §3) when it is next changed, and a header added then is not a change this rule forbids. One
   further change is made: `faraday-crypto`'s `Compute` gains the `stop` and `progress` hooks
   beside `count` (`Compute::new` takes `Hooks`; section 05 §5.2), function pointers as `count` is,
-  so the crate stays `no_std` and the token `!Send`. Held by review against `main` at
+  so the crate stays `no_std` and the token `!Send`. The functions section 10 ports into a domain
+  crate from `faraday-core` are also allowed: file classification into `faraday-intake` and the
+  decode view into `faraday-psbt::transaction` (10 §9). Each is new code with headed tests, not an
+  edit of copied code. Held by review against `main` at
   `d89dde5de`; section 10 names how.
 - **Rule D4.** A domain crate's dev-dependencies are domain crates and test-support tools only
   (§7.3). Its tests are published vectors and outside implementations, as on `main`.
@@ -607,7 +613,7 @@ each takes in `next`.
 | Rule | What it says, short | Held by |
 |---|---|---|
 | §1 | every crate declares its layer; every edge allowed | `lint-layers` over `cargo metadata` |
-| D1 | no I/O in the domain | `lint-layers`; the domain's `clippy.toml` |
+| D1 | no I/O in the domain's library code | `lint-layers` (no edge above; the io rule over `src/` outside `#[cfg(test)]`) |
 | D2 | `no_std` kept | the attribute; `lint-layers` |
 | D4, T2, T3 | dev and build edges | `lint-layers` |
 | §2.2 | the wording's own dependencies | `lint-layers` (`wording`) |

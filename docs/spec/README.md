@@ -21,4 +21,4 @@ answers the question and read only the part needed.
 | [07 The test architecture](07-tests.md) | One invariant per test, the layer that owns each rule, and the test-header lint |
 | [08 Conventions for next](08-conventions.md) | Its `CLAUDE.md`, its documents and its decisions |
 | [09 The skeleton manifest](09-manifest.md) | Every crate and module, its public types and traits, and its function signatures |
-| 10 The migration method | How each of `main`'s modules is copied, ported, rewritten or dropped |
+| [10 The migration method](10-migration.md) | How each of `main`'s modules is copied, ported, rewritten or dropped |
