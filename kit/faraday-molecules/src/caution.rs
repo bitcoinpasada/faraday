@@ -53,7 +53,6 @@ mod tests {
         let mut store = MotionStore::new();
         let pointer = at_rest(None);
         let mut ui: Ui<'_, P> = Ui::new(&mut c, Theme::default(), 1.0, &mut store, &pointer, true);
-        ui.clear(Role::Surface);
         let m = CautionModel {
             text: Shown::plain(
                 "Some keys of this wallet are not checked, so its addresses may not be yours",
