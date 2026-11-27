@@ -1,15 +1,25 @@
 [package]
 name = "faraday-scanner"
-version = "0.0.0"
+version = "0.2.0"
+description = "Reads QR codes in camera frames on a worker thread, and says what each pass saw"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
+# The decode policy is the scan reduction in
+# `src/scan.rs`; the preview's size is `faraday-tokens`' dimension. The detector
+# is the workspace's vendored `rqrr`, read directly so that a pass can say
+# where a code was and how fine it is.
 [dependencies]
 faraday-tokens = { path = "../../kit/faraday-tokens" }
+rqrr = { workspace = true }
+zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 faraday-codec = { path = "../../core/faraday-codec" }
+# The token the tests' QR codes take (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../../core/faraday-crypto" }
 
 [lints]
