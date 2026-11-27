@@ -44,9 +44,9 @@ pub struct DestinationModel<'s, A> {
 }
 
 /// A large badge's count as it is written.
-fn count_label(m: &DestinationModel<'_, impl Pressed>, n: usize) -> String {
+fn count_label(many: &Shown<'_>, n: usize) -> String {
     if n > 999 {
-        m.many.as_str().to_string()
+        many.as_str().to_string()
     } else {
         n.to_string()
     }
@@ -82,12 +82,12 @@ fn count_pill<A: Pressed>(
 /// Draws the badge on an icon glyph whose box is `glyph` (x, y, side): the dot on its top
 /// right corner, the large badge from its middle across its top right, as Material places them,
 /// in Bitcoin orange with a white count, in every theme.
-fn badge<A: Pressed>(
-    m: &DestinationModel<'_, A>,
+pub fn badge<A: Pressed>(
     ui: &mut Ui<'_, A>,
     (gx, gy, gs): (f32, f32, f32),
+    (badge, many): (Badge, &Shown<'_>),
 ) {
-    match m.badge {
+    match badge {
         Badge::None | Badge::Count(0) => {}
         Badge::Dot => {
             let d = BADGE_SMALL;
@@ -97,7 +97,7 @@ fn badge<A: Pressed>(
             ui.c.note(InkKind::Dot, r);
         }
         Badge::Count(n) => {
-            let label = count_label(m, n);
+            let label = count_label(many, n);
             let at = (gx + gs / 2.0, gy - BADGE_LARGE / 2.0);
             count_pill(ui, at, &label, (BADGE, ON_BADGE));
         }
@@ -118,13 +118,13 @@ fn flow_pill<A: Pressed>(
     let x = match m.badge {
         Badge::None | Badge::Count(0) => corner,
         Badge::Dot => gx + gs + BADGE_SMALL / 2.0 + GAP_SMALL,
-        Badge::Count(n) => corner + count_width(ui, &count_label(m, n)) + GAP_SMALL,
+        Badge::Count(n) => corner + count_width(ui, &count_label(&m.many, n)) + GAP_SMALL,
     };
     let at = (x, gy - BADGE_LARGE / 2.0);
     count_pill(
         ui,
         at,
-        &count_label(m, m.flows),
+        &count_label(&m.many, m.flows),
         (Role::Primary.paint(), Role::OnPrimary.paint()),
     );
 }
@@ -169,7 +169,7 @@ pub fn draw<A: Pressed>(
     let inset = (NAV_PILL_H - NAV_ICON) / 2.0;
     let glyph = (ix + inset, top + inset, NAV_ICON);
     ui.showing(&m.many, |ui| {
-        badge(m, ui, glyph);
+        badge(ui, glyph, (m.badge, &m.many));
         flow_pill(m, ui, glyph);
     });
     // Material's label medium, the current destination's heavier.

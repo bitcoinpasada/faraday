@@ -440,6 +440,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
                 rect: t.rect,
                 press: lift(t.press),
                 text: t.text,
+                kind: t.kind,
             }));
         self.faded.extend(faded);
         self.cut.extend(cut);
@@ -1474,12 +1475,21 @@ mod tests {
         let mut c = canvas(160);
         let out = frame(&mut c, &at_rest(None), |ui| {
             ui.tip_plain((10.0, 10.0, 40.0, 40.0), &P(1), "Scan");
+            ui.tip_rich((60.0, 10.0, 40.0, 40.0), &P(2), "Opens the scanner");
             ui.dot(100.0, 100.0, 4.0, primary_edge());
         });
-        assert_eq!(out.tips.len(), 1);
+        assert_eq!(out.tips.len(), 2);
         assert_eq!(
-            (out.tips[0].press, out.tips[0].text.as_str()),
-            (P(1), "Scan")
+            (
+                out.tips[0].press,
+                out.tips[0].text.as_str(),
+                out.tips[0].kind
+            ),
+            (P(1), "Scan", crate::TipKind::Plain)
+        );
+        assert_eq!(
+            (out.tips[1].press, out.tips[1].kind),
+            (P(2), crate::TipKind::Rich)
         );
         let ink = out.ink.expect("the record is on");
         assert!(

@@ -21,6 +21,17 @@ pub struct TipAnchor<A> {
     pub press: A,
     /// The tooltip's text, which the caller gave.
     pub text: String,
+    /// Which of Material's two tooltips it takes.
+    pub kind: TipKind,
+}
+
+/// Which of Material's two tooltips.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TipKind {
+    /// A few words naming a control, on the inverse surface.
+    Plain,
+    /// A sentence or more, on a raised surface.
+    Rich,
 }
 
 /// An icon button: Material's outlined one, or its filled tonal one (04 §12.1).
@@ -44,13 +55,19 @@ pub fn draw<A: Pressed>(m: &IconButtonModel<'_, A>, ui: &mut Ui<'_, A>, at: (f32
 
 impl<A: Pressed> Ui<'_, A> {
     /// Notes a tooltip anchor over the box (x, y, w, h), units.
-    pub(crate) fn tip_anchor(&mut self, (x, y, w, h): (f32, f32, f32, f32), press: &A, tip: &str) {
+    pub(crate) fn tip_anchor(
+        &mut self,
+        (x, y, w, h): (f32, f32, f32, f32),
+        press: &A,
+        (tip, kind): (&str, TipKind),
+    ) {
         let rect = self.rect(x, y, w, h).intersect(&self.seen_clip());
         if !rect.is_empty() && !tip.is_empty() {
             self.tips.push(TipAnchor {
                 rect,
                 press: press.clone(),
                 text: tip.to_string(),
+                kind,
             });
         }
     }
@@ -58,7 +75,13 @@ impl<A: Pressed> Ui<'_, A> {
     /// Marks the box (x, y, w, h), units, as an icon-only control `owner` that a plain tooltip
     /// names: `label` is the action, a word or two, never an explanation.
     pub fn tip_plain(&mut self, r: (f32, f32, f32, f32), owner: &A, label: &str) {
-        self.tip_anchor(r, owner, label);
+        self.tip_anchor(r, owner, (label, TipKind::Plain));
+    }
+
+    /// Marks the box (x, y, w, h), units, as a control `owner` that a rich tooltip is about:
+    /// `text` is a line or more, shown to the pointer, the keyboard and a long press.
+    pub fn tip_rich(&mut self, r: (f32, f32, f32, f32), owner: &A, text: &str) {
+        self.tip_anchor(r, owner, (text, TipKind::Rich));
     }
 
     /// The tooltip anchors this frame drew, in the order drawn.
@@ -87,7 +110,7 @@ impl<A: Pressed> Ui<'_, A> {
             let ink = Role::OnSurfaceVariant.paint();
             self.press(Shape::new(x, y, s, s, r), ink, action.clone());
             self.icon(x, y, s, icon, ICON_GLYPH, Role::OnSurfaceVariant);
-            self.tip_anchor((x, y, s, s), &action, tip);
+            self.tip_anchor((x, y, s, s), &action, (tip, TipKind::Plain));
         } else {
             // Faint in every theme: it is not available now.
             let edge = self.col(Role::OnSurface.at(DISABLED_CONTAINER));
@@ -120,6 +143,6 @@ impl<A: Pressed> Ui<'_, A> {
         let ink = Role::OnSecondaryContainer.paint();
         self.press(Shape::new(x, y, s, s, r), ink, action.clone());
         self.icon(x, y, s, icon, ICON_GLYPH, Role::OnSecondaryContainer);
-        self.tip_anchor((x, y, s, s), &action, tip);
+        self.tip_anchor((x, y, s, s), &action, (tip, TipKind::Plain));
     }
 }

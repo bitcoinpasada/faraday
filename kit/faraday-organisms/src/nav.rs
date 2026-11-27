@@ -14,30 +14,19 @@ use faraday_atoms::hits::Shape;
 use faraday_atoms::mark::NameSuffix;
 use faraday_atoms::tag::Status;
 use faraday_atoms::{Anchor, Glyph, Icon, Offered, Pressed, Shown, Ui, W};
+use faraday_molecules::destination::{self, DestinationModel};
 use faraday_tokens::dims::{
-    APP_BAR_H, BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, BODY_L, BODY_S, BUTTON_H,
-    CARET_MIN, GAP, GAP_SMALL, GRID, HOME_SEARCH_MIN, ICON_BUTTON, ICON_GLYPH, ICON_SMALL, LABEL_L,
-    LABEL_M, MARGIN_COMPACT, MENU_GAP, MODE_PILL_HEIGHT, MODE_PILL_PAD, NAV_BAR_H, NAV_ICON,
-    NAV_ICON_GAP, NAV_ITEM_H, NAV_LABEL_GAP, NAV_PILL_H, NAV_PILL_W, NAV_RAIL_TOP, PAD,
-    RAIL_MARK_H, RAIL_MARK_W, RAIL_W, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET, TAG_H,
-    TITLE_L, TITLE_M, TITLE_S, TOUCH, shape_full,
+    APP_BAR_H, BADGE_LARGE, BODY_L, BODY_S, BUTTON_H, CARET_MIN, GAP, GAP_SMALL, GRID,
+    HOME_SEARCH_MIN, ICON_BUTTON, ICON_GLYPH, ICON_SMALL, LABEL_L, LABEL_M, MARGIN_COMPACT,
+    MENU_GAP, MODE_PILL_HEIGHT, MODE_PILL_PAD, NAV_BAR_H, NAV_ICON, NAV_ICON_GAP, NAV_ITEM_H,
+    NAV_RAIL_TOP, PAD, RAIL_MARK_H, RAIL_MARK_W, RAIL_W, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON,
+    SEARCH_INSET, TAG_H, TITLE_L, TITLE_M, TITLE_S, TOUCH, shape_full,
 };
 use faraday_tokens::elevation::ELEVATION_SHEET;
-use faraday_tokens::palette::{BADGE, ON_BADGE, Paint, Role};
+use faraday_tokens::palette::{Paint, Role};
 use faraday_tokens::type_roles::TypeRole;
 
-/// Material's badge on a destination's icon: a small dot where something waits, or a large badge
-/// with a count.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum Badge {
-    /// None.
-    #[default]
-    None,
-    /// The small badge: a dot.
-    Dot,
-    /// The large badge with a count, "999+" past 999 (Material's most characters, four).
-    Count(usize),
-}
+pub use faraday_molecules::destination::Badge;
 
 /// One destination: its icon, its label, what a press on it does, whether it is the one shown
 /// now, and its badge.
@@ -96,160 +85,24 @@ pub struct TopBarModel<'s, A> {
     pub power: Option<(A, Shown<'s>)>,
 }
 
-/// A large badge's count as it is written.
-fn count_label(n: usize, many: &Shown<'_>) -> String {
-    if n > 999 {
-        many.as_str().to_string()
-    } else {
-        n.to_string()
-    }
-}
-
-/// A large badge's width for `label`.
-fn count_width<A: Pressed>(ui: &Ui<'_, A>, label: &str) -> f32 {
-    (ui.measure(BADGE_LABEL, W::S, label) + 2.0 * BADGE_PAD).max(BADGE_LARGE)
-}
-
-/// A large badge's pill at `(x, y)`, `label` centred in it.
-fn count_pill<A: Pressed>(
-    ui: &mut Ui<'_, A>,
-    (x, y): (f32, f32),
-    label: &str,
-    fill: impl Into<Paint>,
-    ink: impl Into<Paint>,
-) {
-    let h = BADGE_LARGE;
-    let w = count_width(ui, label);
-    ui.fill(x, y, w, h, h / 2.0, fill.into());
-    let tw = ui.measure(BADGE_LABEL, W::S, label);
-    ui.text_mid(
-        x + (w - tw) / 2.0,
-        y,
-        h,
-        BADGE_LABEL,
-        W::S,
-        ink.into(),
-        label,
-    );
-}
-
-/// Draws `badge` on an icon glyph whose box is `glyph` (x, y, side): the dot on its top right
-/// corner, the large badge from its middle across its top right, as Material places them, in
-/// Bitcoin orange with a white count, in every theme.
-pub fn badge<A: Pressed>(
-    ui: &mut Ui<'_, A>,
-    glyph: (f32, f32, f32),
-    badge: Badge,
-    many: &Shown<'_>,
-) {
-    let (gx, gy, gs) = glyph;
-    match badge {
-        Badge::None | Badge::Count(0) => {}
-        Badge::Dot => {
-            let d = BADGE_SMALL;
-            ui.dot(gx + gs, gy, d / 2.0, BADGE);
-        }
-        Badge::Count(n) => {
-            let label = count_label(n, many);
-            let at = (gx + gs / 2.0, gy - BADGE_LARGE / 2.0);
-            count_pill(ui, at, &label, BADGE, ON_BADGE);
-        }
-    }
-}
-
-/// The mark of `flows` in progress on an icon: a pill in the primary colour at the corner, beside
-/// the destination's own badge `own` where it has one.
-fn flow_pill<A: Pressed>(
-    ui: &mut Ui<'_, A>,
-    (gx, gy, gs): (f32, f32, f32),
-    own: Badge,
-    flows: usize,
-    many: &Shown<'_>,
-) {
-    if flows == 0 {
-        return;
-    }
-    let corner = gx + gs / 2.0;
-    let x = match own {
-        Badge::None | Badge::Count(0) => corner,
-        Badge::Dot => gx + gs + BADGE_SMALL / 2.0 + GAP_SMALL,
-        Badge::Count(n) => corner + count_width(ui, &count_label(n, many)) + GAP_SMALL,
-    };
-    let at = (x, gy - BADGE_LARGE / 2.0);
-    count_pill(
-        ui,
-        at,
-        &count_label(flows, many),
-        Role::Primary,
-        Role::OnPrimary,
-    );
-}
-
-/// The height a destination's pill and label take together, its label's line at the text size.
-fn item_content<A: Pressed>(ui: &Ui<'_, A>) -> f32 {
-    NAV_PILL_H + NAV_LABEL_GAP + ui.line_as(LABEL_M)
-}
-
-/// A destination as the bar draws it: its icon on a pill over its label, centred in the box at
-/// (x, y), `w` by `h`, the whole box pressable.
+/// A destination as the bar draws it: the destination molecule, centred in the box at (x, y),
+/// `w` by `h`, the whole box pressable.
 fn item<A: Pressed>(
     ui: &mut Ui<'_, A>,
-    (x, y, w, h): (f32, f32, f32, f32),
+    at: (f32, f32, f32, f32),
     d: &Dest<'_, A>,
     many: &Shown<'_>,
 ) {
-    let top = y + ((h - item_content(ui)) / 2.0).max(0.0);
-    let px = x + (w - NAV_PILL_W) / 2.0;
-    if d.current {
-        ui.fill(
-            px,
-            top,
-            NAV_PILL_W,
-            NAV_PILL_H,
-            NAV_PILL_H / 2.0,
-            Role::SecondaryContainer,
-        );
-    }
-    let (icon_fg, fg) = if d.current {
-        (Role::OnSecondaryContainer, Role::OnSurface)
-    } else {
-        (Role::OnSurfaceVariant, Role::OnSurfaceVariant)
+    let m = DestinationModel {
+        icon: d.icon,
+        label: d.label.clone(),
+        offered: d.offered.clone(),
+        current: d.current,
+        badge: d.badge,
+        flows: d.flows,
+        many: many.clone(),
     };
-    // Ringed round its pill, the shape its state layer takes.
-    let shape = Shape::new(px, top, NAV_PILL_W, NAV_PILL_H, NAV_PILL_H / 2.0);
-    ui.offered(&d.offered, |ui, press, dimmed| {
-        if let Some(a) = press {
-            ui.press_to(shape, (x, y, w, h), icon_fg.paint(), a);
-        }
-        let _ = dimmed;
-    });
-    let ix = x + (w - NAV_PILL_H) / 2.0;
-    ui.icon(ix, top, NAV_PILL_H, d.icon, NAV_ICON, icon_fg);
-    let inset = (NAV_PILL_H - NAV_ICON) / 2.0;
-    let glyph = (ix + inset, top + inset, NAV_ICON);
-    badge(ui, glyph, d.badge, many);
-    flow_pill(ui, glyph, d.badge, d.flows, many);
-    // Material's label medium, the current destination's heavier.
-    let role = if d.current {
-        LABEL_M
-    } else {
-        LABEL_M.regular()
-    };
-    // A one-line slot: fitted down to Standard (`docs/TEXT-SIZE.md` §3).
-    let room = w - 2.0 * GAP_SMALL;
-    let label = d.label.as_str();
-    let lw = ui.text_fit_width(role, label, room);
-    let ly = top + NAV_PILL_H + NAV_LABEL_GAP;
-    // The band its own line tall, so the label's top is at `ly`.
-    let band = (
-        x + (w - lw) / 2.0,
-        ly,
-        ui.line(role.size, role.face.into()),
-        room,
-    );
-    ui.showing(&d.label, |ui| {
-        ui.text_fit_as(band, role, fg, label);
-    });
+    destination::draw(&m, ui, at);
 }
 
 /// The tonal icon button directly under a rail's destinations: Scan.
@@ -370,14 +223,13 @@ pub fn destination_row<A: Pressed>(
     ui.icon(ix, iy, ICON_SMALL, d.icon, NAV_ICON, fg);
     let inset = (ICON_SMALL - NAV_ICON) / 2.0;
     let glyph = (ix + inset, iy + inset, NAV_ICON);
-    badge(ui, glyph, d.badge, many);
+    destination::badge(ui, glyph, (d.badge, many));
     let own = !matches!(d.badge, Badge::None | Badge::Count(0));
     let low = if own { BADGE_LARGE + 2.0 } else { 0.0 };
-    badge(
+    destination::badge(
         ui,
         (glyph.0, glyph.1 + low, glyph.2),
-        Badge::Count(d.flows),
-        many,
+        (Badge::Count(d.flows), many),
     );
     let tx = ix + ICON_SMALL + NAV_ICON_GAP;
     let right = x + w - PAD;
@@ -998,7 +850,8 @@ pub fn draw_mode_pill<A: Pressed>(
 }
 
 /// Home's head on the small panel: the mark and the name; off mainnet, the mode pill at the
-/// right, which opens the mode sheet.
+/// right, which opens the mode sheet; while a wireless receiver is attached, its mark left of
+/// the pill.
 pub struct HeadModel<'s, A> {
     /// The word after the wordmark (DEMO in the desktop app, OFFLINE on the device).
     pub suffix: NameSuffix,
@@ -1007,10 +860,13 @@ pub struct HeadModel<'s, A> {
     /// Where what stands at the head's right end besides the pill begins: the name ends before
     /// it, and before the pill where that is further left.
     pub right: f32,
+    /// The mark a wireless receiver leaves while it is attached: what it presses and its
+    /// tooltip; none where no receiver is.
+    pub receiver: Option<(A, Shown<'s>)>,
 }
 
 /// Draws the head at `y`, `w` wide, at the page's margin: the mark, the name fitted between them
-/// and the pill, which is left off where nothing is left of the name's room (the name then gives
+/// and the receiver's mark and the pill, which is left off where nothing is left of the name's room (the name then gives
 /// way to the mark alone).
 pub fn draw_head<A: Pressed>(m: &HeadModel<'_, A>, ui: &mut Ui<'_, A>, (y, w): (f32, f32)) {
     let margin = MARGIN_COMPACT;
@@ -1021,6 +877,17 @@ pub fn draw_head<A: Pressed>(m: &HeadModel<'_, A>, ui: &mut Ui<'_, A>, (y, w): (
     let (nx, ny) = (margin + 28.0, y + 6.0);
     let pill_x = w - margin - pw;
     let start = if m.pill.is_some() { pill_x } else { w - margin };
+    // The receiver's mark, as on every bar, left of the pill (or at the right edge without one),
+    // centred on the pill's line; the name ends before it.
+    let start = match &m.receiver {
+        Some((action, label)) => icon_action(
+            ui,
+            (start, y - 2.0 + MODE_PILL_HEIGHT / 2.0),
+            Icon::Warning,
+            (action.clone(), false, label),
+        ),
+        None => start,
+    };
     let room = m.right.min(start) - GAP;
     ui.wordmark_fitted((nx, ny, room - nx), 11.0, Role::OnSurface, m.suffix);
     if let Some(p) = &m.pill {
@@ -1235,5 +1102,32 @@ mod tests {
         });
         let hit = &out.hits[0];
         assert!(hit.target.y + hit.target.h <= 56, "{:?}", hit.target);
+    }
+
+    /// Invariant: Home's head draws the wireless receiver's mark, with its tooltip, while one is attached, and nothing where none is.
+    /// Regression: The head leaves room for the receiver's mark and never draws it, so an attached receiver goes unmarked on Home.
+    /// Owner: kit
+    #[test]
+    fn homes_head_draws_the_receiver_mark_only_while_one_is_attached() {
+        let tips = |receiver: Option<(P, Shown<'static>)>| {
+            let mut c = canvas(160);
+            let m: HeadModel<'_, P> = HeadModel {
+                suffix: NameSuffix::Offline,
+                pill: None,
+                right: 400.0,
+                receiver,
+            };
+            frame(&mut c, &at_rest(None), |ui| {
+                draw_head(&m, ui, (10.0, 400.0))
+            })
+            .tips
+        };
+        assert!(tips(None).is_empty());
+        let drawn = tips(Some((P(9), Shown::plain("Wireless keyboard"))));
+        assert_eq!(drawn.len(), 1);
+        assert_eq!(
+            (drawn[0].press, drawn[0].text.as_str()),
+            (P(9), "Wireless keyboard")
+        );
     }
 }

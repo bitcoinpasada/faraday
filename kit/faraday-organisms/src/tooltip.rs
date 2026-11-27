@@ -13,6 +13,7 @@
 //! a finger (Material). When it goes: the pointer leaving, the keyboard moving on, Escape, any
 //! press.
 
+pub use faraday_atoms::TipKind;
 use faraday_atoms::{Pressed, Shown, TipAnchor, Ui};
 use faraday_text::Text;
 use faraday_tokens::dims::{
@@ -33,15 +34,6 @@ const TIP_RICH_INK: Paint = Paint::role(Role::OnSurfaceVariant);
 /// A rich tooltip's edge where High contrast draws no shadow.
 const TIP_RICH_EDGE: Paint = Paint::role(Role::Outline);
 
-/// Which of Material's two tooltips.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TipKind {
-    /// A few words naming a control, on the inverse surface.
-    Plain,
-    /// A sentence or more, on a raised surface.
-    Rich,
-}
-
 /// What brought a tooltip up.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TipBy {
@@ -53,25 +45,6 @@ pub enum TipBy {
     Touch,
     /// A press of the anchor's own button.
     Press,
-}
-
-/// An anchor a frame drew and which of the two tooltips it takes.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Spot<A> {
-    /// The box, the control it belongs to and what the tooltip says.
-    pub anchor: TipAnchor<A>,
-    /// Plain or rich.
-    pub kind: TipKind,
-}
-
-impl<A> Spot<A> {
-    /// A plain tooltip's anchor, as the atoms' controls mark it.
-    pub fn plain(anchor: TipAnchor<A>) -> Self {
-        Spot {
-            anchor,
-            kind: TipKind::Plain,
-        }
-    }
 }
 
 /// The tooltip to draw: its words, which kind it is and the box of what it is about, in pixels.
@@ -89,7 +62,7 @@ pub struct TipModel<'s> {
 #[derive(Debug, Clone)]
 pub struct Tips<A> {
     /// The anchors the last frame drew.
-    anchors: Vec<Spot<A>>,
+    anchors: Vec<TipAnchor<A>>,
     /// A tooltip on its way: whose, why, and since when (ms).
     coming: Option<(A, TipBy, u64)>,
     /// The tooltip showing, and why.
@@ -123,16 +96,13 @@ impl<A: Pressed> Tips<A> {
     }
 
     /// The anchor under (x, y), the topmost drawn.
-    fn under(&self, x: i32, y: i32) -> Option<&Spot<A>> {
-        self.anchors
-            .iter()
-            .rev()
-            .find(|t| t.anchor.rect.contains(x, y))
+    fn under(&self, x: i32, y: i32) -> Option<&TipAnchor<A>> {
+        self.anchors.iter().rev().find(|t| t.rect.contains(x, y))
     }
 
     /// Whether the last frame drew an anchor of `owner`.
     fn drawn(&self, owner: &A) -> bool {
-        self.anchors.iter().any(|t| &t.anchor.press == owner)
+        self.anchors.iter().any(|t| &t.press == owner)
     }
 
     /// Hides the tooltip. Returns whether one showed.
@@ -142,7 +112,7 @@ impl<A: Pressed> Tips<A> {
 
     /// Takes the anchors a frame drew; a tooltip, or one coming, whose anchor the frame no
     /// longer drew goes. Returns whether one that showed went.
-    pub fn set_anchors(&mut self, anchors: Vec<Spot<A>>) -> bool {
+    pub fn set_anchors(&mut self, anchors: Vec<TipAnchor<A>>) -> bool {
         self.anchors = anchors;
         if self.coming.as_ref().is_some_and(|(a, _, _)| !self.drawn(a)) {
             self.coming = None;
@@ -177,7 +147,7 @@ impl<A: Pressed> Tips<A> {
     pub fn hover(&mut self, at: Option<(i32, i32)>, now: u64) -> bool {
         let over = at
             .and_then(|(x, y)| self.under(x, y))
-            .map(|t| t.anchor.press.clone());
+            .map(|t| t.press.clone());
         let mut changed = false;
         if self
             .shown
@@ -219,7 +189,7 @@ impl<A: Pressed> Tips<A> {
         self.coming = self
             .under(x, y)
             .filter(|t| t.kind == TipKind::Rich)
-            .map(|t| (t.anchor.press.clone(), TipBy::Touch, now));
+            .map(|t| (t.press.clone(), TipBy::Touch, now));
         changed
     }
 
@@ -227,7 +197,7 @@ impl<A: Pressed> Tips<A> {
     pub fn press_moved(&mut self, (x, y): (i32, i32), scrolling: bool) {
         let off = match &self.coming {
             Some((a, TipBy::Touch, _)) => {
-                scrolling || self.under(x, y).is_none_or(|t| &t.anchor.press != a)
+                scrolling || self.under(x, y).is_none_or(|t| &t.press != a)
             }
             _ => false,
         };
@@ -280,10 +250,10 @@ impl<A: Pressed> Tips<A> {
     /// are the anchor's own.
     pub fn model(&self) -> Option<TipModel<'static>> {
         let (owner, _) = self.shown.as_ref()?;
-        let t = self.anchors.iter().find(|t| &t.anchor.press == owner)?;
-        let r = t.anchor.rect;
+        let t = self.anchors.iter().find(|t| &t.press == owner)?;
+        let r = t.rect;
         Some(TipModel {
-            text: Shown::made(Text::from_utf8_lossy(t.anchor.text.as_bytes())),
+            text: Shown::made(Text::from_utf8_lossy(t.text.as_bytes())),
             kind: t.kind,
             at: (r.x, r.y, r.w, r.h),
         })
@@ -370,13 +340,11 @@ mod tests {
     use faraday_atoms::ui::testing::P;
     use faraday_draw::Rect;
 
-    fn spot(press: P, kind: TipKind) -> Spot<P> {
-        Spot {
-            anchor: TipAnchor {
-                rect: Rect::new(10, 10, 40, 40),
-                press,
-                text: "Help".to_string(),
-            },
+    fn spot(press: P, kind: TipKind) -> TipAnchor<P> {
+        TipAnchor {
+            rect: Rect::new(10, 10, 40, 40),
+            press,
+            text: "Help".to_string(),
             kind,
         }
     }

@@ -47,7 +47,7 @@ pub use button::{Look, Style};
 pub use focus::step as focus_step;
 pub use frame_out::{FrameOut, Laid, Placement};
 pub use hits::{Hit, Plain, PressMark, Ring, Shape, Unpressed, hit_at};
-pub use icon_button::TipAnchor;
+pub use icon_button::{TipAnchor, TipKind};
 pub use keeps::{KeptFrost, KeptRows, MadeFrost, MadeRows};
 pub use motion::{ComponentId, Motion, MotionStore, Pan, Turn};
 pub use offered::{Drawn, Offered};
