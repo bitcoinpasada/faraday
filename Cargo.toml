@@ -159,6 +159,9 @@ repository = "https://github.com/bitcoinpasada/faraday"
 unsafe_code = "forbid"
 
 [workspace.dependencies]
+# Rendering (docs/deps/tiny-skia.md): pure Rust, no_std with `no-std-float` (libm).
+tiny-skia = { version = "0.12", default-features = false, features = ["no-std-float"] }
+
 zeroize = { version = "1.8", default-features = false, features = ["derive"] }
 
 subtle = { version = "2.6", default-features = false }

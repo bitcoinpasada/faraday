@@ -1,6 +1,465 @@
-//! Every named dimension (09 §3.2).
-// The dimensions the copied crates read, with `main`'s values from `core/faraday-draw/src/tokens.rs`
-// (`faraday-paper`'s sheets, `faraday-scanner`'s preview); the rest are named with the kit's copy.
+//! Design tokens (`docs/DESIGN.md` §3): every dimension, size, ratio and
+//! timing the design system names, in one place.
+//!
+//! Nothing here is a screen decision. A screen, an organism, a component
+//! and a gallery page all read these names, so changing a number changes
+//! it everywhere and a review can be settled by editing one file. Lengths
+//! are in dp; only the type ramp is scaled by the size class
+//! ([`type_scale_pct`]).
+//!
+//! Per-class values are `const fn name(class) -> …` rather than three
+//! constants, so a caller asks for the value it needs and the table of
+//! classes stays next to the value it varies.
+//!
+//! `tools/lint-tokens.sh` fails the build when `organisms.rs`,
+//! `gallery.rs` or a file under `components/` writes a layout number of
+//! its own instead of naming one here.
+
+
+pub use crate::elevation::*;
+pub use crate::motion::*;
+pub use crate::type_roles::*;
+
+/// Screen size class, derived from physical size.
+///
+/// Size classes swap component variants (2- vs 3-column hub, compact vs
+/// full keyboard); they never reorder steps or hide information.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SizeClass {
+    /// Under 3.5 inch diagonal: the 2.8" reference panel. Single column,
+    /// two-column hub grid.
+    Small,
+    /// 3.5 to 7 inch: phones. Single column, hub fits one screen.
+    Mobile,
+    /// 7 inch and up: tablets and the desktop window. Sidebar plus
+    /// content.
+    Wide,
+}
+
+impl SizeClass {
+    /// Classifies a display by its physical diagonal.
+    pub fn of_px(width: u16, height: u16, dpi: u16) -> Self {
+        let w = f32::from(width);
+        let h = f32::from(height);
+        let diagonal_px = sqrt(w * w + h * h);
+        let inches = diagonal_px / f32::from(dpi.max(1));
+        if inches < 3.5 {
+            SizeClass::Small
+        } else if inches < 7.0 {
+            SizeClass::Mobile
+        } else {
+            SizeClass::Wide
+        }
+    }
+}
+
+/// A window's class by its width, as Material 3 names them
+/// (`docs/LAYOUT.md` §2): each lays the screen out again at its own
+/// width. Ordered, so `class >= WindowClass::Expanded` reads as "840 dp
+/// or wider".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum WindowClass {
+    /// Under 600 dp: the Pi panel, a narrow window.
+    Compact,
+    /// 600 to 839 dp: a half-screen window.
+    Medium,
+    /// 840 to 1199 dp: a 7-inch panel, a small laptop window.
+    Expanded,
+    /// 1200 to 1599 dp: the desktop window's default size.
+    Large,
+    /// 1600 dp and over: a full monitor.
+    ExtraLarge,
+}
+
+/// A window's size in dp at its screen's density, divided by the text
+/// size factor, and what `docs/LAYOUT.md` §2 reads from it: its class by
+/// width, and whether it is short or low.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Window {
+    /// Width in dp.
+    pub width: f32,
+    /// Height in dp.
+    pub height: f32,
+}
+
+impl Window {
+    /// The window a display is, at its own density (160 dpi is 1 dp a
+    /// pixel), with text `text_factor` times its standard size: a larger
+    /// text makes the window count as smaller. A lookup.
+    pub fn of_px(width: u16, height: u16, dpi: u16, text_factor: f32) -> Window {
+        let density = f32::from(dpi.max(1)) / 160.0 * text_factor.max(1.0);
+        Window {
+            width: f32::from(width) / density,
+            height: f32::from(height) / density,
+        }
+    }
+
+    /// Its class by width. A lookup.
+    pub fn class(self) -> WindowClass {
+        if self.width < WINDOW_MEDIUM {
+            WindowClass::Compact
+        } else if self.width < WINDOW_EXPANDED {
+            WindowClass::Medium
+        } else if self.width < WINDOW_LARGE {
+            WindowClass::Expanded
+        } else if self.width < WINDOW_EXTRA_LARGE {
+            WindowClass::Large
+        } else {
+            WindowClass::ExtraLarge
+        }
+    }
+
+    /// Whether it is short: under `WINDOW_SHORT` tall (the Pi panel),
+    /// too short for a navigation bar. A lookup.
+    pub fn short(self) -> bool {
+        self.height < WINDOW_SHORT
+    }
+
+    /// Whether it is low: under `WINDOW_LOW` tall (a 7-inch panel), so a
+    /// rail stands in for a bar or a sidebar. A lookup.
+    pub fn low(self) -> bool {
+        self.height < WINDOW_LOW
+    }
+}
+
+/// Square root without std (Newton's method; plenty for a diagonal).
+fn sqrt(v: f32) -> f32 {
+    if v <= 0.0 {
+        return 0.0;
+    }
+    let mut x = v;
+    for _ in 0..30 {
+        x = 0.5 * (x + v / x);
+    }
+    x
+}
+
+// ---------------------------------------------------------------------
+// Spacing
+// ---------------------------------------------------------------------
+
+/// The spacing grid: every gap is a multiple of this.
+pub const GRID: f32 = 8.0;
+/// The ordinary gap between two things that belong together.
+pub const GAP: f32 = GRID;
+/// What a flow's heading block grows by when its chip does not fit
+/// beside the heading and sits on its own line under it.
+pub const CHIP_LINE: f32 = 36.0;
+
+/// A line of Home's box of what is loaded: compact, its press a touch
+/// target ([`TOUCH`]).
+pub const LOADED_LINE: f32 = TOUCH;
+/// The gap a dense list uses, where a full grid step would cost a row.
+pub const GAP_SMALL: f32 = 4.0;
+/// How far a marked run of monospace text is drawn again to the right to read heavier (the face has one weight).
+pub const MARK_BOLD: f32 = 0.5;
+/// On the Review, the height of a recipient row's first line (the label
+/// and the amount) on a small panel, then on a large one.
+pub const REVIEW_ADDR_TOP_S: f32 = 28.0;
+/// See [`REVIEW_ADDR_TOP_S`]: on a large panel.
+pub const REVIEW_ADDR_TOP: f32 = 34.0;
+/// The inset of a recipient row's text from its box, on a small panel.
+pub const REVIEW_ADDR_INSET_S: f32 = 12.0;
+/// See [`REVIEW_ADDR_INSET_S`]: on a large panel.
+pub const REVIEW_ADDR_INSET: f32 = 14.0;
+/// What a recipient row keeps under its address.
+pub const REVIEW_ADDR_UNDER: f32 = GRID;
+/// The height of a recipient row's label and amount on a small panel.
+pub const REVIEW_ADDR_LINE_S: f32 = 24.0;
+/// How much of a view stays in sight when the foot scrolls the Review
+/// down by one.
+pub const REVIEW_SCROLL_KEEP: f32 = 48.0;
+/// Screen padding: the margin between the content and the screen edge.
+pub const PAD: f32 = 16.0;
+/// Corner radius of cards, rows and tiles: Material's medium.
+pub const RADIUS: f32 = SHAPE_M;
+/// Corner radius of the small rectangles: chips, candidate cells, keys:
+/// Material's small.
+pub const RADIUS_SMALL: f32 = SHAPE_S;
+
+// ---------------------------------------------------------------------
+// Chrome
+// ---------------------------------------------------------------------
+
+/// Minimum touch target.
+pub const TOUCH: f32 = 48.0;
+/// Minimum touch target on the 2.8-inch's size class, the compact and
+/// short layout (268 × 358 dp): Apple's 44 pt minimum (F188).
+pub const TOUCH_COMPACT_SHORT: f32 = 44.0;
+
+/// The touch target's side for `window`: [`TOUCH_COMPACT_SHORT`] on the
+/// compact and short layout, [`TOUCH`] on every other. A lookup.
+pub fn touch(window: Window) -> f32 {
+    if window.class() == WindowClass::Compact && window.short() {
+        TOUCH_COMPACT_SHORT
+    } else {
+        TOUCH
+    }
+}
+/// The end card's title icon.
+pub const END_TITLE_ICON: f32 = 24.0;
+/// The room an end card's title leaves for its icon.
+pub const END_TITLE_INDENT: f32 = 32.0;
+/// Icon size inside a menu row or a tile.
+pub const ICON: f32 = 28.0;
+/// Icon size inside a list row or an app bar.
+pub const ICON_SMALL: f32 = 20.0;
+
+// ---------------------------------------------------------------------
+// Rows
+// ---------------------------------------------------------------------
+
+/// The least width of a stick's figure at Bring in the sticks; the
+/// figures fill the row in as many as fit.
+pub const STICK_FIGURE_W: f32 = 168.0;
+
+/// Standard list row height.
+pub const ROW: f32 = 56.0;
+
+/// Files' row: the left edge of its tick box's touch-sized press, from the
+/// row's left edge (the box's centre is 31 in).
+pub const VISIT_TICK_BOX_X: f32 = 31.0 - TOUCH / 2.0;
+/// How far in a multi-choice row's label starts: past its checkbox.
+pub const LIST_INDENT: f32 = 40.0;
+/// A step-card column's inset from its area, each side.
+pub const FLOW_INSET: f32 = 40.0;
+/// A step-card column's widest.
+pub const FLOW_MAX: f32 = 900.0;
+/// What a multi-choice row's label leaves free at its right: the
+/// checkbox's place and the row's edge.
+pub const LIST_RESERVE: f32 = 50.0;
+/// A stepper's row: its buttons and the gap under them.
+pub const STEPPER_ROW: f32 = 50.0;
+/// What the card's Continue adds to its label's width.
+pub const SETUP_CONTINUE_PAD: f32 = 36.0;
+/// Primary menu row height: an icon, a label and a chevron.
+pub const MENU_ROW: f32 = 72.0;
+/// Menu row height on a `small` panel, where five rows and the app bar
+/// have to share 358 dp.
+pub const MENU_ROW_SMALL: f32 = 52.0;
+
+/// Menu row height in dp for the size class: 52 on `small`, 72
+/// elsewhere.
+pub const fn menu_row(class: SizeClass) -> f32 {
+    match class {
+        SizeClass::Small => MENU_ROW_SMALL,
+        _ => MENU_ROW,
+    }
+}
+
+/// Height in dp of a row that carries a value under its label.
+///
+/// One height for every such row, so a list of mixed kinds reads as one
+/// list.
+pub const fn stacked_row(class: SizeClass) -> f32 {
+    match class {
+        SizeClass::Small => ROW,
+        _ => MENU_ROW,
+    }
+}
+
+/// A row with its label above its value and a chevron at the right: the
+/// two-line row's height.
+pub const fn value_row(class: SizeClass) -> f32 {
+    stacked_row(class)
+}
+
+// ---------------------------------------------------------------------
+// Entry
+// ---------------------------------------------------------------------
+
+/// Height of a one-row text field above a keyboard: 52 dp, and on
+/// `small` a letter key's own height, 40 dp.
+///
+/// On the panel the field is as tall as a letter key, which leaves room
+/// for two rows of candidates over three rows of keys.
+pub const fn field(class: SizeClass) -> f32 {
+    match class {
+        SizeClass::Small => key_height(SizeClass::Small),
+        _ => FIELD,
+    }
+}
+
+/// A one-line text field's height.
+pub const TEXT_FIELD: f32 = 40.0;
+
+/// A line of the read card's facts when a code states more than two.
+pub const CARD_FACT_LINE: f32 = 40.0;
+
+/// The widest a search field at a row's start grows: the word list's,
+/// which takes at most half its row.
+pub const SEARCH_FIELD_MAX: f32 = 320.0;
+
+/// The field's height off the panel.
+pub const FIELD: f32 = 52.0;
+
+/// Letter-key height in dp for the size class: 40 on `small`, 56
+/// elsewhere.
+pub const fn key_height(class: SizeClass) -> f32 {
+    match class {
+        SizeClass::Small => 40.0,
+        _ => 56.0,
+    }
+}
+
+/// Gap between key cells in dp. Zero: keys tile the keyboard area with
+/// no dead zones and each paints a face inset from its cell.
+pub const KEY_GAP: f32 = 0.0;
+/// Inset in dp from a key's cell to its visible face, left and right.
+pub const KEY_FACE_INSET: f32 = 3.0;
+/// Inset in dp from a key's cell to its visible face, top and bottom.
+pub const KEY_FACE_INSET_Y: f32 = 2.0;
+/// Inset in dp under the bottom row's faces, so the visible keys stand
+/// clear of the screen edge while their hit rectangles reach it.
+pub const KEY_BOTTOM_INSET: f32 = 16.0;
+
+/// The bottom row's face inset: the plain inset plus `inset_bottom`, the
+/// strip the shell reported at the bottom edge, so the keys people see
+/// stand clear of a gesture bar while their hit rectangles still reach
+/// the edge.
+pub fn key_bottom_inset(inset_bottom: f32) -> f32 {
+    KEY_BOTTOM_INSET + inset_bottom
+}
+
+/// The keyboard region's reserve ([`KEY_BOTTOM_RESERVE`] plus the
+/// shell's bottom inset).
+pub fn key_bottom_reserve(inset_bottom: f32) -> f32 {
+    key_bottom_inset(inset_bottom) - KEY_FACE_INSET_Y
+}
+
+/// A codex32 keyboard's row in dp, every row the same: Material 3's
+/// 48 dp touch target ([`TOUCH`]), on a page's keyboard as on the docked
+/// one (`docs/CODEX32.md` §8.4).
+pub const CODEX32_KEY_ROW: f32 = TOUCH;
+
+/// The hex keyboard's row in dp: the touch target and a [`GAP`], so each
+/// key's hit area, which the keyboard's own insets and the shell's scale
+/// take from the row, still meets [`TOUCH`] on the stick's panel (three
+/// rows of six keys, the digits 0 to F and two controls).
+pub const HEX_KEY_ROW: f32 = TOUCH + GAP;
+
+/// The shared on-screen keyboard's row in dp: the touch target and a
+/// [`GAP`], so each key's hit area, which the key's own gap takes from the
+/// row, still meets [`TOUCH`].
+pub const OSK_KEY_ROW: f32 = TOUCH + GAP;
+
+/// Columns every other pad divides its width into: the dice pad's three
+/// faces and the backspace beside them.
+pub const PAD_COLUMNS: f32 = 4.0;
+
+/// Width in key units of an edge key that takes a key and a half:
+/// shift, backspace and ✓ at the ends of a letter row.
+pub const KEY_UNITS_EDGE: f32 = 1.5;
+/// Width in key units of ✓ where it closes a row of its own: the card
+/// pad's row of suits.
+pub const KEY_UNITS_DONE: f32 = 3.0;
+/// Width in key units of the passphrase keyboard's space bar.
+pub const KEY_UNITS_SPACE: f32 = 6.0;
+
+/// Columns of the kana grid: the ten consonant groups of the 五十音
+/// (`docs/DESIGN.md` §4.3).
+pub const KANA_COLUMNS: usize = 10;
+
+/// Width from which Add a key's page with a list's own keyboard counts
+/// as wide: the word count joins the list chips and the keys are as tall
+/// as the touch floor.
+pub const WORD_KEYS_WIDE_FROM: f32 = 600.0;
+/// Room the word count needs after the last list chip to stand on its
+/// row: its label and five chips.
+pub const WORD_COUNT_BESIDE_MIN: f32 = 340.0;
+/// On the wide page, the stick row's height above the buttons, and the
+/// gap between the passphrase and it.
+pub const WIDE_STICK_ROW: f32 = 44.0;
+/// Gap under the passphrase on the wide page, before the buttons.
+pub const WIDE_FINISH_GAP: f32 = 8.0;
+/// Width of a passphrase field's label on Add a key.
+pub const PASS_LABEL_W: f32 = 150.0;
+/// Gap between the two passphrase fields side by side.
+pub const PASS_BESIDE_GAP: f32 = 12.0;
+/// Width the way in from a stick needs beside the buttons' hint.
+pub const WIDE_STICK_W: f32 = 190.0;
+/// Gap before the way in from a stick, after the buttons' hint.
+pub const WIDE_STICK_GAP: f32 = 16.0;
+/// Where Clear starts after Add a key's button, on Add a key.
+pub const FINISH_CLEAR_X: f32 = 152.0;
+/// Gap between Add a key's buttons.
+pub const FINISH_BUTTON_GAP: f32 = 8.0;
+/// Gap between the last button and the keys' hint.
+pub const FINISH_HINT_GAP: f32 = 20.0;
+/// Slack added to a keyboard's area so its rows do not round down.
+pub const KEY_AREA_SLACK: f32 = 0.01;
+
+/// Cells in one row of candidates on a list whose words are one
+/// character — the two Chinese lists, looked up by a Mandarin reading.
+///
+/// A character needs no more width than a key, and the keyboard under
+/// the strip is ten keys wide, so a cell at the keyboard's own key pitch
+/// is a target the design already accepts: 24 px, 4.3 mm, on the 240 px
+/// panel and 6.5 mm on a phone. Two rows of ten hold the largest tone
+/// group there is (`yi4`, 20 characters), so
+/// nobody pages.
+pub const CANDIDATE_CELLS_HANZI: usize = 10;
+
+/// Rows of candidates for such a list, on every class: two, which is
+/// [`CANDIDATE_CELLS_HANZI`] short of a whole tone group.
+pub const CANDIDATE_ROWS_HANZI: usize = 2;
+
+/// Rows of candidates between the field and the keys: two on `small`
+/// and `mobile`, one on `wide`; a list whose words are one character
+/// has two rows of ten on every class ([`candidates_per_row`]).
+///
+/// `one_char` is that list: a Chinese one, whose words are single
+/// characters and whose strip is [`CANDIDATE_CELLS_HANZI`] wide.
+pub const fn candidate_rows(class: SizeClass, one_char: bool) -> usize {
+    if one_char {
+        return CANDIDATE_ROWS_HANZI;
+    }
+    match class {
+        SizeClass::Wide => 1,
+        _ => 2,
+    }
+}
+
+/// Candidates in one row.
+pub const fn candidates_per_row(class: SizeClass, one_char: bool) -> usize {
+    if one_char {
+        return CANDIDATE_CELLS_HANZI;
+    }
+    match class {
+        SizeClass::Small => 3,
+        _ => 4,
+    }
+}
+
+/// Candidates the strip shows in all.
+pub const fn candidates(class: SizeClass, one_char: bool) -> usize {
+    candidate_rows(class, one_char) * candidates_per_row(class, one_char)
+}
+
+// ---------------------------------------------------------------------
+// Panels
+// ---------------------------------------------------------------------
+
+// ---------------------------------------------------------------------
+// Codes
+// ---------------------------------------------------------------------
+
+/// Side in dp of each address's QR code on the Sweep sheet, or the
+/// sheet's width where that is less: the size the power sheet's guide
+/// code is drawn at on the desktop.
+pub const SWEEP_QR: f32 = 160.0;
+
+/// Side in dp of a QR code for the size class: 198 on `small`, 260 on
+/// `mobile`, 240 on `wide`. A held SeedQR in a vault is drawn at this
+/// side, or the field's width where that is less; `mobile` scales the
+/// PNG a QR code is saved as (`docs/DESIGN.md` §3).
+pub const fn qr_side(class: SizeClass) -> f32 {
+    match class {
+        SizeClass::Small => 198.0,
+        SizeClass::Mobile => 260.0,
+        SizeClass::Wide => 240.0,
+    }
+}
 
 /// Largest short side in pixels of the camera preview the scanner keeps
 /// and draws (`docs/DESIGN.md` §4.9, Scanner). The largest viewfinder is
@@ -8,6 +467,1858 @@
 /// panel's is 286 px, so a frame reduced to this covers every square
 /// without carrying pixels no display can show.
 pub const PREVIEW_MAX: usize = 400;
+
+/// A corner bracket's arm over a camera's picture, as a share of the
+/// picture's short side (`docs/DESIGN.md` §4.9, Scanner).
+pub const VIEWFINDER_BRACKET_SHARE: f32 = 1.0 / 6.0;
+/// Stroke in dp of a corner bracket.
+pub const VIEWFINDER_BRACKET_STROKE: f32 = 3.0;
+/// Stroke in dp of the outline round a code the scanner found
+/// (`docs/QR.md` §8 item 4), as the brackets'.
+pub const VIEWFINDER_OUTLINE_STROKE: f32 = VIEWFINDER_BRACKET_STROKE;
+/// Width in dp of the edge in the outline's on-colour each side of it,
+/// so it reads over a dark picture and a light one alike.
+pub const VIEWFINDER_OUTLINE_EDGE: f32 = 1.5;
+/// How far in dp the brackets stand inside the picture's edge.
+pub const VIEWFINDER_BRACKET_INSET: f32 = GAP;
+/// Space in dp round the state line and the parts bar on their band
+/// inside the picture, and between them.
+pub const VIEWFINDER_BAND_PAD: f32 = GAP;
+/// Opacity (of 255) of the band the state line sits on over the
+/// picture: dark enough that white words read over a white QR, light
+/// enough that the picture shows through.
+pub const VIEWFINDER_BAND_ALPHA: u8 = 180;
+
+// ---------------------------------------------------------------------
+// Chips and badges
+// ---------------------------------------------------------------------
+
+// ---------------------------------------------------------------------
+// Record
+// ---------------------------------------------------------------------
+
+// ---------------------------------------------------------------------
+// Hub and the wide template
+// ---------------------------------------------------------------------
+
+// ---------------------------------------------------------------------
+// Structure chart
+// ---------------------------------------------------------------------
+
+/// Padding in dp inside a structure chart's node (`docs/DESIGN.md`
+/// §4.16): a grid step and a half, so that five nodes stand side by side
+/// on a desktop card.
+pub const CHART_NODE_PAD: f32 = GRID + GAP_SMALL;
+/// The narrowest a node is drawn before its row wraps onto another line.
+pub const CHART_NODE_MIN: f32 = 112.0;
+/// The widest a node is drawn: a row of few nodes is centred, not
+/// stretched across the card.
+pub const CHART_NODE_MAX: f32 = 240.0;
+/// The gap in dp between two nodes side by side, which a line passing
+/// down between them runs through.
+pub const CHART_NODE_GAP: f32 = GRID + GAP_SMALL;
+/// The space in dp above and below the lines' runs across, between two
+/// lines of nodes.
+pub const CHART_BAND: f32 = GRID + GAP_SMALL;
+/// The distance in dp between two lines running side by side, across a
+/// band or down a gap.
+pub const CHART_LANE: f32 = GAP_SMALL;
+/// A line's stroke in dp.
+pub const CHART_STROKE: f32 = 1.0;
+/// A key's lines while its sheet's **Where it is** shows them, the rest
+/// dimmed.
+pub const CHART_STROKE_BOLD: f32 = 2.0;
+/// Width in dp of the sheet a chart's node opens, on a wide display.
+pub const CHART_SHEET_WIDTH: f32 = 560.0;
+/// Height in dp of an action row on that sheet: one line, its value at
+/// the right.
+pub const CHART_SHEET_ROW: f32 = 44.0;
+/// A side sheet's width (Material 3 Side sheets: 256 to 400 dp): the
+/// widest, so a chart node's sheet keeps its rows and facts on one line
+/// where the centred sheet did (`docs/DESIGN.md` §4.16).
+pub const SIDE_SHEET_W: f32 = 400.0;
+/// A side sheet's padding inside its edges (Material 3 Side sheets).
+pub const SIDE_SHEET_PAD: f32 = 24.0;
+/// The open vault's kinds column, in dp, while a wallet's chart is
+/// shown: narrower, so that the chart beside it has room for five nodes
+/// on a line at the desktop window's size.
+pub const CHART_PANE_KINDS: f32 = 128.0;
+/// The open vault's list of items, in dp, while a wallet's chart is
+/// shown.
+pub const CHART_PANE_ITEMS: f32 = 176.0;
+/// Height in dp of a button inside a node.
+pub const CHART_BUTTON: f32 = 32.0;
+/// Distance in dp from a tick box's left edge to its label's.
+pub const CHECK_LABEL_INDENT: f32 = 32.0;
+/// Distance in dp from the QR sheet's edge to its text, on a wide panel.
+pub const QR_SHEET_MARGIN: f32 = 32.0;
+/// Each key's dash pattern, in dp: on, off, on, off. The first is solid.
+/// With the line colours, which cycle with them, they tell the keys'
+/// lines apart where colour alone does not.
+pub const CHART_DASHES: [[f32; 4]; 5] = [
+    [1.0, 0.0, 1.0, 0.0],
+    [8.0, 4.0, 8.0, 4.0],
+    [2.0, 3.0, 2.0, 3.0],
+    [10.0, 3.0, 2.0, 3.0],
+    [14.0, 4.0, 5.0, 4.0],
+];
+
+// ---------------------------------------------------------------------
+// Backup board
+// ---------------------------------------------------------------------
+
+/// The narrowest a stick box or Paper is drawn on a place's row of the
+/// backup board (`docs/DESIGN.md` §4.17) before the sticks wrap onto
+/// another line inside the place: a chip with a fingerprint and its
+/// marks fits on one line inside it.
+pub const BOARD_BOX_MIN: f32 = 160.0;
+/// The widest a chip is laid out when it is drawn alone: the chip being
+/// dragged.
+pub const BOARD_CARD_MAX: f32 = 280.0;
+/// The gap in dp between two places on the board, one under another
+/// (`docs/BACKUP-FLOW.md` §17.15).
+pub const BOARD_PLACE_GAP: f32 = 2.0 * GRID + GAP_SMALL;
+/// The narrowest a place stands in a column of the backup board on a
+/// large window (`docs/LAYOUT.md` §17): its stick, its **+ stick** and
+/// its Paper side by side at `BOARD_BOX_MIN` and over. The work width
+/// holds as many columns as fit at this width, two at 1920 dp and three
+/// at 2560 dp, each at the row's share.
+pub const BOARD_PLACE_W: f32 = 60.0 * GRID;
+/// Width in dp of a place's left stripe, in its edge's colour.
+pub const BOARD_PLACE_STRIPE: f32 = 5.0;
+/// Stroke in dp of a place's edge, Paper's, and **+ stick**'s and **+
+/// place**'s dashed edges.
+pub const BOARD_BOX_EDGE: f32 = 1.5;
+/// Width in dp of the **+ stick** box on a place's row.
+pub const BOARD_ADD_STICK: f32 = 72.0;
+/// Height in dp of a place's line of fact, an outlined tag in its header
+/// band.
+pub const BOARD_TAG: f32 = 20.0;
+/// A dash of a dashed edge in dp, and the gap after it.
+pub const BOARD_DASH: f32 = GAP_SMALL;
+/// The gap in dp round the list sheet, and between the board and what is
+/// over it.
+pub const BOARD_GAP: f32 = GRID + GAP_SMALL;
+/// Height in dp of a place's header band: its glyph, name, line of fact
+/// and ×; and of the **+ place** row.
+pub const BOARD_HEAD: f32 = 36.0;
+/// Padding in dp inside a place card and inside each of its zones.
+pub const BOARD_PAD: f32 = GAP;
+/// Height in dp of a zone's label row ("Stick 1", "Paper").
+pub const BOARD_ZONE_LABEL: f32 = 20.0;
+/// The gap in dp under a silent payments address or DNS record line,
+/// before the next row.
+pub const SILENT_LINE_GAP: f32 = 14.0;
+/// Height in dp of the label line above a Create card's value or choice
+/// row (Path, Account).
+pub const CREATE_FIELD_LABEL: f32 = 20.0;
+/// Height in dp of a row of the Layout screen's vault chips and the least
+/// height of a board's row of boxes; the board's chips are one touch
+/// target high (`tokens::touch`).
+pub const BOARD_CHIP: f32 = 28.0;
+/// The height in dp of the label beside a checkbox under a vault of the
+/// board's list.
+pub const BOARD_CHECK_LABEL: f32 = 22.0;
+/// The gap in dp between two chips, beside or under each other.
+pub const BOARD_CHIP_GAP: f32 = GAP_SMALL;
+/// The side of a chip's marks in dp: its glyph, its × target's cross,
+/// its link mark and its warning mark.
+pub const BOARD_MARK: f32 = 12.0;
+/// Stroke in dp of a drawn mark: the × and the link.
+pub const BOARD_MARK_STROKE: f32 = 1.5;
+/// Stroke in dp of the edge round a zone that takes the chip held, and
+/// round the chip held.
+pub const BOARD_EDGE: f32 = 2.0;
+/// Width in dp of a chip's ⋮ menu, a popup under the ⋮
+/// (`docs/BACKUP-FLOW.md` §17.20); the board's sheets on `wide` are twice
+/// it.
+pub const BOARD_POPUP_WIDTH: f32 = 220.0;
+/// Diameter in dp of each of the three dots of a chip's ⋮.
+pub const BOARD_MENU_DOT: f32 = 3.0;
+/// Opacity (of 255) of the thin rule between a chip and its ⋮, drawn in
+/// the ⋮'s colour.
+pub const BOARD_MENU_RULE: u8 = 120;
+/// Height in dp of the head of a stick box with no × (the software
+/// zone's, a checklist card's and the guide figures'): the second of the
+/// board's three nested boxes, place, stick, vault. A place card's stick,
+/// whose head has the ×, is headed a touch target high.
+pub const BOARD_STICK_HEAD: f32 = 24.0;
+/// Padding in dp inside a stick box, round its vault box and its files.
+pub const BOARD_STICK_PAD: f32 = GAP_SMALL;
+/// Stroke in dp of a stick box's edge: heavier than a zone's, so the
+/// stick reads as a box of its own inside the place card.
+pub const BOARD_STICK_EDGE: f32 = 1.5;
+/// Height in dp of a vault box's head ("Vault 1", its marks and ×): a
+/// press target tall, the head being the vault's chip and its ⋮ and ×
+/// icon buttons.
+pub const BOARD_VAULT_HEAD: f32 = TOUCH;
+/// Padding in dp inside a vault box, round the records it holds.
+pub const BOARD_VAULT_PAD: f32 = GAP_SMALL;
+/// Stroke in dp of a vault box's edge.
+pub const BOARD_VAULT_STROKE: f32 = 2.0;
+
+// ---------------------------------------------------------------------
+// Timings
+// ---------------------------------------------------------------------
+
+/// Stroke width in dp of the accent edge on what the keyboard is on: a
+/// ⋮ it has moved to, and the row of a ⋮ menu the arrows are on
+/// (`docs/DESIGN.md` §4.15, §4.17).
+pub const FOCUS_STROKE: f32 = FOCUS_RING;
+
+/// Hold-button duration in milliseconds (`docs/DESIGN.md` §4.13).
+pub const HOLD_MS: u64 = 1500;
+/// Milliseconds a passing state stays on a line before the line goes
+/// back to what it said: "Nothing to paste" on the scanner's state line
+/// (`docs/DESIGN.md` §4.9, Scanner).
+pub const NOTE_FLASH_MS: u64 = 2000;
+/// Milliseconds the scanner waits for the camera's first frame before
+/// it says the camera sends no picture (`docs/QR.md` §8 item 6).
+pub const NO_PICTURE_MS: u64 = 9000;
+/// Milliseconds a QR is seen large enough and not read before the
+/// scanner says how to hold it (`docs/QR.md` §8 item 8).
+pub const POOR_PICTURE_MS: u64 = 4000;
+
+/// Where the contents of a right-hand side panel (Spend, Back up, Create a
+/// vault, a board's list) start: below the header's row of pills and the ?,
+/// which stand over the panel's top (`docs/MODES.md` §3).
+pub const SIDE_PANEL_TOP: f32 = GRID * 6.0;
+
+/// A flow's Your choices pane: the room at each side and at its foot.
+pub const CHOICES_INSET: f32 = 26.0;
+/// A flow's Your choices pane: a row of its choices, label and answer.
+pub const CHOICES_ROW: f32 = 48.0;
+
+/// The mode pill's height (`docs/MODES.md` §3).
+pub const MODE_PILL_HEIGHT: f32 = 28.0;
+
+/// The mode pill's inset from its edge to its label, each side.
+pub const MODE_PILL_PAD: f32 = 12.0;
+
+/// The gap above and below the Starter's list of images, between it and
+/// what comes next on the page.
+pub const IMAGE_LIST_GAP: f32 = 12.0;
+
+/// The mode sheet's widest, as the Load sheet's.
+pub const MODE_SHEET_WIDTH: f32 = 640.0;
+
+/// A row of the mode sheet, and of Settings' Mode row.
+pub const MODE_ROW: f32 = 48.0;
+
+/// The chip inside an empty entry field (Use a sample): its height.
+pub const FIELD_ACTION_HEIGHT: f32 = 26.0;
+
+/// The chip inside an empty entry field: the space between the field's
+/// edge and the chip, and between the chip's edge and its label.
+pub const FIELD_ACTION_INSET: f32 = 10.0;
+
+/// The chip inside an empty entry field: its label, Material's label
+/// large (a chip's label).
+pub const FIELD_ACTION_TEXT: TypeRole = LABEL_L;
+
+/// A word cell of Add a key on a wide display: its height.
+pub const ENTRY_CELL_HEIGHT: f32 = 38.0;
+
+/// Add a key's word grid on a wide display: the distance from one row to
+/// the next.
+pub const ENTRY_ROW: f32 = 46.0;
+
+/// Corner radius of an entry field and its word cells: Material's
+/// extra-small.
+pub const FIELD_RADIUS: f32 = SHAPE_XS;
+
+/// Add a key's word grid on a wide display: the gap between cells.
+pub const ENTRY_CELL_GAP: f32 = 10.0;
+
+/// Add a key's word cell on a wide display: the room its number takes at
+/// the left, before the word.
+pub const ENTRY_CELL_NUMBER: f32 = 24.0;
+
+/// A Seed XOR part on the seed's copy page: how far the part's words stand
+/// in from the left edge, past its number.
+pub const PART_NUMBER_INDENT: f32 = 28.0;
+
+/// A Seed XOR part on the seed's copy page: the least height of its words.
+pub const PART_MIN_H: f32 = 18.0;
+
+/// A passphrase field that takes no typing (Practice's `faraday`): how far
+/// its code box stands in from the field's left edge.
+pub const PASS_CODE_INSET: f32 = 12.0;
+
+/// A passphrase field that takes no typing: the size of the passphrase in
+/// its code box.
+pub const PASS_CODE_TEXT: f32 = 14.0;
+
+/// A one-line text field a little taller than [`TEXT_FIELD`]: a
+/// passphrase field on a small panel, and Check my copy's.
+pub const TEXT_FIELD_TALL: f32 = 42.0;
+
+/// A one-line text field of a sheet and of the Lightning screen's cipher
+/// seed.
+pub const TEXT_FIELD_SHEET: f32 = 44.0;
+
+/// A filter chip (Material's): its height. Settings' theme chips
+/// (`docs/THEMES.md` §12).
+pub const FILTER_CHIP_H: f32 = 32.0;
+
+/// A filter chip: the room before its leading icon.
+pub const FILTER_CHIP_LEAD: f32 = 8.0;
+
+/// A filter chip: the room after its label.
+pub const FILTER_CHIP_TRAIL: f32 = 16.0;
+
+/// A filter chip: its leading icon, a theme chip's swatch.
+pub const FILTER_CHIP_ICON: f32 = 18.0;
+
+/// Filter chips: the gap between two, side by side and row to row.
+pub const FILTER_CHIP_GAP: f32 = 8.0;
+
+/// A search bar's height (below Material 3's 56 dp, the owner's choice, F314), its shape the full
+/// round of half of it.
+pub const SEARCH_BAR_H: f32 = 48.0;
+
+/// The least width Home's search bar keeps in its row with the three buttons;
+/// under it the buttons stand on a second row.
+pub const HOME_SEARCH_MIN: f32 = 200.0;
+
+/// A search bar's leading and trailing icons' box (Material: 24 dp).
+pub const SEARCH_ICON: f32 = 24.0;
+
+/// A search bar's icon glyph inside its box.
+pub const SEARCH_GLYPH: f32 = 16.0;
+
+/// A search bar's inset at each end, and between its leading icon and
+/// what is typed (Material: 16 dp).
+pub const SEARCH_INSET: f32 = 16.0;
+
+/// An item of an open vault's items column on a wide window: its height
+/// with a one-line title, the gap under it, the inset of its text and its
+/// title's top.
+pub const VAULT_ITEM_H: f32 = 52.0;
+/// The gap under a vault item.
+pub const VAULT_ITEM_GAP: f32 = 6.0;
+/// A vault item's text inset from its edges.
+pub const VAULT_ITEM_PAD: f32 = 12.0;
+/// A vault item's title's top in it.
+pub const VAULT_ITEM_TOP: f32 = 8.0;
+/// A vault item's line under its title, from the item's top with a
+/// one-line title.
+pub const VAULT_ITEM_LINE: f32 = 30.0;
+
+/// A theme chip's leading slot: the radius of the theme's primary dot
+/// in it on a theme not chosen.
+pub const THEME_CHIP_DOT: f32 = 4.0;
+
+/// A theme chip's leading slot: the tick drawn in it on the chosen
+/// theme.
+pub const THEME_CHIP_TICK: f32 = 14.0;
+
+/// The chosen theme chip's ring, in that theme's primary: its
+/// thickness, as Material's focus indicator (`docs/THEMES.md` §12).
+pub const THEME_CHIP_RING: f32 = 3.0;
+
+/// The chosen theme chip's ring: the band of the page between it and
+/// the chip's fill.
+pub const THEME_CHIP_RING_GAP: f32 = 2.0;
+
+/// A segmented button's height (Material's): Settings' Mode and
+/// Contrast.
+pub const SEGMENTED_H: f32 = 40.0;
+
+/// Settings' Appearance rows on the wide layout: the width of the
+/// labels' column, the controls to its right.
+pub const APPEARANCE_LABEL_W: f32 = 128.0;
+
+/// Settings' Appearance rows: the gap between one row and the next.
+pub const APPEARANCE_ROW_GAP: f32 = 16.0;
+
+/// Settings' Appearance rows on a small panel: the gap from a row's
+/// label to its control under it.
+pub const APPEARANCE_LABEL_GAP: f32 = 8.0;
+
+/// A switch (Material's): its track's width.
+pub const SWITCH_W: f32 = 52.0;
+
+/// A switch: its track's height.
+pub const SWITCH_H: f32 = 32.0;
+
+/// A switch: its track's edge while off.
+pub const SWITCH_EDGE: f32 = 2.0;
+
+/// A switch: its handle's diameter while off.
+pub const SWITCH_HANDLE_OFF: f32 = 16.0;
+
+/// A switch: its handle's diameter while on.
+pub const SWITCH_HANDLE_ON: f32 = 24.0;
+
+/// A switch: its handle's diameter while pressed.
+pub const SWITCH_HANDLE_PRESSED: f32 = 28.0;
+
+/// A switch: the state layer round its handle, its diameter.
+pub const SWITCH_STATE: f32 = 40.0;
+
+/// A card's own text: how far in from its bar the words stand.
+pub const GUIDE_INDENT: f32 = 14.0;
+
+/// A card's own text: the width of the bar beside it.
+pub const GUIDE_BAR: f32 = 3.0;
+
+// Window size classes (`docs/LAYOUT.md` §2, Material 3's widths and
+// heights, in dp).
+
+/// A window this wide or wider is medium, not compact.
+pub const WINDOW_MEDIUM: f32 = 600.0;
+
+/// A window this wide or wider is expanded.
+pub const WINDOW_EXPANDED: f32 = 840.0;
+
+/// A window this wide or wider is large.
+pub const WINDOW_LARGE: f32 = 1200.0;
+
+/// A window this wide or wider is extra-large.
+pub const WINDOW_EXTRA_LARGE: f32 = 1600.0;
+
+/// A window less tall than this is short (the Pi panel).
+pub const WINDOW_SHORT: f32 = 480.0;
+
+/// A window less tall than this is low (a 7-inch panel).
+pub const WINDOW_LOW: f32 = 600.0;
+
+/// The window assumed before a shell has said what its display is: the
+/// desktop window's default, 1280 × 800 dp.
+pub const WINDOW_DEFAULT_W: f32 = 1280.0;
+
+/// The default window's height (`WINDOW_DEFAULT_W`).
+pub const WINDOW_DEFAULT_H: f32 = 800.0;
+
+/// Held inside the Starter, a window narrower than this takes the
+/// one-column layout: the wide layout's 1280 dp page (`docs/STARTER.md`
+/// §3.1d).
+pub const WINDOW_HELD_WIDE: f32 = 1280.0;
+
+/// The screens the desktop app can show its screens at
+/// (`docs/DESKTOP-HOST.md` §10), width and height in dp, in Settings'
+/// order: the Pi panel, a narrow window, a half-screen window, a 7-inch
+/// panel (1024 × 600 at 170 dpi) and the same in portrait, a 10-inch
+/// panel (1280 × 800 at 150 dpi) and the same in portrait
+/// (`docs/ORIENTATION.md` §10), the desktop window, a full monitor.
+pub const PREVIEW_SIZES: [(u16, u16); 9] = [
+    (268, 358),
+    (400, 800),
+    (760, 1000),
+    (964, 565),
+    (565, 964),
+    (1365, 853),
+    (853, 1365),
+    (1280, 800),
+    (1920, 1080),
+];
+
+// Faraday Demo's host (`docs/DESKTOP-HOST.md`): the strip along the
+// window's foot, outside the app, in the host's own look.
+
+/// The host strip's height at the window's foot: its 48 dp controls
+/// with 8 dp above and below. It is set by the window, never by the
+/// preview size the app is shown at.
+pub const HOST_STRIP_H: f32 = HOST_CONTROL_H + 2.0 * GAP;
+/// A control's height in the host strip, drawn as tall as its press:
+/// Material's 48 dp touch target, at every window size.
+pub const HOST_CONTROL_H: f32 = TOUCH;
+/// A line of text in a host menu or Samples' sheet: a heading, a note.
+pub const HOST_LINE: f32 = 32.0;
+/// The strip's scroll indicator's thickness, where its controls are
+/// wider than the window and it scrolls sideways.
+pub const HOST_INDICATOR: f32 = 4.0;
+/// A host menu's width: Material's menu at its widest, 280 dp.
+pub const HOST_MENU_W: f32 = 280.0;
+/// The least a preview's frame is scaled down to fit a small window.
+pub const PREVIEW_SCALE_MIN: f32 = 0.05;
+/// A host menu's row: Material's menu item, 48 dp.
+pub const HOST_MENU_ROW: f32 = 48.0;
+/// Load samples' sheet in the host at its widest: Material's side
+/// sheet, 360 dp, narrowing to a menu's width in a preview's gutter.
+pub const HOST_SHEET_W: f32 = 360.0;
+/// The border round the app's frame that says where the pointer and the
+/// keys go: primary while they reach the app, outline-variant while they
+/// do not (`docs/DESKTOP-HOST.md` §4).
+pub const HOST_FOCUS_EDGE: f32 = 2.0;
+/// How long that border takes to change colour: Material's short 4, on
+/// its standard curve.
+pub const HOST_FOCUS_FADE_MS: u64 = MOTION_SHORT4;
+/// The outline of a stick pill the app asks for (`docs/DESKTOP-HOST.md`
+/// §3): primary, twice a control's outline.
+pub const HOST_MARK_EDGE: f32 = 2.0;
+/// One pulse of a stick pill the app asks for, its primary layer rising
+/// and falling: Material's extra long 4.
+pub const HOST_PULSE_MS: u64 = MOTION_EXTRA_LONG4;
+/// How many pulses the pill gives before it holds its highlight steady.
+pub const HOST_PULSES: u64 = 3;
+/// One full flash of the boot stick's pill while a step waits for it to
+/// be pulled, its mark fading out and back in.
+pub const HOST_FLASH_MS: u64 = 1600;
+/// The primary layer at a pulse's height.
+pub const HOST_PULSE_LAYER: f32 = 0.24;
+/// The primary layer of a steady highlight: after the pulses, under
+/// Reduce motion and with fades off. Material's dragged state layer.
+pub const HOST_MARK_LAYER: f32 = STATE_DRAG;
+
+// Navigation by window class (`docs/LAYOUT.md` §3, §9), Material 3's
+// rail, bar and top app bar in Faraday's look.
+
+/// The navigation rail's width, at the window's left (medium, expanded
+/// and low windows).
+pub const RAIL_W: f32 = 80.0;
+
+/// The navigation bar's height, across a compact window's foot.
+pub const NAV_BAR_H: f32 = 80.0;
+
+/// The top app bar's height, across the page.
+pub const APP_BAR_H: f32 = 64.0;
+
+/// The room a device's stick pills leave the page's name in the top app
+/// bar beside the expanded rail, back arrow included: the pills take the
+/// longest form that fits the rest (`docs/LAYOUT.md` §3).
+pub const APP_BAR_PILLS_TITLE_ROOM: f32 = 320.0;
+
+/// The pill behind the current destination's icon on the rail and the
+/// bar: its width.
+pub const NAV_PILL_W: f32 = 56.0;
+
+/// The pill's height (`NAV_PILL_W`).
+pub const NAV_PILL_H: f32 = 32.0;
+
+/// A rail destination's height where the rail has room: its pill, its
+/// label under it and the space round them.
+pub const NAV_ITEM_H: f32 = 56.0;
+
+/// A destination's icon, drawn in its pill.
+pub const NAV_ICON: f32 = 16.0;
+
+/// The space between a destination's pill and its label.
+pub const NAV_LABEL_GAP: f32 = 4.0;
+
+/// The shield mark at the rail's top: its box's width.
+pub const RAIL_MARK_W: f32 = 24.0;
+
+/// The shield mark at the rail's top: its box's height.
+pub const RAIL_MARK_H: f32 = 28.0;
+
+/// The space above the rail's first destination and under its last.
+pub const NAV_RAIL_TOP: f32 = 12.0;
+
+/// Material's small badge on a destination's icon: a dot this wide.
+pub const BADGE_SMALL: f32 = 6.0;
+
+/// Material's large badge on a destination's icon: its height, and its
+/// least width.
+pub const BADGE_LARGE: f32 = 16.0;
+
+/// The large badge's room each side of its label.
+pub const BADGE_PAD: f32 = 4.0;
+
+/// The large badge's label: Material's label small.
+pub const BADGE_LABEL: f32 = 11.0;
+
+/// The page's side margin on a compact window.
+pub const MARGIN_COMPACT: f32 = 16.0;
+
+/// The room a page keeps between the field typing goes to and the
+/// on-screen keyboard's top, and between that field and the top of the
+/// page's region when it is brought down into view: the compact margin.
+pub const KEYBOARD_CLEAR: f32 = MARGIN_COMPACT;
+
+/// The page's side margin on every wider window.
+pub const MARGIN_WIDE: f32 = 24.0;
+
+/// The widest a one-column page grows beside the navigation.
+pub const COLUMN_MAX: f32 = 720.0;
+
+/// The narrowest a flow's card column goes to make room for Guide's pane
+/// beside the flow (`docs/FLOW-CONTAINER.md` §4).
+pub const FLOW_CARD_MIN: f32 = 560.0;
+
+/// The narrowest Your choices goes, on any window.
+pub const CHOICES_PANE_MIN: f32 = 240.0;
+
+/// The widest Your choices (and the side panel of a step-by-step column)
+/// grows.
+pub const CHOICES_PANE_MAX: f32 = 320.0;
+/// The share of the page area the pane at a column's right takes, between
+/// its least and its widest.
+pub const CHOICES_PANE_SHARE: f32 = 0.31;
+
+/// The width of the area a reading page is laid out in, centred in the
+/// room beside the navigation once that room is wider than the area
+/// (`docs/LAYOUT.md` §14): a 900 dp column and its side insets.
+pub const READING_PAGE_W: f32 = 1000.0;
+/// Set the time's reading area: its 520 dp column between two 56 dp insets.
+pub const READING_TIME_W: f32 = 520.0 + 2.0 * 56.0;
+/// Add randomness' reading area: its `COLUMN_MAX` column between two
+/// 48 dp insets.
+pub const READING_RANDOM_W: f32 = COLUMN_MAX + 4.0 * MARGIN_WIDE;
+/// Explore's inset from its area's edges on a wide window.
+pub const EXPLORE_INSET: f32 = 56.0;
+/// The space under the line beneath a private key Explore shows.
+pub const EXPLORE_NOTE_GAP: f32 = 12.0;
+/// Explore's reading area: its `COLUMN_MAX` column between two
+/// `EXPLORE_INSET`s (`docs/LAYOUT.md` §17).
+pub const READING_EXPLORE_W: f32 = COLUMN_MAX + 2.0 * EXPLORE_INSET;
+/// The inset a page of the older wide layout keeps from its area's
+/// sides (Transfer, a stick visit, the tools' catalogue).
+pub const PAGE_INSET: f32 = 2.0 * MARGIN_WIDE;
+/// Tools' column on a wide window, from the way back to the field's end.
+pub const TOOLS_COLUMN_W: f32 = 900.0;
+/// Tools' inset from its area's left edge on a wide window.
+pub const TOOLS_INSET: f32 = 56.0;
+/// Tools' reading area: its column after its inset, an inset's width
+/// either side in all (`docs/LAYOUT.md` §14).
+pub const READING_TOOLS_W: f32 = TOOLS_COLUMN_W + 2.0 * TOOLS_INSET;
+/// Transfer's two columns, Send and Receive, at their widest together.
+pub const TRANSFER_W: f32 = 1100.0;
+/// Transfer's reading area: its columns between two `PAGE_INSET`s.
+pub const READING_TRANSFER_W: f32 = TRANSFER_W + 2.0 * PAGE_INSET;
+/// The gap between a stick visit's two lists.
+pub const VISIT_GAP: f32 = 20.0;
+/// The band under a stick visit's lists that names the secret files the
+/// stick holds, with its button.
+pub const VISIT_NOTICE_H: f32 = 64.0;
+/// The room kept between that notice's words and its button.
+pub const VISIT_NOTICE_GAP: f32 = 16.0;
+/// The width a button takes beyond its label (each side's padding).
+pub const VISIT_NOTICE_BUTTON_PAD: f32 = 36.0;
+/// The room a file's name keeps in a stick pane's row before the row's
+/// main action is drawn: narrower columns (the Pi's) drop the action.
+pub const VISIT_NAME_MIN: f32 = 120.0;
+/// What a file's row takes at its right end for the check that says the
+/// stick holds the same file, with its gap.
+pub const VISIT_SAME_W: f32 = 28.0;
+/// The opacity of the check's green laid over the card's surface as the fill
+/// of a file that is in both Faraday and on the stick (a Material state
+/// layer, F306).
+pub const VISIT_SAME_LAYER: f32 = 0.12;
+/// The check's glyph in that row.
+pub const VISIT_SAME_ICON: f32 = 18.0;
+/// The box the check's glyph is centred in.
+pub const VISIT_SAME_ICON_BOX: f32 = 20.0;
+/// How far a file row's box (what its hover and its green fill) stands in
+/// from its card's edge.
+pub const VISIT_ROW_BOX_X: f32 = 12.0;
+/// A file row's box height, the row's rule under it.
+pub const VISIT_ROW_BOX_H: f32 = 50.0;
+/// Where a same file's check stands in its row: from the row's top and
+/// from the end of the row's box.
+pub const VISIT_SAME_TOP: f32 = 6.0;
+/// A row's main action in the stick pane: shorter than a button, so it
+/// sits inside the row's height.
+pub const VISIT_ROW_BUTTON_H: f32 = 32.0;
+/// Files' cards: the heading over a card's list.
+pub const VISIT_CARD_HEAD: f32 = 62.0;
+/// Files' cards: the room under a list for the foot's buttons.
+pub const VISIT_CARD_FOOT: f32 = 88.0;
+/// Files' In Faraday card on the wide layout: the room under the list for
+/// its "more" line (20), then Write's row, 8 above the row, a two-line
+/// list item's height and 12 below it.
+pub const VISIT_WRITE_FOOT: f32 = 112.0;
+/// Files' cards: the padding a button's label has either side of it.
+pub const VISIT_BUTTON_PAD: f32 = 36.0;
+/// Files' cards: the top of the foot's buttons above the card's bottom.
+pub const VISIT_FOOT_ROW: f32 = 62.0;
+/// Files' stick chips: how far their press box rises above the chip, to
+/// reach the touch floor.
+pub const VISIT_CHIP_PRESS_RISE: f32 = 8.0;
+/// Files' cards on a small panel: the room over a list for the controls
+/// that stood in the heading, which the tab now names.
+pub const VISIT_COMPACT_HEAD: f32 = 56.0;
+/// Files' Select all: from its box's left edge to its label.
+pub const VISIT_SELECT_LABEL_X: f32 = 28.0;
+/// Files' Select all in a card's heading: its label's end in from the
+/// card's right edge.
+pub const VISIT_SELECT_END: f32 = 24.0;
+/// Files' Select all: its middle, down from the heading's top.
+pub const VISIT_SELECT_MID: f32 = 31.0;
+/// Files' In Faraday card: a group's heading row in its list.
+pub const VISIT_GROUP_HEAD: f32 = 36.0;
+/// A visit card's side padding: where its controls and lines start and
+/// end from the card's edge.
+pub const VISIT_PAD: f32 = 20.0;
+/// The boot import's tile on Files: its icon's box, the icon in it, and
+/// where its title starts right of the card's inner left edge.
+pub const IMPORT_TILE_ICON_BOX: f32 = 22.0;
+/// The icon in that box.
+pub const IMPORT_TILE_ICON: f32 = 14.0;
+/// Where the title starts, right of the card's inner left edge.
+pub const IMPORT_TILE_TITLE_X: f32 = 30.0;
+/// A listed file's ⋮, at its row's right end.
+pub const IMPORT_TILE_DOTS: f32 = 32.0;
+/// The files a small panel's import card shows at least.
+pub const IMPORT_TILE_MIN_ROWS: f32 = 3.0;
+/// The grid steps between the list and the buttons: the list's "more"
+/// line stands in them.
+pub const IMPORT_TILE_FOOT_GRIDS: f32 = 3.0;
+/// How far a visit card's text lines and group headings stand in.
+pub const VISIT_TEXT_X: f32 = 22.0;
+/// How far a visit card's title stands in, after its icon.
+pub const VISIT_TITLE_X: f32 = 50.0;
+/// The height of the visit's log lines on a wide page.
+pub const VISIT_LOG_H: f32 = 44.0;
+/// The room between a group's heading and its file count.
+pub const VISIT_COUNT_GAP: f32 = 10.0;
+/// What a stick chip's width adds to its label.
+pub const VISIT_CHIP_EXTRA: f32 = 28.0;
+/// Where a stick chip stands under the heading's top.
+pub const VISIT_CHIP_TOP: f32 = 15.0;
+/// The Inbox summary card's side padding, and where its heading text starts,
+/// its top and its height.
+pub const SUMMARY_PAD: f32 = 20.0;
+/// See [`SUMMARY_PAD`].
+pub const SUMMARY_HEAD_X: f32 = 48.0;
+/// See [`SUMMARY_PAD`].
+pub const SUMMARY_HEAD_Y: f32 = 14.0;
+/// See [`SUMMARY_PAD`].
+pub const SUMMARY_HEAD_H: f32 = 28.0;
+/// The Inbox summary taller than this is folded to one line, which opens it
+/// whole: more than two wallets, or a few kinds of file.
+pub const VISIT_SUMMARY_FOLD_H: f32 = 228.0;
+/// A stick visit's reading area: its two lists, each at most
+/// `COLUMN_MAX`, the gap between them, between two `PAGE_INSET`s.
+pub const READING_VISIT_W: f32 = 2.0 * COLUMN_MAX + VISIT_GAP + 2.0 * PAGE_INSET;
+/// The narrowest a tile of a menu page is: its name, its line; a page takes as many columns as fit,
+/// at least one (`docs/MENU-PAGE.md` §4).
+pub const CATALOG_TILE_MIN: f32 = 360.0;
+/// The height of a tile of the catalogue with its standards' tags.
+pub const CATALOG_TILE_H: f32 = 82.0;
+/// The height of a tile with no tags: its name and its line, no tags' row.
+pub const CATALOG_TILE_H_PLAIN: f32 = 58.0;
+/// The one space between tiles and cards of a menu page, across and down
+/// (`docs/MENU-PAGE.md` §5).
+pub const MENU_GAP: f32 = 16.0;
+/// Whether thin inset dividers stand between the rows of a section card
+/// (`docs/MENU-PAGE.md` §4); false draws the rows with none.
+pub const MENU_ROW_DIVIDERS: bool = true;
+/// The most section cards a menu page sets side by side.
+pub const MENU_CARD_COLUMNS: usize = 3;
+/// A section card's icon container beside a row's text.
+pub const MENU_ROW_ICON: f32 = 40.0;
+/// The height of a small tag at a section card's row.
+pub const MENU_TAG_H: f32 = 18.0;
+/// The room a tag's text leaves at its two sides together.
+pub const MENU_TAG_PAD: f32 = 14.0;
+/// The gap between a row's tags.
+pub const MENU_TAG_GAP: f32 = 6.0;
+/// The widest a menu page is: three tiles at `CATALOG_TILE_MIN` and the two
+/// gaps between them (`docs/MENU-PAGE.md` §2).
+pub const MENU_PAGE_W: f32 = 3.0 * CATALOG_TILE_MIN + 2.0 * MENU_GAP;
+/// The widest the tile of Tools or Check is where it stands beside This
+/// session's pane: the room a 1920 dp window leaves beside the navigation
+/// (1680 dp) less the page margins, the pane and the gap. A wider window
+/// keeps this width and centres the pair, so the groups do not spread
+/// further than the eye follows (`docs/WORKSPACE.md` §4).
+pub const MENU_TILE_WIDE_MAX: f32 = 1680.0 - 2.0 * MARGIN_WIDE - LIST_PANE - SPACER;
+/// A menu page's area: `MENU_PAGE_W` between two `PAGE_INSET`s.
+pub const READING_MENU_W: f32 = MENU_PAGE_W + 2.0 * PAGE_INSET;
+/// The narrowest a derivation path's field is drawn on a wide window
+/// (`docs/LAYOUT.md` §8): room for `m/86h/1h/0h/1/2147483647` and the
+/// caret at the body size; a longer path widens it, up to the column.
+pub const PATH_FIELD_W: f32 = 320.0;
+/// A transaction table's first column, the row's name (Input, Output).
+pub const TABLE_LABEL_W: f32 = 64.0;
+/// A transaction table's last column, the amount, and the gap before it.
+pub const TABLE_AMOUNT_W: f32 = 110.0;
+/// The area a page that has no wide layout yet keeps on a wide window:
+/// the room the 1600 dp frame gave it, centred beside the navigation,
+/// until its batch gives it the work width (`docs/LAYOUT.md` §17, §19).
+pub const PAGE_AREA_UNTIL_W: f32 = 1360.0;
+
+/// What a card keeps under its group of actions: enough that the touch
+/// target of a line under the group is not trimmed by the last row's.
+pub const ACTIONS_UNDER: f32 = 3.0 * GRID;
+
+/// The space between two panes (`docs/LAYOUT.md` §5): Material's spacer.
+pub const SPACER: f32 = 24.0;
+
+/// The narrowest column the session pane's card has, dp
+/// (`docs/WORKSPACE.md`); no code reads it yet.
+pub const SESSION_COL_MIN: f32 = 336.0;
+
+/// The most of the session pane's height the Waiting band takes: a third
+/// (`docs/WORKSPACE.md` §1); it scrolls within itself beyond.
+pub const SESSION_BAND_SHARE: f32 = 1.0 / 3.0;
+
+/// The padding under a wallet's card's content, dp.
+pub const WALLET_CARD_FOOT: f32 = 22.0;
+
+/// A list pane's width in list and detail (`docs/LAYOUT.md` §5):
+/// Material's default pane width.
+pub const LIST_PANE: f32 = 360.0;
+
+/// Where a list pane and its detail begin under the top app bar:
+/// Material's list padding.
+pub const PANE_TOP_BAR: f32 = 8.0;
+
+/// Where a wide page's first line stands under the top app bar
+/// (`docs/LAYOUT.md` §3).
+pub const PAGE_TOP_BAR: f32 = PAD;
+
+/// A button's height: Material's common buttons (`docs/LAYOUT.md` §8).
+pub const BUTTON_H: f32 = 40.0;
+
+/// A one-line list item's height (Material 3 Lists).
+pub const LIST_1: f32 = 56.0;
+
+/// A two-line list item's height (Material 3 Lists).
+pub const LIST_2: f32 = 72.0;
+
+/// A three-line list item's height (Material 3 Lists): its headline and
+/// two lines of supporting text.
+pub const LIST_3: f32 = 88.0;
+
+/// The headline's top in a three-line list item: Material's 12 dp above
+/// its first line.
+pub const LIST_3_TOP: f32 = 12.0;
+
+/// The least room above and below a one- or two-line list item's lines
+/// (Material 3 Lists' 8 dp): where larger text needs more than the
+/// item's height, the item grows to its lines and this
+/// (`docs/TEXT-SIZE.md` §5).
+pub const LIST_PAD_V: f32 = 8.0;
+
+/// The least room above and below a button's label (Material 3
+/// Buttons' 8 dp content padding): a button grows to its label and this
+/// where larger text needs more than [`BUTTON_H`].
+pub const BUTTON_PAD_V: f32 = 8.0;
+
+/// The least room above and below a text field's line (Material 3 Text
+/// fields' 16 dp): a field grows to its line and this where larger text
+/// needs more than [`FIELD_H`].
+pub const FIELD_PAD_V: f32 = 16.0;
+
+/// A text field's height (Material 3 Text fields, outlined; the same on
+/// every window, `docs/LAYOUT.md` §8).
+pub const FIELD_H: f32 = 56.0;
+
+/// A text field's edge at rest: Material's 1 dp outline.
+pub const FIELD_EDGE: f32 = 1.0;
+
+/// A text field's edge while focused or in error: Material's 2 dp.
+pub const FIELD_EDGE_ACTIVE: f32 = 2.0;
+
+/// A text field's room at its start and end, before what is typed and
+/// before its supporting line (Material: 16 dp).
+pub const FIELD_PAD: f32 = 16.0;
+
+/// The gap between a text field and its error line under it, and
+/// between its label kept outside and the field (Material: 4 dp).
+pub const FIELD_GAP: f32 = 4.0;
+
+/// How far in a multi-choice row's checkbox stands from the row's start.
+pub const MULTI_CHECK_X: f32 = 10.0;
+
+/// A tag's height: the status chip with its dot, a word's pill and a
+/// plain pill (`Ui::chip`, `Ui::word_pill`, `Ui::pill`).
+pub const TAG_H: f32 = 26.0;
+
+/// A tag's room from its edge to its label, each side.
+pub const TAG_PAD: f32 = 12.0;
+
+/// The dot of a status chip: its radius.
+pub const TAG_DOT_R: f32 = 3.0;
+
+/// Where a status chip's label starts, past its dot.
+pub const TAG_DOT_TEXT_X: f32 = 22.0;
+
+/// A fee bump fact's values in the review: their indent under the
+/// fact's label.
+pub const FACT_INDENT: f32 = 14.0;
+
+/// A threshold pip: its width.
+pub const PIP_W: f32 = 28.0;
+
+/// A threshold pip: its height (its ends round).
+pub const PIP_H: f32 = 10.0;
+
+/// The gap between two threshold pips.
+pub const PIP_GAP: f32 = 6.0;
+
+/// A step badge's side: a circle holding its number or a tick.
+pub const STEP_BADGE: f32 = 26.0;
+
+/// The tick in a step badge.
+pub const STEP_BADGE_TICK: f32 = 12.0;
+
+/// The side of a guide step's circle.
+pub const STEP_SIDE: f32 = 30.0;
+
+/// How far a step's text, and what follows it up to the next step, sits
+/// in from the column's edge.
+pub const STEP_INDENT: f32 = 42.0;
+
+/// The side of the square a tap on a step's circle lands in: larger
+/// than the circle.
+pub const STEP_TOUCH: f32 = 44.0;
+
+/// The tick in a checked checkbox.
+pub const CHECK_TICK: f32 = 11.0;
+
+/// The viewfinder's height for a width of one, in the session pane.
+pub const SCAN_PANE_ASPECT: f32 = 0.75;
+/// The viewfinder's least height in a short pane.
+pub const SCAN_PANE_MIN_H: f32 = 96.0;
+/// The viewfinder's corners in the session pane.
+pub const SCAN_PANE_RADIUS: f32 = 8.0;
+
+/// A floating action's height on the small panel, and elsewhere.
+pub const FAB_H_COMPACT: f32 = 40.0;
+/// A floating action's height off the small panel.
+pub const FAB_H: f32 = 48.0;
+/// A floating action's room at its ends on the small panel.
+pub const FAB_PAD_COMPACT: f32 = 10.0;
+/// A floating action's room at its ends off the small panel.
+pub const FAB_PAD: f32 = 14.0;
+
+/// The caret's height over the text size in a field drawn as one string,
+/// and the least it is.
+pub const CARET_OVER: f32 = 4.0;
+/// The least a caret is tall.
+pub const CARET_MIN: f32 = 18.0;
+/// What is typed in a field 40 or 44 dp tall stands in this far from
+/// its left edge, and as far from its right (`docs/TEXT-CURSOR.md`).
+pub const TYPED_INSET: f32 = 12.0;
+
+/// The label of a key of the on-screen keyboards and pads, by the key's
+/// height: 15 from 44 dp, 14 from 38, 13 below. A key is not a button:
+/// its label keeps the size it was designed at on each keyboard.
+pub const fn key_label(h: f32) -> f32 {
+    if h >= 44.0 {
+        15.0
+    } else if h >= 38.0 {
+        14.0
+    } else {
+        13.0
+    }
+}
+
+/// Where a button's label is set off from its ends: Material 3's small
+/// (40 dp) button, 16 dp each side.
+pub const BUTTON_PAD: f32 = 16.0;
+/// The gap between Finish's two made-file cards side by side.
+pub const FINISH_CARD_GAP: f32 = 12.0;
+/// A Finish card's text in from its sides.
+pub const FINISH_CARD_INSET: f32 = 14.0;
+
+/// A list item's room at its start and end (Material 3 Lists).
+pub const LIST_PAD: f32 = 16.0;
+
+/// A supporting pane's width (`docs/LAYOUT.md` §6).
+pub const SUPPORT_PANE: f32 = 400.0;
+
+/// Where a supporting pane's top stands on a wide window, under the top
+/// app bar: level with the page's first line (`docs/LAYOUT.md` §3, §6).
+pub const SUPPORT_PANE_TOP: f32 = PAGE_TOP_BAR;
+
+/// The guide's supporting pane (`docs/LAYOUT.md` §6): the margin at each
+/// side of its headline, tabs and text.
+pub const GUIDE_PANE_PAD: f32 = PAD;
+/// The top of the close button's target in the guide's pane, at the end of
+/// its header row, the headline level with the target's middle.
+pub const GUIDE_PANE_CLOSE_TOP: f32 = GUIDE_PANE_PAD + 16.0 - TOUCH / 2.0;
+/// The top of the tabs in the guide's pane: under the header row, so the
+/// tabs take the pane's whole width (Material 3 Tabs: labels never cut).
+pub const GUIDE_PANE_TABS_TOP: f32 = GUIDE_PANE_CLOSE_TOP + TOUCH;
+/// The room between paragraphs in the guide's pane, under its Body M text.
+pub const GUIDE_PANE_PARA: f32 = GAP + GAP_SMALL;
+
+/// The input panel's width where it stands beside the sheets
+/// (`docs/LAYOUT.md` §16.3): the codex32 entry's rolls, dice and pad.
+pub const CODEX32_ENTRY_W: f32 = 424.0;
+/// A key of the input panel's pad: Material's touch target, square, the
+/// keys `GAP_SMALL` apart and no padding of their own (`docs/LAYOUT.md`
+/// §8, §16.3; owner, 2026-10-24).
+pub const PAD_KEY_W: f32 = TOUCH;
+/// The most of the window's height the input panel takes at the foot;
+/// a taller one stands in the page (`docs/LAYOUT.md` §16.3).
+pub const INPUT_PANEL_MAX: f32 = 0.4;
+/// A dice pad's key: as tall as Material's text field, each face a
+/// large target.
+pub const DICE_PAD_KEY_H: f32 = 56.0;
+/// The dice strip's slot (a roll's face over its bits), at most this
+/// wide and tall; it narrows to fit a small panel.
+pub const DICE_STRIP_SLOT: f32 = 64.0;
+/// A bit's box in the dice strip's number, at most this wide.
+pub const DICE_STRIP_BIT_W: f32 = 22.0;
+/// A bit's box in the dice strip's number.
+pub const DICE_STRIP_BIT_H: f32 = 28.0;
+/// How far a face rolled again drops before it is gone.
+pub const DICE_STRIP_DROP: f32 = 14.0;
+/// A die's column of the rolls across the input panel: its marker (the
+/// first roll) beside its die (the second), and the gap to the next.
+pub const INPUT_ROLLS_COL: f32 = 76.0;
+/// The line a 12 dp label takes in the rolls across the input panel.
+pub const INPUT_ROLLS_LINE: f32 = 16.0;
+/// The struck pairs the rolls across the input panel keep room for,
+/// the latest.
+pub const INPUT_ROLLS_STRUCK: usize = 1;
+/// What in the column's height does not scale with the tree's width or
+/// the tracks' unit: the head row, the tree's two lines under its leaves,
+/// the tracks' title, rule and heads, and the gaps: 158 dp, measured as
+/// the column's drawn height less the tree's and the tracks' own.
+pub const CODEX32_COLUMN_FIXED_H: f32 = 158.0;
+/// The room a flow's page keeps under its last row before it scrolls.
+pub const FLOW_END_PAD: f32 = 24.0;
+/// The least unit the tracks are drawn at to fit a window's height, for
+/// dice of six faces or fewer (the full unit is `CODEX32_TRACK_UNIT`);
+/// at it the ring's name "Free space" still fits its room.
+pub const CODEX32_TRACK_UNIT_MIN: f32 = 16.0;
+/// The fewest rows of cells the worksheet's view beside the dice column
+/// keeps: where the height left holds fewer (of the class's cell), the
+/// view is the class's `codex32_sheet_view` and the page scrolls to it
+/// as where no column stands (`docs/LAYOUT.md` §16.1). Zero turns this
+/// off.
+pub const CODEX32_VIEW_MIN_ROWS: f32 = 6.0;
+/// "Your dice" at the start of the pad's first row in the input panel,
+/// with the face waiting or "0 is 10" under it: the room it keeps, the
+/// label cut to it where text is drawn larger.
+pub const INPUT_PAD_LABEL_W: f32 = 72.0;
+/// The fewest keys a row of the pad beside the rolls holds; narrower,
+/// the pad stands under them.
+pub const PAD_KEYS_BESIDE_MIN: f32 = 5.0;
+
+/// The widest Home's lead tile is (`docs/LAYOUT.md` §4).
+pub const LEAD_MAX: f32 = 560.0;
+
+/// A Home tile's height on the wide Home.
+pub const TILE_H: f32 = 84.0;
+
+/// A Home tile's height in the compact Home's grid (icon beside name).
+pub const TILE_H_GRID: f32 = 60.0;
+
+/// A face's text inset at its sides, and where a face with no icon beside
+/// it starts its text.
+pub const FACE_INSET: f32 = 16.0;
+/// A face's inset above its name (or its icon) and below its last line.
+pub const FACE_TOP: f32 = 12.0;
+/// Where a face's line starts, from its name's top.
+pub const FACE_LINE_Y: f32 = 22.0;
+/// Where a face's tags start, from its name's top.
+pub const FACE_TAGS_Y: f32 = 44.0;
+/// The gap between a face's name and its wrapped line.
+pub const FACE_LINE_GAP: f32 = 2.0;
+/// The icon box of a face whose icon stands over its text.
+pub const FACE_ABOVE_ICON: f32 = 30.0;
+/// The icon glyph in that box.
+pub const FACE_ABOVE_GLYPH: f32 = 14.0;
+/// The gap under that icon.
+pub const FACE_ABOVE_GAP: f32 = 8.0;
+/// The glyph in the wide Home tile's icon box.
+pub const HOME_TILE_GLYPH: f32 = 17.0;
+/// The wide Home tile's icon box.
+pub const HOME_TILE_ICON: f32 = 40.0;
+/// The wide Home tile's icon inset from the tile's left edge.
+pub const HOME_TILE_INSET: f32 = 18.0;
+/// The left edge of the wide Home tile's text.
+pub const HOME_TILE_TEXT_X: f32 = 74.0;
+/// The wide Home's lead card's height.
+pub const HOME_LEAD_H: f32 = 96.0;
+/// The wide Home's lead card's inset from its left and right edges.
+pub const HOME_LEAD_INSET: f32 = 20.0;
+/// The wide Home's lead card's icon box.
+pub const HOME_LEAD_ICON: f32 = 48.0;
+/// The left edge of the wide Home's lead card's text.
+pub const HOME_LEAD_TEXT_X: f32 = 86.0;
+/// Where the wide Home lead card's second line starts, from its top.
+pub const HOME_LEAD_SUB_Y: f32 = 54.0;
+
+/// A grid tile's inset on the compact Home.
+pub const GRID_TILE_INSET: f32 = 12.0;
+/// The left edge of a grid tile's text on the compact Home.
+pub const GRID_TILE_TEXT_X: f32 = 54.0;
+
+/// A Home tile's inset at its sides and below a wrapped summary.
+pub const TILE_PAD: f32 = 12.0;
+
+/// The widest a Starter page's content grows, centred in the space beside
+/// the rail (`docs/STARTER.md` §3.1d).
+pub const CONTENT_MAX: f32 = 1040.0;
+
+/// The narrowest a Starter Home card is: a wider window gains columns of
+/// at least this, never wider cards (`docs/STARTER.md` §3.1d).
+pub const CARD_MIN_W: f32 = 300.0;
+
+/// A status chip's height (Home's status strip, a flow's chip).
+pub const STATUS_CHIP_H: f32 = 32.0;
+
+/// A status chip's inner padding at each end.
+pub const STATUS_CHIP_PAD: f32 = 12.0;
+
+/// The space between an icon and the text after it, on a chip and an
+/// expanded rail's destination.
+pub const NAV_ICON_GAP: f32 = 12.0;
+
+// ----- Add randomness (docs/OWN-RANDOMNESS.md §2.2) -----
+
+/// A button on Add randomness, on Settings' Randomness card and New
+/// key's link to it: Material's 40 dp container, pressed in a `TOUCH`
+/// target.
+pub const OWN_BUTTON: f32 = 40.0;
+
+/// Pointer and keys' area on Add randomness: the height the pointer
+/// moves over.
+pub const OWN_AREA: f32 = 160.0;
+
+// ----- Codex32 error correction (docs/CODEX32.md §8.4) -----
+
+/// Add a key's other forms: a line of the list of shares or strings in,
+/// from its tick to its text (and a line under it, a string's mark).
+pub const PART_INDENT: f32 = 24.0;
+
+/// The same on a small panel.
+pub const PART_INDENT_COMPACT: f32 = 20.0;
+
+/// Codex32 correction: a box of the string as the re-entry shows it.
+pub const CORRECT_BOX: f32 = 24.0;
+
+/// Codex32 correction: the gap between two boxes of a group of four.
+pub const CORRECT_BOX_GAP: f32 = 2.0;
+
+/// Codex32 correction: a group of four boxes, from the first box's left
+/// edge to the fourth's right.
+pub const CORRECT_GROUP: f32 = 4.0 * CORRECT_BOX + 3.0 * CORRECT_BOX_GAP;
+
+/// Codex32 correction: the gap between two groups of four.
+pub const CORRECT_GROUP_GAP: f32 = GRID;
+
+/// Codex32 correction: a box's corner radius.
+pub const CORRECT_BOX_RADIUS: f32 = 4.0;
+
+/// Codex32 correction: the row under a box that carries its number.
+pub const CORRECT_NUMBER_ROW: f32 = 16.0;
+
+/// Codex32 correction: the gap between two rows of boxes, so a row with
+/// its numbers is a touch target tall, pressed group by group.
+pub const CORRECT_ROW_GAP: f32 = GRID;
+
+/// Codex32 correction: a pair's row, "Box 17 · q → p".
+pub const CORRECT_PAIR_ROW: f32 = 28.0;
+
+/// Codex32 correction: the space between the panel's parts.
+pub const CORRECT_GAP: f32 = GRID;
+
+/// Codex32 correction: the box a line's icon is centred in.
+pub const CORRECT_ICON: f32 = 18.0;
+
+/// Codex32 correction: a line's icon.
+pub const CORRECT_ICON_SIZE: f32 = 11.0;
+
+/// Codex32 correction: the tick's row, **Suggest corrections**: a
+/// whole touch target.
+pub const CORRECT_TICK_ROW: f32 = TOUCH;
+
+/// Codex32 correction: the tick box's side, as `Ui::checkbox` draws it.
+pub const CORRECT_TICK: f32 = 18.0;
+
+/// Codex32 correction: from the tick box to its label.
+pub const CORRECT_TICK_LABEL: f32 = 28.0;
+// ----- The dice roller on Faraday Demo (docs/CODEX32.md §5.6) -----
+
+/// The roller's die: the side of its square.
+pub const ROLLER_DIE: f32 = 52.0;
+
+/// The roller's die: the radius of its corners.
+pub const ROLLER_DIE_RADIUS: f32 = 10.0;
+
+/// The roller's die: the radius of one pip.
+pub const ROLLER_PIP: f32 = 4.5;
+
+/// The roller's die: how far the outer pips stand from its centre.
+pub const ROLLER_PIP_OFFSET: f32 = 14.0;
+
+/// The roller's die: how high it jumps in a tumble, at the top of the
+/// bounce.
+pub const ROLLER_BOUNCE: f32 = 10.0;
+
+/// The roller's die: how far it tilts sideways in a tumble, at most.
+pub const ROLLER_SWAY: f32 = 6.0;
+
+/// The codex32 five dice roller (`fresh/roller/five.rs`): how long its
+/// dice tumble before their values land, ms.
+pub const ROLLER_TUMBLE_MS: u64 = 700;
+
+/// The one-die roller (`fresh/roller/mod.rs`): how long the die tumbles
+/// after a click, whose values are entered at once: Material's short 4.
+pub const ROLLER_ONE_TUMBLE_MS: u64 = MOTION_SHORT4;
+
+/// The codex32 five dice roller: the pause after its values land before
+/// the next tumble starts, ms, so each can be followed.
+pub const ROLLER_PAUSE_MS: u64 = 350;
+
+/// The roller: how long a tumbling die shows one face before the next,
+/// ms.
+pub const ROLLER_FACE_MS: u64 = 90;
+
+/// The roller: the longest number of rolls a typed number may name.
+pub const ROLLER_COUNT_MAX: u32 = 9_999;
+
+/// The roller: the most digits a typed number has.
+pub const ROLLER_COUNT_DIGITS: usize = 4;
+
+/// The roller: the gap between its parts.
+pub const ROLLER_GAP: f32 = 10.0;
+
+// ---------------------------------------------------------------------
+// Codex32 worksheets (`docs/CODEX32.md` §6.4.7, §7.5, §13.4)
+// ---------------------------------------------------------------------
+
+/// A worksheet box's side in dp, by the window's class: 16 compact, 18
+/// medium, 20 expanded and up. Under the touch floor everywhere.
+pub const fn codex32_box(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 16.0,
+        WindowClass::Medium => 18.0,
+        _ => 20.0,
+    }
+}
+
+/// A character's size in a worksheet box, by the window's class: room
+/// round it.
+pub const fn codex32_char(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 11.0,
+        WindowClass::Medium => 12.0,
+        _ => 13.0,
+    }
+}
+
+/// The gap between two boxes side by side in a group of four.
+pub const CODEX32_BOX_GAP: f32 = 2.0;
+/// The gap between two groups of four boxes.
+pub const CODEX32_GROUP_GAP: f32 = 8.0;
+/// The air between two rows of the staircase.
+pub const CODEX32_ROW_GAP: f32 = 4.0;
+/// The room the box numbers take above a row.
+pub const CODEX32_NUMBER_ROW: f32 = 16.0;
+/// A box's corners.
+pub const CODEX32_RADIUS: f32 = 4.0;
+/// The heavier outline of a given box (the person's data, the header)
+/// and the bolded checksum squares.
+pub const CODEX32_GIVEN_STROKE: f32 = 1.5;
+/// The accent outline of the cell being filled.
+pub const CODEX32_FRONT_STROKE: f32 = 2.0;
+/// The column of row names left of a worksheet.
+pub const CODEX32_LABEL_W: f32 = 76.0;
+/// The gap between the two panels on `wide`.
+pub const CODEX32_PANEL_GAP: f32 = 24.0;
+/// The narrowest the codex32 entry's own column is drawn beside the
+/// "Demo only" box (CODEX32 §12); narrower, the box goes under it.
+pub const CODEX32_MAIN_MIN: f32 = 420.0;
+/// How far New key's column stands in from its page area's left edge,
+/// and as far again is kept on its right.
+pub const KEYGEN_COLUMN_IN: f32 = 40.0;
+/// The widest New key's column of cards grows: reading content. Wide
+/// content in it (the codex32 sheets) takes the work width
+/// (`docs/LAYOUT.md` §14).
+pub const KEYGEN_COLUMN_MAX: f32 = 900.0;
+/// A codex32 card's segmented button (Material 3's 40 dp), in a `TOUCH`
+/// row.
+pub const CODEX32_CHOICE_H: f32 = 40.0;
+// The dice de-biasing sheet's die tracks, drawn as the booklet draws
+// them (SSS32.ps, `drawDiceRow`): in units of the diamond pad's
+// half-diagonal (the booklet's `sz2`, 38.2 pt), each measure the
+// booklet's own over 38.2.
+/// The most a track unit grows to, in dp; less where the card is narrow.
+pub const CODEX32_TRACK_UNIT: f32 = 20.0;
+/// The highest point of a track above its low pads' centre line, in
+/// units (a raised diamond's top); the lowest is one unit below it.
+pub const CODEX32_TRACK_TOP: f32 = 2.05;
+/// The gap the booklet leaves between pads, in units (2 pt).
+pub const CODEX32_TRACK_GAP: f32 = 0.052;
+/// The free space's centre across and up, and its radius, in units.
+pub const CODEX32_FREE_X: f32 = 0.94;
+/// The free space's centre, up from the low pads' centre line.
+pub const CODEX32_FREE_Y: f32 = 1.15;
+/// The free space's radius.
+pub const CODEX32_FREE_R: f32 = 0.79;
+/// A d7+ pad: the hexagon's side, in units (the booklet's 0.8).
+pub const CODEX32_HEX_SIDE: f32 = 0.8;
+/// A hexagon's width, its side times the root of three.
+pub const CODEX32_HEX_W: f32 = 1.386;
+/// Where hexagon 0 would stand: across, and down from the centre line.
+pub const CODEX32_HEX_X: f32 = 2.5;
+/// Hexagon 0's lower corner, from the low pads' centre line.
+pub const CODEX32_HEX_Y: f32 = -0.473;
+/// The step from one hexagon to the next.
+pub const CODEX32_HEX_PITCH: f32 = 0.745;
+/// How far an even hexagon is raised: a side and a half and a gap.
+pub const CODEX32_HEX_RAISE: f32 = 1.252;
+/// Where the booklet sets "Die pads" and "Die pads (d7+)" over a track,
+/// in units across (160 pt and 440 pt).
+pub const CODEX32_PADS_HEAD_X: f32 = 4.19;
+/// Where "Die pads (d7+)" stands.
+pub const CODEX32_PADS_LARGE_HEAD_X: f32 = 11.52;
+/// A die's marker on its pad: a ring this many units across.
+pub const CODEX32_MARKER: f32 = 1.1;
+/// A die standing on its pad: a square this many units across.
+pub const CODEX32_TRACK_DIE: f32 = 0.95;
+/// The ring of a marker.
+pub const CODEX32_MARKER_STROKE: f32 = 2.0;
+/// The column before a track: the die's name and its bit.
+pub const CODEX32_TRACK_LABEL_W: f32 = 52.0;
+/// The space between two tracks.
+pub const CODEX32_TRACK_SPACE: f32 = 6.0;
+/// The narrowest the tree is drawn beside each die's two rolls; under
+/// them where there is less room.
+pub const CODEX32_TREE_MIN_W: f32 = 300.0;
+/// The widest the dice sheet's tree is drawn (the booklet's, 420 pt).
+pub const CODEX32_TREE_MAX_W: f32 = 420.0;
+/// One level of the tree over the space between two leaves (the
+/// booklet: 60 pt over 13.1 pt).
+pub const CODEX32_TREE_LEVEL: f32 = 4.57;
+/// A node of the tree.
+pub const CODEX32_TREE_NODE: f32 = 2.0;
+/// The dice sheet's tree: its lines' width.
+pub const CODEX32_TREE_LINE: f32 = 1.0;
+/// The tree's path: three times its lines' width, so it reads at a
+/// glance (owner, 2026-10-24).
+pub const CODEX32_PATH_STROKE: f32 = 3.0 * CODEX32_TREE_LINE;
+/// Columns shown either side of the front on `small`'s checksum panel.
+pub const CODEX32_BAND_SIDE: usize = 2;
+/// A worksheet tab's height (`docs/CODEX32.md` §6.5).
+pub const CODEX32_TAB: f32 = 48.0;
+/// A cell of the checksum worksheet, drawn as the booklet draws it:
+/// squares side by side on shared rules (`docs/CODEX32.md` §7.1, §7.5),
+/// by the window's class.
+pub const fn codex32_cell(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 20.0,
+        WindowClass::Medium => 24.0,
+        _ => 28.0,
+    }
+}
+
+/// A character's size in a checksum worksheet cell, by the window's
+/// class.
+pub const fn codex32_cell_char(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 12.0,
+        WindowClass::Medium => 14.0,
+        _ => 16.0,
+    }
+}
+
+/// The least cell at which a checksum worksheet is drawn whole, without
+/// a view (`docs/LAYOUT.md` §16.1): the size compact windows draw.
+pub const CODEX32_CELL_FIT_MIN: f32 = 20.0;
+/// The largest cell a checksum worksheet drawn whole grows to
+/// (`docs/LAYOUT.md` §16.1).
+pub const CODEX32_CELL_FIT_MAX: f32 = 32.0;
+/// A step between two fitted cell sizes: a whole dp.
+pub const CODEX32_CELL_FIT_STEP: f32 = 1.0;
+/// A checksum worksheet cell's character as a part of the cell: four
+/// sevenths, 16 at 28 dp.
+pub const CODEX32_CELL_CHAR_PART: f32 = 4.0 / 7.0;
+
+/// The least side of a string's box beside the worksheets
+/// (`docs/LAYOUT.md` §16.2).
+pub const CODEX32_STRING_BOX_MIN: f32 = 24.0;
+/// The largest side of a string's box (`docs/LAYOUT.md` §16.2).
+pub const CODEX32_STRING_BOX_MAX: f32 = 40.0;
+/// A string's boxes a row where the room holds them, in groups of four,
+/// longest first (`docs/LAYOUT.md` §16.2).
+pub const CODEX32_STRING_ROWS: [usize; 5] = [24, 16, 12, 8, 4];
+/// A string box's character as a part of the box.
+pub const CODEX32_STRING_CHAR_PART: f32 = 0.6;
+/// A string box's number as a part of the box, never under `TEXT_MIN`.
+pub const CODEX32_STRING_NUMBER_PART: f32 = 0.4;
+
+/// The tallest the checksum worksheet's view is before the sheet
+/// scrolls inside it, by the window's class.
+pub const fn codex32_sheet_view(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 200.0,
+        WindowClass::Medium => 320.0,
+        _ => 400.0,
+    }
+}
+
+/// The checksum worksheet's gap between two groups of four columns, and
+/// between two pairs of rows: the booklet's double rule.
+pub const CODEX32_SHEET_GAP: f32 = 4.0;
+/// The checksum worksheet's bold rule round a given cell (the header, a
+/// character brought down): centred on the cell's thin rule.
+pub const CODEX32_SHEET_BOLD: f32 = 2.0;
+/// A box number in a bolded cell's top right corner, and a row letter in
+/// an `=` row's leading cells' bottom left corner, as small as the
+/// booklet sets them.
+pub const CODEX32_CELL_NOTE: f32 = 7.0;
+/// How far a box number's line rises above its cell's top, so its
+/// digits sit in the corner clear of the cell's character.
+pub const CODEX32_CELL_NOTE_RISE: f32 = 2.0;
+/// How far a box number or row letter sits in from its cell's edge.
+pub const CODEX32_CELL_NOTE_INSET: f32 = 2.0;
+/// The room between a row's `+` or `=` and its first cell.
+pub const CODEX32_MARK_GAP: f32 = 4.0;
+/// The number above each of a string's boxes: smaller than the boxes'
+/// characters, so every box carries one without crowding them.
+pub const CODEX32_STRING_NUMBER: f32 = 9.0;
+
+// ----- The five-dice roller (docs/CODEX32.md §5.6) -----
+
+/// The five-dice roller: the gap between two dice.
+pub const ROLLER_FIVE_GAP: f32 = 8.0;
+
+/// Each die's two rolls side by side (CODEX32 §5.6): a marker's or a
+/// die's side.
+pub const ROLLER_PAIR_DIE: f32 = 32.0;
+/// A column of the pairs: the first roll's, the second roll's.
+pub const ROLLER_PAIR_COL: f32 = 76.0;
+/// The die's name before its pair.
+pub const ROLLER_PAIR_LABEL_W: f32 = 48.0;
+/// A die's colour on its chip: the swatch's radius.
+pub const CODEX32_SWATCH: f32 = 7.0;
+/// A die's colour chip: Material's assist chip, 32 dp in a 48 dp row.
+pub const CODEX32_CHIP_H: f32 = 32.0;
+
+/// The five-dice roller: the most faces that land in one tick under
+/// Reduce motion, so that a click rolled to the end is never one long
+/// frame.
+pub const ROLLER_FIVE_BATCH: usize = 400;
+
+/// The furthest along Material's standard curve a following move of the
+/// codex32 worksheet's view enters it when it takes over from a move
+/// under way, so the move left is never cut to nothing (`docs/MOTION.md`
+/// §3.5).
+pub const SHEET_FOLLOW_ENTRY_MAX: f32 = 0.9;
+// ---------------------------------------------------------------------
+// Codex32 in backups (`docs/CODEX32.md` §9)
+// ---------------------------------------------------------------------
+
+/// A filter chip's height on the checklist's codex32 item (Material 3's
+/// filter chip, 32 dp), drawn in a `TOUCH` target.
+pub const C32_CHIP: f32 = 32.0;
+
+/// The check mark on a chosen filter chip (Material 3's 18 dp).
+pub const C32_CHECK: f32 = 18.0;
+
+/// A Codex32QR to copy by hand (`docs/CODEX32.md` §9.5): the room beside
+/// and above the whole grid for its blocks' letters and numbers.
+pub const C32_GRID_LABEL: f32 = 16.0;
+/// The whole grid's largest side, more where a block would be under the
+/// touch floor in it; a narrower column draws it smaller.
+pub const C32_GRID_MAX: f32 = 320.0;
+/// The block shown large: its largest side, the block and a square of
+/// its neighbours on each side.
+pub const C32_ZOOM_MAX: f32 = 320.0;
+/// The smallest square of the block shown large: below it the large view
+/// goes under the whole grid rather than beside it.
+pub const C32_ZOOM_MIN_CELL: f32 = 24.0;
+
+/// How far the entry's page is scrolled at every press on a small panel, past
+/// its header, so the panel and the pad are in view together (the tabs a
+/// scroll up away).
+pub const CODEX32_ENTER_SCROLL: f32 = 140.0;
+/// The state layer round a slider's handle: Material's slider, a 40 dp
+/// circle centred on the handle (`CoreUi::slider`).
+pub const SLIDER_HALO: f32 = 40.0;
+/// Material's icon button: its container, round, drawn in a `TOUCH`
+/// target with an `ICON_GLYPH` icon (the codex32 sheets' eye).
+pub const ICON_BUTTON: f32 = 40.0;
+/// A stepper's label (`faraday_ui`'s `Ui::stepper`): Material's body
+/// medium.
+pub const STEPPER_LABEL_TEXT: TypeRole = BODY_M;
+/// A stepper's count between its − and +: Material's title medium.
+pub const STEPPER_VALUE_TEXT: TypeRole = TITLE_M;
+/// The room for a stepper's count between its two icon buttons.
+pub const STEPPER_COUNT_W: f32 = 44.0;
+/// How far in from a stepper's label its − stands on the wide layout,
+/// when the label is shorter: the steppers of one card line up.
+pub const STEPPER_LABEL_COL: f32 = 180.0;
+/// The height of the window's top band, where a press on empty room moves
+/// the window: Material's top app bar.
+pub const TOP_BAND: f32 = 56.0;
+
+/// The wide layout's ?: its left edge in from the window's right, where
+/// the top-right row of the mode pill and the ? begins; the ? is 28 dp
+/// across and stands `MARGIN_WIDE` from the window's edge
+/// (`docs/LAYOUT.md` §15).
+pub const TOP_ROW_QUESTION: f32 = MARGIN_WIDE + 28.0;
+/// The check glyph in a seen worksheet tab.
+pub const CODEX32_TAB_GLYPH: f32 = 12.0;
+/// The check icon in a seen worksheet tab.
+pub const CODEX32_TAB_ICON: f32 = 20.0;
+/// A tab's height with a label alone: Material's tabs, 48 dp.
+pub const TAB_H: f32 = TOUCH;
+/// A primary tab's active indicator: 3 dp, round at its top corners,
+/// as wide as the tab's content.
+pub const TAB_INDICATOR_PRIMARY: f32 = 3.0;
+/// A primary tab's active indicator at its narrowest: Material's 24 dp.
+pub const TAB_INDICATOR_MIN: f32 = 24.0;
+/// A secondary tab's active indicator: 2 dp across the whole tab.
+pub const TAB_INDICATOR_SECONDARY: f32 = 2.0;
+/// The room at each side of a tab's label: Material's 16 dp.
+pub const TAB_PAD: f32 = 16.0;
+
+// ---------------------------------------------------------------------
+// Material 3: shape, state layers, focus, targets, icons, motion
+// (`docs/DESIGN.md` §3, `docs/decisions/F108.md`)
+// ---------------------------------------------------------------------
+
+/// Material's corner scale: none.
+pub const SHAPE_NONE: f32 = 0.0;
+/// Material's corner scale: extra-small, a menu, a field, the toast.
+pub const SHAPE_XS: f32 = 4.0;
+/// Material's corner scale: small, a chip.
+pub const SHAPE_S: f32 = 8.0;
+/// Material's corner scale: medium, a card.
+pub const SHAPE_M: f32 = 12.0;
+/// Material's corner scale: large, the floating action.
+pub const SHAPE_L: f32 = 16.0;
+/// Material's corner scale: extra-large, a dialog and a sheet.
+pub const SHAPE_XL: f32 = 28.0;
+/// Material's corner scale: full, a button, a segmented button, a tag:
+/// round ends on a shape `h` tall.
+pub fn shape_full(h: f32) -> f32 {
+    h / 2.0
+}
+/// A checkbox's corners: Material's checkbox, which is under the scale.
+pub const SHAPE_CHECKBOX: f32 = 2.0;
+
+/// A state layer's opacity while the pointer is over a control: the
+/// control's content colour laid over it, so it reads on any fill.
+pub const STATE_HOVER: f32 = 0.08;
+/// A state layer's opacity while the keyboard is on a control
+/// (Material 3's states guidance, `docs/THEMES.md` §8).
+pub const STATE_FOCUS: f32 = 0.10;
+/// A state layer's opacity while a control is pressed.
+pub const STATE_PRESS: f32 = 0.10;
+/// A state layer's opacity while a thing is dragged.
+pub const STATE_DRAG: f32 = 0.16;
+/// The codex32 pad's key of the roll shown (owner, 2026-10-25): over its
+/// pressed state layer, a layer this much stronger as the roll is shown,
+/// easing away over `PRESS_EMPHASIS_MS`; its outline `CODEX32_FRONT_STROKE`
+/// in the accent while the roll is shown.
+pub const PRESS_EMPHASIS: f32 = 0.22;
+/// How long the pressed key's emphasis eases away: Material's medium 4.
+pub const PRESS_EMPHASIS_MS: u64 = MOTION_MEDIUM4;
+/// The content of a control that is not available now: on-surface at
+/// this opacity. It keeps its kind and shape (F108).
+pub const DISABLED_CONTENT: f32 = 0.38;
+/// The container of a control that is not available now, and an
+/// outlined one's edge: on-surface at this opacity.
+pub const DISABLED_CONTAINER: f32 = 0.12;
+/// In a high contrast theme, a theme colour filled at under this
+/// opacity (of 255) is a tint under what it holds, and is drawn as its
+/// edge instead; at this or more it is a mark, drawn at full strength.
+pub const HIGH_CONTRAST_TINT_MAX: u8 = 96;
+
+/// An opacity, 0 to 1, as the 0–255 a colour carries.
+pub fn alpha_of(opacity: f32) -> u8 {
+    (opacity.clamp(0.0, 1.0) * 255.0 + 0.5) as u8
+}
+
+/// The focus ring's stroke: round what the keyboard is on.
+pub const FOCUS_RING: f32 = 3.0;
+/// How far outside its control the focus ring stands.
+pub const FOCUS_OFFSET: f32 = 2.0;
+
+/// An icon's glyph where it stands alone: a list row, an icon button, a
+/// field, a dialog's head, the floating action.
+pub const ICON_GLYPH: f32 = 24.0;
+/// An icon's glyph in a dense place: a small panel's row.
+pub const ICON_GLYPH_SMALL: f32 = 20.0;
+/// The glyph of the chevron beside a text button that opens more (Other forms).
+pub const DISCLOSE_GLYPH: f32 = 10.0;
+/// How far below the top of a `TOUCH`-high text button its disclosure chevron starts.
+pub const DISCLOSE_ICON_Y: f32 = 14.0;
+/// An icon's glyph in a button, a chip and a chosen segment.
+pub const ICON_GLYPH_BUTTON: f32 = 18.0;
+/// A pick row's radio: the chosen dot sits this far inside the ring's
+/// inner circle (the ring, its gap and the dot's own edge: 2 + 2 + 1).
+pub const PICK_RADIO_DOT_INSET: f32 = 5.0;
+/// The gap between a button's icon and its label.
+pub const ICON_GAP: f32 = GAP;
+/// The chevron at the end of whatever opens a page or details (F332): its
+/// box and its glyph, one size for every row, drawn by `Ui::row_chevron`.
+pub const CHEVRON: f32 = ICON_SMALL;
+/// The room a row's chevron takes from its text: the box and a gap.
+pub const ROW_CHEVRON_ROOM: f32 = CHEVRON + GAP;
+
+/// The height a word entry's own keyboard is sized to inside a card, which
+/// then grows to it.
+pub const CARD_ENTRY_ROOM: f32 = 2000.0;
+
+/// The smallest text drawn: Material's label-small. A size asked for
+/// under it is drawn at it.
+pub const TEXT_MIN: f32 = 11.0;
+
+/// Text size Large (Settings › Appearance, F85): every role's size and
+/// line height times 1.2, in percent (`docs/TEXT-SIZE.md` §2).
+pub const TEXT_LARGE_PCT: u16 = 120;
+
+/// Text size Larger: every role's size and line height times 1.4, in
+/// percent.
+pub const TEXT_LARGER_PCT: u16 = 140;
+
+/// `p` percent as a factor: 120 is 1.2.
+pub fn percent(p: u16) -> f32 {
+    f32::from(p) / 100.0
+}
+
+/// The step a one-line slot's text fits down by, in percent of its
+/// Standard size, from the text size's own down to Standard
+/// (`docs/TEXT-SIZE.md` §3).
+pub const TEXT_FIT_STEP_PCT: u16 = 10;
+
+/// A segmented button's room each side of a segment's label.
+pub const SEGMENT_PAD: f32 = 12.0;
+
+/// A dialog's padding inside its edge.
+pub const DIALOG_PAD: f32 = 24.0;
+/// A dialog's narrowest, on a display that has the room.
+pub const DIALOG_MIN: f32 = 280.0;
+/// A dialog's widest.
+pub const DIALOG_MAX: f32 = 560.0;
+/// The gap between a dialog's actions at its end.
+pub const DIALOG_ACTION_GAP: f32 = GAP;
+
+/// The toast's least height, one line (Material's snackbar).
+pub const TOAST_H: f32 = 48.0;
+/// The toast's room each side of its line.
+pub const TOAST_PAD: f32 = 16.0;
+/// The toast's room above and below its text: one line of body medium
+/// in it is [`TOAST_H`] tall, two are Material's 68.
+pub const TOAST_PAD_Y: f32 = 14.0;
+/// The toast's text: Material's body medium.
+pub const TOAST_TEXT: TypeRole = BODY_M;
+/// The toast's least room to the page's foot and to each side.
+pub const TOAST_MARGIN: f32 = 16.0;
+/// How long the toast stays on screen, ms.
+pub const TOAST_SHOW_MS: u64 = 4000;
+/// The toast's least width on a window wider than compact (Material's
+/// snackbar); a compact window's is its width less the margins.
+pub const TOAST_MIN_W: f32 = 344.0;
+/// The toast's widest (Material's snackbar).
+pub const TOAST_MAX_W: f32 = 672.0;
+/// The band behind selected text: its height as a share of the field's.
+pub const SELECTION_BAND: f32 = 0.6;
+/// How far the band behind selected text reaches past it each side.
+pub const SELECTION_PAD: f32 = 2.0;
+
+/// The gap between two toasts stacked at the foot.
+pub const TOAST_STACK_GAP: f32 = 8.0;
+
+/// A menu's item (Material's menu list item): 48 dp tall.
+pub const MENU_ITEM_H: f32 = 48.0;
+/// A menu item's room each side of its label.
+pub const MENU_ITEM_PAD: f32 = 12.0;
+/// A menu's room above its first item and below its last.
+pub const MENU_PAD_V: f32 = 8.0;
+/// A menu's narrowest (Material's menu).
+pub const MENU_MIN_W: f32 = 112.0;
+/// A menu's widest (Material's menu).
+pub const MENU_MAX_W: f32 = 280.0;
+/// A menu's group heading: a line of label medium and its room.
+pub const MENU_HEAD_H: f32 = 32.0;
+/// How far a menu's items under a heading stand in from its start.
+pub const MENU_INDENT: f32 = 12.0;
+
+/// A plain tooltip's widest (Material 3's plain tooltip).
+pub const TIP_PLAIN_MAX_W: f32 = 200.0;
+/// A plain tooltip's least height: one line of body small and its room.
+pub const TIP_PLAIN_MIN_H: f32 = 24.0;
+/// A plain tooltip's room each side of its text.
+pub const TIP_PLAIN_PAD_X: f32 = 8.0;
+/// A plain tooltip's room above and below its text.
+pub const TIP_PLAIN_PAD_Y: f32 = 4.0;
+/// A plain tooltip's text: Material's body small.
+pub const TIP_PLAIN_TEXT: TypeRole = BODY_S;
+/// A rich tooltip's widest (Material 3's rich tooltip).
+pub const TIP_RICH_MAX_W: f32 = 320.0;
+/// A rich tooltip's room each side of its text.
+pub const TIP_RICH_PAD_X: f32 = 16.0;
+/// A rich tooltip's room above and below its text.
+pub const TIP_RICH_PAD_Y: f32 = 12.0;
+/// A rich tooltip's supporting text: Material's body medium.
+pub const TIP_RICH_TEXT: TypeRole = BODY_M;
+/// A rich tooltip's elevation level.
+pub const TIP_RICH_LEVEL: u8 = 2;
+/// The gap between a tooltip and what it is about.
+pub const TIP_GAP: f32 = 4.0;
+/// The pointer's rest on, or the keyboard's stay on, what a tooltip is
+/// about before it shows, ms (Material's tooltip show delay).
+pub const TIP_DELAY_MS: u64 = 500;
+/// A finger held this long on what a tooltip is about shows it: a long
+/// press, ms.
+pub const TIP_LONG_PRESS_MS: u64 = 500;
+
+/// The scrim over a sheet's frosted page: Material's 32 %.
+pub const SCRIM_ALPHA: u8 = 82;
+
+/// How deep a scroll region's edge fade is on a small panel, where it is
+/// the sign there is more, units.
+pub const EDGE_FADE_COMPACT: f32 = 44.0;
+/// How deep a scroll region's edge fade is elsewhere, units.
+pub const EDGE_FADE: f32 = 24.0;
+/// The bottom edge's fade on a small panel, shallower so a control
+/// resting at the fold still reads at its own emphasis, units.
+pub const EDGE_FADE_LOW_COMPACT: f32 = 18.0;
+/// How much of an edge fade's depth the page is under the top app bar
+/// when the bar's tint is whole: it comes in quickly, as Material's does.
+pub const APP_BAR_TINT_SHARE: f32 = 0.25;
+/// An edge fade's opacity at the very edge, of 255.
+pub const EDGE_FADE_ALPHA: f32 = 230.0;
+
+/// A progress indicator's track and bar.
+pub const PROGRESS_H: f32 = 4.0;
+/// The indeterminate indicator's bar, as a share of its track.
+pub const PROGRESS_SPAN: f32 = 0.3;
+
+
+/// A file the Keys card lists but cannot use: the reason's top below the row's top.
+pub const REFUSED_FILE_REASON_Y: f32 = 26.0;
+/// The name's top below the row's top.
+pub const REFUSED_FILE_NAME_Y: f32 = 4.0;
+/// Space under the reason.
+pub const REFUSED_FILE_GAP: f32 = 10.0;
+
+/// Decode a transaction's table (`docs/LAYOUT.md` §17): the number's
+/// column before an outpoint, an address or the line under one.
+pub const DECODE_INDEX_W: f32 = 26.0;
+/// An output's first line in Decode's table: the band the address and the
+/// amount are centred in.
+pub const DECODE_ROW_H: f32 = 26.0;
+/// Decode a Lightning invoice: the text field's height, four lines of
+/// its text and the inset above and below.
+pub const INVOICE_FIELD_H: f32 = 104.0;
+/// Decode a Lightning invoice: the width of the names column on a wide window.
+pub const INVOICE_LABEL_W: f32 = 180.0;
+/// Decode a Lightning invoice: the widest the page grows on a wide window.
+pub const INVOICE_PAGE_W: f32 = 960.0;
+/// Decode a Lightning invoice: the space above the text field on a small panel.
+pub const INVOICE_TOP: f32 = 14.0;
+/// Decode a Lightning invoice: the text's inset from the field's side edges.
+pub const INVOICE_FIELD_PAD_X: f32 = 14.0;
+/// Decode a Lightning invoice: the text's inset from the field's top edge,
+/// and the bottom edge its text stops above.
+pub const INVOICE_FIELD_PAD_Y: f32 = 12.0;
+/// Sign a message: the text's inset from the message field's side edges.
+pub const MESSAGE_FIELD_PAD_X: f32 = 14.0;
+/// Sign a message: the text's inset from the message field's top edge,
+/// and the bottom edge its text stops above.
+pub const MESSAGE_FIELD_PAD_Y: f32 = 12.0;
+/// Sign a message: the message field's height when empty, and the least
+/// it is as it grows with the message.
+pub const MESSAGE_FIELD_MIN_H: f32 = 120.0;
+/// Sign a message: the space under the whole message shown before signing.
+pub const MESSAGE_SHOWN_GAP: f32 = 14.0;
+/// Decode a Lightning invoice: the gap between the field and its buttons,
+/// and the line space under a refusal.
+pub const INVOICE_GAP: f32 = 12.0;
+/// The room Clear takes at the right of the Invoice card's field.
+pub const INVOICE_CLEAR_ROOM: f32 = 76.0;
+/// Clear's inset from the field's top edge.
+pub const INVOICE_CLEAR_TOP: f32 = 6.0;
+/// Clear's width.
+pub const INVOICE_CLEAR_W: f32 = 68.0;
+/// Decode a Lightning invoice: the gap between its blocks (buttons, rows,
+/// About on a small panel).
+pub const INVOICE_BLOCK_GAP: f32 = 16.0;
+/// Decode a Lightning invoice: the gap under a refusal line.
+pub const INVOICE_REFUSAL_GAP: f32 = 8.0;
+/// Decode a Lightning invoice: the room under the last row.
+pub const INVOICE_TAIL: f32 = 40.0;
+/// Decode a Lightning invoice, small panel: the name's line, above its value.
+pub const INVOICE_NAME_H: f32 = 18.0;
+/// Decode a Lightning invoice, small panel: the rule's distance under a value.
+pub const INVOICE_RULE_DROP: f32 = 26.0;
+/// Decode a Lightning invoice, small panel: a row's step past its value.
+pub const INVOICE_ROW_STEP: f32 = 34.0;
+/// Decode a Lightning invoice, wide window: a row's least height.
+pub const INVOICE_WIDE_ROW_H: f32 = 26.0;
+/// Decode a Lightning invoice, wide window: the rule's distance under a row.
+pub const INVOICE_WIDE_RULE_GAP: f32 = 6.0;
+/// Decode a Lightning invoice, wide window: the step past a row's rule.
+pub const INVOICE_WIDE_STEP: f32 = 12.0;
+/// Decode a Lightning invoice, wide window: a name's drop to sit on its
+/// value's first line.
+pub const INVOICE_NAME_DROP: f32 = 4.0;
+/// Decode a transaction's table: the room a row's value leaves for its
+/// number before it and its amount after it.
+pub const DECODE_VALUE_ROOM: f32 = 220.0;
+/// Decode a transaction's table: from an output's kind to whose it is.
+pub const DECODE_KIND_GAP: f32 = 14.0;
+/// The Copy to another vault sheet on the small panel: its side inset,
+/// which is also the room above it.
+pub const COPY_SHEET_INSET: f32 = 8.0;
+/// The Copy to another vault sheet on the small panel: the room inside it.
+pub const COPY_SHEET_PAD: f32 = 16.0;
+/// The Copy to another vault sheet on a wide panel: the room left of it
+/// and right of it together.
+pub const COPY_SHEET_SIDES: f32 = 48.0;
+/// The Copy to another vault sheet on a wide panel: the room above it.
+pub const COPY_SHEET_TOP: f32 = 40.0;
+/// The Copy to another vault sheet on a wide panel: the room inside it.
+pub const COPY_SHEET_WIDE_PAD: f32 = 32.0;
+/// The Copy to another vault sheet on a wide panel: the title's row.
+pub const COPY_HEAD_H: f32 = 30.0;
+/// The Copy to another vault sheet on a wide panel: from the icon to the title.
+pub const COPY_HEAD_TEXT_X: f32 = 42.0;
+/// The Copy to another vault sheet on a wide panel: the title's row with
+/// the gap under it.
+pub const COPY_HEAD_BLOCK: f32 = 46.0;
+/// The gap under each line of the copy check's list of what to write on
+/// the sheet once the words match.
+pub const COPY_WRITE_GAP: f32 = 6.0;
+
+// The Starter's Krux code template, a sheet in PDF points (1 pt is 1/72 inch).
+
+/// Krux code sheet: side of a grid square at 25 × 25 and 29 × 29.
+pub const KRUX_CELL_SMALL: f32 = 16.0;
+/// Krux code sheet: side of a grid square at 33 × 33.
+pub const KRUX_CELL_33: f32 = 14.0;
+/// Krux code sheet: side of a grid square at 37 × 37.
+pub const KRUX_CELL_37: f32 = 12.5;
+/// Krux code sheet: the title's size.
+pub const KRUX_TITLE_SIZE: f32 = 18.0;
+/// Krux code sheet: the size of its lines and labels.
+pub const KRUX_TEXT_SIZE: f32 = 9.0;
+/// Krux code sheet: the size of the grid's caption.
+pub const KRUX_CAPTION_SIZE: f32 = 7.0;
+/// Krux code sheet: from the title to the passphrase line.
+pub const KRUX_PASS_Y: f32 = 26.0;
+/// Krux code sheet: from the title to the line saying how to fill the grid.
+pub const KRUX_HAND_Y: f32 = 38.0;
+/// Krux code sheet: from the top margin to the lines to fill in.
+pub const KRUX_FIELDS_Y: f32 = 66.0;
+/// Krux code sheet: where the Version line ends, from the left margin.
+pub const KRUX_VERSION_END: f32 = 110.0;
+/// Krux code sheet: where the Rounds line starts, from the left margin.
+pub const KRUX_ROUNDS_X: f32 = 140.0;
+/// Krux code sheet: where the Rounds line ends, from the left margin.
+pub const KRUX_ROUNDS_END: f32 = 290.0;
+/// Krux code sheet: where the Id line starts, from the left margin.
+pub const KRUX_ID_X: f32 = 320.0;
+/// Krux code sheet: the room a label takes before its rule.
+pub const KRUX_LABEL_W: f32 = 44.0;
+/// Krux code sheet: from a label's top to its rule.
+pub const KRUX_RULE_DROP: f32 = 11.0;
+/// Krux code sheet: the grey of a rule to write on.
+pub const KRUX_RULE_GREY: f32 = 0.55;
+/// Krux code sheet: from the lines to fill in to the grid.
+pub const KRUX_GRID_GAP: f32 = 44.0;
+/// Krux code sheet: from the grid to its caption.
+pub const KRUX_CAPTION_GAP: f32 = 6.0;
+/// Blank templates: the indent of an option's line under its name, the
+/// width of its ring and the room before its name.
+pub const TPL_OPTION_INDENT: f32 = 36.0;
+/// Blank templates: the room under an option's line.
+pub const TPL_OPTION_GAP: f32 = 10.0;
+/// The Krux code form: the room a heading takes, its line and the gap.
+pub const KEF_HEAD_ADVANCE: f32 = 26.0;
+/// The Krux code form: the room a caption line takes.
+pub const KEF_CAPTION_ADVANCE: f32 = 22.0;
+/// The Krux code form: the largest side, in modules, of a code the blank
+/// template takes to copy by hand.
+pub const KEF_BY_HAND_MAX_SIDE: usize = 37;
+/// The side of a Krux code on a blank template when none is made yet (`docs/KEF.md` §10).
+pub const KEF_DEFAULT_SIDE: usize = 33;
 
 // The wallet sheet's Spend paths block, the share sheets' recovery line and
 // the Starter's blank paths page (`docs/BACKUP-FLOW.md` §18.4), in PDF points.
@@ -60,3 +2371,31 @@ pub const MOVE_TABLE_ROW: f32 = 18.0;
 pub const SHARE_QUORUM_GAP: f32 = 18.0;
 /// Share sheets: the room before the share's lines.
 pub const SHARE_LINES_GAP: f32 = 10.0;
+/// The room above the contents' search field in the guide's sheet while
+/// the keyboard is up and the title and tabs have given way.
+pub const GUIDE_SEARCH_TOP: f32 = GAP_SMALL;
+/// The room under the sheet's top edge to the text's view in the same.
+pub const GUIDE_SEARCH_AFTER: f32 = GAP_SMALL / 2.0;
+
+/// The room left under Home's search results at the foot of the page.
+pub const HOME_RESULTS_FOOT: f32 = 40.0;
+
+/// How many rows of results Home keeps room for under its search bar
+/// before the whole page scrolls with it.
+pub const HOME_RESULTS_ROWS: f32 = 3.0;
+
+/// How many key rows at most Home's box shows under All keys.
+pub const HOME_BOX_KEYS: usize = 3;
+
+/// The gap between Home's search row and its card, one at every window height.
+pub const HOME_CARD_GAP: f32 = 24.0;
+
+/// Home's card heading: title large, 22 on 28, in Noto Sans SemiBold.
+pub const HOME_CARD_HEAD: TypeRole = role(22.0, 28.0, TypeFace::Medium);
+
+/// The least height, in two-line rows, Home's box keeps once the fixed part
+/// has its room; under it the whole page scrolls as one.
+pub const HOME_BOX_MIN_ROWS: f32 = 2.0;
+
+/// The height of the line saying no tool matches Home's search.
+pub const HOME_RESULTS_LINE: f32 = 30.0;

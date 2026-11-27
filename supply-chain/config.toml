@@ -125,3 +125,28 @@ notes = "not reviewed; a dev-dependency of the backup property tests only (docs/
 [[exemptions.zlib-rs]]
 version = "0.6.7"
 criteria = "safe-to-deploy"
+
+[[exemptions.bytemuck]]
+version = "1.25.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.bytemuck_derive]]
+version = "1.12.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.strict-num]]
+version = "0.1.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.tiny-skia]]
+version = "0.12.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.tiny-skia-path]]
+version = "0.12.0"
+criteria = "safe-to-deploy"
+
+
+[[exemptions.log]]
+version = "0.4.35"
+criteria = "safe-to-deploy"

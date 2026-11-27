@@ -3,6 +3,8 @@
 
 #![no_std]
 
+extern crate alloc;
+
 pub mod dims;
 pub mod elevation;
 pub mod motion;

@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+tiny-skia.workspace = true
 faraday-tokens = { path = "../faraday-tokens" }
 faraday-port = { path = "../../core/faraday-port" }
 faraday-text = { path = "../../core/faraday-text" }
