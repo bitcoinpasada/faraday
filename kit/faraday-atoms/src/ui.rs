@@ -273,6 +273,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
 
     /// The runtime's only.
     pub fn finish(self) -> FrameOut<A> {
+        let typed = self.fields.iter().map(|f| f.action.clone()).collect();
         let ink = self.ink.then(|| Ink(self.c.ink().to_vec()));
         FrameOut {
             hits: self.hits,
@@ -283,6 +284,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             anchors: self.anchors,
             regions: self.regions,
             laid: self.laid,
+            typed,
             tips: self.tips,
             holds: self.keeps.holds,
             held: self.keeps.held,

@@ -65,6 +65,14 @@ const KEY_UP: u16 = 103;
 const KEY_LEFT: u16 = 105;
 /// `KEY_RIGHT`.
 const KEY_RIGHT: u16 = 106;
+/// `KEY_HOME`.
+const KEY_HOME: u16 = 102;
+/// `KEY_PAGEUP`.
+const KEY_PAGEUP: u16 = 104;
+/// `KEY_END`.
+const KEY_END: u16 = 107;
+/// `KEY_PAGEDOWN`.
+const KEY_PAGEDOWN: u16 = 109;
 /// `KEY_DOWN`.
 const KEY_DOWN: u16 = 108;
 
@@ -139,6 +147,10 @@ pub fn map(code: u16, shift: bool) -> Option<Key> {
         KEY_DOWN => Some(Key::Down),
         KEY_LEFT => Some(Key::Left),
         KEY_RIGHT => Some(Key::Right),
+        KEY_HOME => Some(Key::Home),
+        KEY_END => Some(Key::End),
+        KEY_PAGEUP => Some(Key::PageUp),
+        KEY_PAGEDOWN => Some(Key::PageDown),
         _ => None,
     }
 }
@@ -156,11 +168,19 @@ pub enum Stroke {
 }
 
 /// Whether a key held down repeats: Backspace deletes character after
-/// character, and Tab and the arrows walk a list while they are held.
+/// character, and Tab, the arrows and the page keys walk a list while they are held.
 fn repeats(key: Key) -> bool {
     matches!(
         key,
-        Key::Backspace | Key::Tab | Key::BackTab | Key::Up | Key::Down | Key::Left | Key::Right
+        Key::Backspace
+            | Key::Tab
+            | Key::BackTab
+            | Key::Up
+            | Key::Down
+            | Key::Left
+            | Key::Right
+            | Key::PageUp
+            | Key::PageDown
     )
 }
 

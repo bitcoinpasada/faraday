@@ -1613,6 +1613,48 @@ fn page_down_moves_a_scrolled_list_by_a_page() {
     assert_eq!(region_state(&runtime).0, 0.0, "Home goes back to the top");
 }
 
+fn draw_typed_in_region(_view: &View<'_>, ui: &mut Ui<'_, Press>) {
+    ui.set_page(PAGE);
+    let view = faraday_draw::geom::Rect::new(0, 0, 200, 200);
+    ui.region(faraday_atoms::region::Region::new(REGION, view), |ui| {
+        let model = faraday_atoms::field::FieldModel {
+            label: None,
+            text: faraday_atoms::Shown::plain("abc"),
+            focused: true,
+            error: None,
+            offered: faraday_atoms::Offered::Yes(Press(false)),
+        };
+        faraday_atoms::field::draw(&model, ui, (10.0, 10.0, 150.0));
+        400.0_f32
+    });
+}
+
+/// Invariant: A focused typed line takes End and the arrows first, so they leave the region it is in where it is; the same keys scroll the region when no typed line is focused.
+/// Regression: Home and End scroll the page while the person edits a line, so the caret cannot be moved to an end.
+/// Owner: runtime
+#[test]
+fn end_in_a_focused_typed_line_leaves_the_region_where_it_is() {
+    use port::event::Key;
+    let mut runtime = drawing(draw_typed_in_region);
+    at(&mut runtime, 1_000);
+    runtime.frame.pointer.focused = Some(Press(false));
+    key(&mut runtime, Key::End, true);
+    key(&mut runtime, Key::Down, true);
+    for i in 1..=100 {
+        at(&mut runtime, 1_000 + 16 * i);
+    }
+    assert_eq!(region_state(&runtime).0, 0.0, "the line took them");
+    runtime.frame.pointer.focused = None;
+    key(&mut runtime, Key::End, true);
+    for i in 101..=300 {
+        at(&mut runtime, 1_000 + 16 * i);
+    }
+    assert!(
+        region_state(&runtime).0 > 0.0,
+        "and the page scrolls without one"
+    );
+}
+
 /// Invariant: A wheel notch glides to its target over some frames and ends where a jump would have; with Reduce motion on it is the jump.
 /// Regression: The wheel jumps at once, or glides to a different offset than it was asked for.
 /// Owner: runtime

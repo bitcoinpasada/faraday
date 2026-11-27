@@ -24,6 +24,9 @@ pub struct FrameOut<R: Pressed> {
     /// Id, view, extent: what a wheel or a finger moves.
     pub regions: Vec<Scrolled>,
     pub laid: Vec<(Anchor, Laid, R)>,
+    /// The presses of the typed lines the frame drew: a key that edits or moves a caret is
+    /// theirs when one is focused.
+    pub typed: Vec<R>,
     /// The tooltip anchors the frame drew and the screen template did not take (`Ui::take_tips`):
     /// where each control with a tooltip is, its press and its text.
     pub tips: Vec<crate::icon_button::TipAnchor<R>>,

@@ -740,7 +740,8 @@ impl<R: Root> Runtime<R> {
                 _ => self.root_input(&Input::Key(key)),
             },
             Key::Up | Key::Down | Key::PageUp | Key::PageDown | Key::Home | Key::End => {
-                if !self.key_scroll(key) {
+                // A focused typed line takes these first: they move its caret.
+                if self.focused_typing() || !self.key_scroll(key) {
                     self.root_input(&Input::Key(key));
                 }
             }
@@ -915,6 +916,14 @@ impl<R: Root> Runtime<R> {
         };
         self.glide(id, by, max);
         true
+    }
+
+    /// Whether the focused press is a typed line of the last frame.
+    fn focused_typing(&self) -> bool {
+        match (&self.frame.pointer.focused, self.frame.out.as_ref()) {
+            (Some(focused), Some(out)) => out.typed.contains(focused),
+            _ => false,
+        }
     }
 
     /// The last region the top layer drew, as `region_at` gives one.
