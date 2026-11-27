@@ -69,8 +69,11 @@ pub enum Effect {
 ```
 
 The root takes events from `poll`, hands each to the runtime, hands every effect the runtime
-returns to `carry`, and paints the runtime's frame (§5) through its display adapter. The runtime
-is the only caller of `carry` with an `Ask`: it mints the `AskId` (§2.2).
+returns to `carry`, and paints the runtime's frame (§5) through its display adapter. The paint
+and the end status are the display adapter's own methods, not `Adapters`': the device's
+`Stick::present(&Frame)` and `Stick::ended() -> Option<u8>` (section 06, §2.1), a window's
+`Window::paint(&Frame)` (section 09, §6). The runtime is the only caller of `carry` with an
+`Ask`: it mints the `AskId` (§2.2).
 
 ## 2. Asks, answers and the worker job
 
@@ -738,7 +741,8 @@ pub struct Frame<'a> {
     /// Premultiplied RGBA8888, row-major, width x height x 4 bytes; the
     /// adapter converts to its panel's format.
     pub rgba: &'a [u8],
-    /// Rectangles that may have changed since the last frame.
+    /// Rectangles that may have changed since the last frame. Empty is
+    /// unknown, not unchanged: the adapter takes the frame whole.
     pub changed: &'a [Rect],
     /// A band moved by dy since the last frame (a scroll).
     pub moved: Option<Moved>,

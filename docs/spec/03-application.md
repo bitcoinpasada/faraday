@@ -28,7 +28,7 @@ types (A1).
 | `message` | `Message`, `Public`, `Never`, the derives (§3) |
 | `effects` | `Effects`, `Fx`, `AskFor`, `ChangeFor`, `Job`, `Route`, `Note`, `ViewOrder` (§4) |
 | `cx` | `Ctx`, `View`, `Facts`, `Mode`, `Clock`, `Running`, `Started` (§5); `Show`, `Memo`, `Slot`, `Edits`, `Derived` (section 04, §3, §6, §13) |
-| `shared` | `Change`, `Done`, `ChangeId`, `Owner`, and the read traits and change types of the session, the vaults and the settings (§7) |
+| `shared` | `Change`, `Done`, `ChangeId`, `Owner`, `Empty` (the empty readers, A19), and the read traits and change types of the session, the vaults and the settings (§7) |
 | `flow` | `StepFlow`, `Flow`, `FlowMsg`, `Steps`, `CancelOffer`, `Ending` (§9) |
 | `lock` | `AtLock`, `Holds`, `Loss` (§2.3); `Carried`, `CarryName`, `CarryValue` (section 05, §7.3) |
 | `nav` | `Nav<P>`, the one navigation every frame uses (section 06, §4.3) |
@@ -270,9 +270,15 @@ pub enum Fx<M, O> {
 impl<M: Message, O: Message> Effects<M, O> {
     pub fn none() -> Self;
     pub fn order(self, o: port::Order) -> Self;
-    pub fn ask<R: port::Request, C: Public>(self, r: R, context: C, reply: fn(C, R::Answer) -> M) -> Self;
-    pub fn change<R: shared::Change, C: Public>(self, r: R, context: C, reply: fn(C, R::Done) -> M) -> Self;
+    pub fn ask<R: port::Request + 'static, C: Public>(self, r: R, context: C, reply: fn(C, R::Answer) -> M) -> Self
+        where R::Answer: 'static;
+    pub fn change<R: shared::Change + 'static, C: Public>(self, r: R, context: C, reply: fn(C, R::Done) -> M) -> Self
+        where R::Done: 'static;
+    /// Only an owner: the answer to a change it was given (§7.3, A24).
+    pub fn done(self, id: shared::ChangeId, done: shared::Done) -> Self;
     pub fn job(self, j: Job<M>) -> Self;
+    /// Ask the runtime to stop this feature's running job of this kind (§8.3).
+    pub fn stop(self, kind: JobKind) -> Self;
     pub fn then(self, m: M) -> Self;
     pub fn out(self, o: O) -> Self;
     pub fn note<W: Worded + Public>(self, n: W) -> Self;
@@ -308,7 +314,8 @@ pub struct AskFor<M> {
 }
 
 impl<M: Message> AskFor<M> {
-    pub fn new<R: port::Request, C: Public>(request: R, context: C, reply: fn(C, R::Answer) -> M) -> Self;
+    pub fn new<R: port::Request + 'static, C: Public>(request: R, context: C, reply: fn(C, R::Answer) -> M) -> Self
+        where R::Answer: 'static;
     pub fn map<N: Message>(self, f: fn(M) -> N) -> AskFor<N>;
     /// The runtime's only: the request to carry and the reply to keep.
     pub fn into_parts(self) -> (port::Ask, Reply<M>);
@@ -319,7 +326,8 @@ pub enum Fault { None, WrongKind }  // P9: the runtime notes WrongKind
 `new` builds the box from `context` and `reply`: it calls `R::take` on the answer and, on the
 wrong kind, `R::fault()`. `map` wraps it with one more `fn`. Two `fn` pointers cannot be one
 `fn`, so the chain is erased into the box; what it captures is the `Public` context and `fn`
-pointers alone, which is what P8 asks.
+pointers alone, which is what P8 asks. The box is `'static`, so `new` asks `R: 'static` and
+`R::Answer: 'static`; `ChangeFor::new` (§7.3) asks the same of the change and its `R::Done`.
 
 - **Rule A16.** No feature, composite or root builds an `AskFor` or a `ChangeFor` but through
   `new` and `map`, and only the runtime opens an effect: `AskFor::into_parts`,
@@ -448,8 +456,9 @@ input, kept by the runtime.
   worked out in `update` or a job and kept in state (`Derived`, section 04 §13). Held by the
   compiler and `costs-lint` (V2).
 - **Rule A19.** The part of the model outside the lock scope (the Starter's settings owner and its
-  own composite) is lent the empty session and empty vaults (`session::Read` and `vaults::Read`
-  for `()`) whether or not the scope is built (section 05, R26), so every feature has the same
+  own composite) is lent the empty session and empty vaults (`shared::Empty`, the kernel's one
+  value that implements `session::Read` and `vaults::Read` and holds no key, wallet or vault)
+  whether or not the scope is built (section 05, R26), so every feature has the same
   `View` and none of the Starter's own reads Faraday Demo's keys. Held by the types and the
   runtime's dispatch.
 
@@ -708,8 +717,9 @@ routes. Held by `lint-layers`' module rule: no application crate but the vault o
   signing, stretch and seal jobs' constructors) are called only in the shared owners' crates, so
   no feature builds a job that passes the session's refusals (a key held for its backup). Held by
   the application directories' `clippy.toml` (`disallowed-methods`), allowed in the owners'.
-- **Rule A24.** Only an owner's crate emits `Fx::Done`; a feature that is not an owner never sees
-  a `ChangeId`. Held by `lint-layers` (only crates with `owner = true` name `Fx::Done`).
+- **Rule A24.** Only an owner's crate emits `Fx::Done`, by `Effects::done` or the variant; a
+  feature that is not an owner never sees a `ChangeId`. Held by `lint-layers` (only crates with
+  `owner = true` name `Fx::Done` or `Effects::done`).
 
 The session's changes, from the inventory's uses (`features/wallets.md`, `add-key.md`,
 `keygen-flow.md`, `spend-signing.md`, `files-inbox.md`, `randomness.md`, `lock.md`):

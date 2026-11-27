@@ -317,7 +317,7 @@ message.
 - **Rule R12.** A change answer whose id is not in the table is dropped and noted, as R11 drops an
   ask's (A23). Held by the test of R11.
 - **Rule R13.** When the runtime dispatches to an owner, the `View` it lends has the empty reader
-  in that owner's own slot (`session::Read` and `vaults::Read` for `()`, A19), and for the
+  in that owner's own slot (the kernel's `shared::Empty`, A19), and for the
   settings owner a copy of the settings as they were before the message. An owner reads itself
   from its own state. Reason: the owner is borrowed `&mut` while the others are lent `&`; Rust
   cannot lend it both ways. Turned down: a `View` per owner type, which makes every feature's
@@ -339,6 +339,12 @@ the three owners' states (but the one being dispatched to, R13; the empty sessio
 readers for the part outside the scope, R26), the `Facts` it keeps, the list of running jobs
 (`View::running`), and the scope's `Mode`, `Clock` and `View::started` (§7.5). `Ctx` is that
 `View` and `&self.compute` (R10).
+
+Until the settings owner is built, the runtime lends the default settings in its slot: to the
+settings owner's own `start` (R13, §7.5) and to a frame drawn before it is built. They are
+`main`'s defaults: idle lock 30 minutes, idle off 60 minutes, a QR frame every 500 ms, no time
+zone, no offset, the clock not checked, `ThemeId(0)`, light, Standard contrast and text, motion
+not chosen, Relaxed speed, scale 100 %, Landscape, neither Remembered choice on.
 
 **Decision: `View` holds no strings. The runtime holds the wording as `&'static Strings` and
 gives it only to `present`, in `Show` (04 §3), which it builds for each frame and passes to
@@ -404,7 +410,8 @@ pub struct JobParts<M> {
 - `Workers::Inline` (the tour root, runtime tests) runs each job on the root's thread after the
   cascade that started it, with the root's token, its answer handled as the next event, so a tour
   renders the same every time.
-- A job that panics ends the process (release builds abort); no answer stands in for it.
+- A job that panics ends the process (release builds abort: `[profile.release]`'s
+  `panic = "abort"`, section 09 §1.3); no answer stands in for it.
 
 ### 5.2 Compute on a worker
 
@@ -582,7 +589,10 @@ impl Carried {
   none, and every entry no start took is dropped, its bytes wiped, after the last start. A renamed
   or removed feature therefore loses its entry and never misreads one. Held by an update test of
   each feature that carries.
-- A lock that changes the mode carries only entries marked `any_mode`.
+- A lock that changes the mode carries only entries marked `any_mode`. The runtime learns the
+  mode after step 5 of §7.2: it calls `Root::mode` over a copy of the entries alone (no file;
+  entries are `Public`), and when that mode is not the scope's, drops every entry not marked
+  `any_mode`. The Inbox and Outbox stay.
 
 `Carried` maps onto the port's `Carry` (02 §4.2) at a Keep and at `Start`:
 
@@ -590,7 +600,8 @@ impl Carried {
 - Each entry is a file of `Carry::kept`, named by `CarryName::name`. Entries marked `first` come
   first, so that what matters most is written first (`main`'s `backup-gate` and `backup-flow`).
 - `only_copy` is not in `Carry`: the runtime holds it aside for the whole Keep, and reads it again
-  when `Kept(Err)` hands the carry back (§7.6).
+  when `Kept(Err)` hands the carry back (§7.6). A carry read at `Start` is therefore not marked;
+  the session's `carry` marks it again at the next lock, before the Keep that reads it.
 - At `Start`, each file of `kept` becomes an entry by its name; `take` finds it by name alone, so a
   name rebuilt from a file name matches.
 
@@ -633,7 +644,7 @@ On `Start` or in process (§7.6), the runtime:
    online, section 03 §11);
 3. starts the scope's states in the fixed order (settings, session, vaults, app). Each `start` is
    given the carry and a `View` lending the owners started before it and the empty readers (and
-   the default settings) for the rest;
+   the default settings, §4.1) for the rest;
 4. drops every entry not taken (R22) and handles the starts' effects as one event (R7).
 
 At `Start`, the part outside the scope is built first, with generation 0: in the Starter the
