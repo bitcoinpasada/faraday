@@ -54,11 +54,6 @@ allow = [
     "Zlib",         # zlib-rs
 ]
 
-# Faraday's own crates are `publish = false` and carry no licence field;
-# they are not checked, every outside crate is.
-[licenses.private]
-ignore = true
-
 # Two crates whose licence is permissive but not one of the above. Named
 # here so that a third does not arrive unnoticed.
 [[licenses.exceptions]]

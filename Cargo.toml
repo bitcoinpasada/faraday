@@ -143,6 +143,12 @@ members = [
     "tools/testkit-sticks",
 ]
 
+[workspace.package]
+edition = "2024"
+license = "MIT"
+rust-version = "1.97"
+repository = "https://github.com/bitcoinpasada/faraday"
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 
