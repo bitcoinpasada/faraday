@@ -1,0 +1,688 @@
+//! BIP-373's MuSig2 PSBT fields.
+//!
+//! `bitcoin` 0.32 has no type for any of them, so they live in the
+//! `unknown` map of the input or output they belong to, which is exactly
+//! where a field the crate has no type for survives a round trip. Four
+//! fields:
+//!
+//! | Field | Map | Type | Key data | Value |
+//! |---|---|---|---|---|
+//! | `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS` | input | `0x1a` | 33-byte aggregate | the participants, 33 bytes each |
+//! | `PSBT_IN_MUSIG2_PUB_NONCE` | input | `0x1b` | participant ‖ aggregate, and an optional leaf hash | 66-byte public nonce |
+//! | `PSBT_IN_MUSIG2_PARTIAL_SIG` | input | `0x1c` | the same | 32-byte partial signature |
+//! | `PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS` | output | `0x08` | 33-byte aggregate | the participants |
+//!
+//! A nonce or partial-signature key with the 32-byte tapleaf hash
+//! appended is a script-path MuSig2 spend, which is not a wallet this
+//! tree loads, and reading it is [`Error::ScriptPath`].
+//!
+//! Reading another signer's nonce or partial signature accepts any of
+//! the three aggregate forms BIP-373's text and Bitcoin Core's code
+//! between them produce — the root aggregate, the aggregate derived at
+//! the sub-path, or the taproot output key. What this crate writes is
+//! the output key in compressed form, which is what Bitcoin Core 31.1
+//! writes and reads.
+
+use alloc::vec::Vec;
+use core::fmt;
+
+use bitcoin::hashes::{Hash, HashEngine};
+use bitcoin::psbt::{Input, Output, raw};
+use bitcoin::secp256k1::PublicKey;
+use faraday_bip::musig::{PartialSig, PubNonce};
+
+/// `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS`.
+pub const IN_PARTICIPANT_PUBKEYS: u8 = 0x1a;
+/// `PSBT_IN_MUSIG2_PUB_NONCE`.
+pub const IN_PUB_NONCE: u8 = 0x1b;
+/// `PSBT_IN_MUSIG2_PARTIAL_SIG`: this is the per-participant partial
+/// signature, not the final one, which is written as `tap_key_sig`.
+pub const IN_PARTIAL_SIG: u8 = 0x1c;
+/// `PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS`.
+pub const OUT_PARTICIPANT_PUBKEYS: u8 = 0x08;
+
+/// Why a BIP-373 field could not be read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    /// The participants field's key is not a 33-byte aggregate key, or
+    /// its value is not a whole number of 33-byte keys, or it lists
+    /// none.
+    Participants,
+    /// A nonce or partial-signature key is not a participant key
+    /// followed by an aggregate key.
+    EntryKey,
+    /// A public nonce is not 66 bytes, or either half is not a point.
+    Nonce,
+    /// A partial signature is not a 32-byte scalar below the curve
+    /// order.
+    Signature,
+    /// The key carries a 32-byte tapleaf hash: a script-path MuSig2
+    /// spend, which this tree does not load.
+    ScriptPath,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}") // not shown: a developer's text; the app words each kind
+    }
+}
+
+impl core::error::Error for Error {}
+
+/// One `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS` entry: the aggregate the
+/// field is keyed by, and the participants in aggregation order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Participants {
+    /// The key the field is keyed by, which is `KeyAgg` of the sorted
+    /// participants before any derivation.
+    pub aggregate: PublicKey,
+    /// The participants, in the order the field lists them.
+    pub keys: Vec<PublicKey>,
+}
+
+/// One participant's public nonce or partial signature, and the
+/// aggregate key its entry names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Entry<T> {
+    /// Whose it is.
+    pub participant: PublicKey,
+    /// The aggregate key the entry is keyed by, in whichever of the
+    /// three forms the writer used.
+    pub aggregate: PublicKey,
+    /// The nonce or the partial signature.
+    pub value: T,
+}
+
+fn key_of(bytes: &[u8]) -> Result<PublicKey, Error> {
+    // BIP-373 allows only the 33-byte compressed key, not the 65-byte
+    // uncompressed or hybrid forms `from_slice` also takes.
+    if bytes.len() != 33 {
+        return Err(Error::Participants);
+    }
+    PublicKey::from_slice(bytes).map_err(|_| Error::Participants)
+}
+
+fn read_participants(map: &[(&raw::Key, &Vec<u8>)]) -> Result<Vec<Participants>, Error> {
+    let mut out = Vec::new();
+    for (key, value) in map {
+        let aggregate = key_of(&key.key)?;
+        if value.is_empty() || !value.len().is_multiple_of(33) {
+            return Err(Error::Participants);
+        }
+        let mut keys = Vec::with_capacity(value.len() / 33);
+        for chunk in value.chunks(33) {
+            keys.push(key_of(chunk)?);
+        }
+        out.push(Participants { aggregate, keys });
+    }
+    Ok(out)
+}
+
+fn entries_of(key: &raw::Key) -> Result<(PublicKey, PublicKey), Error> {
+    match key.key.len() {
+        66 => Ok((
+            PublicKey::from_slice(&key.key[..33]).map_err(|_| Error::EntryKey)?,
+            PublicKey::from_slice(&key.key[33..]).map_err(|_| Error::EntryKey)?,
+        )),
+        98 => Err(Error::ScriptPath),
+        _ => Err(Error::EntryKey),
+    }
+}
+
+fn of_type(
+    unknown: &alloc::collections::BTreeMap<raw::Key, Vec<u8>>,
+    type_value: u8,
+) -> Vec<(&raw::Key, &Vec<u8>)> {
+    unknown
+        .iter()
+        .filter(|(k, _)| k.type_value == type_value)
+        .collect()
+}
+
+/// The `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS` entries of an input.
+pub fn input_participants(input: &Input) -> Result<Vec<Participants>, Error> {
+    read_participants(&of_type(&input.unknown, IN_PARTICIPANT_PUBKEYS))
+}
+
+/// Costs a point decode per key in the pair. Whether `musig.rs`'s own
+/// reader accepts this one pair of an input's BIP-373 types (so
+/// `inspect` counts it as accepted), and false for any other type, a
+/// malformed pair and a script-path entry, which is well-formed but not
+/// accepted by Faraday.
+pub(crate) fn input_pair_is_read(key: &raw::Key, value: &Vec<u8>) -> bool {
+    match key.type_value {
+        IN_PARTICIPANT_PUBKEYS => read_participants(&[(key, value)]).is_ok(),
+        IN_PUB_NONCE => entries_of(key).is_ok() && PubNonce::from_bytes(value).is_ok(),
+        IN_PARTIAL_SIG => entries_of(key).is_ok() && PartialSig::from_bytes(value).is_ok(),
+        _ => false,
+    }
+}
+
+/// Costs a point decode per key in the pair. The same for an output,
+/// whose only BIP-373 type is the participants field: an input's type
+/// on an output is accepted nowhere.
+pub(crate) fn output_pair_is_read(key: &raw::Key, value: &Vec<u8>) -> bool {
+    key.type_value == OUT_PARTICIPANT_PUBKEYS && read_participants(&[(key, value)]).is_ok()
+}
+
+/// The `PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS` entries of an output.
+pub fn output_participants(output: &Output) -> Result<Vec<Participants>, Error> {
+    read_participants(&of_type(&output.unknown, OUT_PARTICIPANT_PUBKEYS))
+}
+
+/// Every `PSBT_IN_MUSIG2_PUB_NONCE` an input carries.
+pub fn pub_nonces(input: &Input) -> Result<Vec<Entry<PubNonce>>, Error> {
+    let mut out = Vec::new();
+    for (key, value) in of_type(&input.unknown, IN_PUB_NONCE) {
+        let (participant, aggregate) = entries_of(key)?;
+        out.push(Entry {
+            participant,
+            aggregate,
+            value: PubNonce::from_bytes(value).map_err(|_| Error::Nonce)?,
+        });
+    }
+    Ok(out)
+}
+
+/// Every `PSBT_IN_MUSIG2_PARTIAL_SIG` an input carries.
+pub fn partial_sigs(input: &Input) -> Result<Vec<Entry<PartialSig>>, Error> {
+    let mut out = Vec::new();
+    for (key, value) in of_type(&input.unknown, IN_PARTIAL_SIG) {
+        let (participant, aggregate) = entries_of(key)?;
+        out.push(Entry {
+            participant,
+            aggregate,
+            value: PartialSig::from_bytes(value).map_err(|_| Error::Signature)?,
+        });
+    }
+    Ok(out)
+}
+
+/// What stops a round's partial signatures being checked on an input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Gap {
+    /// A participant's public nonce is not on the input, or one is unreadable.
+    Nonce,
+    /// The input's sighash cannot be worked out: no spent output, or a
+    /// sighash type taproot does not have.
+    Sighash,
+}
+
+/// One entry per participant: when a participant has entries under more
+/// than one form of the aggregate key, the one in the form
+/// `musig_form_rank` prefers. Every reader of the entries (the screen,
+/// the aggregation and the signer) goes through this, so they agree on
+/// which entry counts. Entries under a key that is none of the forms are
+/// left out.
+pub(crate) fn picked<T: Copy>(
+    entries: &[Entry<T>],
+    session: &crate::inspect::MusigInput,
+) -> Vec<(PublicKey, T)> {
+    // Lowest rank wins, the first of equal rank stays: one lookup per entry.
+    let mut best: alloc::collections::BTreeMap<PublicKey, (u8, T)> =
+        alloc::collections::BTreeMap::new();
+    for e in entries {
+        let Some(rank) = crate::inspect::musig_form_rank(session, &e.aggregate) else {
+            continue;
+        };
+        match best.get_mut(&e.participant) {
+            Some(held) if held.0 <= rank => {}
+            Some(held) => *held = (rank, e.value),
+            None => {
+                best.insert(e.participant, (rank, e.value));
+            }
+        }
+    }
+    best.into_iter().map(|(p, (_, v))| (p, v)).collect()
+}
+
+/// Costs a scan of the input's entries. The partial signature each
+/// participant of `session` counts for on `input`: its entry under the
+/// form of the aggregate key [`picked`] prefers, none for a participant
+/// whose entries are all under a key that is none of the forms. The
+/// screen's classifier reads entries through this, as the signer and the
+/// aggregation do.
+pub fn picked_partials(
+    input: &Input,
+    session: &crate::inspect::MusigInput,
+) -> Vec<(PublicKey, PartialSig)> {
+    picked(&partial_sigs(input).unwrap_or_default(), session)
+}
+
+/// The public nonces of every participant of `session` on input `index`,
+/// in the participants' order, and the BIP-341 key-path sighash the
+/// input asks for: what BIP-327's `PartialSigVerify` needs besides the key
+/// and the signature.
+pub(crate) fn round_of(
+    psbt: &crate::Psbt,
+    index: usize,
+    session: &crate::inspect::MusigInput,
+) -> Result<(Vec<PubNonce>, [u8; 32]), Gap> {
+    use bitcoin::sighash::{SighashCache, TapSighashType};
+    let input = psbt.inner().inputs.get(index).ok_or(Gap::Sighash)?;
+    let all = picked(&pub_nonces(input).map_err(|_| Gap::Nonce)?, session);
+    let nonces: Vec<PubNonce> = session
+        .participants
+        .iter()
+        .map(|p| all.iter().find(|(k, _)| k == p).map(|(_, v)| *v))
+        .collect::<Option<_>>()
+        .ok_or(Gap::Nonce)?;
+    let ty = match input.sighash_type {
+        Some(t) => t.taproot_hash_ty().map_err(|_| Gap::Sighash)?,
+        None => TapSighashType::Default,
+    };
+    let cl = crate::classify::classify(psbt.inner(), index);
+    if cl.utxo.is_none() {
+        return Err(Gap::Sighash);
+    }
+    let prevouts =
+        crate::sign::tap_prevouts(psbt.inner(), &cl, index, ty).map_err(|_| Gap::Sighash)?;
+    let tx = psbt.unsigned_tx().clone();
+    let hash = SighashCache::new(&tx)
+        .taproot_key_spend_signature_hash(index, &prevouts.as_ref(), ty)
+        .map_err(|_| Gap::Sighash)?;
+    Ok((nonces, hash.to_byte_array()))
+}
+
+/// Costs a signature check (BIP-327 `PartialSigVerify`) per partial
+/// signature, and the aggregate nonce and session once. The participants
+/// of `session` whose partial signature on input `index` verifies under
+/// the nonces on that input and the sighash the input asks for. A partial
+/// that does not verify, one for a key outside the session, or any
+/// partial where a participant's nonce is missing, is left out: this reads
+/// what the online side wrote and decides nothing about it.
+pub fn verified_partials(
+    c: &faraday_crypto::work::Compute,
+    psbt: &crate::Psbt,
+    index: usize,
+    session: &crate::inspect::MusigInput,
+) -> Vec<PublicKey> {
+    verified_rounds(c, psbt, index, session)
+        .into_iter()
+        .map(|v| v.participant)
+        .collect()
+}
+
+/// One verified partial signature with what makes its nonce's use known
+/// again (the nonce history, F227).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VerifiedPartial {
+    /// The participant whose partial signature verifies.
+    pub participant: PublicKey,
+    /// The x coordinate of the first point of the participant's public
+    /// nonce.
+    pub nonce_x: [u8; 32],
+    /// SHA-256 of the sighash and the aggregate nonce (66 bytes): the same
+    /// for every partial signature of one round.
+    pub round: [u8; 32],
+}
+
+/// Costs what [`verified_partials`] costs. The partial signatures of
+/// `session` on input `index` that verify, each with its nonce and round.
+pub fn verified_rounds(
+    c: &faraday_crypto::work::Compute,
+    psbt: &crate::Psbt,
+    index: usize,
+    session: &crate::inspect::MusigInput,
+) -> Vec<VerifiedPartial> {
+    c.count(faraday_crypto::work::Work::Sign);
+    let Some(input) = psbt.inner().inputs.get(index) else {
+        return Vec::new();
+    };
+    let Ok(partials) = partial_sigs(input) else {
+        return Vec::new();
+    };
+    if partials.is_empty() {
+        return Vec::new();
+    }
+    let Ok((nonces, msg)) = round_of(psbt, index, session) else {
+        return Vec::new();
+    };
+    let secp = bitcoin::secp256k1::Secp256k1::verification_only();
+    let Ok(aggnonce) = faraday_bip::musig::nonce_agg_with(&secp, &nonces) else {
+        return Vec::new();
+    };
+    let Ok(values) = faraday_bip::musig::session_values(
+        &secp,
+        &session.participants,
+        &session.tweaks,
+        &aggnonce,
+        &msg,
+    ) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (participant, value) in picked(&partials, session) {
+        let Some(at) = session.participants.iter().position(|p| *p == participant) else {
+            continue;
+        };
+        if faraday_bip::musig::partial_sig_verify_internal(
+            &secp,
+            &value,
+            &nonces[at],
+            &participant,
+            &values,
+        )
+        .is_ok()
+        {
+            let mut nonce_x = [0u8; 32];
+            nonce_x.copy_from_slice(&nonces[at].serialize()[1..33]);
+            let mut engine = bitcoin::hashes::sha256::HashEngine::default();
+            engine.input(&msg);
+            engine.input(&aggnonce.serialize());
+            out.push(VerifiedPartial {
+                participant,
+                nonce_x,
+                round: bitcoin::hashes::sha256::Hash::from_engine(engine).to_byte_array(),
+            });
+        }
+    }
+    out
+}
+
+/// Costs a signature check (BIP-327 `PartialSigVerify`) per partial
+/// signature, the aggregation, and a BIP-340 verification. The key-path
+/// signature input `index` of `psbt` finishes with, when every participant
+/// of `session` has a partial signature on it that verifies under the
+/// nonces on it and the sighash it asks for, and their aggregate verifies
+/// as a BIP-340 signature of the output key. Otherwise `None`: a forged or
+/// missing partial, or a missing nonce, does not finish. It holds no
+/// secret, so a caller that only collects can call it.
+pub fn aggregate(
+    c: &faraday_crypto::work::Compute,
+    psbt: &crate::Psbt,
+    index: usize,
+    session: &crate::inspect::MusigInput,
+) -> Option<bitcoin::taproot::Signature> {
+    use bitcoin::sighash::TapSighashType;
+    c.count(faraday_crypto::work::Work::Sign);
+    let input = psbt.inner().inputs.get(index)?;
+    let partials = partial_sigs(input).ok()?;
+    let (nonces, msg) = round_of(psbt, index, session).ok()?;
+    let secp = bitcoin::secp256k1::Secp256k1::verification_only();
+    let aggnonce = faraday_bip::musig::nonce_agg_with(&secp, &nonces).ok()?;
+    let values = faraday_bip::musig::session_values(
+        &secp,
+        &session.participants,
+        &session.tweaks,
+        &aggnonce,
+        &msg,
+    )
+    .ok()?;
+    let partials = picked(&partials, session);
+    let mut ordered = Vec::with_capacity(session.participants.len());
+    for (at, p) in session.participants.iter().enumerate() {
+        let (_, value) = partials.iter().find(|(k, _)| k == p)?;
+        faraday_bip::musig::partial_sig_verify_internal(&secp, value, &nonces[at], p, &values)
+            .ok()?;
+        ordered.push(*value);
+    }
+    let sig = faraday_bip::musig::partial_sig_agg(&ordered, &values).ok()?;
+    let signature = bitcoin::secp256k1::schnorr::Signature::from_slice(&sig).ok()?;
+    let sighash_type = match input.sighash_type {
+        Some(t) => t.taproot_hash_ty().ok()?,
+        None => TapSighashType::Default,
+    };
+    secp.verify_schnorr(
+        &signature,
+        &bitcoin::secp256k1::Message::from_digest(msg),
+        &session.output_key.x_only_public_key().0,
+    )
+    .ok()?;
+    Some(bitcoin::taproot::Signature {
+        signature,
+        sighash_type,
+    })
+}
+
+fn entry_key(type_value: u8, participant: &PublicKey, aggregate: &PublicKey) -> raw::Key {
+    let mut key = Vec::with_capacity(66);
+    key.extend_from_slice(&participant.serialize());
+    key.extend_from_slice(&aggregate.serialize());
+    raw::Key { type_value, key }
+}
+
+/// Writes this device's public nonce for `participant`, keyed by
+/// `aggregate`.
+pub fn write_pub_nonce(
+    input: &mut Input,
+    participant: &PublicKey,
+    aggregate: &PublicKey,
+    nonce: &PubNonce,
+) {
+    input.unknown.insert(
+        entry_key(IN_PUB_NONCE, participant, aggregate),
+        nonce.serialize().to_vec(),
+    );
+}
+
+/// Writes this device's partial signature for `participant`, keyed by
+/// `aggregate`.
+pub fn write_partial_sig(
+    input: &mut Input,
+    participant: &PublicKey,
+    aggregate: &PublicKey,
+    sig: &PartialSig,
+) {
+    input.unknown.insert(
+        entry_key(IN_PARTIAL_SIG, participant, aggregate),
+        sig.serialize().to_vec(),
+    );
+}
+
+/// Removes every `PSBT_IN_MUSIG2_PARTIAL_SIG` an input carries.
+///
+/// A partial signature is made against one aggregate nonce, so a round
+/// that puts a different nonce of this device's on the input leaves
+/// every signature already there unverifiable.
+pub fn clear_partial_sigs(input: &mut Input) {
+    input.unknown.retain(|k, _| k.type_value != IN_PARTIAL_SIG);
+}
+
+/// Writes a `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS` entry.
+pub fn write_input_participants(input: &mut Input, participants: &Participants) {
+    let mut value = Vec::with_capacity(participants.keys.len() * 33);
+    for key in &participants.keys {
+        value.extend_from_slice(&key.serialize());
+    }
+    input.unknown.insert(
+        raw::Key {
+            type_value: IN_PARTICIPANT_PUBKEYS,
+            key: participants.aggregate.serialize().to_vec(),
+        },
+        value,
+    );
+}
+
+// ---------------------------------------------------------------------
+// The session
+// ---------------------------------------------------------------------
+
+/// The label every `rand'` is expanded under, so that no other use of the
+/// session seed can give the same bytes.
+const RAND_LABEL: &[u8] = b"Faraday/musig-rand";
+
+/// One open MuSig2 signing session: the transaction it is for, and the
+/// secret nonce this device drew for every input and participant of it.
+///
+/// The session is memory and nothing else: it is not `Clone`,
+/// nothing serialises it, signing takes each secret nonce out by value
+/// so none can sign twice, and dropping it wipes the seed and every
+/// nonce still in it.
+///
+/// A draw counter goes up after every draw and is part of what each
+/// `rand'` is expanded from, so a nonce drawn again for an input whose
+/// nonce was already signed under is a different nonce.
+/// A cosigner that strips this device's partial signature and changes
+/// its own nonce gets a fresh nonce from this device, never a second
+/// signature under the first one, which would give away the key.
+pub struct MusigSession {
+    txid: bitcoin::Txid,
+    seed: [u8; 32],
+    draws: u32,
+    held: Vec<(usize, PublicKey, PubNonce, faraday_bip::musig::SecNonce)>,
+}
+
+impl MusigSession {
+    /// An empty session for the unsigned transaction `txid`, whose
+    /// nonces are drawn from `seed`.
+    pub fn new(txid: bitcoin::Txid, seed: &[u8; 32]) -> Self {
+        MusigSession {
+            txid,
+            seed: *seed,
+            draws: 0,
+            held: Vec::new(),
+        }
+    }
+
+    /// The unsigned transaction this session is for.
+    pub fn txid(&self) -> bitcoin::Txid {
+        self.txid
+    }
+
+    /// How many secret nonces are still in it.
+    pub fn len(&self) -> usize {
+        self.held.len()
+    }
+
+    /// Whether every nonce has been signed away.
+    pub fn is_empty(&self) -> bool {
+        self.held.is_empty()
+    }
+
+    /// Whether this session holds the secret nonce for `participant` on
+    /// input `input`.
+    pub fn holds(&self, input: usize, participant: &PublicKey) -> bool {
+        self.held
+            .iter()
+            .any(|(i, pk, _, _)| *i == input && pk == participant)
+    }
+
+    /// The public nonce of the secret nonce held for `participant` on
+    /// input `input`.
+    pub(crate) fn public_of(&self, input: usize, participant: &PublicKey) -> Option<PubNonce> {
+        self.held
+            .iter()
+            .find(|(i, pk, _, _)| *i == input && pk == participant)
+            .map(|(_, _, public, _)| *public)
+    }
+
+    /// What the inspector is told about the session: the transaction and
+    /// the pairs it holds, and nothing secret.
+    pub fn view(&self) -> MusigSessionView {
+        MusigSessionView {
+            txid: self.txid,
+            held: self.held.iter().map(|(i, pk, _, _)| (*i, *pk)).collect(),
+        }
+    }
+
+    /// Costs one HMAC-SHA-256. The `rand'` for one `NonceGen` call: RFC 5869
+    /// HKDF-Expand of the seed, with the label, the draw counter, the input
+    /// index and the participant key as `info`. The counter goes up after
+    /// every draw, so no two calls of a session share a `rand'`, even for
+    /// the same input and participant. `None`, with nothing drawn, when
+    /// the counter has no next value: the session refuses and never wraps.
+    pub(crate) fn draw(
+        &mut self,
+        input: usize,
+        participant: &PublicKey,
+    ) -> Option<faraday_crypto::Zeroizing<[u8; 32]>> {
+        let next = self.draws.checked_add(1)?;
+        let mut info = Vec::with_capacity(RAND_LABEL.len() + 4 + 4 + 33);
+        info.extend_from_slice(RAND_LABEL);
+        info.extend_from_slice(&self.draws.to_le_bytes());
+        info.extend_from_slice(&(input as u32).to_le_bytes());
+        info.extend_from_slice(&participant.serialize());
+        let mut rand = faraday_crypto::Zeroizing::new([0u8; 32]);
+        faraday_crypto::hkdf_sha256_expand(&self.seed, &info, &mut *rand)?;
+        self.draws = next;
+        Some(rand)
+    }
+
+    /// Keeps the secret nonce drawn for `participant` on `input`, with
+    /// the public nonce that was written beside it.
+    pub(crate) fn keep(
+        &mut self,
+        input: usize,
+        participant: PublicKey,
+        public: PubNonce,
+        secret: faraday_bip::musig::SecNonce,
+    ) {
+        self.held
+            .retain(|(i, pk, _, _)| *i != input || *pk != participant);
+        if self.held.len() == self.held.capacity() {
+            // Growing moves every secret nonce to a new allocation; the
+            // old one is wiped before it is given back.
+            let mut grown = Vec::with_capacity((self.held.capacity() * 2).max(4));
+            grown.append(&mut self.held);
+            self.wipe_spare();
+            self.held = grown;
+        }
+        self.held.push((input, participant, public, secret));
+        self.wipe_spare();
+    }
+
+    /// Wipes the part of the list's allocation past its length, where a
+    /// nonce moved or taken out leaves its bytes behind.
+    fn wipe_spare(&mut self) {
+        use faraday_crypto::Zeroize;
+        self.held.spare_capacity_mut().zeroize();
+    }
+
+    /// Takes the secret nonce for `participant` on `input` out of the
+    /// session, with the public nonce it belongs to. It is gone from the
+    /// session whether or not the signature that follows is written.
+    pub(crate) fn take(
+        &mut self,
+        input: usize,
+        participant: &PublicKey,
+    ) -> Option<(PubNonce, faraday_bip::musig::SecNonce)> {
+        let at = self
+            .held
+            .iter()
+            .position(|(i, pk, _, _)| *i == input && pk == participant)?;
+        let (_, _, public, secret) = self.held.remove(at);
+        self.wipe_spare();
+        Some((public, secret))
+    }
+}
+
+impl core::fmt::Debug for MusigSession {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("MusigSession(..)")
+    }
+}
+
+impl Drop for MusigSession {
+    fn drop(&mut self) {
+        use faraday_crypto::Zeroize;
+        self.seed.zeroize();
+        // Each secret nonce wipes itself as it is dropped; what earlier
+        // moves left past the length is wiped here.
+        self.held.clear();
+        self.wipe_spare();
+    }
+}
+
+/// What a session holds, as everything but signing sees it: the
+/// transaction it is for and the inputs and participants it covers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MusigSessionView {
+    /// The unsigned transaction's id.
+    pub txid: bitcoin::Txid,
+    /// The `(input index, participant key)` pairs a secret nonce is held
+    /// for.
+    pub held: Vec<(usize, PublicKey)>,
+}
+
+impl MusigSessionView {
+    /// Whether the session is for `txid` and holds `participant`'s
+    /// secret nonce on input `input`.
+    pub fn holds(&self, txid: bitcoin::Txid, input: usize, participant: &PublicKey) -> bool {
+        self.txid == txid
+            && self
+                .held
+                .iter()
+                .any(|(i, pk)| *i == input && pk == participant)
+    }
+}

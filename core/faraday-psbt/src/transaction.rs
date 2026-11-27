@@ -1,0 +1,217 @@
+//! A transaction as it arrives to be checked rather than signed: a raw
+//! transaction in hex or in bytes, or a PSBT read as the transaction it
+//! carries, and the previous output each of its inputs spends as far as
+//! the source states them.
+//!
+//! A check that needs every previous output — whether a transaction
+//! pays a silent payments wallet — is
+//! handed the previous transactions one at a time
+//! ([`Spending::add_previous`]) until none is missing.
+
+use alloc::vec;
+use alloc::vec::Vec;
+
+use bitcoin::psbt::Psbt;
+use bitcoin::{Amount, ScriptBuf, Transaction, Txid, Witness, consensus};
+use zeroize::Zeroizing;
+
+/// A raw transaction, in hex text or in bytes, with whatever signature
+/// data it carries.
+pub fn read_raw(bytes: &[u8]) -> Option<Transaction> {
+    let trimmed = bytes.trim_ascii();
+    let raw = match core::str::from_utf8(trimmed).ok().and_then(|t| {
+        let t = t.trim();
+        let mut buf = Zeroizing::new(vec![0u8; t.len() / 2]);
+        let n = faraday_crypto::hex::decode_into(t, &mut buf)?;
+        buf.truncate(n);
+        Some(buf)
+    }) {
+        Some(decoded) => decoded,
+        None => Zeroizing::new(trimmed.to_vec()),
+    };
+    decode(&raw)
+}
+
+/// A transaction's bytes, read as Bitcoin Core reads them, with nothing
+/// left over.
+///
+/// `bitcoin` reads a transaction with no inputs written in the segwit
+/// form (the marker, the flag 1, no inputs, the outputs, no witnesses)
+/// and writes such a transaction back that way. Core refuses those
+/// bytes: a flag that says witnesses follow when none do is a
+/// superfluous witness record (`UnserializeTransaction`), and BIP-144
+/// writes a transaction in that form only when it has a witness. So a
+/// transaction read with no inputs is refused: the segwit form is the
+/// only one `bitcoin` reads to no inputs, since a count of 0 is the
+/// segwit marker.
+pub fn decode(raw: &[u8]) -> Option<Transaction> {
+    let tx: Transaction = consensus::deserialize(raw).ok()?;
+    (!tx.input.is_empty()).then_some(tx)
+}
+
+/// Where a list of amounts breaks Bitcoin Core's money range: one amount
+/// over [`Amount::MAX_MONEY`], or a running total past it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverMaxMoney {
+    /// The amount at this place in the list is over 21,000,000 BTC.
+    One(usize),
+    /// Each amount is in range, but their total is over 21,000,000 BTC.
+    Total,
+}
+
+/// The total of `amounts`, or where it leaves the money range, checked
+/// as Bitcoin Core's `CheckTransaction` checks a transaction's outputs
+/// (`bad-txns-vout-toolarge`, `bad-txns-txouttotal-toolarge`) and
+/// `CheckTxInputs` the amounts its inputs spend
+/// (`bad-txns-inputvalues-outofrange`): each amount, in order, at most
+/// [`Amount::MAX_MONEY`], and the running total after it too. The total
+/// is never more than 21,000,000 BTC, so nothing summed from it
+/// overflows.
+pub fn money_total(amounts: impl IntoIterator<Item = Amount>) -> Result<Amount, OverMaxMoney> {
+    let mut total = Amount::ZERO;
+    for (i, amount) in amounts.into_iter().enumerate() {
+        if amount > Amount::MAX_MONEY {
+            return Err(OverMaxMoney::One(i));
+        }
+        // Both are at most MAX_MONEY, so the sum fits in a u64.
+        total = total
+            .checked_add(amount)
+            .filter(|t| *t <= Amount::MAX_MONEY)
+            .ok_or(OverMaxMoney::Total)?;
+    }
+    Ok(total)
+}
+
+/// A raw transaction, in hex text or in bytes, wrapped in an unsigned
+/// PSBT, so that [`crate::inspect`] reads it the way it reads a PSBT;
+/// the PSBT's bytes, and the id of the transaction that arrived.
+///
+/// The wrapper carries no signatures, because a PSBT's unsigned
+/// transaction may carry none; the id is that of the transaction as it
+/// arrived, signatures and all.
+pub fn wrap_raw(bytes: &[u8]) -> Option<(Vec<u8>, Txid)> {
+    let tx = read_raw(bytes)?;
+    let txid = tx.compute_txid();
+    let mut unsigned = tx;
+    for input in &mut unsigned.input {
+        input.script_sig = ScriptBuf::new();
+        input.witness = Witness::new();
+    }
+    let psbt = Psbt::from_unsigned_tx(unsigned).ok()?;
+    Some((psbt.serialize(), txid))
+}
+
+/// Whether an input carries signature data: a scriptSig, a witness, or
+/// both.
+pub fn is_signed(script_sig: &ScriptBuf, witness: &Witness) -> bool {
+    !script_sig.is_empty() || !witness.is_empty()
+}
+
+/// A transaction and the previous outputs its inputs spend, each one
+/// known or not yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Spending {
+    tx: Transaction,
+    prevouts: Vec<Option<ScriptBuf>>,
+}
+
+impl Spending {
+    /// The transaction `bytes` carry, with whatever previous outputs it
+    /// states itself.
+    ///
+    /// A PSBT, binary or base64, states them: `witness_utxo` is the
+    /// output an input spends, and `non_witness_utxo` the whole
+    /// transaction it came from. Its transaction carries the signature
+    /// data each input has been finalized with. A raw transaction states
+    /// no previous output.
+    pub fn read(bytes: &[u8]) -> Option<Spending> {
+        if let Some(spending) = Spending::from_psbt(bytes) {
+            return Some(spending);
+        }
+        let tx = read_raw(bytes)?;
+        let prevouts = vec![None; tx.input.len()];
+        Some(Spending { tx, prevouts })
+    }
+
+    fn from_psbt(bytes: &[u8]) -> Option<Spending> {
+        let trimmed = bytes.trim_ascii();
+        let psbt = if trimmed.starts_with(b"psbt\xff") {
+            Psbt::deserialize(trimmed).ok()?
+        } else {
+            let text = core::str::from_utf8(trimmed).ok()?;
+            Psbt::deserialize(&faraday_bip::base64::decode(text.trim()).ok()?).ok()?
+        };
+        let mut tx = psbt.unsigned_tx.clone();
+        let mut prevouts = Vec::new();
+        for (i, input) in psbt.inputs.iter().enumerate() {
+            if let Some(script) = &input.final_script_sig {
+                tx.input[i].script_sig = script.clone();
+            }
+            if let Some(witness) = &input.final_script_witness {
+                tx.input[i].witness = witness.clone();
+            }
+            prevouts.push(prevout_of(&psbt, i));
+        }
+        Some(Spending { tx, prevouts })
+    }
+
+    /// The transaction.
+    pub fn tx(&self) -> &Transaction {
+        &self.tx
+    }
+
+    /// The previous transaction of the first input whose previous output
+    /// is not known.
+    pub fn waiting_for(&self) -> Option<Txid> {
+        let i = self.prevouts.iter().position(Option::is_none)?;
+        Some(self.tx.input[i].previous_output.txid)
+    }
+
+    /// Takes a previous transaction, raw, filling in every input that
+    /// spends it. `false` where the bytes are no transaction, or none an
+    /// input spends.
+    pub fn add_previous(&mut self, bytes: &[u8]) -> bool {
+        let Some(previous) = read_raw(bytes) else {
+            return false;
+        };
+        let txid = previous.compute_txid();
+        let mut used = false;
+        for (i, input) in self.tx.input.iter().enumerate() {
+            if input.previous_output.txid != txid {
+                continue;
+            }
+            let Some(out) = previous.output.get(input.previous_output.vout as usize) else {
+                continue;
+            };
+            self.prevouts[i] = Some(out.script_pubkey.clone());
+            used = true;
+        }
+        used
+    }
+
+    /// The previous outputs, in input order, once every one is known.
+    pub fn prevouts(&self) -> Option<Vec<&ScriptBuf>> {
+        self.prevouts.iter().map(Option::as_ref).collect()
+    }
+}
+
+/// The output a PSBT input spends, where the PSBT states it, checked as
+/// the signer checks it: a `non_witness_utxo` is the transaction the
+/// input spends only when its id is that transaction's, and a
+/// `witness_utxo` beside it must be the same output. Where they do not
+/// hold, the output is not known.
+fn prevout_of(psbt: &Psbt, i: usize) -> Option<ScriptBuf> {
+    let input = psbt.inputs.get(i)?;
+    let previous = psbt.unsigned_tx.input.get(i)?.previous_output;
+    let Some(tx) = &input.non_witness_utxo else {
+        return Some(input.witness_utxo.as_ref()?.script_pubkey.clone());
+    };
+    if tx.compute_txid() != previous.txid {
+        return None;
+    }
+    let out = tx.output.get(previous.vout as usize)?;
+    if input.witness_utxo.as_ref().is_some_and(|w| w != out) {
+        return None;
+    }
+    Some(out.script_pubkey.clone())
+}

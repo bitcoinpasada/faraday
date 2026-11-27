@@ -1,0 +1,171 @@
+//! BIP-174 test vectors: every valid PSBT round-trips byte for byte in
+//! both encodings, every invalid one is rejected, and the "fails signer
+//! checks" PSBTs block signing in the inspection.
+
+use crate::common::{records, unhex};
+use faraday_bip::keys::Network;
+use faraday_crypto::work::Compute;
+use faraday_psbt::{Context, Error, Level, Psbt, WarningKind, inspect};
+
+#[test]
+fn bip174_round_trips_and_rejections() {
+    let c = Compute::unchecked();
+    let recs = records("tools/vectors/psbt/bip174.txt");
+    assert_eq!(recs.len(), 34);
+    let (mut valid, mut invalid, mut signer_fails) = (0, 0, 0);
+    for rec in &recs {
+        let case = rec.get("case");
+        let bytes = unhex(rec.get("hex"));
+        let b64 = rec.get("base64");
+        match rec.get("expect") {
+            "invalid" => {
+                assert!(
+                    Psbt::parse_bytes(&c, &bytes).is_err(),
+                    "accepted invalid: {case}"
+                );
+                assert!(
+                    Psbt::parse_base64(&c, b64).is_err(),
+                    "accepted invalid: {case}"
+                );
+                invalid += 1;
+            }
+            expect => {
+                let psbt = Psbt::parse_bytes(&c, &bytes).unwrap_or_else(|e| panic!("{case}: {e}"));
+                assert_eq!(psbt.to_bytes(), bytes, "binary round trip: {case}");
+                assert_eq!(psbt.to_base64(), b64, "base64 round trip: {case}");
+                let from_text = Psbt::parse_base64(&c, b64).unwrap();
+                assert_eq!(from_text, psbt);
+                assert_eq!(Psbt::parse_base64(&c, &psbt.to_base64()).unwrap(), psbt);
+                if expect == "signer-fails" {
+                    let ctx = Context {
+                        network: Network::Testnet,
+                        keys: &[],
+                        wallets: &[],
+                        musig_session: None,
+                    };
+                    let insp = inspect(&c, &psbt, &ctx);
+                    assert!(
+                        insp.warnings
+                            .iter()
+                            .any(|w| w.level == Level::Blocked
+                                && w.kind == WarningKind::UtxoMismatch),
+                        "{case}: expected a UtxoMismatch block, got {:?}",
+                        insp.warnings
+                    );
+                    signer_fails += 1;
+                } else {
+                    valid += 1;
+                }
+            }
+        }
+    }
+    assert_eq!((valid, invalid, signer_fails), (10, 20, 4));
+}
+
+/// Every role vector parses and is written back byte for byte, the
+/// combiner output too: the BIP lists its two partial signatures in the
+/// order Core inserted them (`03…` before `02…`), which `bitcoin` alone
+/// would write sorted, and a PSBT read is written back as it was read.
+#[test]
+fn bip174_role_vectors_round_trip() {
+    let c = Compute::unchecked();
+    let recs = records("tools/vectors/psbt/bip174-roles.txt");
+    let mut n = 0;
+    for rec in recs.iter().filter(|r| r.opt("hex").is_some()) {
+        let case = rec.get("case");
+        let bytes = unhex(rec.get("hex"));
+        let psbt = Psbt::parse_bytes(&c, &bytes).unwrap_or_else(|e| panic!("{case}: {e}"));
+        assert_eq!(
+            Psbt::parse_base64(&c, rec.get("base64")).unwrap(),
+            psbt,
+            "{case}"
+        );
+        let again = psbt.to_bytes();
+        assert_eq!(Psbt::parse_bytes(&c, &again).unwrap(), psbt, "{case}");
+        assert_eq!(again, bytes, "{case}");
+        assert_eq!(psbt.to_base64(), rec.get("base64"), "{case}");
+        n += 1;
+    }
+    assert_eq!(n, 10);
+}
+
+/// The first six characters of a base64 PSBT are fixed by the magic; the
+/// seventh follows the first global key's length. A PSBT whose first
+/// global pair is an xpub (key length 0x4f) starts `cHNidP9` and reads.
+#[test]
+fn base64_psbt_starting_with_a_global_xpub_reads() {
+    let c = Compute::unchecked();
+    let recs = records("tools/vectors/psbt/bip174.txt");
+    let rec = recs
+        .iter()
+        .find(|r| r.get("case").contains("PSBT_GLOBAL_XPUB"))
+        .expect("the vector with a global xpub");
+    let bytes = unhex(rec.get("hex"));
+    // Split the global map into its pairs and put the xpub's first.
+    let (mut pairs, mut at) = (Vec::new(), 5);
+    while bytes[at] != 0 {
+        let start = at;
+        let key_len = bytes[at] as usize;
+        at += 1 + key_len;
+        let val_len = bytes[at] as usize;
+        at += 1 + val_len;
+        pairs.push(&bytes[start..at]);
+    }
+    let xpub = pairs
+        .iter()
+        .position(|p| p[0] == 0x4f && p[1] == 0x01)
+        .expect("a global xpub pair");
+    let mut moved = bytes[..5].to_vec();
+    moved.extend_from_slice(pairs[xpub]);
+    for (i, p) in pairs.iter().enumerate() {
+        if i != xpub {
+            moved.extend_from_slice(p);
+        }
+    }
+    moved.extend_from_slice(&bytes[at..]);
+    let text = faraday_bip::base64::encode(&moved);
+    assert!(text.starts_with("cHNidP9"), "{text}");
+    assert!(Psbt::parse_base64(&c, &text).is_ok());
+    assert!(Psbt::parse_bytes(&c, &moved).is_ok());
+}
+
+#[test]
+fn parse_errors() {
+    let c = Compute::unchecked();
+    assert_eq!(Psbt::parse_bytes(&c, b"psbt"), Err(Error::NotPsbt));
+    assert_eq!(
+        Psbt::parse_bytes(&c, b"\x02\x00\x00\x00"),
+        Err(Error::NotPsbt)
+    );
+    assert_eq!(Psbt::parse_base64(&c, "cHNidP8*"), Err(Error::Base64));
+    assert!(matches!(
+        Psbt::parse_base64(&c, "cHNidP8="),
+        Err(Error::Parse(_))
+    ));
+    // Trailing newline and surrounding whitespace are fine.
+    let ok = "cHNidP8BAAoAAAAAAAAAAAAAAA==\n";
+    assert!(Psbt::parse_base64(&c, ok).is_ok());
+    assert!(Psbt::parse_base64(&c, &format!("  {ok}\n")).is_ok());
+}
+
+#[test]
+fn a_psbt_with_padding_bits_that_are_not_zero_is_refused() {
+    const ALPHABET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let c = Compute::unchecked();
+    let mut padded = 0;
+    for rec in records("tools/vectors/psbt/bip174.txt") {
+        let b64 = rec.get("base64");
+        if rec.get("expect") == "invalid" || !b64.ends_with('=') {
+            continue;
+        }
+        let body = b64.trim_end_matches('=');
+        let (head, last) = body.split_at(body.len() - 1);
+        let value = ALPHABET.find(last).unwrap();
+        let other = &ALPHABET[value + 1..value + 2];
+        let spelled = format!("{head}{other}{}", &b64[body.len()..]);
+        assert!(Psbt::parse_base64(&c, b64).is_ok());
+        assert!(Psbt::parse_base64(&c, &spelled).is_err(), "{spelled}");
+        padded += 1;
+    }
+    assert!(padded > 0);
+}

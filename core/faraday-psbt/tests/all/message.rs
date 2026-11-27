@@ -1,0 +1,531 @@
+//! Signed messages against the vectors other implementations publish
+//! (`tools/vectors/message/`): BIP-322's own file, and BIP-137
+//! signatures made by Trezor and by Electrum.
+
+use std::str::FromStr;
+
+use crate::common::{hex, master, records, unhex};
+use faraday_bip::keys::{MasterKey, Network, ScriptType};
+use faraday_crypto::work::Compute;
+use faraday_psbt::bitcoin::PrivateKey;
+use faraday_psbt::bitcoin::address::{Address, NetworkUnchecked};
+use faraday_psbt::bitcoin::bip32::DerivationPath;
+use faraday_psbt::bitcoin::secp256k1::SecretKey;
+use faraday_psbt::message::{self, Checked, Error, Format};
+use faraday_psbt::{Aux, Nonce};
+use serde_json::Value;
+
+const BIP322_KEY: &str = "L3VFeEujGtevx9w18HD1fhRbCH67Az2dpCymeRE1SoPK6XQtaN2k";
+
+/// A signing context for a loose key from a vector file, which has no
+/// master key to borrow one from. The blind is fixed: what it is set to
+/// cannot change a signature, only the trace a machine would leak.
+fn secp() -> faraday_psbt::bitcoin::secp256k1::Secp256k1<faraday_psbt::bitcoin::secp256k1::All> {
+    let mut secp = faraday_psbt::bitcoin::secp256k1::Secp256k1::new();
+    secp.seeded_randomize(&[0x2a; 32]);
+    secp
+}
+
+fn script_of(name: &str) -> ScriptType {
+    ScriptType::ALL
+        .into_iter()
+        .find(|s| s.name() == name)
+        .unwrap_or_else(|| panic!("unknown script type `{name}`"))
+}
+
+fn address_of(text: &str, network: Network) -> Address {
+    Address::<NetworkUnchecked>::from_str(text)
+        .unwrap_or_else(|e| panic!("{text}: {e}"))
+        .require_network(network.into())
+        .unwrap_or_else(|e| panic!("{text}: {e}"))
+}
+
+fn vectors_json(path: &str) -> Value {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let text = std::fs::read_to_string(root.join(path)).expect("vector file");
+    serde_json::from_str(&text).expect("vector json")
+}
+
+/// The key one vector signs with: a WIF, or the mnemonic and path the
+/// hardware wallet derived it at.
+fn key_of(
+    wif: Option<&str>,
+    words: Option<&str>,
+    path: Option<&str>,
+    network: Network,
+) -> Option<(SecretKey, bool)> {
+    let c = Compute::unchecked();
+    if let Some(wif) = wif {
+        let key = PrivateKey::from_wif(wif).expect("wif");
+        return Some((key.inner, key.compressed));
+    }
+    let words = words?;
+    let path = DerivationPath::from_str(path?).expect("path");
+    let master: MasterKey = master(words, network);
+    let derived = master.derive(&c, &path);
+    Some((*derived.secret_key(), true))
+}
+
+/// Trezor's and Electrum's published BIP-137 signatures: every one of
+/// them verifies against the address it names, and this crate signing
+/// the same message with the same key produces the same bytes.
+#[test]
+fn bip137_vectors() {
+    let c = Compute::unchecked();
+    let recs = records("tools/vectors/message/bip137.txt");
+    assert_eq!(recs.len(), 14);
+    for rec in &recs {
+        let case = rec.get("case");
+        let network = match rec.opt("network") {
+            Some("testnet") => Network::Testnet,
+            _ => Network::Mainnet,
+        };
+        let script = script_of(rec.get("script"));
+        let message = rec.get("message");
+        let published = match (rec.opt("signature-hex"), rec.opt("signature-base64")) {
+            (Some(h), _) => faraday_psbt::base64::encode(&unhex(h)),
+            (_, Some(b)) => b.to_string(),
+            _ => panic!("{case}: no signature"),
+        };
+        let address = address_of(rec.get("address"), network);
+
+        assert_eq!(
+            message::verify(&address, message, &published),
+            Ok(Checked {
+                format: Format::Bip137,
+                script,
+            }),
+            "{case}: the published signature does not verify"
+        );
+        assert_eq!(
+            message::verify(&address, &format!("{message} "), &published),
+            Err(Error::Invalid),
+            "{case}: a changed message still verifies"
+        );
+
+        let Some((secret, compressed)) =
+            key_of(rec.opt("wif"), rec.opt("words"), rec.opt("path"), network)
+        else {
+            continue;
+        };
+        if !compressed {
+            // The address of an uncompressed key is not one this device
+            // derives; the vector is here for the check above.
+            continue;
+        }
+        // Trezor stops at the first RFC 6979 nonce; Electrum grinds for
+        // a low R. Each vector is reproduced under the setting the
+        // wallet that published it uses.
+        let nonce = if rec.get("source") == "trezor" {
+            Nonce::First
+        } else {
+            Nonce::LowR
+        };
+        let signed = message::sign(
+            &c,
+            &secp(),
+            &secret,
+            script,
+            network,
+            message,
+            Format::Bip137,
+            nonce,
+            Aux::Deterministic,
+        )
+        .unwrap_or_else(|e| panic!("{case}: {e:?}"));
+        assert_eq!(signed.address, rec.get("address"), "{case}: address");
+        let ours = faraday_psbt::base64::decode(&signed.signature).expect("base64");
+        let theirs = faraday_psbt::base64::decode(&published).expect("base64");
+        if rec.opt("no-script-type").is_some() {
+            // The signature is the same; the wallet that made it wrote a
+            // p2pkh-range header for a segwit address.
+            assert_eq!(hex(&ours[1..]), hex(&theirs[1..]), "{case}: signature");
+            assert_ne!(ours[0], theirs[0], "{case}: header");
+        } else {
+            assert_eq!(hex(&ours), hex(&theirs), "{case}: signature");
+        }
+    }
+}
+
+/// BIP-322's message hash and the two transactions it commits to, for
+/// the three messages the BIP tabulates.
+#[test]
+fn bip322_transaction_vectors() {
+    let vectors = vectors_json("tools/vectors/message/bip322-basic.json");
+    let cases = vectors["tx_hashes"].as_array().expect("tx_hashes");
+    assert_eq!(cases.len(), 3);
+    for case in cases {
+        let message = case["message"].as_str().expect("message");
+        let address = address_of(case["address"].as_str().expect("address"), Network::Mainnet);
+        assert_eq!(
+            hex(&message::message_hash(message)),
+            case["message_hash"].as_str().expect("hash"),
+            "message hash of {message:?}"
+        );
+        let (spend, sign) = message::virtual_txids(&address, message);
+        assert_eq!(
+            spend.to_string(),
+            case["to_spend_tx_hash"].as_str().expect("to_spend"),
+            "to_spend of {message:?}"
+        );
+        assert_eq!(
+            sign.to_string(),
+            case["to_sign_tx_hash"].as_str().expect("to_sign"),
+            "to_sign of {message:?}"
+        );
+    }
+}
+
+/// BIP-322's "simple" signatures: each published one verifies, this
+/// crate's own signature for the same key and message is one of them,
+/// and the script address the variant cannot express is refused rather
+/// than called invalid.
+#[test]
+fn bip322_simple_vectors() {
+    let c = Compute::unchecked();
+    let vectors = vectors_json("tools/vectors/message/bip322-basic.json");
+    let cases = vectors["simple"].as_array().expect("simple");
+    assert_eq!(cases.len(), 4);
+    let mut signed_here = 0;
+    for case in cases {
+        let message = case["message"].as_str().expect("message");
+        let kind = case["type"].as_str().expect("type");
+        let address = address_of(case["address"].as_str().expect("address"), Network::Mainnet);
+        let published: Vec<&str> = case["bip322_signatures"]
+            .as_array()
+            .expect("signatures")
+            .iter()
+            .map(|s| s.as_str().expect("signature"))
+            .collect();
+        if kind.starts_with("p2wsh") {
+            for signature in &published {
+                assert_eq!(
+                    message::verify(&address, message, signature),
+                    Err(Error::UnsupportedAddress),
+                    "a p2wsh signature is not a simple signature this crate reads"
+                );
+            }
+            continue;
+        }
+        let script = if kind == "p2tr" {
+            ScriptType::Taproot
+        } else {
+            ScriptType::NativeSegwit
+        };
+        for signature in &published {
+            assert_eq!(
+                message::verify(&address, message, signature),
+                Ok(Checked {
+                    format: Format::Bip322,
+                    script,
+                }),
+                "{message:?}: the published signature does not verify"
+            );
+            assert_eq!(
+                message::verify(&address, "another message", signature),
+                Err(Error::Invalid),
+                "{message:?}: another message verifies"
+            );
+        }
+        let wif = case["private_keys"][0].as_str().expect("private key");
+        let secret = PrivateKey::from_wif(wif).expect("wif").inner;
+        let signed = message::sign(
+            &c,
+            &secp(),
+            &secret,
+            script,
+            Network::Mainnet,
+            message,
+            Format::Bip322,
+            Nonce::LowR,
+            Aux::Deterministic,
+        )
+        .expect("signs");
+        assert_eq!(signed.address, case["address"].as_str().expect("address"));
+        if script == ScriptType::Taproot {
+            // A Schnorr signature depends on the auxiliary randomness
+            // BIP-340 lets the signer choose; under `Aux::Deterministic`
+            // there is none, so its bytes are its own and it is the
+            // check that has to hold.
+            assert_eq!(
+                message::verify(&address, message, &signed.signature),
+                Ok(Checked {
+                    format: Format::Bip322,
+                    script,
+                })
+            );
+        } else {
+            assert!(
+                published
+                    .iter()
+                    .any(|p| p.trim_start_matches("smp") == signed.signature.as_str()),
+                "{message:?}: {} is none of the published signatures",
+                signed.signature.as_str()
+            );
+        }
+        signed_here += 1;
+    }
+    assert_eq!(signed_here, 3);
+}
+
+/// The signatures BIP-322 says must not be accepted are not accepted.
+#[test]
+fn bip322_error_vectors() {
+    let vectors = vectors_json("tools/vectors/message/bip322-basic.json");
+    let cases = vectors["error"].as_array().expect("error");
+    assert!(cases.len() >= 6);
+    for case in cases {
+        let description = case["description"].as_str().expect("description");
+        let message = case["message"].as_str().expect("message");
+        let signature = case["signature"].as_str().expect("signature");
+        let address = address_of(case["address"].as_str().expect("address"), Network::Mainnet);
+        assert!(
+            message::verify(&address, message, signature).is_err(),
+            "accepted: {description}"
+        );
+    }
+}
+
+/// BIP-341 makes a 65-byte taproot signature with sighash byte 0 invalid,
+/// so a BIP-322 signature for a p2tr address that carries one is refused;
+/// the published 64-byte signature stays valid.
+#[test]
+fn bip322_taproot_signature_with_sighash_byte_zero_is_refused() {
+    let vectors = vectors_json("tools/vectors/message/bip322-basic.json");
+    let case = vectors["simple"]
+        .as_array()
+        .expect("simple")
+        .iter()
+        .find(|c| c["type"] == "p2tr")
+        .expect("a p2tr case");
+    let message = case["message"].as_str().expect("message");
+    let address = address_of(case["address"].as_str().expect("address"), Network::Mainnet);
+    let published = case["bip322_signatures"][0].as_str().expect("signature");
+    assert!(message::verify(&address, message, published).is_ok());
+    let mut bytes =
+        faraday_psbt::base64::decode(published.trim_start_matches("smp")).expect("base64");
+    // One element of 64 bytes: the count, the length, the signature.
+    assert_eq!(bytes[..2], [1, 64]);
+    bytes[1] = 65;
+    bytes.push(0);
+    let zero = faraday_psbt::base64::encode(&bytes);
+    assert_eq!(
+        message::verify(&address, message, &zero),
+        Err(Error::Malformed)
+    );
+}
+
+/// A message signed on this device verifies here for every script type,
+/// every format that type has, and an address that is not the first.
+#[test]
+fn sign_then_verify_round_trip() {
+    let c = Compute::unchecked();
+    let master = master(crate::common::ABANDON, Network::Mainnet);
+    let text = "Two lines,\nthe second one indented\n  like this.";
+    for script in ScriptType::ALL {
+        for index in [0u32, 1, 7] {
+            let path = master
+                .account_path(script, 0)
+                .expect("account path")
+                .extend([
+                    faraday_psbt::bitcoin::bip32::ChildNumber::from_normal_idx(0).unwrap(),
+                    faraday_psbt::bitcoin::bip32::ChildNumber::from_normal_idx(index).unwrap(),
+                ]);
+            let derived = master.derive(&c, &path);
+            let expected = master
+                .account_xpub(&c, script, 0)
+                .expect("account")
+                .address(false, index)
+                .expect("address")
+                .to_string();
+            for format in Format::for_script(script) {
+                for nonce in [Nonce::LowR, Nonce::First] {
+                    let signed = message::sign(
+                        &c,
+                        derived.secp(),
+                        derived.secret_key(),
+                        script,
+                        Network::Mainnet,
+                        text,
+                        *format,
+                        nonce,
+                        Aux::Deterministic,
+                    )
+                    .unwrap_or_else(|e| panic!("{script} {format:?}: {e:?}"));
+                    assert_eq!(signed.address.as_str(), expected, "{script} at {index}");
+                    let address = address_of(&signed.address, Network::Mainnet);
+                    assert_eq!(
+                        message::verify(&address, text, &signed.signature),
+                        Ok(Checked {
+                            format: *format,
+                            script,
+                        }),
+                        "{script} at {index}, {format:?}"
+                    );
+                    assert_eq!(
+                        message::verify(&address, "another message", &signed.signature),
+                        Err(Error::Invalid),
+                        "{script} at {index}, {format:?}: another message verifies"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// A signature does not verify for an address it was not made for.
+#[test]
+fn a_signature_belongs_to_one_address() {
+    let c = Compute::unchecked();
+    let secret = PrivateKey::from_wif(BIP322_KEY).expect("wif").inner;
+    let signed = message::sign(
+        &c,
+        &secp(),
+        &secret,
+        ScriptType::NativeSegwit,
+        Network::Mainnet,
+        "Hello World",
+        Format::Bip322,
+        Nonce::LowR,
+        Aux::Deterministic,
+    )
+    .expect("signs");
+    let other = address_of(
+        "bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk",
+        Network::Mainnet,
+    );
+    assert!(
+        message::verify(&other, "Hello World", &signed.signature).is_err(),
+        "a signature verified for an address it was not made for"
+    );
+}
+
+/// A BIP-322 witness whose signature is not BIP-66 DER (its `s` written
+/// as a negative integer, from the cross-check's seed 17af375c…) is
+/// malformed, as Bitcoin Core's script check reads it; the same numbers
+/// written as DER are a well-formed signature that does not hold.
+#[test]
+fn a_witness_signature_that_is_not_der_is_malformed() {
+    let address = address_of(
+        "bcrt1qup7h6dnv9nxpu2tzkr3cekdzqa0lkt5sfsa3pq",
+        Network::Regtest,
+    );
+    let negative_s = "AkcwRAIgTgR9Hb+lhM3ejBtyKxwGvimMnWBuSR5GbFjdacdJMjkCINvePNT/c/qRKUGZnJP1qPNFrbz+\
+                      ZayRuNK46Fzltgl6ASEDNR2yiaxyEmvCy3aI/aT8NE1xJBMH6I/41yd1GUs3s80=";
+    assert_eq!(
+        message::verify(&address, "Hello World", negative_s),
+        Err(Error::Malformed)
+    );
+    let as_der = "AkgwRQIgTgR9Hb+lhM3ejBtyKxwGvimMnWBuSR5GbFjdacdJMjkCIQDb3jzU/3P6kSlBmZyT9ajzRa28/\
+                  mWskbjSuOhc5bYJegEhAzUdsomschJrwst2iP2k/DRNcSQTB+iP+NcndRlLN7PN";
+    assert_eq!(
+        message::verify(&address, "Hello World", as_der),
+        Err(Error::Invalid)
+    );
+}
+
+/// A 65-byte signature, as BIP-137 writes it.
+const SIG: &str =
+    "H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=";
+
+/// A message that ends in a newline is read back from the file Faraday
+/// wrote for it as the same message, and a file from another tool, whose
+/// last newline is the file's own, still reads as before.
+#[test]
+fn a_message_ending_in_a_newline_reads_back_from_its_file() {
+    for message in ["hello\n", "hello\n\n", "a\nb\n", "\n", "hello"] {
+        let file = message::signed_text("bc1qaddress", SIG, message);
+        let read = message::parse_signed(&file).expect("the file reads");
+        assert_eq!(read.message.as_str(), message, "{message:?}");
+    }
+    let sparrow = message::parse_signed(&format!("bc1qaddress\n{SIG}\nhello\n")).expect("reads");
+    assert_eq!(sparrow.message.as_str(), "hello");
+    let bare = message::parse_signed(&format!("bc1qaddress\n{SIG}\nhello")).expect("reads");
+    assert_eq!(bare.message.as_str(), "hello");
+}
+
+/// A signature is one base64 token: a second line of words is not one.
+#[test]
+fn a_second_line_that_is_not_one_base64_token_is_not_a_signed_message() {
+    assert!(message::parse_signed("bc1qaddress\narea funny under front\nhello\n").is_none());
+    assert!(message::parse_signed("bc1qaddress\nc2l*\nhello\n").is_none());
+    assert!(message::parse_signed(&format!("bc1qaddress\n{SIG}\nhello\n")).is_some());
+}
+
+/// A signature is at least 65 bytes once decoded: a single seed word that happens to be valid
+/// base64 (`army`) is not one.
+#[test]
+fn a_short_base64_line_is_not_a_signature() {
+    assert!(message::parse_signed("bc1qaddress\narmy\nvan\n").is_none());
+    assert!(message::parse_signed("bc1qaddress\nc2ln\nhello\n").is_none());
+}
+
+/// A BIP-322 variant prefix on the signature line is read: the published
+/// `smp` simple signature in a three-line file is a signed message that
+/// verifies, a `ful` one is read and `verify` says it is unsupported, and
+/// a prefix over something that is not a signature is not one.
+#[test]
+fn a_prefixed_signature_is_read_as_a_signed_message() {
+    let vectors = vectors_json("tools/vectors/message/bip322-basic.json");
+    let mut read_simple = 0;
+    for case in vectors["simple"].as_array().expect("simple") {
+        if case["type"].as_str().expect("type").starts_with("p2wsh") {
+            continue;
+        }
+        let address_text = case["address"].as_str().expect("address");
+        let message = case["message"].as_str().expect("message");
+        let address = address_of(address_text, Network::Mainnet);
+        for signature in case["bip322_signatures"].as_array().expect("signatures") {
+            let signature = signature.as_str().expect("signature");
+            if !signature.starts_with("smp") {
+                continue;
+            }
+            let file = format!("{address_text}\n{signature}\n{message}\n");
+            let read = message::parse_signed(&file).expect("a prefixed signature reads");
+            assert_eq!(read.signature.as_str(), signature);
+            assert_eq!(
+                message::verify(&address, read.message.as_str(), read.signature.as_str()),
+                Ok(Checked {
+                    format: Format::Bip322,
+                    script: ScriptType::NativeSegwit,
+                })
+            );
+            read_simple += 1;
+        }
+    }
+    assert!(read_simple > 0);
+
+    let full = vectors["error"]
+        .as_array()
+        .expect("error")
+        .iter()
+        .find(|case| {
+            case["signature"]
+                .as_str()
+                .expect("signature")
+                .starts_with("ful")
+        })
+        .expect("a published full-variant signature");
+    let address_text = full["address"].as_str().expect("address");
+    let signature = full["signature"].as_str().expect("signature");
+    let file = format!("{address_text}\n{signature}\nincorrect prefix\n");
+    let read = message::parse_signed(&file).expect("a full-variant signature reads");
+    assert_eq!(read.signature.as_str(), signature);
+    assert_eq!(
+        message::verify(
+            &address_of(address_text, Network::Mainnet),
+            read.message.as_str(),
+            read.signature.as_str()
+        ),
+        Err(Error::UnsupportedVariant)
+    );
+
+    for line in [
+        "smp", "smpc2l*", "smparmy", "ful", "pof!!!!", "pofarmy", "smp c2ln",
+    ] {
+        assert!(
+            message::parse_signed(&format!("bc1qaddress\n{line}\nhello\n")).is_none(),
+            "{line:?}"
+        );
+    }
+}

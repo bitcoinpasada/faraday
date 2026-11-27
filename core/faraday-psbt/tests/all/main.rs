@@ -1,0 +1,32 @@
+//! The integration tests of faraday-psbt, one module per subject.
+
+// The examples are standalone programs that include the shared builder;
+// the tests include the same files, so a file is loaded as a module more
+// than once on purpose.
+#![allow(clippy::duplicate_mod)]
+
+mod bips;
+mod bump;
+mod common;
+mod diff;
+mod finalize_checks;
+mod fixtures;
+mod inspect;
+mod inspection_pinned;
+mod leaf_wallet;
+mod message;
+mod miniscript;
+mod multisig;
+mod musig;
+mod nonce;
+mod registered;
+mod satisfaction;
+mod sign;
+mod signature_origins;
+mod signer;
+mod sweep;
+mod tapmulti;
+mod transaction;
+mod vectors;
+mod verify;
+mod wallet_fixtures;

@@ -1,8 +1,134 @@
-//! The domain crate `faraday-psbt`: Faraday's own code, copied from `main` in a later step.
-//! Everything a crate of the domain may do is in `docs/spec/01-layers.md` section 2.
+//! PSBT (BIP-174) parsing, inspection, policy warnings, signing and
+//! finalization.
+//!
+//! The crate signs with the private keys it is handed (`docs/KEYS.md`
+//! names where key material lives and leaves); `faraday-bip` holds the
+//! others that derive or use one. Its other work is from non-secret data:
+//!
+//! - [`Psbt`]: parse and serialise (binary and base64).
+//! - [`inspect`]: a complete structured view for the Sign screens:
+//!   amounts, fee, recipients, verified change,
+//!   participating keys, multisig quorum, ranked warnings. Needs only the
+//!   loaded keys' fingerprints and account xpubs ([`Context`], [`KeyRef`]).
+//! - [`sign`]: derives each input's key from the PSBT's own key-origin
+//!   data (never a guessed path), signs with the deterministic nonce
+//!   [`Nonce`] names, verifies every signature before writing it, and
+//!   checks determinism by signing twice.
+//! - [`message`]: signs and checks a signed message, BIP-137 or BIP-322
+//!   "simple", which is the one flow here that has no PSBT in it at all.
+//! - [`finalize`]: builds the final scriptSig/witness for the supported
+//!   script types and extracts the network transaction when every input is
+//!   complete.
+//! - [`verify`]: checks the signatures a transaction already carries
+//!   against their keys, looks for a nonce used twice, says which nonce
+//!   rule made a signature under a key this device holds, diffs two
+//!   PSBTs and states an inscription envelope. Nothing there
+//!   signs.
+//! - [`signer`]: states whether a signing device did only what it was
+//!   asked, from the PSBT sent and the one that came back: signatures
+//!   added or an input finalized from them, and a finding for anything
+//!   else. Nothing there needs a key.
+//! - [`diff`] and [`bump`]: how two PSBTs or finished transactions differ,
+//!   inputs by outpoint and outputs by script, and whether a replacement
+//!   of a transaction changes only its fee. Both read inspections the
+//!   caller made and nothing else.
+//! - [`sweep`]: signs with one private key read from a WIF, matched by
+//!   the scripts it pays rather than by a key origin, for a sweep.
+//! - [`transaction`]: reads a raw transaction, or a PSBT as the
+//!   transaction it carries, with the previous outputs its inputs spend,
+//!   for a check that is not a signature.
+//! - [`v2`]: a BIP-370 (version 2) PSBT held as its maps, with the
+//!   BIP-375 silent payment fields it refuses. A version 2 PSBT is
+//!   signed through its version 0 form ([`v2::PsbtV2::to_v0`]).
+//!
+//! Supported spends: BIP-44 p2pkh, BIP-49 p2sh-p2wpkh, BIP-84 p2wpkh,
+//! BIP-86 p2tr key path, `multi`/`sortedmulti` inside p2sh, p2wsh or
+//! p2sh-p2wsh, a `wsh`/`sh(wsh)` miniscript, and a taproot script path.
+//! Any other script is inspected but refused for signing.
+//!
+//! A miniscript or taproot-tree input is signed the way a hardware
+//! signer signs one: every signature this device's keys can give, and
+//! then whoever holds the rest finishes it. [`finalize`] completes such
+//! an input only when the PSBT satisfies its script, so a timelock that
+//! is not yet spendable or a cosigner who has not signed leaves the
+//! transaction partial.
+//!
+//! An input spent from a script of several keys (a `multi` of two or
+//! more, a miniscript naming two or more, a taproot script path whose
+//! carried leaves name two or more with its internal key or are not its
+//! whole tree) that names
+//! a loaded key is signed only when a registered wallet
+//! ([`Context::wallets`]) that holds a loaded key ([`Context::holds`])
+//! gives its script at the chain and index it
+//! states; otherwise it is a [`Level::Blocked`] warning,
+//! [`WarningKind::WalletNotRegistered`]. A PSBT that carries every
+//! cosigner's extended key (BIP 174's global xpubs) offers its wallet
+//! for registering ([`Inspection::register`], [`register()`]).
+//!
+//! A SegWit v0 input of a transaction with more than one input must
+//! carry the transaction it spends (`non_witness_utxo`). BIP-143 signs
+//! the amount the PSBT states, so without that transaction the amount is
+//! the coordinator's word, and two signing rounds over two different lies
+//! pay the difference to the miner. Such an input is a [`Level::Blocked`]
+//! warning and is never signed, whatever is passed as accepted. A transaction
+//! with one input is signed from its `witness_utxo` alone: the attack
+//! needs two signatures the chain accepts, and a lone input signed over a
+//! lie gives a signature no node accepts and nothing to combine it with.
+//!
+//! # Secrets
+//!
+//! [`sign`] takes `&MasterKey` and derives a [`faraday_bip::keys::DerivedKey`]
+//! per input, which is erased when it goes out of scope at the end of that
+//! input. `bitcoin` forces two more copies: `secp256k1::Keypair` for
+//! Schnorr signing (the untweaked pair and the BIP-341-tweaked pair); both
+//! are erased with `non_secure_erase` before the input is done. Nothing
+//! else in the crate holds private material, and no secret is written to
+//! the heap by this crate; `Xpriv` derivation intermediates inside
+//! `bitcoin` are stack copies outside our reach (`faraday_bip::keys`).
 
 #![no_std]
 
-// Placeholder until the domain copy: `main`'s `core/faraday-psbt/src/musig.rs`. One open MuSig2
-// signing session and the secret nonces drawn for it; not `Clone`, wiped when it drops.
-pub struct MusigSession(());
+extern crate alloc;
+
+/// Standard base64, which this crate reads PSBTs in and which lives
+/// in [`faraday_bip`] because the BSMS records there carry base64 too.
+pub use faraday_bip::base64;
+
+pub mod bump;
+mod classify;
+mod context;
+pub mod diff;
+mod finalize;
+mod inspect;
+pub mod message;
+pub mod musig;
+mod psbt;
+mod reason;
+mod register;
+mod sign;
+pub mod signer;
+pub mod sweep;
+pub mod transaction;
+pub mod v2;
+pub mod verify;
+
+pub use classify::{Multisig, ScriptKind, Wrapper};
+pub use context::{Context, KeyRef};
+pub use finalize::{finalize, input_finishes, is_complete};
+pub use inspect::{
+    ABSURD_FEE_RATE_SAT_VB, Cosigner, Detail, HIGH_FEE_CAUTION_PCT, HIGH_FEE_DANGER_ABS,
+    HIGH_FEE_DANGER_PCT, InputInfo, Inspection, KeyOrigin, Level, LockDate, Locktime, LocktimeKind,
+    MultisigSummary, MusigInput, MusigParticipation, MusigRound, MusigSummary, OutputInfo,
+    OutputKind, OwnWallet, RelativeLock, SighashKind, SpendRoute, Warning, WarningKind, inspect,
+};
+pub use musig::{MusigSession, MusigSessionView};
+pub use psbt::{Error, Psbt};
+pub use reason::Reason;
+pub use register::{Reading, RegisterRefusal, RegisteredKey, Registration, register};
+pub use sign::{
+    Aux, InputSignature, MusigRole, Nonce, NonceWritten, Schnorr, SigKind, SignResult, sign,
+};
+
+/// The rust-bitcoin version this crate is built against, re-exported so
+/// callers use the same types without a second dependency.
+pub use bitcoin;

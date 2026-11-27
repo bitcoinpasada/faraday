@@ -1,14 +1,25 @@
 [package]
 name = "faraday-psbt"
-version = "0.0.0"
+version = "0.1.0"
+description = "PSBT (BIP-174) parsing, inspection, policy warnings, signing and finalization, no_std + alloc"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }
 faraday-crypto = { path = "../faraday-crypto" }
 faraday-text = { path = "../faraday-text" }
+bitcoin.workspace = true
+miniscript.workspace = true
+zeroize = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+# A token that counts nothing, for the tests (docs/COMPUTE.md §3).
+faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }
+serde_json = { workspace = true, features = ["std"] }
 
 [lints]
 workspace = true
