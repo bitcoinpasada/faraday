@@ -1,0 +1,307 @@
+//! BBQr (Coinkite's public-domain spec, `BBQr.md`): a file split across
+//! QR codes, each with an eight-character header.
+//!
+//! ```text
+//! B$ <encoding> <file type> <total, 2 base36> <index, 2 base36> <data>
+//! ```
+//!
+//! Read: file types `P` (PSBT), `T` (transaction), `U` (text) and `J`
+//! (JSON), in encodings `2` (base32), `H` (hex) and `Z` (raw DEFLATE, then
+//! base32), as the Wallets tab and Faraday OS write them. Written: `2` only
+//! (`docs/QR.md` §4), so nothing Faraday sends needs a decompressor.
+//!
+//! The limits are Faraday OS's, and every one fails closed: 4,096
+//! characters a frame, 1,295 parts, 360 KiB put together or decompressed.
+//! Parts of two transfers, a part arriving twice with different contents,
+//! parts of uneven length and malformed encodings are all refused.
+
+use faraday_text::{Text, text};
+use std::collections::BTreeMap;
+use zeroize::Zeroizing;
+
+/// The longest frame read.
+pub const MAX_FRAME: usize = 4096;
+/// The most parts two base36 digits count.
+pub const MAX_PARTS: usize = 1295;
+/// The most bytes a transfer puts together or decompresses to.
+pub const MAX_DATA: usize = 360 * 1024;
+
+const B36: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const B32: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+/// Whether `text` is offered as a BBQr part.
+pub fn is_part(text: &str) -> bool {
+    text.starts_with("B$")
+}
+
+fn b36(c: u8) -> Option<usize> {
+    B36.iter().position(|&x| x == c)
+}
+
+fn b36_pair(n: usize) -> [u8; 2] {
+    [B36[n / 36], B36[n % 36]]
+}
+
+/// RFC 4648 base32, upper case, no padding.
+pub fn base32(bytes: &[u8]) -> Text {
+    let mut out = Text::with_room(bytes.len().div_ceil(5) * 8);
+    for chunk in bytes.chunks(5) {
+        let mut buf = [0u8; 5];
+        buf[..chunk.len()].copy_from_slice(chunk);
+        let n = u64::from_be_bytes([0, 0, 0, buf[0], buf[1], buf[2], buf[3], buf[4]]);
+        let chars = (chunk.len() * 8).div_ceil(5);
+        for i in 0..chars {
+            out.push(char::from(B32[((n >> (35 - 5 * i)) & 31) as usize]));
+        }
+    }
+    out
+}
+
+/// The bytes of unpadded base32, in a wiping buffer sized once; `None`
+/// when it is not exactly that.
+fn unbase32(text: &str) -> Option<Zeroizing<Vec<u8>>> {
+    // A length a whole number of bytes cannot leave is not base32.
+    if matches!(text.len() % 8, 1 | 3 | 6) {
+        return None;
+    }
+    let mut out = Zeroizing::new(Vec::with_capacity(text.len() * 5 / 8));
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for c in text.bytes() {
+        let v = B32.iter().position(|&x| x == c)?;
+        acc = (acc << 5) | v as u32;
+        bits += 5;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+            acc &= (1 << bits) - 1;
+        }
+    }
+    // Leftover bits must be zero, or the encoding was not canonical.
+    if acc != 0 {
+        return None;
+    }
+    Some(out)
+}
+
+/// The bytes of upper-case hex, in a wiping buffer sized once.
+fn unhex(text: &str) -> Option<Zeroizing<Vec<u8>>> {
+    // BBQr writes hex in upper case, and only that is read.
+    if !text.bytes().all(|c| matches!(c, b'0'..=b'9' | b'A'..=b'F')) {
+        return None;
+    }
+    let mut out = Zeroizing::new(vec![0u8; text.len() / 2]);
+    let n = faraday_crypto::hex::decode_into(text, &mut out)?;
+    (n == out.len()).then_some(out)
+}
+
+/// Raw inflate of `data` to at most [`MAX_DATA`] bytes. The output is
+/// written into one wiping buffer of that size by one `decompress` call
+/// and copied once, exact size, into another: a growing output would free
+/// its smaller blocks unwiped. Anything but a finished stream is refused.
+fn inflate(data: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
+    use miniz_oxide::inflate::TINFLStatus;
+    use miniz_oxide::inflate::core::{DecompressorOxide, decompress, inflate_flags};
+    let mut out = Zeroizing::new(vec![0u8; MAX_DATA]);
+    let mut state = Box::new(DecompressorOxide::new());
+    let (status, _, written) = decompress(
+        &mut state,
+        data,
+        &mut out,
+        0,
+        inflate_flags::TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF,
+    );
+    if status != TINFLStatus::Done {
+        return None;
+    }
+    let mut exact = Zeroizing::new(Vec::with_capacity(written));
+    exact.extend_from_slice(&out[..written]);
+    Some(exact)
+}
+
+/// Why a part or a transfer was refused: a kind, which the app words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    /// Not a BBQr part this reads.
+    Malformed(Malformed),
+    /// A file type Faraday does not read.
+    Type(char),
+    /// A part of another transfer than the one being put together.
+    OtherTransfer,
+    /// The same part twice, with different contents.
+    Conflict,
+    /// Over a limit.
+    TooLarge,
+}
+
+/// What is wrong with a text that starts as a BBQr part.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Malformed {
+    /// Shorter than a header.
+    Short,
+    /// An encoding BBQr does not have.
+    Encoding,
+    /// A part count that is not base36.
+    Count,
+    /// A part number past the count.
+    Number,
+    /// Its data is not in its encoding.
+    Data,
+    /// Its parts are of uneven length.
+    Uneven,
+    /// Its compressed data does not inflate within [`MAX_DATA`].
+    Inflate,
+}
+
+/// Where a transfer stands after a part.
+pub enum Got {
+    /// Parts still missing, numbered from 1.
+    Part {
+        /// Parts read.
+        have: usize,
+        /// Parts in all.
+        total: usize,
+        /// The parts not read yet.
+        missing: Vec<usize>,
+    },
+    /// The whole file.
+    Done {
+        /// `P`, `T`, `U` or `J`.
+        file_type: char,
+        /// Its bytes.
+        data: Zeroizing<Vec<u8>>,
+    },
+}
+
+/// A transfer being put together. The parts read are wiping buffers: a
+/// transfer may be a secret.
+#[derive(Default)]
+pub struct Collector {
+    header: Option<(u8, u8, usize)>,
+    parts: BTreeMap<usize, Zeroizing<Vec<u8>>>,
+    bytes: usize,
+}
+
+impl std::fmt::Debug for Collector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Collector(..)")
+    }
+}
+
+impl Collector {
+    /// Parts read, of how many; `None` before the first part.
+    pub fn progress(&self) -> Option<(usize, usize)> {
+        self.header.map(|(_, _, total)| (self.parts.len(), total))
+    }
+
+    /// Takes one part.
+    pub fn add(&mut self, text: &str) -> Result<Got, Error> {
+        let text = text.trim();
+        if text.len() > MAX_FRAME {
+            return Err(Error::TooLarge);
+        }
+        let b = text.as_bytes();
+        if b.len() < 9 || !text.starts_with("B$") {
+            return Err(Error::Malformed(Malformed::Short));
+        }
+        let (encoding, file_type) = (b[2], b[3]);
+        if !matches!(encoding, b'2' | b'H' | b'Z') {
+            return Err(Error::Malformed(Malformed::Encoding));
+        }
+        if !matches!(file_type, b'P' | b'T' | b'U' | b'J') {
+            return Err(Error::Type(char::from(file_type)));
+        }
+        let (Some(t1), Some(t0), Some(i1), Some(i0)) = (b36(b[4]), b36(b[5]), b36(b[6]), b36(b[7]))
+        else {
+            return Err(Error::Malformed(Malformed::Count));
+        };
+        let (total, index) = (t1 * 36 + t0, i1 * 36 + i0);
+        if total == 0 || index >= total {
+            return Err(Error::Malformed(Malformed::Number));
+        }
+        if let Some(h) = self.header
+            && h != (encoding, file_type, total)
+        {
+            return Err(Error::OtherTransfer);
+        }
+        let payload = &text[8..];
+        let part = match encoding {
+            b'H' => unhex(payload),
+            _ => unbase32(payload),
+        }
+        .filter(|p| !p.is_empty())
+        .ok_or(Error::Malformed(Malformed::Data))?;
+        if let Some(seen) = self.parts.get(&index) {
+            if **seen != *part {
+                return Err(Error::Conflict);
+            }
+        } else {
+            if self.bytes + part.len() > MAX_DATA {
+                return Err(Error::TooLarge);
+            }
+            self.bytes += part.len();
+            self.parts.insert(index, part);
+            self.header = Some((encoding, file_type, total));
+        }
+        if self.parts.len() < total {
+            return Ok(Got::Part {
+                have: self.parts.len(),
+                total,
+                missing: (0..total)
+                    .filter(|i| !self.parts.contains_key(i))
+                    .map(|i| i + 1)
+                    .collect(),
+            });
+        }
+        // Every part but the last is the same length, and the last is no
+        // longer: anything else was not cut from one file.
+        let lens: Vec<usize> = self.parts.values().map(|p| p.len()).collect();
+        if lens.len() > 1
+            && (lens[..lens.len() - 1].iter().any(|&l| l != lens[0])
+                || lens[lens.len() - 1] > lens[0])
+        {
+            return Err(Error::Malformed(Malformed::Uneven));
+        }
+        let mut joined = Zeroizing::new(Vec::with_capacity(self.bytes));
+        for part in self.parts.values() {
+            joined.extend_from_slice(part);
+        }
+        let data = if encoding == b'Z' {
+            inflate(&joined).ok_or(Error::Malformed(Malformed::Inflate))?
+        } else {
+            joined
+        };
+        Ok(Got::Done {
+            file_type: char::from(file_type),
+            data,
+        })
+    }
+}
+
+/// `data` as BBQr parts in encoding `2`, `part_bytes` of data a part (a
+/// multiple of 5, so each part is whole base32 characters). `None` when it
+/// would take more than 1,295 parts.
+pub fn encode(file_type: char, data: &[u8], part_bytes: usize) -> Option<Vec<Text>> {
+    let part_bytes = (part_bytes / 5).max(1) * 5;
+    let total = data.len().div_ceil(part_bytes).max(1);
+    if total > MAX_PARTS || !matches!(file_type, 'P' | 'T' | 'U' | 'J') {
+        return None;
+    }
+    let t = b36_pair(total);
+    Some(
+        (0..total)
+            .map(|i| {
+                let chunk = &data[i * part_bytes..data.len().min((i + 1) * part_bytes)];
+                let n = b36_pair(i);
+                text!(
+                    // not wording: BBQr's header
+                    "B$2{file_type}{}{}{}{}{}",
+                    char::from(t[0]),
+                    char::from(t[1]),
+                    char::from(n[0]),
+                    char::from(n[1]),
+                    &*base32(chunk)
+                )
+            })
+            .collect(),
+    )
+}

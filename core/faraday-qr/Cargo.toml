@@ -1,19 +1,35 @@
 [package]
 name = "faraday-qr"
-version = "0.0.0"
+version = "0.2.0"
+description = "What Faraday's scanner reads and its QR sender writes beyond the codec (docs/QR.md): BBQr, SeedSigner's numbered parts, the Faraday file envelope, and the UR registry's key and wallet types"
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }
-faraday-codec = { path = "../faraday-codec" }
+# BBQr's `Z` encoding is raw DEFLATE; decompressed here with the size bounded
+# (docs/QR.md §4). Already in the build through `png` (docs/deps/miniz_oxide.md).
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
+# The QR sender (send.rs): QR and UR encoding. The decoder (`decode`) is
+# not needed to make codes.
+faraday-codec = { path = "../faraday-codec", default-features = false }
+# The token a QR code made takes (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../faraday-crypto" }
+# Heap text that wipes itself: the parts and names a sender and a collector hold.
 faraday-text = { path = "../faraday-text" }
+# The parts a transfer is put together from, and the text and bytes a
+# secret's codes are made from, are wiped (docs/deps/zeroize.md).
+zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
-faraday-alloc-count = { path = "../../tools/faraday-alloc-count" }
 faraday-files = { path = "../faraday-files" }
+faraday-codec = { path = "../faraday-codec" }
+# The memory a hostile CBOR message or animated code makes the decoder
+# hold (tests/cbor_declared_counts.rs).
+faraday-alloc-count = { path = "../../tools/faraday-alloc-count" }
 
 [lints]
 workspace = true

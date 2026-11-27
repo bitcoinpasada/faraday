@@ -11,7 +11,11 @@ faraday-storage = { path = "../faraday-storage" }
 faraday-files = { path = "../../core/faraday-files" }
 faraday-fat = { path = "../../core/faraday-fat" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-strings = { path = "../../core/faraday-strings" }
 faraday-text = { path = "../../core/faraday-text" }
+
+[dev-dependencies]
+faraday-codec = { path = "../../core/faraday-codec" }
 
 [lints]
 workspace = true
