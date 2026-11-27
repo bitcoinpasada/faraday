@@ -1,8 +1,9 @@
 # What every job of the check needs before it runs its part
 # (.github/workflows/check.yml): build output on the runner's larger disk,
-# the toolchain rust-toolchain.toml names, and the tools the check uses at
-# the versions this file gives. A job that compiles names its compiled
-# dependencies, restored here.
+# the system packages the tests run against, the toolchain
+# rust-toolchain.toml names, and the tools the check uses at the versions
+# this file gives. A job that compiles names its compiled dependencies,
+# restored here.
 name: setup
 description: The check's toolchain and tools
 inputs:
@@ -36,6 +37,15 @@ runs:
           sudo mount --bind /mnt/target target
         fi
         df -h . target
+
+    # The programs the tests check Faraday against or make their inputs with
+    # (GnuPG, Sequoia, paperkey, OpenSSL, sbsigntool, mtools, dosfstools).
+    # Each try has a time limit; after a failed one, a second mirror (apt-install.sh).
+    - name: System packages
+      shell: bash
+      run: >-
+        "$GITHUB_ACTION_PATH/apt-install.sh"
+        gnupg sq paperkey openssl sbsigntool mtools dosfstools
 
     - name: Rust toolchain
       shell: bash
