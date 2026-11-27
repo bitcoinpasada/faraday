@@ -54,3 +54,11 @@ pub struct Display {
     /// Faraday Demo's preview of a device's size, and the size chosen.
     pub preview: Option<Preview>,
 }
+
+/// How soon the next tick wants to come (02 §3.3): the kit's frame output says it, and the
+/// port's frame carries it to the adapter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pace {
+    Rest,
+    Moving,
+}

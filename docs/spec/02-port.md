@@ -30,8 +30,8 @@ Its modules:
 | `event` | `Event`, `Start`, `Abilities`, `Machine`, `Scheme`, `Time`, `Input`, `Key` and every unasked fact (§3) |
 | `ask` | `Ask`, `Answer`, `AskId`, the `Request` trait, every ask's own type, `Failure`, `OsError` (§2, §4, §7.2) |
 | `order` | `Order`: effects with no answer (§4.9) |
-| `frame` | `Frame`, `Rect`, `Moved`, `Region`, `Pace` (§5) |
-| `values` | the display's and the machine's facts the kit may name (P4): `Display`, `Preview`, `Orientation`, `Point`, `Medium`, and `Anchor` |
+| `frame` | `Frame`, `Rect`, `Moved`, `Region` (§5) |
+| `values` | the display's and the machine's facts the kit may name (P4): `Display`, `Preview`, `Orientation`, `Point`, `Medium`, `Anchor`, and `Pace` (§5), which the kit's frame output gives and the frame carries |
 | `bytes` | `Bytes`, `EntropyBytes` and the rule of what wipes (§6) |
 | `storage`, `host`, `camera`, `devices`, `system` | each family's value types (§4): `storage` also holds `StickId`, `StickInfo` and `Sha256`; `camera` holds `CameraId`; `devices` holds `UsbDevice`, `InputId` and `Edid` |
 

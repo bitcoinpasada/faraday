@@ -2,8 +2,7 @@
 
 use faraday_draw::canvas::Ink;
 use faraday_draw::geom::Rect;
-use faraday_port::frame::Pace;
-use faraday_port::values::Anchor;
+use faraday_port::values::{Anchor, Pace};
 
 use crate::Pressed;
 use crate::hits::Hit;

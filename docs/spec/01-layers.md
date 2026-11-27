@@ -156,8 +156,9 @@ not depend on `faraday-intake`, `faraday-forms` or any crate that depends on eit
 - **Rule P4.** The kit may name the port's value types (`Display`, `Orientation`, `Point` and
   `Medium`: a display's density, size and kind, which `faraday-draw` reads on `main`; and
   `Anchor`, the name the app gives a place it draws, which the kernel's `ViewOrder` and the kit's
-  `Ui` both name, section 04 §8.1) and never its events or effects. Held by `lint-layers` with the port's metadata naming its value module
-  (`values = "display"`); a kit crate's use of the port is checked to name only that module.
+  `Ui` both name, section 04 §8.1; and `Pace`, which the kit's frame output gives and the port's
+  frame carries, section 04 §7.1) and never its events or effects. Held by `lint-layers` with the port's metadata naming its value module
+  (`values = "values"`); a kit crate's use of the port is checked to name only that module.
 
 ## 4. The application
 

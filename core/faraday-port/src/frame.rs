@@ -1,5 +1,7 @@
 //! The frame out (02 §5).
 
+use crate::values::Pace;
+
 /// An axis-aligned rectangle in whole pixels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Rect {
@@ -22,13 +24,6 @@ pub struct Moved {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Region {
     MovesWindow(Rect),
-}
-
-/// How soon the next tick wants to come (02 §3.3).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Pace {
-    Rest,
-    Moving,
 }
 
 pub struct Frame<'a> {
