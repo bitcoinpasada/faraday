@@ -564,6 +564,9 @@ pub enum Turn { Page, Step }
   `Ui`); `Ui::hold_fraction`, `Ui::shown_fraction` and the overlay scrollbar's fade read the
   store with it, and `Pointer` carries the press under the pointer and the press pressed
   (`Ui::is_hovered`, `Ui::is_pressed`). `FrameOut` carries the tooltip anchors the template left.
+  `Ui::fade_later` notes the box of a refused row, link, chip or card and `Ui::fade_disabled` draws
+  those boxes at the disabled content opacity once the page or sheet is drawn (`main`'s `keep_live`
+  dimming, now decided by `Offered`).
 - Scrolling is motion, not state: a wheel notch, a pan, a flick and the stretch are handled by the
   runtime against the last frame's `regions`, change the store and send no message (inventory
   `features/motion.md`: slop, coast, notch, Reduce motion). Reason: a pan is up to 60 events a

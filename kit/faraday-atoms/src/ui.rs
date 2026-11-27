@@ -146,6 +146,8 @@ pub struct Ui<'f, A: Pressed> {
     pub fab_at: Option<(f32, f32, f32, f32)>,
     /// How many filled (primary) buttons this frame has drawn.
     pub primaries: usize,
+    /// The boxes refused presses cover, faded once the page is drawn ([`Ui::fade_disabled`]).
+    pub(crate) faded: crate::dimmed::Faded,
     /// The tooltip anchors this frame drew.
     pub(crate) tips: Vec<crate::icon_button::TipAnchor<A>>,
     /// Hits are clipped to this rather than to the drawing's clip while a card's body is
@@ -233,6 +235,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             primaries: 0,
             fab_at: None,
             tips: Vec::new(),
+            faded: Vec::new(),
             hit_clip: None,
             quiet_hover: false,
             held: false,
@@ -335,6 +338,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             primaries: 0,
             fab_at: None,
             tips: Vec::new(),
+            faded: Vec::new(),
             hit_clip: self.hit_clip,
             quiet_hover: false,
             held: false,
@@ -363,6 +367,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
             primaries,
             fab_at,
             tips,
+            faded,
             cut,
             back,
             ..
@@ -400,6 +405,7 @@ impl<'f, A: Pressed> Ui<'f, A> {
                 press: lift(t.press),
                 text: t.text,
             }));
+        self.faded.extend(faded);
         self.cut.extend(cut);
         if self.back.is_none() {
             self.back = back.map(|(a, i)| (lift(a), base + i));

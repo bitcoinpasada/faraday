@@ -11,6 +11,7 @@ pub mod badge;
 pub mod button;
 pub mod check;
 pub mod chip;
+pub mod dimmed;
 pub mod fab;
 pub mod field;
 pub mod focus;
