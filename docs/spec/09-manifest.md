@@ -802,7 +802,7 @@ of the app's.
 | Crate | Metadata | Holds | Normal edges | Dev edges | From `main` |
 |---|---|---|---|---|---|
 | `faraday-storage` | | `Ask::Storage`, `Keep`, `Forget`, `Memory`, `Host`, `Print`; the disk-process client (02 §8) | port, files, crypto, qr, strings, text | codec, vault, leak-scan | `faraday-storage`, ~~core~~ |
-| `faraday-disk` | `process` | the disk process | boot, crypto, fat, files, strings, text | leak-scan | as it is |
+| `faraday-disk` | `process` | the disk process | boot, crypto, fat, files, strings, text | none | as it is, but its freed-memory test `tests/leak.rs`, not carried (07 §6.1, F336) |
 | `faraday-grant` | `process` | the grant helper | boot | none | as it is |
 | `faraday-stick-adapter` | | framebuffer, evdev and touch, held-back input, the arrow, turns, sticks attached, the clean marker, the read-only root, the dev reports, the capture thread (`ReadMode::Reduced`) | port, storage, camera, v4l2, scanner, crypto, boot, paper, text, tokens | leak-scan | `shells/stick/src/` but `main.rs`'s loop |
 | `faraday-desktop-adapter` | `online` | sticks as folders (the folder `Place` from `faraday-files`), `ToggleStick`, Downloads, opening, the print folder, the camera list | port, storage, files, fat, crypto, text | none | `shells/demo`'s adapter part, `faraday-storage`'s `Dirs` |
@@ -929,8 +929,9 @@ All in `tools/`, `layer = "tool"`; nothing a root ships depends on one (T1, `lin
 | `faraday-crosscheck` | `tools/crosscheck/` | | the domain crates of `main`'s list but `faraday-core` (TS20); draw, for the picture requests alone | the cross-check server; `file_menu::sha256`'s use is its `hash` area's, now `faraday_crypto::sha256_whole` (section 10 §6) |
 
 The counting allocator `Counting` (`allocations() -> u64`, `reset()`) and the leak allocator `Leak`
-(`watch(form: &[u8])`, `found() -> bool`) are global allocators, each an `unsafe impl GlobalAlloc`
-as U2 allows. `faraday-testkit` has `TestSeed { name, words }` (all `&'static str`) and
+(`watch(form: &[u8])`; `live() -> bool`, a form in a live block of the armed threads;
+`drop_checked<T>(value: T) -> bool`, a form in a block that dropping `value` freed, 07 §6.1) are
+global allocators, each an `unsafe impl GlobalAlloc` as U2 allows. `faraday-testkit` has `TestSeed { name, words }` (all `&'static str`) and
 `test_seeds() -> [TestSeed; 3]`, the three pairs of a name and its words (a function, since a
 constant of the real words is a body's); its spends and MuSig2 rounds are serialized PSBTs, as
 `Vec<u8>`, until `faraday-psbt` has a `Psbt` type.

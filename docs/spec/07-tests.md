@@ -13,7 +13,7 @@ for it. It is written for whoever writes a test, the test-support crates, the le
 root's checks or the lint, and for the writers of sections 05 (the runtime), 06 (the roots) and
 09 (the manifest). Rules are numbered TS1 onward. Sources: the plan's §3; `main`'s `CLAUDE.md`
 ("Everywhere", "Security scope"), `docs/SECRET-LEAKS.md`, `docs/M3-CHECKS.md` §2 and §3,
-`docs/SPEED.md` §7, `docs/CROSSCHECK.md` §10, decisions F250 and F281, at `d89dde5de`; the
+`docs/SPEED.md` §7, `docs/CROSSCHECK.md` §10, decisions F250 and F281, at `d89dde5de`, and F336; the
 inventory's `features/test-kit.md`, `tour-runner.md`, `tours.md`, `tooling.md`, `secrets.md`,
 `lock.md`, `check-page.md`, `tools.md`, `drawing-compute.md` and `fixtures.md`.
 
@@ -378,25 +378,40 @@ reads source text the compiler already types.
 ### 6.1 What is in scope
 
 `main`'s leak tests (F250, `docs/SECRET-LEAKS.md`) look for a test secret in freed memory, in
-memory live after a lock, and on screen. F281 (the decision that side channels on the offline
-device are outside the security model) amends F250's point 6 only and keeps its points 1 to 5:
-the leak tests stay as the mechanism that checks what bounds a leftover copy (F281 point 3), and
-a secret still reachable in the app's state after its screen is done or after a lock stays an
-ordinary bug (F281 point 2).
+memory live after a lock, and on screen, and let a known freed copy through by a named entry in
+`tools/leak-entries.toml`. F281 (the decision that side channels on the offline device are
+outside the security model) puts a copy left in freed memory outside the security model (its
+point 1) and keeps as ordinary bugs a secret still reachable in the app's state after its screen
+is done or after a lock, and a Faraday secret type that does not wipe (its point 2).
 
-**Decision: the leak tests carry as F250 states them, amended by F281.**
-- A flow scans freed blocks and live blocks. A freed copy passes only through a named entry in
-  `tools/leak-entries.toml`, which carries with its form (flow, form, place, reason, fix); an
-  entry no flow hits fails, and an entry is added only in a commit that says why.
-- After a lock no live block of the process holds a form of a planted secret, and a planted
-  secret on screen after a lock, a hide or leaving (§5.3) fails. Neither has an entry.
-- Added on `next`: after a screen that held a typed secret is left, no live block holds that
-  secret's forms (F281 point 2), with no entry.
+**Decision: `next`'s leak tests look at live memory and at the secret types' own wipe, never at
+freed memory in general (F336).**
+- No flow scans freed blocks, and no freed copy is listed: `tools/leak-entries.toml` is not
+  carried, and no leak test has an entry or any other way through.
+- After a screen that held a typed, scanned or shown secret is left, no live block holds that
+  secret's forms (F281 point 2).
+- After a lock no live block of the process holds a form of a planted secret.
 - Each of Faraday's own secret types wipes what it holds when it drops: its domain crate's test of
-  that type, under the leak allocator, finds no form in the block it frees.
-Reason: F281 kept F250's scan and entries on purpose, the same day it put freed copies outside
-the security model; what the leak tests look for is the owner's call, and this section carries
-it. Turned down: dropping the freed-block scan and its entries, which F281 keeps.
+  that type finds no form in the blocks freed by that one drop. This reads freed memory, but only
+  the type's own blocks, to test the type's wipe, not to look for a leftover copy.
+- A planted secret on screen after a lock, a hide or leaving (§5.3) fails.
+Reason: the owner's call (2026-11-27), "Drop the freed scan, as recommended". A freed copy is
+outside the security model (F281 point 1), and on the device every lock restarts the app and the
+kernel zeroes freed memory, so a freed copy does not outlive the lock; a list of freed copies with
+a fix each is the record of such copies that F281 point 1 says is not kept. Turned down: keeping
+`main`'s freed scan and its entries, which looks for what the security scope puts outside it and
+fails on every new freed copy, often inside a library, until an entry is written.
+
+**Decision: the leak allocator stays, smaller.** Listing a thread's live blocks (address and size
+only, as on `main`, SECRET-LEAKS §2) needs a global allocator, and so does reading the blocks one
+drop frees. So `faraday-leak-scan` keeps its allocator; it reads a freed block only inside
+`Leak::drop_checked`, which drops one value and reports a form in a block that drop freed, and
+otherwise scans live blocks on request (`Leak::live`). Held by `drop_checked`'s shape: it takes
+the one value it drops, so it checks that value's blocks and no other. Reason:
+with the freed check reachable only around one drop, no flow can scan freed memory by mistake,
+and the live scan, the in-scope rule, keeps `main`'s mechanism. Turned down: a live scan without an
+allocator of its own, which has no list of a thread's blocks to read: the system allocator
+gives none, and tests running side by side in one process would read each other's blocks.
 
 ### 6.2 Where they sit
 

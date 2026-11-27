@@ -417,6 +417,11 @@ next = ["adapters/faraday-disk"]
 changed = []
 
 [[module]]
+main = "faraday/faraday-disk/tests/leak.rs"
+fate = "drop"
+why = "07 §6.1 (F336): a scan of the blocks a file's read and write free, which next's leak tests do not make; the buffers are Faraday's wiping types, whose wipe their own crate tests"
+
+[[module]]
 main = "faraday/faraday-grant"
 fate = "copy"
 next = ["adapters/faraday-grant"]
@@ -3222,9 +3227,8 @@ changed = []
 
 [[module]]
 main = "tools/leak-entries.toml"
-fate = "copy"
-next = ["tools/leak-entries.toml"]
-changed = ["each entry re-judged against the flows of tools/faraday-leaks (07 §6.2)"]
+fate = "drop"
+why = "07 §6.1 (F336): next's leak tests scan no freed blocks, so no freed copy is listed and the entries have nothing to let through"
 
 # ---- rows from the map reader 107-map-R3 ----
 # The mapping of `main` at d89dde5de onto `next`, part R3 (ticket #107): faraday/shells/ (but camera, v4l2 and
