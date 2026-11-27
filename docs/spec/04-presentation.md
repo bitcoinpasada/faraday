@@ -224,7 +224,8 @@ The screen template records the page's anchor and the sheets' anchors, lowest fi
 ```rust
 /// In the kit's atoms: what a control offers.
 pub enum Offered<R> { Yes(R), Refused(R, Drawn), No }
-pub enum Drawn { Dimmed, AsUsual }       // the kernel's `Drawn` (03 §10), mapped by `offer`
+pub enum Drawn { Dimmed, AsUsual }       // `faraday_atoms::Drawn`: the kernel's (03 §10), mapped by
+                                         // `offer`; not the presentation kernel's trait `Drawn<R>`
 ```
 
 A control whose work is running is not a fourth case: the gate refuses its press while the job
