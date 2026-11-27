@@ -215,6 +215,9 @@ impl<R: Root> Runtime<R> {
         if !self.delivers(part) {
             return;
         }
+        if matches!(answer, port::Answer::Camera(Ok(_))) {
+            self.scope.stream = Some(id);
+        }
         let (addr, fault) = reply(answer);
         if fault == Fault::WrongKind {
             self.fault("an answer of the wrong kind");
@@ -238,6 +241,8 @@ impl<R: Root> Runtime<R> {
             Lane::Light
         };
         let run = parts.run;
+        let seal = parts.seal;
+        self.pool.clock(self.clock.now_ms);
         self.pool.submit(
             lane,
             Queued {
@@ -249,6 +254,7 @@ impl<R: Root> Runtime<R> {
                 run: Box::new(move |compute| Answered {
                     id,
                     part: from,
+                    seal,
                     message: Box::new(wrap(run(compute))),
                 }),
             },
