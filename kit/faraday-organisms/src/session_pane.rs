@@ -316,7 +316,11 @@ fn draw_row<A: Pressed>(
         });
     }
     if let Some((label, enabled)) = &r.button {
-        let look = if *enabled { Look::Tonal } else { Look::TonalOff };
+        let look = if *enabled {
+            Look::Tonal
+        } else {
+            Look::TonalOff
+        };
         ui.button(
             text_x,
             top + content + GRID,
@@ -515,12 +519,10 @@ fn card_layout<'g, 's, A: Pressed>(
     }
 }
 
-/// The height the card takes in `w`, with the gap over it: what a page stacks the next thing
-/// under. A scan in the pane's place takes the room of its own content.
-pub fn height<A: Pressed>(m: &SessionPaneModel<'_, A>, ui: &mut Ui<'_, A>, w: f32) -> f32 {
-    if let Some(scan) = &m.scan {
-        return m.gap() + ui.measured(|ui| scan_content(scan, ui, (0.0, 0.0, w.min(MENU_PAGE_W)), f32::INFINITY));
-    }
+/// The height the card takes in `w`, with the gap over it, read from its groups without drawing
+/// them: what a page stacks the next thing under. A scan in the pane's place is not counted: a
+/// stack is chosen by the pane's own height.
+pub fn height<A: Pressed>(m: &SessionPaneModel<'_, A>, ui: &Ui<'_, A>, w: f32) -> f32 {
     let c = card_layout(m, ui, (0.0, w), None);
     c.gap + c.card_h
 }
@@ -544,7 +546,7 @@ pub fn draw_in<A: Pressed>(
     window: Option<f32>,
 ) -> f32 {
     if let Some(scan) = &m.scan {
-        return m.gap() + scan_block(scan, ui, (x, y + m.gap(), w.min(MENU_PAGE_W)), f32::INFINITY);
+        return scan_block(scan, ui, (x, y, w), f32::INFINITY);
     }
     let c = card_layout(m, ui, (y, w), window);
     let cx = x + (w - c.cw) / 2.0;
@@ -595,9 +597,30 @@ pub fn draw_in<A: Pressed>(
         draw_cols(ui);
     }
     if let Some((g, lay, shown)) = &c.band {
-        draw_band(ui, (cx, rows_y + c.body, c.cw, *shown), m.band_scroll, g, lay);
+        draw_band(
+            ui,
+            (cx, rows_y + c.body, c.cw, *shown),
+            m.band_scroll,
+            g,
+            lay,
+        );
     }
     c.gap + c.card_h
+}
+
+/// The card over a stacked page: whole, as [`draw`], or, while the scan stands in the pane, the
+/// scan's box in its place, its top-left corner at `(x + PAD, y)`, `w` less two paddings wide and
+/// at most `room` tall where its picture can give way. Returns the height it took.
+pub fn draw_stacked<A: Pressed>(
+    m: &SessionPaneModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+    room: f32,
+) -> f32 {
+    match &m.scan {
+        Some(scan) => scan_block(scan, ui, (x + PAD, y, w - 2.0 * PAD), room),
+        None => draw(m, ui, (x, y, w)),
+    }
 }
 
 // ---- the pane in a menu page's mode ----
@@ -614,11 +637,7 @@ fn page_groups_h<A: Pressed>(m: &SessionPaneModel<'_, A>, ui: &Ui<'_, A>, w: f32
 
 /// The height the pane in a page's mode needs, `w` wide, to show everything it holds: the
 /// level of a pair is the longer of this and the tile's.
-pub fn page_content_h<A: Pressed>(
-    m: &SessionPaneModel<'_, A>,
-    ui: &mut Ui<'_, A>,
-    w: f32,
-) -> f32 {
+pub fn page_content_h<A: Pressed>(m: &SessionPaneModel<'_, A>, ui: &mut Ui<'_, A>, w: f32) -> f32 {
     if let Some(scan) = &m.scan {
         return ui.measured(|ui| scan_content(scan, ui, (0.0, 0.0, w), f32::INFINITY));
     }
@@ -940,7 +959,11 @@ mod tests {
         }
     }
 
-    fn group(label: &'static str, rows: Vec<SessionRow<'static, P>>, band: bool) -> Group<'static, P> {
+    fn group(
+        label: &'static str,
+        rows: Vec<SessionRow<'static, P>>,
+        band: bool,
+    ) -> Group<'static, P> {
         Group {
             label: Shown::plain(label),
             rows,
@@ -949,8 +972,12 @@ mod tests {
     }
 
     fn pane(groups: Vec<Group<'static, P>>) -> SessionPaneModel<'static, P> {
-        SessionPaneModel::empty(Shown::plain("This session"), Shown::plain("Nothing loaded"), false)
-            .holding(groups)
+        SessionPaneModel::empty(
+            Shown::plain("This session"),
+            Shown::plain("Nothing loaded"),
+            false,
+        )
+        .holding(groups)
     }
 
     /// Invariant: With nothing held the card is centred in the room, at most the menu page's width, and the height it reports is the height it drew (a page stacks under it by it).
@@ -1057,9 +1084,17 @@ mod tests {
         let mut c = canvas(160);
         let (mut few, mut many) = (0.0, 0.0);
         frame(&mut c, &at_rest(None), |ui| {
-            few = page_content_h(&pane(vec![group("Keys", vec![row("A", 1)], false)]), ui, 400.0);
+            few = page_content_h(
+                &pane(vec![group("Keys", vec![row("A", 1)], false)]),
+                ui,
+                400.0,
+            );
             many = page_content_h(
-                &pane(vec![group("Keys", vec![row("A", 1), row("B", 2), row("C", 3)], false)]),
+                &pane(vec![group(
+                    "Keys",
+                    vec![row("A", 1), row("B", 2), row("C", 3)],
+                    false,
+                )]),
                 ui,
                 400.0,
             );

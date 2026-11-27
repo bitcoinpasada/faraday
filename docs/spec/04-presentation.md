@@ -860,6 +860,9 @@ template says where (K8).
   It owns where the pair stands, the stack under This session's card, the level ends, the
   dividers and the time of a change of page under the Motion and Speed settings. It reports
   `Laid::Placed` where the model asks (§7.3).
+  Built (`panes.rs`): every tile rule (card, fill, detail, equal), the pane at the right of the card, Guide's pane's place and room, the stack under This session's card, the level ends, `pair_card` (drawn to the foot measured this frame, so no kept foot), the dividers, `Laid::Placed` and `turn_at`, the turn's progress from the frame's time; the page gives its own pane, the row details, Guide's pane, `on_placed` and the tile's scroll in `Parts`, not in `Panes`.
+  Built (`session_pane.rs`): the groups, the Waiting band, rows with a vault's mark and Save, the pane in a page's mode, the scan in the pane and `draw_pick`; the small panel's tinted box is not.
+  Built (`snackbar.rs`): the close action and `draw_timed`, which rises on the store's `Motion::Shown` and fades over the last `MOTION_SHORT4` of the note's time the runtime counts.
 - **The step-flow template** (`docs/FLOW-CONTAINER.md` on `main`, `features/flow-container.md`):
   `FlowModel` (§5). It owns the card's place, a tall card's scroll, the step heading, the fade
   through (`STEP_MS`, a token), Your choices as the pane on the wide layout and as the bar's button
