@@ -216,7 +216,10 @@ pub struct Start {
     pub scheme: Option<Scheme>,
     /// The stick adapter's read of the kernel's mount list: the device's
     /// root is mounted read-only. The self-test takes it as an argument
-    /// (section 01, §2.1). `None` off the device.
+    /// (section 01, §2.1). `None` off the device. On the device the stick
+    /// adapter always answers (a mount list it cannot read is `Some(false)`),
+    /// and the runtime passes the self-test `Some(false)` for a `None` there
+    /// (`Medium::Stick` or `SdCard`): the check fails closed.
     pub root_read_only: Option<bool>,
 }
 

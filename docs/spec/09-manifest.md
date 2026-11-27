@@ -87,8 +87,9 @@ the domain's tests and examples name these paths to read fixtures and to time, a
 
 | Directory | `clippy.toml` holds | Notes |
 |---|---|---|
-| `core/` | mint, keys | the port included (P6); io is `lint-layers`' (D1) |
-| `core/faraday-{bip,crypto,entropy,keys,vault,pgp,sb,kef}/` | mint, and `main`'s own file of that crate | `main`'s per-crate copies |
+| `core/` | mint, keys | the port included (P6); io is `lint-layers`' (D1). A domain crate with a file of its own refuses `Compute::new` alone: its tests mint with `Compute::unchecked` throughout, which clippy cannot allow for tests alone, and the `unchecked` feature, enabled only by dev-dependencies, keeps it out of shipped code |
+| `core/faraday-{bip,crypto,entropy,keys,vault,pgp,sb,kef}/` | `Compute::new`, and `main`'s own file of that crate | `main`'s per-crate copies |
+| `core/faraday-{psbt,codec,selftest}/` | `Compute::new` | below `faraday-keys`, so the keys set names nothing they can call |
 | `kit/` | io, mint, keys | |
 | `app/` | io, mint, keys, app, owner | every application crate but the owners |
 | `app/owners/` | io, mint, keys, app | A35's calls allowed |
@@ -117,7 +118,7 @@ last column.
 | Crate | From `main` | Metadata | Normal edges on `next` | Dev edges | Cut or changed |
 |---|---|---|---|---|---|
 | `faraday-text` | `core/` | `no_std` | none | none | gains `secret::{SecretText, ROOM}` |
-| `faraday-crypto` | `core/` | `no_std` | text | none | `work::{Hooks, Compute::new(Hooks)}` (05 §5.2) |
+| `faraday-crypto` | `core/` | `no_std` | text | itself, with `unchecked` (its own tests mint with `Compute::unchecked`) | `work::{Hooks, Compute::new(Hooks)}` (05 §5.2) |
 | `faraday-bip` | `core/` | `no_std` | crypto, text | crypto | |
 | `faraday-psbt` | `core/` | `no_std` | bip, crypto, text | crypto | |
 | `faraday-codec` | `core/` | `no_std` (without `decode`) | bip, crypto, text | crypto | gains `otpauth::is_otpauth` |
