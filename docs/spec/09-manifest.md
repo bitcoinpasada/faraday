@@ -108,9 +108,10 @@ the domain's tests and examples name these paths to read fixtures and to time, a
 
 The U2 list, by crate name: `faraday-crypto`, `faraday-storage`, `faraday-grant`, `faraday-v4l2`,
 `faraday-mediafoundation`, `faraday-window`, `faraday-os-adapter`, `faraday-alloc-count`,
-`faraday-leak-scan`, and `faraday-stick-adapter` (asked of section 01 below: `main`'s stick shell
-holds `unsafe` in `evdev.rs`, `hid.rs`, `touch.rs`, `files.rs` and `main.rs`, all of which move
-into the stick adapter). No root keeps `unsafe`.
+`faraday-leak-scan`, and `faraday-stick-adapter`. The stick adapter holds no `unsafe`, as
+`main`'s stick shell holds none: the two ioctls it calls (the vblank wait and the input grab) are
+`faraday-v4l2`'s `wait_vblank` and `grab_input`, as in `main`'s `shells/v4l2`. No root keeps
+`unsafe`.
 
 ## 2. The domain and the port
 
@@ -824,10 +825,14 @@ pub struct StickOptions { pub fb: Text, pub size: Option<(u16, u16)>, pub depth:
     pub native: bool, pub mount: Text, pub pointer_speed: u8, pub touch_grid: bool, pub files: Text,
     pub verbose: bool, pub timings: bool, pub boot_report: bool }
 pub struct Stick { /* every device adapter but storage */ }
-impl Stick { pub fn open(o: StickOptions, waker: Arc<dyn Waker>) -> Result<Self, Failure>; }
+impl Stick { pub fn open(o: StickOptions, waker: Arc<dyn Waker>) -> Result<Self, Failure>;
+             pub fn present(&mut self, f: &port::Frame<'_>);   // 02 §1, §5
+             pub fn ended(&self) -> Option<u8>; }              // 06 §2.1: 0, 75, 76
 impl Adapters for Stick { /* 02 §1 */ }
 /// The device's adapters behind one value: the stick's and the storage adapter's.
-pub struct DeviceAdapters { pub stick: Stick, pub storage: faraday_storage::Storage }
+pub struct DeviceAdapters { /* the stick, the storage adapter */ }
+impl DeviceAdapters { pub fn new(stick: Stick, storage: faraday_storage::Storage, waker: Arc<dyn Waker>) -> Self;
+                      pub fn stick(&mut self) -> &mut Stick; }   // 06 §5.1
 impl Adapters for DeviceAdapters { /* each effect to the adapter of its family */ }
 
 // faraday-storage
@@ -922,20 +927,21 @@ All in `tools/`, `layer = "tool"`; nothing a root ships depends on one (T1, `lin
 
 | Crate | Directory | Metadata | Normal edges | Purpose |
 |---|---|---|---|---|
-| `faraday-app-test` | `tools/faraday-app-test/` | | kernel, port, session, settings, vaults, testkit, crypto, keys, bip, psbt | the application's test support (07 §2.2): `TestView`, `test_compute`, `Seen`, `seen`, `answer`, `done` |
-| `faraday-fixture-adapters` | `tools/faraday-fixture-adapters/` | | port, testkit, crypto, text, files, fat | the tour root's, the journeys' and the leak crate's adapters: fixture sticks, fixed randomness, scripted clock and input, recorded print |
+| `faraday-app-test` | `tools/faraday-app-test/` | `checks = "app"` | kernel, port, session, settings, vaults, testkit, crypto, keys, bip, psbt | the application's test support (07 §2.2): `TestView`, `test_compute`, `Seen`, `seen`, `answer`, `done` |
+| `faraday-fixture-adapters` | `tools/faraday-fixture-adapters/` | `checks = "root"` | port, testkit, crypto, text, files, fat | the tour root's, the journeys' and the leak crate's adapters: fixture sticks, fixed randomness, scripted clock and input, recorded print |
 | `faraday-leaks` | `tools/faraday-leaks/` | `checks = "app"` | none | the leak flows (07 §6.2); dev: runtime, device-product, demo-product, starter-product, device, session, vaults, settings, fixture-adapters, leak-scan, keys |
-| `faraday-testkit` | `tools/faraday-testkit/` | | bip, crypto, psbt, codec, qr, files, fat, vault, and the other domain crates its test data names | the test data (section 10 §6): the test wallets, seeds and words, the spends, the MuSig2 rounds, the test vaults, the test EFI image, over domain types; its edge to `faraday-core` cut, what it took from it rewritten over the domain; no application edge |
+| `faraday-testkit` | `tools/faraday-testkit/` | `checks = "domain"` | bip, crypto, psbt, codec, qr, files, fat, vault, and the other domain crates its test data names | the test data (section 10 §6): the test wallets, seeds and words, the spends, the MuSig2 rounds, the test vaults, the test EFI image, over domain types; its edge to `faraday-core` cut, what it took from it rewritten over the domain; no application edge |
 | `faraday-testkit-sticks` | `tools/testkit-sticks/` | | testkit, backup, and the domain crates the sticks need | writes the test kit's sticks; the backup stick holds what `faraday-backup` writes (section 10 §6) |
 | `faraday-alloc-count` | `tools/faraday-alloc-count/` | | none | the counting allocator |
-| `faraday-leak-scan` | `tools/faraday-leak-scan/` | | none | the leak allocator |
+| `faraday-leak-scan` | `tools/faraday-leak-scan/` | `checks = "app"` | none | the leak allocator |
 | `faraday-fontbake` | `tools/fontbake/` | | bip, crypto, draw | bakes the fonts into `faraday-draw` |
 | `costs-lint` | `tools/costs-lint/` | | none | who mints and takes `Compute` (§5.2) |
 | `op-cost` | `tools/op-cost/` | | bip, codec, crypto, entropy, files, intake, psbt | named costly operations' counts (F238); ~~core~~ |
 | `faraday-crosscheck` | `tools/crosscheck/` | | the domain crates of `main`'s list but `faraday-core` (TS20); draw, for the picture requests alone | the cross-check server; `file_menu::sha256`'s use is its `hash` area's, now `faraday_crypto::sha256_whole` (section 10 §6) |
 
 The counting allocator `Counting` (`allocations() -> u64`, `reset()`) and the leak allocator `Leak`
-(`watch(form: &[u8])`; `live() -> bool`, a form in a live block of the armed threads;
+(`watch(form: &[u8])`; `arm()` and `disarm()`, each on the calling thread, 07 §6.2;
+`live() -> bool`, a form in a live block of the armed threads;
 `drop_checked<T>(value: T) -> bool`, a form in a block that dropping `value` freed, 07 §6.1) are
 global allocators, each an `unsafe impl GlobalAlloc` as U2 allows. `faraday-testkit` has `TestSeed { name, words }` (all `&'static str`) and
 `test_seeds() -> [TestSeed; 3]`, the three pairs of a name and its words (a function, since a
