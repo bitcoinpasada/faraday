@@ -1,0 +1,536 @@
+# Convert a seed
+
+**Kind:** Spec
+**Status:** Built. Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). SLIP-39's set functions in `faraday-bip` (§8); the fixed 1 of 1 (§4.4) and its cross-checks; the conversions in `faraday-keys`; Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6), a codex32 set's drawn identifier never one another set on this device carries (§6); SLIP-39 k of n and groups on the same card and result (§6); an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; the flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy (typed back, or scanned back for a SeedQR and a CompactSeedQR) and Save, and the two ways in, the chart sheet's and Explore's; the SLIP-39 set actions on the screen (§8): From's row **A SLIP-39 set**, shares typed one at a time and held in `faraday-keys` (`Keys::slip39_set_hold`), To's Add a share, Replace a lost share and Rotate the set, their Settings and Result; Practice (§7: a public seed's own spellings, the one-to-one conversions and LND's published aezeed open, every split refused, each with a test), Learn's section on converting (since removed), DESIGN §5's row and the guide's picture of Result (`docs/guide/convert.md`)
+**Open:** the code it cites under `faraday/faraday-core`, `faraday/faraday-starter` and `faraday/shells` is not yet on `next` and is read on `main` at d89dde5de until its feature is ported (08 section 4.4)
+
+A tool, **Tools › Convert a seed**, that writes a seed held here in
+another form. It replaces putting conversions in vault items or on the
+backup board (`docs/CODEX32.md` §9.6 and §10.5 send them here). A
+conversion is offered only where its result restores the same wallet in
+the standard it is written in, checked against that standard's
+published vectors and an implementation Faraday did not write (F160). Each result says which
+standard it is and which software restores it.
+
+## 1. The rules
+
+1. **Same wallet, or not offered.** A conversion is offered only where
+   the result, read by its standard, gives the same BIP-32 master key as
+   the source: the same master fingerprint. Faraday reads every result
+   back through its own decoder for that standard and compares the
+   fingerprint before showing it (a SeedQR or CompactSeedQR is scanned
+   from its modules, and what is read is compared); a mismatch shows nothing and says
+   "Not shown: it did not read back as the same wallet". That is the
+   device's own check; the vectors and the second implementation (§9)
+   are the build's.
+2. **Each result names its standard and its software.** A **Standard**
+   row ("SLIP-39, 1 of 1, 20 words") and a **Restores in** row (§4's
+   last column), and the fingerprint row: "73c5da0a · same as the
+   source".
+3. **A passphrase is folded in or kept apart, and the result says
+   which.** Where the source's passphrase is folded into the result (a
+   BIP-39 seed with its passphrase, written as a 64-byte seed or
+   codex32), the result reads "Holds the passphrase's wallet: restore
+   it with no passphrase". Where the target standard has a passphrase of
+   its own (SLIP-39), the result is made with it empty, always (Q4).
+4. **Not offered is said, not hidden.** The targets that would give a
+   different wallet are listed dimmed with one line each (§5).
+5. **The source is a key here.** The tool converts a key loaded in the
+   session or kept in an open vault, never text typed into it, except an
+   LND aezeed, which the tool reads as the Lightning screen does, since
+   Faraday never loads one as a key (`core/faraday-bip/src/aezeed.rs`),
+   and a SLIP-39 set (§8), whose shares are typed and held for the
+   tool alone.
+   A key not loaded is brought in by Add a key, which returns to the
+   tool. Typed words therefore follow Add a key's rules for transient
+   input, and the tool holds no secret of its own (`docs/KEYS.md` §2).
+6. **A key has its seed bytes, its words or only its master key.** A key
+   loaded from a master seed (codex32, SLIP-39, hex) keeps its seed bytes
+   (`Keys::add_seed`, `holds_seed_bytes`,
+   `core/faraday-keys/src/session.rs`), as a key of words keeps its
+   words. A key loaded from an xprv (`Keys::add_xprv`, F300) holds only
+   its master key: Convert offers it its xprv and no master seed, and
+   nothing that needs its words or seed bytes (`docs/KEY-FORMS.md` §6.4).
+7. **codex32's set actions are the backup's; SLIP-39's are this
+   tool's.** A codex32 set's Add a share, Replace a lost share and Rotate
+   the set change what a plan's places keep, so they live with the backup
+   (`docs/CODEX32.md` §9.7). A SLIP-39 set's three actions are in this
+   tool, on the source **A SLIP-39 set** (§8, F204): the person types the
+   shares and the tool holds nothing of them. A Seed XOR set and a SLIP-39
+   set are counted on a wallet's backup plan (F276) from the plan's own
+   record of the set's public facts: the plan keeps only those facts and
+   places its parts on paper, never in a vault or on a stick, one set of
+   a kind per key; the set actions stay here, except that a Seed XOR set's parts are
+checked on the plan, by their recorded fingerprint. A whole Seed XOR set
+   or SLIP-39 set saved here for a loaded key is recorded on that key as
+   its public facts once its files are written, never when the sheet is
+   cancelled (the key's fingerprint matches; a key has one set of a kind
+   in use, so a second split here is not recorded and the first stays:
+   only Back up's Make new parts replaces a Seed XOR set, F285; no part
+   or share is kept), and a vault save keeps
+   them (`docs/VAULT.md` §7). Shares typed in as a source are no loaded
+   key and record nothing. The tool's "codex32 set → a new codex32 set" always
+   makes a fresh set with its own identifier, which never combines with
+   the key's own set or a plan's (§6); a plan's set keeps its upkeep in
+   the backup's set actions.
+
+## 2. What is built today
+
+- **Readers and writers in `core/`**: BIP-39 (`core/faraday-bip/src/bip39.rs`,
+  every list), SeedQR and CompactSeedQR (`core/faraday-codec/src/seedqr.rs`),
+  Seed XOR split and combine (`core/faraday-entropy/src/xor.rs`), codex32
+  (`core/faraday-bip/src/codex32/mod.rs`: parse, `from_seed`, `split`,
+  `derive_share`, `recover`, `identifier_for`, 16 to 64 bytes), SLIP-39
+  (`core/faraday-bip/src/slip39.rs`: `split`, `recover`, `encrypt`,
+  `decrypt`, the fixed 1 of 1 `one_of_one` of §4.4, and the set functions
+  `recover_ems`, `split_ems`, `derive_member` and `check_gathered` of §8; 16 to 32 bytes; extendable flag and iteration
+  exponent as parameters), aezeed read only (`core/faraday-bip/src/aezeed.rs`), which
+  Convert reads as a source (below).
+- **The SLIP-39 set actions** (§8): `core/faraday-keys/src/slip39_set.rs`
+  holds the typed shares and makes the share or the new set; the screen
+  is `faraday/faraday-core/src/convert/set.rs` and `screen.rs`, From's
+  row **A SLIP-39 set** and To's three actions.
+- **Where they surface**: Add a key reads BIP-39, SeedQR, CompactSeedQR,
+  codex32, SLIP-39 and Seed XOR (`faraday/faraday-core/src/forms.rs`);
+  New key deals SLIP-39 shares (`faraday/faraday-core/src/keygen/mod.rs`,
+  extendable set, iteration exponent 1, a random identifier); a
+  backup's copies offer Words, SeedQR, Compact SeedQR and Seed XOR, and
+  never codex32 strings for a key of words (F121)
+  (`core/faraday-keys/src/operations.rs`); the BIP-39 words tool
+  lists each word's number and bits; New key takes hex entropy; the
+  Lightning screen reads an aezeed.
+- **Conversions in `faraday-keys`** (`core/faraday-keys/src/operations.rs`):
+  `master_seed_hex`, `master_xprv`, `slip39_one_of_one`,
+  `slip39_converted` (a SLIP-39 set of groups, every share parsed and a
+  first and a last qualifying subset recovered), `codex32_converted` and
+  `seed_xor_converted` (Seed XOR parts, read back and
+  compared with the key's entropy), each for `Reveal::PaperForm` only and each read
+  back through its standard's decoder to the key's master fingerprint
+  before it is returned (`Convert::NotSameWallet` otherwise).
+- **An aezeed as a source** (`core/faraday-keys/src/lightning.rs`, `HeldAezeed`): From's row
+  **An LND aezeed** opens the Lightning screen's entry (the same 24 words, passphrase and
+  refusals) with a read on the worker; the 16 bytes of entropy and the birthday are held in
+  `faraday-keys`, never among the keys, the vault, Explore or Lock in, and are dropped and
+  wiped when the flow is left, another source is chosen, or the session locks. To offers the
+  rows of a 16-byte seed (master seed hex, xprv, codex32, SLIP-39 1 of 1 and the set), the
+  rows that need BIP-39 words dimmed; Result adds Birthday, Paths and the channels line, and
+  its Fingerprint has no "same as the source". Tested against LND's published vectors.
+- **Practice** (§7): a public seed's own spellings (§4.1), its master seed
+  hex and xprv, its codex32 secret and SLIP-39 1 of 1 are open; the
+  splits (Seed XOR, codex32 with k above 0, SLIP-39 k of n) are dimmed or
+  not made, the codex32 card showing no settings; an aezeed opens only as
+  LND's published vector, the Lightning screen's refusal otherwise.
+  Learn's section "Converting between forms", DESIGN §5's row and the
+  guide's picture (`docs/guide/convert.md`) say what is built.
+- **Check my copy** (§6 step 4): a SeedQR or CompactSeedQR result is
+  scanned back, the other results typed. The press opens the camera (a
+  stick attached gets the Pull sheet first); the code read must be of the
+  kind made, and is compared word by word with the key's words, as the
+  wallet backup's copy item does (`copy_check::copy_indices`,
+  `Keys::words_match`): a match closes the camera and the result says
+  **Your copy matches**; a word that differs is named on the scanner, which
+  stays open; a code of the other kind, a code of another seed, and
+  something that is not a SeedQR are each said so. Words, codex32
+  strings, SLIP-39 shares, hex and xprv stay typed only. In Practice the
+  scanner offers the sample SeedQR for a SeedQR result.
+- **The conversions** in the tool (`faraday/faraday-core/src/convert/`):
+  a codex32 set to a new codex32 set is the codex32 row, a fresh
+  identifier on each Make (`codex32_converted`), for a key with a backup
+  plan or without; the plan's own set keeps its upkeep in the backup's
+  set actions (`docs/CODEX32.md` §9.7). Also there: Seed XOR
+  parts (2 to 4) for a key of English words, the SLIP-39 1 of 1, SLIP-39 k
+  of n and groups, and codex32 for a key of seed bytes, and the Settings
+  card for Seed XOR, codex32 and SLIP-39 sets (§6); the six
+  writings of §4.1 (`words_written` and `seedqr_written` in
+  `operations.rs`, each read back before it is returned) and the two ways
+  in.
+- **Leaving the store**: a paper form leaves through
+  `Reveal::PaperForm` (`core/faraday-keys/src/session.rs`), which
+  names Seed XOR, codex32, SLIP-39, a master seed as hex and an xprv, each
+  being written by hand; no `Reveal` variant was added (Q3).
+
+## 3. Words
+
+- **Entropy**: the bits BIP-39 words carry (16 to 32 bytes). Not a seed:
+  BIP-39 makes the seed from the words' text by PBKDF2.
+- **Master seed**: the bytes BIP-32's `Xpriv::new_master` takes, 16 to
+  64. BIP-39's output is 64 bytes; codex32 carries 16, 20, 24, 28, 32 or
+  64; SLIP-39 carries 16 to 32 (even); an aezeed carries 16.
+- **EMS**: SLIP-39's encrypted master secret, the master seed under the
+  SLIP-39 passphrase; what the shares split.
+- **Set**: the shares of one split (codex32: one identifier, threshold
+  and length; SLIP-39: one identifier and its groups).
+
+## 4. The conversions
+
+The software column names what restores the result as written. Rows
+marked † are not certain from what this spec could check (§12), and are
+confirmed against each program's own documentation or by a restore
+before the row ships.
+
+### 4.1 Same words, another writing (from BIP-39 words)
+
+| From → to | Standard of the result | Restores in |
+|---|---|---|
+| Words → SeedQR | SeedQR (SeedSigner's standard) | SeedSigner, Krux, Jade †, Passport †, Faraday |
+| Words → CompactSeedQR | CompactSeedQR (SeedSigner's) | SeedSigner, Krux, Jade †, Faraday |
+| Words → hex entropy | BIP-39 entropy, hex | Ian Coleman's BIP-39 page (its entropy field), Faraday's New key (hex); no wallet takes entropy as a seed |
+| Words → word numbers | BIP-39, each word's index (1 to 2048, and 0 to 2047 shown beside) | any BIP-39 wallet, once turned back into words by the list |
+| Words → 4-letter starts | BIP-39 (the English list is unique in its first four letters) | any BIP-39 wallet that completes a word from its start (Coldcard, Trezor †), and any, written out in full |
+| SeedQR, CompactSeedQR, numbers or starts → words | BIP-39 | every BIP-39 wallet |
+
+Faraday makes most of these already (§2); the tool gathers them. The
+words' own language is kept: the English list for SeedQR, CompactSeedQR
+and the starts (SeedQR is defined on English; another list is not
+offered, §5), and SeedQR and CompactSeedQR for 12 or 24 words only (a key
+of 15, 18 or 21 words is not offered them).
+
+### 4.2 Words split and rebuilt
+
+| From → to | Standard | Restores in |
+|---|---|---|
+| Words → Seed XOR parts (2, 3 or 4) | Seed XOR (Coldcard's) | Coldcard, Faraday; each part is itself valid BIP-39 words |
+| Seed XOR parts → words | BIP-39 | every BIP-39 wallet |
+
+### 4.3 Words to a master seed, one way
+
+| From → to | Standard | Restores in |
+|---|---|---|
+| Words (+ passphrase) → master seed, hex (64 bytes) | BIP-32 seed | any BIP-32 library; Faraday; no common wallet takes a raw seed † |
+| Words (+ passphrase) → xprv (or tprv) | BIP-32 master extended private key | Sparrow (master private key), Bitcoin Core (in a descriptor with the wallet's path), Faraday; Electrum takes an xprv as the account, not the master, so its addresses differ † |
+
+Every row in §4.3 to §4.5 that writes a master seed or an xprv says
+which paths the source wallet uses (from the loaded wallets that hold
+the key: "Wallet 'Savings' · m/84'/0'/0'"), since the master key alone
+does not say them.
+
+### 4.4 Seed to seed, between standards
+
+| From → to | Standard | Restores in |
+|---|---|---|
+| codex32 (16 or 32 bytes) → SLIP-39 1 of 1 | SLIP-39, one group of one share, 20 or 33 words | Trezor (Model T, Safe 3, Safe 5), Electrum †, Sparrow †, Faraday |
+| codex32 (16 or 32 bytes) → SLIP-39 k of n, or groups | SLIP-39 | the same |
+| SLIP-39 set (any passphrase) → codex32 of the seed that passphrase gives | BIP-93 | Faraday; the BIP-93 reference code † |
+| codex32 or SLIP-39 → master seed hex (16 to 64 bytes) | BIP-32 seed | as §4.3 |
+| codex32, SLIP-39 or a master seed → xprv | BIP-32 | as §4.3 |
+| codex32 set → a new codex32 set (other k, n or identifier) | BIP-93 | as above; rule 7 |
+| A SLIP-39 set (typed) → a share at a member index, or a new SLIP-39 set | SLIP-39, made from the EMS so the passphrase still opens the same wallet (§8) | as above; rule 7 |
+
+**SLIP-39 1 of 1 is always the same words** for one seed, so a person
+can make it twice and compare: identifier = the first 15 bits of the
+master fingerprint; group threshold 1 of 1, member 1 of 1 (SLIP-39
+draws no randomness for a threshold of 1); iteration exponent and
+extendable flag set and iteration exponent 1, as New key and Trezor
+make them (Q2); SLIP-39 passphrase empty (Q4). The codex32
+secret (k = 0, index `s`) is likewise fixed by its identifier,
+`identifier_for` the fingerprint (`docs/CODEX32.md` §6.4.5).
+
+A codex32 seed of 20, 24 or 28 bytes is a valid SLIP-39 master secret
+too (SLIP-39 asks for at least 128 bits, in whole 16-bit steps), but
+no hardware wallet reads a SLIP-39 backup of that length; those rows are
+not offered (Q5).
+
+### 4.5 Another wallet's seed to a master seed, one way
+
+| From → to | Standard | Restores in |
+|---|---|---|
+| LND aezeed (+ its passphrase) → master seed hex (16 bytes), codex32 (48 characters), SLIP-39 (20 words), xprv | BIP-32 seed; BIP-93; SLIP-39; BIP-32 | as above, for the on-chain wallet only |
+| Electrum's seed words → master seed hex, xprv (64 bytes) | as above | once Faraday reads Electrum seeds (planned, not scheduled); not offered until then |
+
+An aezeed's result says: the paths LND uses (BIP-84 `m/84'/0'/0'`,
+BIP-49 `m/49'/0'/0'` with LND's own change addresses, BIP-86
+`m/86'/0'/0'`, and its key families under `m/1017'`); the birthday it
+carries, as a date, for the rescan; and "On-chain coins only: channels
+come back through LND's channel backup". LND uses the aezeed's sixteen
+bytes of entropy as the BIP-32 seed itself, which is what makes the
+rows possible.
+
+## 5. Not offered, and what the tool says
+
+Each is a dimmed row under **To**, its line in place of a press.
+
+| Target | Line | Why |
+|---|---|---|
+| A seed, an xprv, codex32 or SLIP-39 → BIP-39 words | "BIP-39 words cannot be made from a seed" | BIP-39 makes the seed from the words by PBKDF2, which is one-way |
+| An xprv → a seed | "A seed cannot be made from an xprv" | BIP-32's master key is an HMAC of the seed |
+| BIP-39 entropy written as SLIP-39 or codex32 | "Another wallet: these bytes as SLIP-39 or codex32 open a different, empty wallet" | Both standards carry a master seed, not BIP-39 entropy (`core/faraday-bip/src/slip39.rs`'s header) |
+| BIP-39 words in another language's list | "Another wallet: the seed is made from the words' text" | PBKDF2 runs over the words themselves |
+| A 64-byte seed → SLIP-39 | "SLIP-39 backups of 64 bytes are read by no wallet" | Faraday's SLIP-39 holds 16 to 32 bytes, as Trezor's does |
+| Shamir39 | "Not offered" | §11 (Q1) |
+
+## 6. The screen
+
+Built: the rows under To for Seed XOR parts, SLIP-39 1 of 1
+(16 or 32 bytes; 64 bytes is listed dimmed, "SLIP-39 backups of 64 bytes
+are read by no wallet"; 20, 24 and 28 bytes have no row) and codex32, and
+a Settings card between To and Result for Seed XOR and codex32 only:
+Parts (2 to 4), codex32's k (0, then 2 to 9) and n (k to 31, none while k
+is 0), the Fact "Fresh randomness: Faraday's" where a set draws
+randomness, and Make; with no randomness ready a toast says so and the
+card stays. Every count is a Stepper, as New key's SLIP-39 split uses. A set is one Held value with one eye, showing one part at a time, numbered, with
+Previous share and Next share under it (a set of one string, the codex32 secret,
+unnumbered, has neither); Check my copy compares
+one typed string with every part and says which part matched or that it
+differs; Save as a file (**Save all shares, one file each…**) takes one warning for the set and then writes every part as its own file, named for its set's mark (a codex32 or SLIP-39 set's identifier; for Seed XOR part 1's fingerprint, taken with no passphrase), its number and the count (`…-1-of-3.txt`), so that whoever holds one file has one part and two sets of one key never share a name, and a part of the same set already in the Outbox is replaced by its file, never saved twice; a set goes only to the Outbox, never into a vault as one file; all are dropped
+when Result is left. In Practice Seed XOR and SLIP-39, k of n are dimmed and
+codex32's secret goes straight to Result. The codex32 length setting of item 3
+below is left out: a loaded key's seed fixes it. 
+The screen also has the row **SLIP-39, k of n** (16 or 32 bytes, beside 1 of 1,
+which stays fixed words with no settings). Its card: Groups (1 to 16;
+default one group, 2 of 3), Groups needed (shown for several groups, 2 up to
+their count), and per group the shares needed and shares made (1 to 16): it
+offers only shapes SLIP-39's split takes, so a threshold of 1 stands only
+over one group or one share and never above its count. The result of one
+group is numbered "1:", "2:"; of several, "Group 1, share 2:", and Check my
+copy says "Your copy matches group 1, share 2". Standard: "SLIP-39, 2 of 3
+shares", or for groups "SLIP-39, 2 of 3 groups: 2 of 3, 3 of 5, 1 of 1". The
+files Save writes are one a share, each named for its place in the set
+(`…-1-of-6.txt`); a file carries
+no group, since a reader of plain share lines would not take one. The
+identifier and shares come from the randomness drawn, the passphrase is
+empty, and the set is read back: every share is parsed, then a first and a
+last qualifying subset are recovered. The card offers only shapes the
+randomness one press can be given pays for (the pool's answers,
+`TAKE_MAX` in `faraday/faraday-core/src/fresh.rs`, worked out from the
+key's own seed length): a press of a Stepper that would leave a shape
+needing more does nothing, and that plus button shows disabled, so
+"No randomness from the system yet" says only that the system has not
+given what the shape needs. Seed XOR is offered for a key on the English
+list only, the one Add a key reads parts on; a key on another list is not
+given it. A codex32 set (k above 0) draws its identifier from the
+randomness, so each Make is a new set, never `identifier_for` the
+fingerprint nor the key's own set's (shares of two sets of one header
+would otherwise combine into another seed with no error); the secret alone
+keeps `identifier_for`. A drawn identifier is also none that another set
+on this device carries (`docs/CODEX32.md` §6.4.5: the set of a loaded
+key, the plan in hand, the open vaults and Add a key's form): a draw that
+lands on one is stepped on until it does not. The share shown is
+numbered once, by the press that opens the eye or steps to another, and held while it shows
+(F195).
+
+A new step flow, `Screen::Convert`, drawn as DESIGN §5's step flow, from
+DESIGN §4's components; a row in DESIGN §5's table (edit list). Ways in:
+a Tools tile, **Convert a seed**, in the Keys and seeds group (its line
+"The same wallet in another standard"); a held key's chart sheet and
+Explore's key row, **Write it in another form**, which opens the tool
+on that key.
+
+1. **From** (Option rows, §4.2): the loaded keys and the open vaults'
+   keys, each by fingerprint, label and what it was loaded from ("BIP-39
+   words, 24", "codex32, 48 characters", "SLIP-39, 2 of 3"), then
+   **Add a key** (returns here), **An LND aezeed** (the Lightning
+   screen's entry: the 24 words and its passphrase field) and **A SLIP-39
+   set** (an entry for shares typed one at a time with the word keyboard,
+   Enter holding each one; below it what is held: the identifier, the
+   groups needed and per group its threshold and the members typed;
+   **Start again** forgets them; dimmed in Practice, refused with a stick
+   attached).
+2. **To** (Option rows): the targets §4 offers for that source, by
+   group, each with its line naming the standard; then the dimmed rows
+   of §5 with their lines. For a held SLIP-39 set, **Add a share**,
+   **Replace a lost share** and **Rotate the set** instead (§8): the
+   first two once a group's quorum is met, Rotate once the set is
+   recoverable, a row not yet offered dimmed with the shares it needs.
+3. **Settings** (where the target has any): k and n on Steppers
+   (§4.2) for a split; groups on a Stepper with a threshold Stepper per
+   group (SLIP-39); the length (codex32 48 or 74 where the seed allows);
+   for a new codex32 set, no identifier is asked: the set draws its own
+   (§6). A row that would draw randomness carries
+   "Fresh randomness: Faraday's" as a Fact. Add and Replace: the group,
+   where more than one has its quorum, and the share number (1 to 16) on a
+   Stepper, the typed ones skipped; Add says the same number gives the
+   same share again. Rotate: per group a Stepper of shares lost or
+   exposed; at the rotate count's limit the set may be in other hands and
+   nothing is offered but the line to move the coins to a new key;
+   otherwise a press per typed share destroyed and one for every other
+   share held, and only then the shape (the SLIP-39 k of n card) and
+   Make.
+4. **Result**: a Held secret (§4.10) per string or share, numbered, and
+   for a SeedQR or CompactSeedQR the code held; Facts (§4.11):
+   **Standard**, **Restores in**, **Fingerprint** "73c5da0a · same as
+   the source", **Paths** where §4.3 says, **Birthday** for an aezeed;
+   **Word list** for a key not on the English list, written as hex
+   entropy or word numbers, which carry no list (the saved file's name
+   carries it); the passphrase line of rule 3. A share or set made from a
+   SLIP-39 set has no Fingerprint (no passphrase is taken) and says that the
+   set's own passphrase still opens the same wallet; Rotate adds that the old
+   set is no longer to be used. Buttons: **Check my copy** (scanned back
+   for a SeedQR or CompactSeedQR, typed for any other result), **Save as a file…** (the Secret out
+   sheet, §4.10; for a set its Who can use it line says how many of the files recover the key, or all of them for Seed XOR), **Another** (starts again on the same key), **Done**. Nothing is written or kept unless pressed.
+5. Leaving drops every result (rule 5).
+
+On the small panel, a page per step, as every step flow. The work of a
+conversion (PBKDF2, scrypt, a split) runs on the press that asks for
+it, takes the compute token, and its result is kept on the tool's state
+until the flow is left; drawing reads it (`docs/COMPUTE.md`).
+
+## 7. Practice
+
+`docs/DEMO.md` §3: an action is disabled where its result is a secret
+a person could take for a new one; a public seed's own spelling is not
+new.
+
+| Conversion | In Practice | Why |
+|---|---|---|
+| §4.1, a public seed | Open | Its own words, another spelling |
+| §4.3, a public seed (seed hex, xprv, codex32 k = 0) | Open | Derived from a public seed with no randomness |
+| §4.4 one-to-one (codex32 ↔ SLIP-39 1 of 1, hex, xprv) of a public seed (the BIP-93 and SLIP-39 samples, `docs/MODES.md` §5.1) | Open | No randomness: the same words every time |
+| Any split, k of n with k of 2 or more (Seed XOR, codex32, SLIP-39), and a new set | Disabled, as DEMO §6 disables splits | Fresh randomness: the parts would look like a real backup |
+| The source **A SLIP-39 set** (§8), all three actions | Dimmed, as any new set; `Keys::slip39_set_hold` refuses in Practice | A share or a set made here would look like a real backup |
+| §4.5, LND's published vector only (DEMO §6, F81) | Open | The vector is public |
+| A key that is not a public seed | Not reachable | Practice loads only public seeds |
+
+## 8. SLIP-39 set actions
+
+Add a share, Replace a lost share and Rotate the set for SLIP-39 are in
+this tool, on the source **A SLIP-39 set** (F204), not with the backup:
+a plan and a vault's key record do not track a SLIP-39 set, so the chart
+has no node for them. codex32's stay with the backup
+(`docs/CODEX32.md` §9.7), whose steps 1 to 5 (marks, counting,
+destroying before making) apply here as written. The person types enough
+shares and gets the new shares; nothing is remembered, and no plan,
+vault or backup changes. Built: the core, `faraday-keys` and the screen.
+
+- **The source.** The shares are typed one at a time and held in
+  `faraday-keys` (`Keys::slip39_set_hold`, `slip39_set.rs`) as an aezeed
+  is: never a key of the session, the vault, Explore or Lock in; dropped
+  and wiped by a forget (`slip39_set_forget`), by another source (an
+  aezeed held drops a set and a set drops an aezeed) and on lock. A share
+  is refused as the core refuses it: not parsing, of another set
+  (identifier, flag, exponent, group threshold, group count, length), a
+  duplicate, or one member more than its group's threshold. Holding is
+  refused in Practice and while a stick is attached. `slip39_set_facts`
+  says, with no secret in it, the identifier, the flag, the group
+  threshold and count, per group its threshold, the member indices typed
+  and whether its quorum is met, and whether the whole set is
+  recoverable (by count: the digests are checked when a share or a set is
+  made).
+- **No passphrase.** None is asked and nothing is decrypted: the
+  arithmetic is on the EMS, so the set's own passphrase still opens the
+  same wallet, and there is no fingerprint to compare. The read-back
+  compares the EMS and its parameters.
+- **Add a share** to a group: the group's threshold of members
+  interpolated at an unused member index (0 to 15). A share carries its
+  member index and the group's threshold, not the member count, so
+  nothing can know which index is free: the person chooses it, and only
+  the typed ones are excluded. The same index gives the same share
+  again, so a wrong pick makes a duplicate, not a new secret. A new
+  **group** is not offered: the group count is in every share.
+  (`slip39_set_share(group, member_index, why)`.)
+- **Replace a lost share**: the same, at the lost share's index; it gives
+  the very share that was lost.
+- **Read back of a share.** It parses, and swapped in for one of the
+  group's quorum it gives back, word for word, the share displaced. A
+  quorum of one group of several cannot reach the EMS, so that is the
+  check there; where the whole set is typed, the swapped set must also
+  recover the same EMS and parameters.
+- **Rotate the set**: a new split of the EMS, recovered from the whole
+  set's quorum (the first groups with a met quorum, up to the group
+  threshold; more groups typed than that are allowed), so the passphrase
+  opens the same wallet without being typed
+  (`slip39_set_rotated(group_threshold, groups, random, why)`; `random`
+  as `slip39_converted` takes it). With the extendable flag set, the new
+  set takes a new identifier through `Ems::with_identifier`, and the old
+  identifier drawn is refused (`SetRefused::SameIdentifier`: the screen
+  draws again), so old and new shares cannot be mixed by mistake; with it
+  clear, the identifier stays (it is in the encryption's salt), old and
+  new shares cannot be told apart by it, and a mixed set fails the digest
+  check rather than opening another wallet. The flag and the exponent
+  stay. Read back: every share parses, and a first and a last qualifying
+  subset recover the same EMS and parameters.
+- **The rotate count** (step 2 of §9.7), `rotate_count(group_threshold,
+  &[RotateGroup])`: a group whose lost or exposed shares reach its
+  threshold is out of reach, and when as many groups as the group
+  threshold are, the set may already be in other hands and rotating is
+  not enough. A group never typed has no known threshold
+  (`RotateGroup.threshold` is `None`): one lost share counts as reaching
+  it.
+- **Core functions** (`core/faraday-bip/src/slip39.rs`, built):
+  `recover_ems` (shares to EMS and its parameters), `split_ems` (an EMS
+  to a new set under given parameters), `derive_member` (a group's
+  quorum to a share at an index, refused for a group of threshold 1, an
+  index among the shares given and a quorum whose digest fails) and
+  `check_gathered` (the shares typed so far belong to one set). None
+  costs more than GF(256) and an HMAC. `python-shamir-mnemonic` has the
+  first two, which the cross-check's `slip39` area compares against word
+  for word; `derive_member` is checked against its `_interpolate` at the
+  index, and the share it makes recovers through the reference.
+
+## 9. Tests
+
+Each conversion against its standard's published vectors and against
+an implementation Faraday did not write (F160; `docs/CROSSCHECK.md` §10's
+references, run
+through the cross-check (`tools/crosscheck/`), whose `slip39` area runs
+the set row below and the two codex32 ↔ SLIP-39 rows; a row whose reference the cross-check does not yet
+run has its output checked in as fixtures under `tools/vectors/`, each
+with the script and the reference's commit that made it, as
+`tools/reference/aezeed/README.md` records its sources).
+
+| Conversion | Published vectors | An implementation Faraday did not write |
+|---|---|---|
+| Words ↔ SeedQR, CompactSeedQR | SeedSigner's SeedQR specification vectors | SeedSigner's own `SeedQrEncoder`, `CompactSeedQrEncoder` and `DecodeQR` (Python, `tools/reference/seedsigner/`) over embit's BIP-39 code; the `seedqr` area keeps only Faraday's stricter rule (48 or 96 digits, 16 or 32 bytes) in front of SeedSigner's reader |
+| Words ↔ entropy, numbers, starts | BIP-39's vectors (`tools/vectors/bip39`) | python-mnemonic (the `bip39` area) |
+| Words ↔ Seed XOR | Coldcard's published examples (`tools/vectors/xor`) | Coldcard's own `xor` and `xor_split` (Python, `tools/reference/coldcard/`) over python-mnemonic; the `xor` area keeps only Faraday's count (2 to 4 parts) and lengths in front of `xor` |
+| Words → seed, xprv | BIP-39's vectors (seed and xprv columns) | python-mnemonic, embit (the `bip39` and `bip32` areas) |
+| codex32 ↔ SLIP-39 | BIP-93's and SLIP-39's vectors (`tools/vectors/slip39`), each read and written the other way | python-codex32 and python-shamir-mnemonic over random seeds: the same fingerprint both ways (the cross-check's `slip39` area) |
+| SLIP-39 with passphrase → codex32 | SLIP-39's vectors (passphrase `TREZOR`) | python-shamir-mnemonic (the cross-check's `slip39` area) |
+| codex32, SLIP-39, seed → xprv | BIP-32's vectors; BIP-93's and SLIP-39's xprv columns | embit, Bitcoin Core's test framework |
+| A set → a new set; SLIP-39 add, replace, rotate | SLIP-39's vectors for EMS | python-shamir-mnemonic's `split_ems`, `recover_ems` and `_interpolate`, with bip39_slip39 beside it (the cross-check's `slip39` area); the codex32 reference's interpolation |
+| aezeed → seed, codex32, SLIP-39 | LND's `cipherseed_test.go` vectors (`tools/reference/aezeed/README.md`) | none: LND's published vectors only (Q6) |
+
+And, user-facing: each §5 target is dimmed with its line; a result
+whose read-back fingerprint differed is not shown (a corrupted decoder
+in a test build); SLIP-39 1 of 1 of one seed is the same words twice;
+the Practice rows of §7; leaving the flow drops the results (no secret in
+the kept state, `tools/lint-secrets.sh`).
+
+## 10. Plan
+
+## 11. Shamir39
+
+Ian Coleman's Shamir39 splits BIP-39 words into shares that are
+themselves words of the BIP-39 list. It is not a SLIP or a BIP; its
+author marks it as not a standard, and few programs read it (his
+BIP-39 page's Shamir39 tab †). Decided (owner, 2026-10-23): not
+offered, and listed in §5 as "Not offered" (Q1).
+
+## 12. Where this spec is not sure
+
+- Which wallets restore SeedQR and CompactSeedQR beyond SeedSigner and
+  Krux; whether Electrum and Sparrow restore SLIP-39 today; whether any
+  wallet in common use restores codex32 (Bitcoin Core's codex32 import
+  was proposed and, as far as known here, not merged); Electrum's
+  handling of a master xprv. Rows marked † in §4.
+- Whether SLIP-39 sets an upper bound on the master secret's length.
+  The SLIP asks for at least 128 bits in 16-bit steps; Trezor reads 128
+  and 256 only, and Faraday holds at most 256. §5 refuses 64 bytes
+  either way.
+- The extendable flag and iteration exponent "by default": the owner's
+  ask said the flag clear; Faraday's New key and current Trezor
+  firmware set it, with exponent 1. Decided (owner, 2026-10-23): set,
+  exponent 1 (Q2).
+
+## 13. The owner's answers
+
+Decided (owner, 2026-10-23), each as recommended:
+
+1. **Shamir39.** Decided: not offered (§5, §11).
+2. **SLIP-39 1 of 1 parameters.** Decided: the extendable flag set and
+   iteration exponent 1, as New key and Trezor make them (§4.4).
+3. **The reveal.** Decided: a master seed as hex and an xprv leave
+   through `Reveal::PaperForm`, each being written by hand; no `Reveal`
+   variant is added (§2).
+4. **A SLIP-39 passphrase on the result.** Decided: never (§1 rule 3).
+5. **codex32 of 20, 24 or 28 bytes → SLIP-39.** Decided: not offered
+   (§4.4).
+6. **aezeed's second implementation.** Decided: checked against LND's
+   published vectors only; no Go toolchain in the cross-check (§9).
+7. **A new set in the tool.** Decided (owner, 2026-11-04): a codex32
+   set's only for a key with no backup plan; with one, the tool's row
+   opens the chart's set actions. Changed (2026-11-10): the row always
+   makes a fresh set with its own identifier, never mixed with the plan's
+   set, and opens no set actions; a plan's set keeps its upkeep in the
+   backup (`docs/CODEX32.md` §9.7). A SLIP-39 set's three actions are in the tool, on the source
+   A SLIP-39 set, since no plan or vault tracks one (§1 rule 7, F204;
+   owner, 2026-11-04).

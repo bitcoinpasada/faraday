@@ -2,7 +2,7 @@
 
 **Purpose.** BBQr's `Z` encoding is raw DEFLATE under base32, and it is
 the encoding Faraday OS and Coldcard use for anything of size, so reading
-their transfers (`faraday/faraday-qr`, `docs/QR.md` §4) needs an inflater.
+their transfers (`core/faraday-qr`, `docs/QR.md` §4) needs an inflater.
 Only inflating: Faraday writes BBQr in encoding `2`, so nothing it sends
 needs a decompressor at the other end.
 

@@ -1,0 +1,686 @@
+# Restore a GPG key from its paperkey
+
+**Kind:** Spec
+**Status:** Built (F169, F215): reading a paperkey and a certificate, the restore and its tests against paperkey and GnuPG in `faraday-pgp`; the restore set in `faraday-keys`; the flow in faraday-core, `faraday/faraday-core/src/backup_flow/gpg_restore.rs` and its screen; the public key and the paperkey scanned as codes, and the paperkey shown as a code
+**Open:** the code it cites under `faraday/faraday-core`, `faraday/faraday-starter` and `faraday/shells` is not yet on `next` and is read on `main` at d89dde5de until its feature is ported (08 section 4.4)
+
+A person whose GPG key's vault is lost, but who wrote down its paperkey,
+brings the key back into a vault and signs with it again (F169). The
+paperkey is shown on the key's page, behind its eye (F32, F123); with its public
+key it rebuilds the key in GnuPG (`paperkey --pubring … --secrets …` and
+`gpg --import`, as Learn's GPG page said) and, as this
+document says, in Faraday.
+
+The owner's ask (2026-10-15):
+
+- The person has the public certificate. It is published, so it is an
+  input, not something Faraday rebuilds from nothing.
+- The paperkey's lines are typed (or scanned) against it, and each
+  line's CRC-24 points at a mistyped line.
+- The result is the key's vault record (`docs/VAULT.md` §7, type 7) as
+  Make would have written it, so it signs, renews and revokes as
+  before.
+
+Sources read for it, each as data and none copied into the repository:
+
+| Source | Where | Licence | Read |
+|---|---|---|---|
+| paperkey 1.6, David Shaw | https://www.jabberwocky.com/software/paperkey/ (the official page: 1.6 is the latest, and the source is the repository below) | GPL-2.0 (`COPYING`; the sources say "version 2, or (at your option) any later version") | 2026-10-23 |
+| paperkey's source | https://github.com/dmshaw/paperkey, tag `v1.6` (commit ce2666f, 2018-10-19) and `main` (6ddd767, 2021-01-31); `output.c`, `extract.c`, `parse.c`, `restore.c` and `paperkey.c` are the same at both | GPL-2.0 | 2026-10-23 |
+| paperkey's README | `README.md` in that repository | GPL-2.0 | 2026-10-23 |
+| paperkey's man page | `paperkey.1` in that repository | GPL-2.0 or later | 2026-10-23 |
+| paperkey's checks | `checks/` in that repository: `roundtrip.sh`, `roundtrip-raw.sh`, `bad-crc-base16.sh`, `bad-crc-raw.sh`, `bad-primary.sh`, `bad-subkey.sh`, and the keys `papertest-{rsa,dsaelg,ecc,eddsa,100,dsa100}.{pub,sec}` | GPL-2.0 | 2026-10-23 |
+| OpenPGP | RFC 4880 (§5.5.3 secret key packets, §6.1 CRC-24), RFC 9580 (version 4 keys, the EdDSALegacy algorithm) | IETF | as already cited by `core/faraday-pgp/src/lib.rs` |
+
+## 1. The rules
+
+- **Refuse what cannot be verified.** The paperkey and the certificate
+  are taken only when every byte of the record that results is proven:
+  the secret makes the certificate's public keys, and every signature
+  of the key kept in the record is one the restored key makes itself
+  (§4.3). Nothing is guessed: no fingerprint, no expiry, no user ID.
+- **The record is Make's.** A key restored is the type 7 record that
+  Make wrote for it: the same seeds, dates, user IDs, expiry, and the
+  certificate and kept revocation byte for byte (§5.2). What follows
+  from the record (Sign a file, Renew, Make a revocation, the paperkey
+  shown) is unchanged.
+- **GnuPG's and paperkey's behaviour** where they have one (F32): the
+  line format, the CRC checks and their words are paperkey's (§2).
+  Where Faraday refuses what paperkey would take, F169 records it.
+- **Offline.** The certificate comes in by a stick or a camera, never a
+  network (§3).
+- **The backup flow** (F31). Restore takes the backup flow's steps, as
+  Restore of a wallet does: the plan, the sticks, the vaults, then the
+  key at step 4, typed (`docs/BACKUP-FLOW.md` §1, "Restore, which makes
+  nothing new, takes the same steps with its seed typed or scanned at
+  step 4").
+- **The key boundary** (F70). The paperkey's bytes live in
+  `faraday-keys` from the moment each line is checked; no new reveal is
+  added (§6).
+
+## 2. The format
+
+paperkey keeps only the secret parts of an OpenPGP secret key, because
+"the secret key contains a complete copy of the public key" and the
+public key "generally doesn't need to be escrowed" (README, "What
+paperkey does"). To restore, the bytes are entered again "and paperkey
+uses them to transform your existing public key into a secret key". So
+the public certificate is needed with the paperkey: the paperkey holds
+no public key, no user ID, no date and no signature, only, per key, its
+fingerprint and its secret part. Without the certificate the secret
+cannot be turned back into a key that others recognise: the creation
+times and user IDs that the fingerprint and the self-signatures cover
+are not in it.
+
+### 2.1 The data
+
+As `output.c`'s `output_file_format` states it, and `extract.c` writes
+it:
+
+| Field | Bytes | What |
+|---|---|---|
+| a | 1 | The paperkey format's version: 0 |
+| b | 1 | The key or subkey's OpenPGP version: 4 |
+| c | 20 | The key's fingerprint (version 4) |
+| d | 2 | The length of e, big-endian |
+| e | d | The secret part of the secret key packet (RFC 4880 §5.5.3): from the string-to-key usage octet to the end of the packet |
+
+Fields b to e repeat for each subkey, the primary key first. paperkey
+does no cryptography: a key protected by a passphrase gives a paperkey
+protected by the same passphrase (README, "Security"; the man page,
+"Security considerations"). paperkey 1.6 reads version 4 keys only; it
+says "Version 3 (PGP 2.x style) keys are not supported." and refuses
+any other version without a message (`parse.c`, `extract_secrets`).
+
+For a key Faraday makes, e is the unprotected form Faraday writes
+(`Key::secret_part`, `core/faraday-pgp/src/lib.rs`): the usage octet
+0, the seed as an MPI (its bit count, then the seed with its leading
+zero bytes dropped), and the two-octet sum of the MPI's bytes. The
+whole is at most 1 + 2 × (1 + 20 + 2 + 37) = 121 bytes.
+
+### 2.2 The text form (base16)
+
+The form paperkey prints by default and Faraday shows
+(`Key::paperkey`):
+
+- each line is its number, right-aligned in three places and a colon
+  (`"%3u: "`), then bytes in upper-case hex each followed by a space
+  (`"%02X "`), then the CRC-24 of that line's bytes in six hex digits
+  (`"%06lX"`);
+- a line holds `(output_width − 11) / 3` bytes; the width is 78 unless
+  `--output-width` says otherwise, so 22 bytes;
+- after the last data line, one more line: its number and the CRC-24 of
+  the whole data, with no bytes (`"%3u: %06lX"`);
+- paperkey puts comment lines first, each starting `#`: "Secret
+  portions of key" and the fingerprint, the date extracted, the
+  version, the file format above, and "Each base16 line ends with a
+  CRC-24 of that line." Faraday's own display has no comment lines.
+
+A key of Faraday's is seven lines: line 1 is fields a, b and c of the
+primary key (22 bytes, all public), lines 2 to 6 the rest, line 7 the
+whole data's CRC.
+
+The CRC-24 is OpenPGP armour's (RFC 4880 §6.1: initial value 0xB704CE,
+polynomial 0x1864CFB), `faraday_pgp::crc24`.
+
+How paperkey reads it back (`parse.c`, `read_secrets_file`): it skips
+lines starting `#` and empty lines; the number before the colon must be
+the next line's ("Error: missing line number %u (saw %u)"); each line's
+last token is its CRC, compared with the CRC of its bytes ("CRC on line
+%d does not match (%06lX!=%06lX)"); a line with a CRC and no bytes is
+the whole-data CRC ("CRC of secret does not match", and with none,
+"CRC of secret is missing"). `--ignore-crc-error` goes on regardless;
+Faraday has no such choice.
+
+### 2.3 The raw form
+
+`--output-type raw` writes the data unchanged and then the whole data's
+CRC-24 as three bytes, high byte first (`output.c`). It is meant "for
+feeding to barcode generators or the like" (the man page). Reading it
+back takes the last three bytes as the CRC (`parse.c`). It has no line
+CRCs.
+
+### 2.4 How paperkey restores
+
+`restore.c`: it reads the entries (a version other than 0 is "Cannot
+handle secrets file version %d"; a field b other than 4 is "Corrupt
+data in secret image"), then walks the public keyring and, for each
+public key or subkey whose fingerprint matches an entry, writes the
+public packet with the secret part appended and its tag changed to a
+secret one (6 to 5, 14 to 7); user IDs and signatures are copied as
+they are. A public key with no entry, or an entry with no public key,
+is passed over in silence. paperkey does not check that the secret
+makes the public key it is joined to; Faraday does (§4.3).
+
+## 3. Where the public key comes from
+
+Faraday is offline. The certificate reaches it as any public file does:
+
+- **The stick.** The file Faraday wrote when the key was made or
+  renewed, `{name}-{fp8}.asc`, kept on the stick of public files or any
+  other; copied in on a stick visit, it is in Files' From the stick as a
+  public file (F22).
+- **A file from elsewhere.** An armoured export (`gpg --armor --export
+  FINGERPRINT`), or a key server's download saved on another computer
+  and copied onto a stick: the same row in Files.
+- **A scanned code.** Faraday shows the public key as one code (**Show
+  as QR**, `docs/QR.md` §4); the sheet's **Scan the public key** reads
+  it back as a public key and files it in From the stick as a public
+  file, `{name}-{fp8}.asc`, the name Make gives it (`docs/QR.md` §2).
+  A code that is not a public key is named on the scanner ("Not a public
+  key Faraday reads"); a public key that is not restored here is filed
+  all the same, and the sheet comes back with its row and why.
+
+What is read is one ASCII-armoured `PGP PUBLIC KEY BLOCK` that F22's
+reader takes as public (`faraday_pgp::read_public`: every packet to its
+exact end, the checksum line there and right). A binary export
+(`gpg --export` without `--armor`) is not read (F169).
+
+## 4. The flow
+
+### 4.1 Ways in
+
+- **Files.** A public key in From the stick whose certificate is of the
+  shape Faraday restores carries **Restore from its paperkey** in its ⋮,
+  beside Show as QR (decision 24: a file carries the action that uses
+  it).
+- **Vault contents' GPG kind**: **Restore from a paperkey**, under
+  the **+ GPG key** row.
+- **Tools' GPG key** tile: its line becomes "Make, restore, sign,
+  revoke, paperkey".
+
+From Vault contents or Tools, a sheet **Restore a GPG key** lists every
+public key in Files that reads as a certificate (§4.3, the certificate's
+checks), a row each, its user ID and its fingerprint in groups of four,
+and **Scan the public key**. With none: "Copy its public key in on a
+stick visit first." and **Scan the public key**, the sheet's main
+action where no row is there to press. A row pressed, a public key
+scanned that reads, or the Files action opens the flow on that
+certificate.
+
+In Practice the ways in are dimmed, as Make is (`docs/DEMO.md` §4).
+
+### 4.2 The cards
+
+The backup flow (`Screen::BackupFlow`, DESIGN §5, step flow), titled
+**Restore a GPG key**, its chip the fingerprint's last eight digits.
+The certificate is chosen before it opens, so its steps are Make's
+seven:
+
+0. **The public key**, at the top of the plan card the flow opens on,
+   with no step of its own: user ID, fingerprint, signing subkey, created, expires
+   (DESIGN §4.11, Fact), and "Revoked on {date}" where the certificate
+   carries a revocation by the key; then **Line 1 of its paperkey**,
+   the 22 bytes that line must read (`00 04` and the fingerprint) as a
+   code box (§4.3), so the person can tell at a glance that the paper
+   in hand is this key's. A certificate refused (§4.4) shows the reason
+   as an error line; the flow opens only on a
+   certificate that reads.
+1. **Where it will be kept**, 2. **Bring in the sticks**, 3. **Vaults**:
+   Make's (`docs/BACKUP-FLOW.md` §4.1 to §4.3), two places or more.
+   The certificate is public and is kept in the flow's state across
+   step 2's lock, with the plan (F31).
+4. **Type the paperkey** in place of the name and expiry form (§4.5).
+   With every line checked, **Restore the key** (Primary): §4.3's
+   checks, then the record saved into every vault the plan keeps it in,
+   in one action, and the Lock card opens by itself with "{key} · in
+   {vault}" and **Lock and write**; the Make card keeps the Result, "Restored into Vault 1", a row per
+   vault, and "{n} signatures by other keys are not kept" where §4.3
+   set any aside. A key already in an open vault is refused here:
+   "This key is in {vault}", with the vault's button; nothing is saved.
+5. **Lock**, 6. **Write the sticks**, 7. **Done**: Make's. Done leads to
+   the key's page.
+
+On the small panel each step is a page, "Step 4 of 7", as Make's are.
+
+### 4.3 What is checked, and when
+
+Each check runs at the earliest point it can, and a check that fails
+stops there with its reason.
+
+**The certificate** (when it is chosen; public, costs nothing secret):
+
+1. One armoured public key block that F22's reader takes.
+2. A version 4 primary key with the EdDSALegacy algorithm (22) on
+   Ed25519, and exactly one subkey, version 4, EdDSALegacy on Ed25519,
+   whose binding signature gives it the signing flag (0x02). Anything
+   else is refused by what it is (§4.4).
+3. At least one user ID.
+4. Each signature is sorted by its issuer: by the primary key (a user
+   ID's certification, the subkey's binding, a key revocation), or by
+   another key (a certification someone else made). Signatures by other
+   keys are set aside: Faraday cannot check them, the record does not
+   keep them, and the Result counts them.
+
+**Each line** (as it is completed, §4.5; in `faraday-keys`, §6):
+
+5. Its digits are pairs, then six for the CRC; the CRC matches its
+   bytes ("CRC on line {n} does not match").
+6. Line 1: the format version 0, key version 4, and the fingerprint the
+   certificate's primary key ("This paperkey is for key {FPR}", the
+   fingerprint read from it in groups of four).
+7. Once the primary's length is read: the string-to-key usage octet is
+   0 ("Protected by a passphrase", §4.4).
+8. Once the second entry's header is read: version 4 and the
+   certificate's subkey fingerprint ("This paperkey's subkey is {FPR}").
+   A third entry is refused: "The paperkey holds {n} keys; the public
+   key has 2".
+9. The last line: the whole data's CRC ("CRC of secret does not
+   match"). Every line is asked for, the CRC line included, so a
+   paperkey is never taken without it ("CRC of secret is missing" is
+   never reached).
+
+**The key** (at **Restore the key**; costs Ed25519 work):
+
+10. Each secret part: an MPI of at most 256 bits, nothing after its
+    checksum, the checksum its bytes' sum ("The paperkey's secret does
+    not read").
+11. Each seed, its leading zeros put back to 32 bytes, makes the public
+    point of the certificate's key with that fingerprint ("The secret
+    does not match the public key"). paperkey does not check this; a
+    paperkey whose CRCs were made over wrong secret bytes would pass
+    paperkey and give a key that cannot sign.
+12. **Every signature of the key's, rebuilt.** Ed25519 is deterministic,
+    so the restored key makes the same bytes again. For each signature
+    by the primary key in the certificate Faraday reads its time, and
+    for a self-signature its key expiry, for a revocation its reason
+    and text; it makes the signature Faraday makes from those
+    (`Key::certificate` at that time and expiry, `Key::revocation` with
+    that reason), and the two must be equal, byte for byte. Where one
+    differs: "Not a certificate Faraday made for this key" (F169). The
+    newest self-signature gives the record's expiry and is the one the
+    record's certificate holds; older ones, rebuilt and equal, are not
+    kept (a key server may hold a key's earlier self-signatures beside
+    its renewed ones).
+
+So the record holds nothing that was not made again from the seeds and
+compared: no signature is verified by trusting a parser; each is made
+afresh and matched.
+
+### 4.4 What is refused
+
+| What came in | Refused with |
+|---|---|
+| A file that is not one armoured public key block F22 takes | it is not offered (Files does not show the action) |
+| A key of another algorithm | "{algorithm} keys are not restored here: Faraday's are Ed25519", the algorithm as `gpg --list-keys` names it (rsa4096, dsa2048, nistp256, cv25519, ed448) |
+| A key of version 3, 5 or 6 | "Version {v} keys are not restored here" |
+| No subkey, two or more subkeys, a subkey that does not sign, an encryption subkey | "Not a key of Faraday's shape: an Ed25519 key with one Ed25519 signing subkey" |
+| No user ID (a key server that strips unverified addresses) | "The public key has no user ID" |
+| A wrong line CRC | "CRC on line {n} does not match", the line kept for correcting |
+| A line number typed that is not the line's | "This is line {n}, not line {m}" |
+| A paperkey for another key | "This paperkey is for key {FPR}" |
+| A subkey that differs | "This paperkey's subkey is {FPR}" |
+| More or fewer keys than the certificate | "The paperkey holds {n} keys; the public key has 2" |
+| A secret protected by a passphrase (usage 254, 255 or any other non-zero) | "Protected by a passphrase: Faraday restores keys with none" |
+| The whole data's CRC wrong | "CRC of secret does not match" |
+| A secret that does not read | "The paperkey's secret does not read" |
+| A secret that does not make the public key | "The secret does not match the public key" |
+| A signature of the key's that Faraday does not make the same | "Not a certificate Faraday made for this key" |
+| The key already in an open vault | "This key is in {vault}" |
+
+Each is an error line (DESIGN §4.3) under what it is about: the
+certificate's card, the line, or the step's button.
+
+### 4.5 Typing a line
+
+Step 4's card holds the lines as rows, one row per line, in the mono
+face:
+
+- the line's number, "Line 3 of 7" (the count shows once the lengths
+  are read; line 3 at the latest);
+- the line being typed: its bytes as pairs with a space between, as on
+  paper, then a wider gap and the CRC's six digits, the caret where
+  typing goes (DESIGN §4.3, Text field). Lines too wide for the window
+  wrap after 11 bytes;
+- a line checked: "Line {n} · checked" in `OK`, and nothing of its
+  bytes; line 1 also shows the fingerprint it names, which is public. A
+  checked line is not shown again (§6); **Type line {n} again** in its
+  ⋮ clears it and the lines after it;
+- the line with an error: its digits as typed and the error line under
+  it in `ERR`.
+
+Keys:
+
+- On the screen, the existing hex keyboard (`KeyboardKind::Hex`,
+  `core/faraday-draw/src/widgets/keyboard.rs`), docked as the passphrase
+  keyboard is (DESIGN §4.3, Keyboard), with **Next line** beside the
+  field.
+  On a small panel the step opens with the keyboard down while no
+  line is typed or checked, so **Next line** and **Scan the paperkey**
+  show first; pressing the field brings it up, and from then on it
+  stays up for the next line. A computer's keys type at the step
+  without that press.
+- On a keyboard, 0 to 9 and A to F in either case. Spaces are taken and
+  ignored. A colon makes what came before it on the line its number,
+  checked against the line's (so a person who types "  3: " as printed
+  is not misread). Any other character: "Only 0–9, A–F, spaces and the
+  line's number".
+- A line ends when **Next line** or Enter is pressed, or by itself at
+  22 bytes and a CRC that matches, and at the length the headers give
+  for the last data line. Another line width than 78 is taken: a line
+  is what the person ends with Next line.
+- Backspace inside a line edits it; at the start of an empty line it
+  does nothing (a checked line is not reopened by a key; §6).
+
+No line is guessed or corrected (F169). A mistyped line stays as typed,
+with its error, until it is changed.
+
+**Scan the paperkey**, under **Next line** while no line is checked,
+opens the scanner for a code of the paperkey: paperkey's base16 lines as
+it prints them, comment lines and all, or its raw form (`--output-type
+raw`, the data and the whole's CRC-24 in three bytes; §2.3). It opens
+only where a key may load, with no stick in, as for a SeedQR. Every line
+of the code is checked as a line typed is (§4.3 steps 5 to 9), and the
+raw form, which has no line CRCs, by the whole's CRC and the headers; the
+code fills every line at once, or is refused on the scanner with the
+reason a typed line would get ("CRC on line {n} does not match"), "CRC
+of secret is missing" where it stops before the whole's CRC, "Line {n}
+comes after the CRC of secret", or "Not a paperkey", and the camera
+stays on. Nothing of a refused code is kept. Faraday shows no paperkey
+as a code (`docs/QR.md` §7, row 23): the code is one paperkey's output
+was turned into elsewhere.
+
+### 4.6 Signing after a restore
+
+The restored key signs at once, as a restored wallet's keys do
+(`docs/BACKUP-FLOW.md` §11): its signatures were already out before
+the vault was lost, and the paperkey it came from is a copy that
+exists (F169).
+
+## 5. The record
+
+### 5.1 Its fields
+
+`docs/VAULT.md` §7, type 7, as Make writes it:
+
+| Field | From |
+|---|---|
+| 1 primary seed | the paperkey's first entry |
+| 2 primary creation time | the certificate's primary key packet |
+| 3 subkey seed | the paperkey's second entry |
+| 4 subkey creation time | the certificate's subkey packet |
+| 5 user IDs | the certificate's user ID packets, in their order |
+| 6 expiry | the newest self-signature's key expiry (0 where it has none) |
+| 7 certificate | `Key::certificate` at the newest self-signature's time: the bytes compared in §4.3 step 12 |
+| 8 revocation certificate kept | `Key::revocation` at the primary's creation time with no reason and no text: the bytes Make wrote, since Make makes it at once (`core/faraday-keys/src/gpg.rs`, `create`) |
+| 9 marked revoked | the time of a revocation by the key in the certificate, where there is one |
+
+### 5.2 The same record as Make's
+
+For a key Make made and never renewed, the record restored is Make's
+byte for byte: the seeds, the dates, the user ID and expiry, the
+certificate (made at the creation time) and the kept revocation (made
+at the creation time). For a key renewed, field 7 is the renewed
+certificate, as the record held after Renew. A key made before the
+revocation was kept with it (F32's "a key with none makes one when its
+page is first opened") had one made at a later time; the restore makes
+it at the creation time, which revokes the key the same way.
+
+Nothing needs the clock: every time in the record is read from the
+certificate. Restore does not ask for the time first (decision 58).
+
+## 6. How the key is held
+
+- **The line being typed** is transient input (F70; `docs/KEYS.md` §2):
+  it stays in the field where it arrives, under lint-secrets' rules,
+  and is wiped when the line is handed in or the step closes.
+- **A line ended** is handed at once to `faraday-keys`: a new restore
+  set beside the codex32 work set (`WorkSet`, `docs/KEYS.md` §3), in
+  faraday-keys' `gpg` module (`core/faraday-keys/src/gpg.rs`). It
+  decodes the digits, checks the CRC and the headers (§4.3 steps 5 to
+  9), and keeps the line's bytes in wiped memory, or returns the reason
+  and keeps nothing (the field keeps its text for correcting). What it
+  tells faraday-core is public: the line count, which lines are
+  checked, the fingerprints read, the lengths, the error.
+- **The key** is made inside faraday-keys at **Restore the key**
+  (`Restore::finish`, costs Ed25519 work, takes the compute token) and
+  comes back as Make's does: a `vault::MadeKey`, saved into each vault
+  of the plan through the existing copy (`IntoRecord for &MadeKey`),
+  with the GPG facts and certificate beside it. Nothing secret crosses
+  the boundary.
+- **No new reveal.** The lines checked are never shown again, so
+  nothing leaves to be drawn; the paperkey of the restored key is
+  shown, as for any key, through the existing `Reveal::GpgPaperkey`
+  (`core/faraday-keys/src/session.rs`), and its code is made under the
+  same reason by the same `OpenVaults::gpg_paperkey` (§12). The reasons
+  of F70 (fourteen since F125) stand.
+- **Wiped** when the flow is cancelled, at the idle lock and at step 5's
+  lock, with every other secret. The flow's state keeps the certificate
+  and the plan (public) across a lock; the lines typed are not kept,
+  and a lock before **Restore the key** asks for them again.
+- clippy's key boundary entries (`core/clippy.toml`) gain the new secret-taking
+  functions of `faraday-pgp` (the paperkey reader and the restore) and
+  the restore set, so that only faraday-keys calls them.
+
+## 7. Code
+
+### 7.1 Where things live
+
+| Where | What |
+|---|---|
+| `core/faraday-pgp/src/paperkey.rs` | The text and raw readers (§2.2, §2.3): a line's digits to bytes and CRC; entries from the data. No state, nothing kept |
+| `core/faraday-pgp/src/certificate.rs` | Reading a certificate into packets by role (§4.3 steps 1 to 4), naming an unsupported algorithm as GnuPG does; the rebuild and compare (step 12); `restore`, which joins entries and certificate into a `Key` and the record's public values |
+| `core/faraday-keys/src/gpg.rs` | The restore set: `Restore::new(certificate)`, `line(n, digits)`, `paperkey_code(bytes)` for a paperkey scanned, `finish(c)`; wiped on drop |
+| `faraday/faraday-core/src/gpg.rs` | The certificate's facts for the cards; the refusals' strings |
+| `faraday/faraday-core/src/backup_flow/` | `Kind::Gpg` with the restore's certificate in the flow's state; step 4's card and its keys; the sheet of §4.1 |
+| `faraday/faraday-core/src/qr_view.rs` | The two scanners: the sheet's, which files a public key and opens its flow, and step 4's, which hands a paperkey code to the restore set |
+| `faraday/faraday-core/src/qr_view.rs` (`vault_paperkey_view`, `QrView::secret_one_code`), `faraday/faraday-core/src/screens/sheets.rs` | The paperkey's code (§12): made at the press of `VaultAction::PaperkeyQr`, the sheet without its format, speed and size |
+| `faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/screens/catalog.rs` | **Restore from a paperkey**; **Show as QR** under the masked paperkey; the tile's line |
+| `core/faraday-strings/src/en/` | §7.3 |
+
+### 7.2 Costs and drawing
+
+- Reading a certificate is a parse of a few hundred bytes: not costly.
+  A line handed in costs a CRC over 25 bytes at most: not costly, and
+  done in the event, not in drawing.
+- `Restore::finish` costs two Ed25519 public keys and one signature
+  rebuild per signature of the key (three Ed25519 signatures for a
+  certificate made once, and one more for the kept revocation); its doc's first line says so and it counts
+  itself through `c: &Compute` (`docs/COMPUTE.md`).
+- Drawing reads the restore's public state kept on the flow (the lines'
+  states, the count, the error), updated at each event; the
+  certificate's facts are read once when it is chosen and kept with it.
+  The budget tests in `faraday/faraday-core/src/work/budget/` gain a
+  key press in step 4 that does no costly work.
+
+### 7.3 Strings
+
+In `core/faraday-strings/src/en/`, prefix `gpg_restore_`.
+
+The revoked line reuses the key page's. The Learn page carries the why
+(§9).
+
+## 8. Tests
+
+Each test says what a person or another tool would notice. Fixtures are
+made by the real tools in a throwaway `GNUPGHOME`, with
+`--faked-system-time` for every time, as F32's tests are, and kept in a
+new folder tools/vectors/paperkey/ with a README naming each file's
+command, the tools' versions (paperkey 1.6, GnuPG 2.4) and its SHA-256,
+as `tools/vectors/bip93/` records its files. The tests that run the
+tools themselves fail where they are missing, as
+`core/faraday-pgp/tests/gnupg.rs` does; nothing skips them.
+
+**Against paperkey** (`faraday-pgp`, a new tests/paperkey.rs):
+
+1. The lines Faraday shows for a key, typed back, give the entries the
+   key was made from, for seeds with leading zero bytes (a shorter MPI,
+   as F32's test has).
+2. paperkey 1.6's text output (`paperkey --secret-key`) and raw output
+   (`--output-type raw`) of `Key::secret_key` read to the same entries
+   as Faraday's own lines; the fixtures are those outputs, comment
+   header included.
+3. paperkey 1.6's restore (`paperkey --pubring cert.gpg --secrets
+   lines.txt`) of the lines Faraday shows gives `Key::secret_key`, byte
+   for byte: Faraday reads what paperkey reads, and paperkey agrees with
+   Faraday's restore.
+4. One digit changed on each line in turn: Faraday refuses on that
+   line, and paperkey refuses with "CRC on line {n}" for the same `n`.
+   The whole-data CRC changed: both refuse ("CRC of secret does not
+   match"). The raw form with a byte changed: refused, as paperkey's
+   `bad-crc-raw.sh` refuses it.
+5. paperkey's own EdDSA check key (`papertest-eddsa`, an Ed25519 primary
+   that certifies and signs, with no subkey) read through paperkey's own
+   output: one entry with that key's fingerprint, and the restore
+   refuses it as not of Faraday's shape. The key is read from
+   paperkey's repository: paperkey's check keys are GPL-2.0 and not
+   copied, so a key of the same shape made by GnuPG stands in.
+
+**Refusals, with keys made by GnuPG 2.4:**
+
+6. `gpg --quick-generate-key` with its defaults (an Ed25519 primary and
+   a cv25519 encryption subkey): refused by its shape, naming cv25519.
+7. An `rsa3072` key: refused by its algorithm.
+8. An Ed25519 key with one Ed25519 signing subkey and a passphrase: its
+   paperkey refused as protected.
+9. The same shape with no passphrase: refused as "Not a certificate
+   Faraday made for this key".
+10. The lines of key A with the certificate of key B: refused at line 1.
+    A's primary with B's subkey (the certificate of a key whose subkey
+    was replaced): refused at the subkey's header.
+11. A paperkey whose secret bytes are another seed with CRCs made over
+    them: refused as not matching the public key. What paperkey and
+    `gpg --import` do with the same lines is run and recorded in the
+    test, so the difference from paperkey is shown, not assumed.
+
+**Certificates as they arrive:**
+
+12. A Faraday key renewed, its renewed certificate: the record has the
+    new expiry and that certificate.
+13. The two certificates of a key, before and after a renewal, merged by
+    `gpg --import` of both and `gpg --armor --export`: the newest
+    self-signature gives the record; the older one is rebuilt, equal and
+    not kept.
+14. A certificate with a revocation by the key (made with **Make a
+    revocation**, imported into gpg and exported): restored, marked
+    revoked at its time; it signs nothing.
+15. A certificate a second GnuPG key has certified (`gpg
+    --quick-sign-key`): restored; the certification is set aside and
+    counted.
+
+**The record** (`faraday-keys`, `core/faraday-keys/tests/vault.rs`):
+
+16. A key made by `gpg::create`, its paperkey revealed and typed back
+    against its certificate: the record restored equals Make's, field
+    for field and byte for byte, the kept revocation included.
+17. The restored key signs a file with the same bytes as the original
+    record does at the same time, and `gpg --verify` takes it.
+18. Renew and Make a revocation on the restored record give the same
+    certificate and revocation as on the original.
+
+**The flow** (`faraday/faraday-core/tests/all/gpg.rs`):
+
+19. A certificate in Files, Restore from its paperkey, the plan, the
+    vaults, the lines typed as key presses: a mistyped line shows its
+    error and does not advance; once fixed, the flow goes on; **Restore
+    the key** saves into every vault of the plan; the key's page shows
+    the same fingerprint and signs at once.
+20. A lock at step 4 wipes the lines; the flow comes back to step 4
+    with the certificate and asks for line 1 again.
+21. The key already in an open vault: refused, nothing saved.
+22. A budget test: a key press on step 4 does no costly work.
+23. The sheet with no public key in Files: **Scan the public key**; a
+    code that is not a public key named on the scanner and filed
+    nowhere; the certificate's code filed as `{name}-{fp8}.asc` and the
+    flow open on it; an RSA key's code filed and the sheet saying why
+    (`faraday/faraday-core/tests/all/gpg_restore.rs`).
+24. paperkey 1.6's printed lines and its raw form, scanned at step 4,
+    fill every line and restore the key that typing them restores; a
+    code with a digit changed is refused at its line, a byte of the raw
+    form changed by the whole's CRC, a code cut before its CRC line and
+    another key's code are refused, and the lines typed before are kept
+    (`core/faraday-keys/tests/vault.rs`, and the flow in
+    `faraday/faraday-core/tests/all/gpg_restore.rs`).
+
+**Fuzzing:** two new targets in `fuzz/fuzz_targets/`, beside
+`pgp_armor`: the paperkey text and raw readers, and the certificate
+reader with the restore over arbitrary entries (`fuzz/README.md`).
+
+**Snapshots:** a tour, gpg-restore, of the sheet and its scanner, the
+plan card with the public key and line 1, step 4 before a line with **Scan the paperkey**,
+with a line checked, one typed and one in error, and a refusal, at the
+sizes `docs/LAYOUT.md` names. The scanners' routing is fuzzed by
+`fuzz/faraday`'s `app_scanned`, which opens each scan purpose.
+
+F79's cross-check has no OpenPGP reference; GPG is judged by GnuPG and
+paperkey themselves (F32), and these tests are that.
+
+## 9. Learn and Guide
+
+Learn's GPG page, "Restoring a key from its paperkey", said
+how a key comes back: why the public key is needed and how it comes in
+(a stick, a file from elsewhere or its code), the ways in, the seven
+lines and what is typed on each, a paperkey scanned as a code, what a
+line that does not end by itself means, what Restore the key checks,
+and that only keys Faraday made, with no passphrase, are restored. On
+the backup flow's screen while it restores a GPG key, Learn opens on
+that page. "The paperkey" keeps the GnuPG commands for a computer that
+is not Faraday.
+
+## 12. Moving a key to a vault on another machine
+
+F215. Two machines with only a camera between them: the old vault shows
+the key, the new vault scans it. For two vaults open on one machine, the
+vault's copy of an item is the way, and this section does not apply.
+
+### 12.1 The path
+
+1. **The new vault's machine**: Vault contents' GPG kind, **Restore from
+   a paperkey**, **Scan the public key**.
+2. **The old vault's machine**: the key's page, **Show as QR** on the
+   **Export public key** row. The certificate is public. Past what a small
+   panel's camera can read, the sheet's **BBQr** or **Parts** shows it
+   animated, which this scanner gathers (§3).
+3. **The new vault's machine**: the backup flow opens on the certificate.
+   The plan card shows line 1's bytes; the plan, the sticks and the vaults
+   are §4.2's. An existing vault is given to a place as for any key.
+4. **Step 4**: **Scan the paperkey**, with no stick in.
+5. **The old vault's machine**: the key's page, **Show as QR** under the
+   masked paperkey, then **Done** once the new vault has read it.
+6. **The new vault's machine**: every line checked at once, **Restore the
+   key** (§4.3), then Make's lock, writes and Done. The key signs at once.
+
+The old vault keeps its copy until the person deletes it there. Nothing
+is shorter than this for now: the flow's plan is F31's check on a key that
+cannot be made again, a new vault has to reach its sticks in any case, and
+the only step a move adds to that is the second place.
+
+### 12.2 What is shown
+
+The text the eye shows, §2.2's base16 lines, as one code (`docs/QR.md`
+§7.1 row 23). `Restore::paperkey_code` reads it as it reads paperkey's
+printed lines, which differ only by their comment lines; a QR reader's
+text saved to a file is what `paperkey --secrets` reads. The raw form,
+§2.3, is read and not shown.
+
+| Option of the QR sheet | For this code |
+|---|---|
+| **Show as QR** | Yes, under the masked paperkey |
+| Secret mark | Yes: "Secret · whoever scans this can use it" |
+| **PNG** | No: `QrView::offers_png` refuses a secret |
+| Outbox file | No |
+| Whole text under the code | No: the eye shows the text |
+| Format (UR, BBQr, Parts) | No: §4.5's scanner reads whole codes only |
+| Speed | No: one frame |
+| Part size | No: one frame |
+
+Animated parts would make the modules larger only on the smallest panel:
+in Parts at the middle size, three frames at version 8, 49 modules; at the
+small size, five frames at version 5, 37 modules. They would need the
+paperkey's scanner to gather parts and a part set held in the assembler,
+and are not built.
+
+### 12.3 How it is held
+
+As §6 holds what is typed, on the other side: no new reveal. The view is
+made in the press, never in drawing. `QrView`'s `Drop` wipes its source
+and frames; it drops at Done, on leaving and at a lock (`lock_now`). The
+press hides nothing of the eye by itself; a sheet over the page does, as
+for every shown secret (F123).
+
+### 12.4 A code too fine
+
+The scanner's line for a code too fine says to show it animated or carry
+it as a file, neither of which a paperkey has. **Scan the paperkey**'s
+says "Too fine for this camera: bring it closer, or type the paperkey"
+(`gpg_restore_too_fine`).

@@ -1,7 +1,7 @@
 # crypto-primes
 
 **Purpose.** The prime search behind RSA-2048 key generation for Faraday's
-Secure Boot keys (`faraday/faraday-sb`, `docs/FLOWS.md` "Secure Boot"). It
+Secure Boot keys (`core/faraday-sb`, `docs/FLOWS.md` "Secure Boot"). It
 is not called by Faraday's own code; `rsa` (`docs/deps/rsa.md`) uses it to
 find the two primes of a new key. Faraday-only.
 

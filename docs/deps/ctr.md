@@ -4,7 +4,7 @@
 
 **Purpose.** AES-256 in CTR mode with a 32-bit big-endian counter (`Ctr32BE`), for
 Krux's encrypted code (KEF) versions 15 and 16, and inside the GCM of 20 and 21
-(`faraday/faraday-kef`, `docs/KEF.md` §11).
+(`core/faraday-kef`, `docs/KEF.md` §11).
 
 **Why this crate.** It is the RustCrypto mode over the `aes` block cipher the tree
 already trusts, on the same `cipher` 0.5, by the publisher of `cbc`, so it adds one

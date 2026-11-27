@@ -1,0 +1,532 @@
+# Comparing two transactions, and the fee bump
+
+**Kind:** Spec
+**Status:** Built (F233, F270)
+**Open:** the code it cites under `faraday/faraday-core`, `faraday/faraday-starter` and `faraday/shells` is not yet on `next` and is read on `main` at d89dde5de until its feature is ported (08 section 4.4)
+
+Two rules over two files. **The comparison** lists how two PSBTs or
+finished transactions differ, without judging them. The **fee bump**
+result says whether a replacement only raises the fee of an original:
+the same payments to the same addresses, the extra fee taken from the
+person's own money. Both are shown on Check a signer's Result
+(`docs/SIGNER-CHECK.md` §11), the Sent file read as the original and the
+Returned one as the replacement, and the fee bump on Sign a
+transaction's review when Files holds another transaction spending the
+same inputs; nowhere else. The decisions are F233 and F270
+(`docs/DECISIONS.md`).
+
+Compare two PSBTs was a tool of its own until it was folded into Check a
+signer (F270); its tile, its cards and its screen as they were are
+`docs/history/COMPARE-LOG.md`. The comparison reads only what moves
+money and what signs it (§2.3); every other field of two PSBTs is the
+signer's check's (SIGNER-CHECK §6). Decode already states whether an
+input signals replace-by-fee; the fee bump does not repeat it as a rule
+(§3.5).
+
+## 1. Who needs it
+
+A wallet on the online side builds a replacement when a transaction is
+stuck: Bitcoin Core's `psbtbumpfee`, Sparrow's and Electrum's "Increase
+fee". The replacement comes to the device as a new PSBT. A wallet that
+is wrong or hostile can change a payment's address or amount in it,
+add a payment, or drop an input the original spent, and the review of
+one PSBT alone cannot tell that from the original's intent. Only a
+comparison with the person's own copy of the original can.
+
+The original must be the person's copy, not the wallet's: a wallet
+that alters the replacement can alter its copy of the original too.
+Files empties at power-off (`docs/FLOWS.md`, Files), so the original
+comes back from a stick (the PSBT or the finished transaction this
+device wrote out, kept by the person) or by the camera. Faraday cannot
+tell whose copy a file is; every fee bump result names the file it was
+compared against, so the person sees which copy it rests on.
+
+## 2. The comparison
+
+Made on Check a signer's Result (SIGNER-CHECK §11.4) for any two PSBTs or
+finished transactions, Sent against Returned; it opens as Check a signer
+does (SIGNER-CHECK §11.2).
+
+### 2.2 A finished transaction
+
+Compare's own cards are `docs/history/COMPARE-LOG.md`; the cards are
+Check a signer's (SIGNER-CHECK §11.1, §11.3).
+
+A finished transaction is read as Decode reads one: as a PSBT whose
+inputs are final with its own scriptSigs and witnesses
+(`raw_as_psbt` in `faraday/faraday-core/src/decode/mod.rs`), the amounts
+it spends taken from the PSBTs of the same unsigned transaction in Files
+(`Faraday::amounts_in`), and, for an input still without one, from the
+other card's PSBT for the same outpoint (§3.2, rule I4).
+
+
+### 2.3 What it reads
+
+From each side, through the inspection the review already makes
+(`faraday_psbt::inspect`, against the loaded keys and registered
+wallets):
+
+- the unsigned transaction's id, version and locktime (as the review
+  words a locktime: none, a block height, a time);
+- the PSBT's own version, 0 or 2, read from the file's bytes as Check
+  a signer reads it; a finished transaction has none;
+- each input: the outpoint it spends, its sequence, the amount it spends
+  where the PSBT states one, the signatures on it (partial, taproot and
+  in final fields, as `verify::count_signatures` counts them), whether
+  it is final, and whether it is the person's (`InputInfo::is_ours`);
+- each output: its script and amount, and whether it is verified the
+  person's own (`OutputInfo::is_ours`: change, or a receive address,
+  of a loaded key or a registered wallet), claims a key origin under a
+  key not loaded, or neither;
+- the fee and the fee rate where every input's amount is known, the
+  rate over the inspection's virtual size (an estimate before signing,
+  exact for a final input), and the total in and out.
+
+### 2.4 How inputs and outputs are matched
+
+- **Inputs, by outpoint.** An outpoint spent by both is one input in
+  both, wherever it stands in each. One spent by one side only is
+  listed on that side. A side that spends one outpoint twice (a
+  transaction that can never be valid) is a difference of its own (C12).
+- **Outputs, by script.** For each script, the outputs carrying it on
+  each side are taken in index order. First each output of Sent is
+  paired with the first unpaired output of Returned with the same script
+  and the same amount; then the outputs left on each side with that
+  script are paired in index order, as one output whose amount changed;
+  the rest are on one side only. So two payments to one address, their
+  amounts swapped between positions, are no difference, and a script
+  that appears three times on one side and twice on the other leaves
+  one output on one side only.
+- **Position is not a difference.** An input or output that stands at
+  another index is shown with both indexes on its row ("Output 0, 1 in
+  the returned") and not counted: wallets order outputs at random or by
+  BIP-69, and a replacement may reorder them.
+
+### 2.5 The differences
+
+Each difference is one line, a plain statement. Where a line names an
+input it names it by its outpoint in short form ("Input 3f2a 91c0 … 8e1d:1",
+DESIGN §4.5), and where it names an output, the sentence ends in "to" and
+the output's whole address stands under it, grouped in fours in mono and
+wrapped between groups only (DESIGN §4.5, "Whole string"), or "script {n}
+bytes" under it where the output has none ("Output of 0.5 BTC, in the sent
+only, to"). The line carries the sentence and the address as separate
+parts. A line that names two addresses (a finding that an output pays
+another script) gives each under its own words. Amounts are in BTC (DESIGN
+§4.7). The two files are named as Check a signer's cards are, sent and
+returned; their wording as Compare first had it is in
+`docs/history/COMPARE-LOG.md`.
+
+| Id | Wording | When |
+|---|---|---|
+| C1 | "Version: {a} sent, {b} returned" | The transaction's version differs |
+| C2 | "Locktime: {a} sent, {b} returned" | The locktime differs |
+| C3 | "PSBT version: {a} sent, {b} returned" | Both are PSBTs, of versions 0 and 2 |
+| C4 | "Input {op}: in the sent only" / "… in the returned only" | The outpoint is spent on one side only |
+| C5 | "Input {op}: sequence {a} sent, {b} returned" | A shared input's sequence differs; each as Decode words it (`decode_locktime_no_rbf` and its siblings in `core/faraday-strings/src/en/`) |
+| C6 | "Input {op}: spends {a} sent, {b} returned" | Both state the amount a shared input spends, and they differ |
+| C7 | "Input {op}: amount stated in the sent only" / "… in the returned only" | One side states the amount, the other none |
+| C8 | "Input {op}: {a} signatures sent, {b} returned" | A shared input's signature count differs |
+| C9 | "Input {op}: final in the sent only" / "… in the returned only" | Final on one side only |
+| C10 | "Output to {addr}: {amount}, in the sent only" / "… in the returned only" | An output left unpaired (§2.4) |
+| C11 | "Output to {addr}: {a} sent, {b} returned" | A pair whose amounts differ |
+| C12 | "Input {op}: spent twice in the sent" / "… in the returned" | One side spends one outpoint twice |
+| C13 | "Output to {addr}: yours in the sent only" / "… in the returned only" | A paired output is verified the person's own on one side and not on the other |
+
+### 2.6 What it does not show
+
+The comparison reads what moves money and what signs it; everything else
+in a PSBT is the signer's check's (SIGNER-CHECK §6.5 to §6.9):
+
+- key origins, scripts (redeem, witness, taproot trees and leaves),
+  hash preimages, global extended keys, MuSig2 fields, unknown and
+  proprietary pairs: not compared here. Where both are PSBTs, the
+  signer's check on the same Result reads them (SIGNER-CHECK §11.5);
+- which key made which signature, and whether a signature verifies:
+  the counts only. A signature's validity is the review's and Check a
+  signer's, not a difference between two files;
+- the fee and fee rate are facts, not differences: they follow from
+  the lines above.
+
+### 2.7 The order and the facts
+
+Compare's own screen is `docs/history/COMPARE-LOG.md`; the comparison is
+drawn on Check a signer's Result (SIGNER-CHECK §11.5). Its differences
+come in this order: the transaction's (C1 to C3), the inputs' in the
+Sent file's order and then the Returned file's own, the outputs' the
+same; "No differences" where there are none. Its facts, where the
+signer's check did not run on one unsigned transaction:
+
+- "Transaction": the txid, whole (DESIGN §4.5), when the two are one
+  unsigned transaction; else both, labelled "Sent" and "Returned";
+- "Fee": "{fee} sat · {rate} sat/vB" (DESIGN §4.7) for each, labelled
+  "Sent" and "Returned", or "Not known" where an input's amount is not;
+- "Inputs": "{n} in both", then "{n} in the sent only", "{n} in the
+  returned only" where there are any; "Outputs" the same, counted by
+  §2.4's pairs.
+
+## 3. The fee bump
+
+### 3.1 When it applies
+
+Between an **original** and a **replacement**: in Check a signer, Sent is the
+original and Returned the replacement (Swap exchanges them); on the
+review, the file in Files is the original and the PSBT under review the
+replacement. It applies when the two are different unsigned
+transactions (their txids differ) and spend at least one outpoint in
+common: two transactions spending one coin cannot both be mined, so the
+replacement replaces the original. Otherwise no fee bump result is
+shown.
+
+### 3.2 The rules
+
+The result is **Only the fee is raised** when every rule below holds.
+A rule that fails gives a line (§3.4). The rules read the two
+inspections and the two PSBTs and nothing else; nothing is taken from
+the network, which the device cannot see.
+
+**Inputs.**
+
+- **I1.** Every outpoint the original spends, the replacement spends.
+  A replacement that leaves one out frees that coin and is another
+  transaction, not a fee bump.
+- **I2.** An input the replacement adds is the person's own
+  (`InputInfo::is_ours` against the loaded keys and registered
+  wallets): the extra fee may come from the person's coins, never from
+  someone else's.
+- **I3.** A shared input keeps its sequence, or neither sequence
+  enables a relative lock (BIP-68: the transaction's version 2 or
+  higher and the sequence's bit 31 clear). A change between
+  0xfffffffd and 0xfffffffe or 0xffffffff, which turns replace-by-fee
+  signalling on or off, is no line.
+- **I4.** A shared input's amount is the same where both state it. An
+  input of the original that states none takes the replacement's for
+  the same outpoint; this is how a finished transaction, which states
+  no amounts, gets its fee. A lie in a shared amount is the same lie on
+  both sides, so it cannot make a change of payments look like a fee
+  bump: the payments are compared by themselves (P1) and the fee's rise
+  is the difference of two sums that both carry it.
+- **I5.** Neither spends one outpoint twice.
+
+**The transaction.**
+
+- **X1.** The same version. The locktime may change where both are
+  below 500,000,000 (none, or a block height): Bitcoin Core's
+  `psbtbumpfee` sets the replacement's to the chain's height, or a few
+  blocks under it (its guard against fee sniping), so a bump from Core
+  moves it (§6.1's fixtures show it). A locktime that is a time on
+  either side must be the same on both: moving it, or turning a height
+  into a time, changes when the transaction can be mined in a way no
+  fee bump needs.
+
+**Outputs.** An output is **yours** where the inspection verifies it the
+person's own (`OutputInfo::is_ours`: on the change chain or the receive
+chain of a loaded key, or a registered wallet's own script at the index
+its key origins name), or where its script is the script of an output
+verified yours on the other side. Every other output is a **payment**,
+an output whose key origin names a loaded key and does not verify
+(`OutputKind::UnverifiedChange` under a loaded key: a spoofed change
+output, `WarningKind::ChangeSpoof`) included.
+
+- **P1.** The payments of the replacement are the payments of the
+  original: the same scripts with the same amounts, as many of each,
+  paired by §2.4's rule. An amount higher is a change of payment as an
+  amount lower is: the result says the fee alone is raised, and paying
+  a recipient more is not that. A payment cut to pay the fee (a "send
+  everything" spend whose only output pays the fee) is a change of
+  payment, and so said.
+- **P2.** The person's own outputs may fall, rise, go or be added: the
+  change the fee is taken from, a new change output where an input was
+  added, change dropped below dust.
+
+**The fee.**
+
+- **F1.** Both fees are known: every input of each states its amount,
+  after I4.
+- **F2.** The replacement's fee is higher than the original's.
+- **F3.** The replacement's fee rate is higher than the original's,
+  each worked out as its fee times 1,000 over its virtual size, in
+  whole sat per 1,000 vB, the size the inspection estimates
+  (`Inspection::vsize_estimate`, exact for a final input).
+
+With P1 and F2, the arithmetic leaves one place the extra fee can come
+from: the person's own outputs and the inputs I2 lets the replacement
+add. That is the "taken from change" of the claim, and no rule of its
+own is needed for it.
+
+### 3.3 Not a fee bump, or cannot tell
+
+A rule fails in one of two ways.
+
+- **More than the fee changed.** I1, I2 (an input added under no key
+  origin, or one naming a loaded key that does not verify), I3, I4 (two
+  amounts stated that differ), I5, X1, P1, F2 or F3 fails on what the
+  two files state. The result is in `ERR`.
+- **Cannot tell.** No rule fails on what the files state, but one
+  cannot be worked out:
+  - an input whose amount neither side states (F1);
+  - an output, on either side, whose key origin names a key not loaded,
+    so whether it is yours is not known (P1, P2): loading that key
+    tells;
+  - an input the replacement adds whose key origin names a key not
+    loaded (I2);
+  - the original carries no key origin on any output (a finished
+    transaction, or a PSBT whose wallet wrote none), and one of its
+    outputs is paired with nothing in the replacement: whether it was
+    the person's change, dropped, or a payment, dropped, is not stated
+    anywhere (P1).
+  The result is in `WARN`.
+
+Where both kinds are found, the result is More than the fee changed,
+its lines first and the cannot-tell lines after them. A result of Only
+the fee is raised is never shown with a line under it.
+
+### 3.4 The results and their wording
+
+The result line (DESIGN §4.11, Result) in its tone, then its lines
+(DESIGN §4.11, Warning, in the result's tone) in the order of §3.2's
+rules, then the facts.
+
+| Result | Tone | Wording in Check a signer | Wording on the review |
+|---|---|---|---|
+| Only the fee is raised | `OK` | "Only the fee is raised" | "Only the fee is raised from {name}" |
+| More than the fee changed | `ERR` | "More than the fee changed" | "More than the fee changed from {name}" |
+| Cannot tell | `WARN` | "Cannot tell whether only the fee is raised" | "Cannot tell whether only the fee is raised from {name}" |
+
+`{name}` is the original's file name. The lines, "original" and
+"replacement" in both places:
+
+| Id | Rule | Wording |
+|---|---|---|
+| B1 | I1 | "Input {op}: in the original, not in the replacement" |
+| B2 | I2 | "Input {op}: added, and not yours" |
+| B3 | I3 | "Input {op}: sequence {a} in the original, {b} in the replacement" |
+| B4 | I4 | "Input {op}: spends {a} in the original, {b} in the replacement" |
+| B5 | I5 | "Input {op}: spent twice in the original" / "… in the replacement" |
+| B6 | X1 | "Version: {a} in the original, {b} in the replacement" |
+| B7 | X1 | "Locktime: {a} in the original, {b} in the replacement" |
+| B8 | P1 | "Pays {b} to {addr}, not {a}" |
+| B9 | P1 | "No longer pays {a} to {addr}" |
+| B10 | P1 | "Pays {b} to {addr}, which the original does not" |
+| B11 | F2 | "Fee: {a} sat in the original, {b} sat in the replacement" |
+| B12 | F3 | "Fee rate: {a} sat/vB in the original, {b} sat/vB in the replacement" |
+| U1 | F1 | "Input {op}: amount not stated" |
+| U2 | P1, P2 | "Output to {addr}: change of {fp}, which is not loaded" |
+| U3 | I2 | "Input {op}: added, of {fp}, which is not loaded" |
+| U4 | P1 | "Output to {addr}: in the original only, and not stated to be yours" |
+
+The facts under the lines (DESIGN §4.11, Fact):
+
+- "Fee": "{a} sat · {r} sat/vB", then "{b} sat · {s} sat/vB", labelled
+  "Original" and "Replacement"; "Not known" for a fee F1 cannot give;
+- "Inputs added": a count, only where the replacement adds any;
+- "Replace-by-fee": "Signalled by the original" or "Not signalled by
+  the original" (§3.5).
+
+On the review, under them, **Compare** (text button) opens Check a signer
+on the pair (SIGNER-CHECK §11.2).
+
+### 3.5 Against BIP-125, and where the rule is Faraday's own
+
+BIP-125 sets what a node relays as a replacement; it says nothing of
+what the replacement pays. Faraday checks what it can know offline and
+states the rest:
+
+- **Rule 1, the original signals.** Not a rule here: Bitcoin Core 28
+  and later replace without the signal by default (full replace-by-fee),
+  and the signal moves no money. It is stated (§3.4, "Replace-by-fee").
+- **Rule 2, no new unconfirmed inputs.** Not checked: whether an input
+  is confirmed is the chain's, which the device cannot see.
+- **Rule 3, the fee is at least the original's.** Faraday is stricter:
+  higher (F2).
+- **Rule 4, the rise pays for the replacement's own relay** at the
+  node's incremental rate. Not checked: the rate is each node's policy.
+  The two fees and the size are stated, and a wallet that bumps works
+  it out.
+- **Rule 5, at most 100 transactions replaced.** Not applicable: one
+  original.
+- **The fee rate rises.** Bitcoin Core's own replacement policy
+  (`doc/policy/mempool-replacements.md`, its rule 6) wants the
+  replacement's rate above the original's; Faraday requires it (F3).
+
+Faraday's own, under STANDARDS §0 ("Faraday's own, conservative"): I1
+to I5, X1, P1 and P2, which no standard defines. Each fails closed: a
+case it does not know is Cannot tell, never Only the fee is raised.
+The result reads amounts and scripts and makes no cryptography of its
+own: it is not one of the cryptographic actions that carry F177's
+label, "own specification, not yet reviewed outside Faraday". It is a
+review rule like the change check, and gets a row in STANDARDS §4 (the
+`docs/crypto/actions.toml` row beside `check-signer`, its
+`standard_note` "Faraday's review rules", `own` naming F233), checked
+against what Bitcoin Core's `psbtbumpfee` makes (§6.1).
+
+### 3.6 A statement, not a gate
+
+The fee bump result does not stop signing, on the review or anywhere.
+A person may mean a replacement that does more than raise the fee (a
+payment added to a stuck transaction, a payment cancelled by sending it
+back to themselves), and the review's own checks of the replacement as
+one PSBT (its warnings, its holds, F136) still stand in full. The
+result says what the replacement changes from the original, as Decode
+says what a transaction does.
+
+## 4. On Sign a transaction's review
+
+### 4.1 Which files count
+
+While a PSBT is open on Sign a transaction (Spend's review, opened by a
+scan, a file's **Sign**, or the Spend tab), a file in Files is "another
+transaction spending the same inputs" when:
+
+- it is a PSBT or a finished transaction, From the stick or For the
+  stick;
+- its unsigned transaction's id is not the open PSBT's (a file of the
+  same unsigned transaction is a copy of it, not another);
+- it spends at least one outpoint the open PSBT spends.
+
+Files of one unsigned transaction count as one: the first PSBT among
+them in Files' order (From the stick, then For the stick, each in its
+list's order), else the first finished transaction, is the one compared
+and named. With none, the review shows nothing of this section, and
+nothing is worked out for it. With several other transactions (a
+transaction bumped twice), one result each, in Files' order.
+
+What each file spends is read once when it comes in, as its `PsbtSeen`
+is (`docs/SPEED.md` §3.3): `Item` gains its outpoints, sorted, for a
+PSBT and a finished transaction, through `wallet::classify_read`, which
+parses the file already. Finding the files that count is then a lookup
+over Files, with no file read again.
+
+### 4.2 What the review shows
+
+On the Transaction step (`faraday/faraday-core/src/screens/spend.rs`,
+`step_body`), after the fee and before the warnings: the section label
+"Fee bump", then for each other transaction its result line (§3.4, the
+review's wording), its lines, its facts and **Compare**. The step's
+summary line is unchanged. Nothing else on the review changes, and the
+fee bump changes no other warning's level.
+
+### 4.3 When it is worked out
+
+Beside the spend's inspection, kept on `SpendState` with it: the
+results, already in words, and what they were made from (each other
+file's name and txid). `Faraday::refresh_spend` makes them again when
+it inspects again (the PSBT, the network, the keys or the wallets
+changed: `SpendState::inspected_for`) or when the set of files that
+count (§4.1) is not the one they were made from: a file brought in or
+removed while the review is open. Making them costs an inspection of
+each other transaction's file (and, for a finished transaction, what
+Decode's `amounts_in` costs), with the token the press's glue holds.
+Drawing reads the kept lines and works nothing out.
+
+## 5. Code
+
+### 5.3 Costs and drawing
+
+- The comparison and the fee bump cost a parse of each file and an
+  inspection of each (both `inspect`, which says what it costs), and,
+  for a finished transaction, what `amounts_in` costs. On Check a signer
+  they run with its check, once on a press, with the token the glue
+  mints, and the result is kept with the two files it describes; its
+  invariant is SIGNER-CHECK §11.4's.
+- The review's results follow §4.3.
+- Drawing reads the kept words and the Inbox items' `PsbtSeen`; it
+  works nothing out. Budget tests hold it
+  (`faraday/faraday-core/src/work/budget/`).
+
+## 6. Tests
+
+User-facing behaviour, against fixtures, the replacement Bitcoin Core
+makes among them.
+
+### 6.1 Fixtures
+
+In `tools/vectors/psbt/`, listed in its README. The repository holds
+no fee bump pair from a real wallet today; three come from Bitcoin
+Core, the pinned release `tools/scripts/signer-core.py` already runs on
+regtest (`tools/crosscheck/core_node.py`), by a new script,
+tools/scripts/bump-core.py: a regtest wallet holding the "abandon …
+about" key at BIP-84 is funded by mining, sends one payment with change
+(`walletcreatefundedpsbt`, replace-by-fee on), signs, finalizes and
+broadcasts it, and `psbtbumpfee` makes its replacement.
+
+| Fixture | What it is | Expect |
+|---|---|---|
+| bump-core-original.psbt | The payment as `walletcreatefundedpsbt` made it, unsigned, with its change output's key origin | — |
+| bump-core-original.tx | The same, signed and finished, as hex | — |
+| bump-core-replacement.psbt | `psbtbumpfee`'s replacement of it | against either original, with "abandon" loaded: Only the fee is raised |
+| bump-core-added.psbt | `psbtbumpfee` at a rate the change cannot pay, so Core adds an input of the wallet's | Only the fee is raised; "Inputs added: 1" |
+
+The rest are written by a fixture writer in the test suite from those,
+one change each, and committed as bump-*.psbt:
+
+| Fixture | From the replacement, | Expect |
+|---|---|---|
+| bump-pay-less | the payment one sat less | More: B8 |
+| bump-pay-more | the payment one sat more, the change one less | More: B8 |
+| bump-pay-other | the payment's script another address's | More: B9 and B10 |
+| bump-pay-added | a second payment, taken from change | More: B10 |
+| bump-input-dropped | (from the added-input pair) the original's input left out | More: B1 |
+| bump-input-foreign | an input added under no key origin | More: B2 |
+| bump-locktime | the locktime a time (500,000,000 or above) in the original, one second later in the replacement | More: B7 |
+| bump-sequence-lock | a shared input's sequence a relative lock of 10 blocks | More: B3 |
+| bump-fee-same | the change as in the original, the fee unchanged | More: B11 and B12 |
+| bump-rate-lower | an input of the wallet's added for one sat more fee, so the rate falls | More: B12 |
+| bump-change-unloaded | (no file: the replacement with "abandon" not loaded) | Cannot tell: U2 |
+| bump-no-amount | the original with an input's UTXO removed and the replacement's too | Cannot tell: U1 |
+
+Cases built in the test, each asserting its exact result and lines in
+order: the original as the finished transaction with the replacement
+dropping change (U4) and keeping it on the same script (Only the fee);
+two payments to one address with their amounts swapped between
+positions (Only the fee); outputs reordered (Only the fee, and no
+difference in the comparison); a shared input's amounts stated differently
+(B4); one outpoint spent twice (B5); a spoofed change output in the
+replacement under the loaded key (More: B10); the same unsigned
+transaction on both sides (no result); no outpoint in common (no
+result); the pair swapped (B11, B12).
+
+### 6.2 The tests
+
+- core/faraday-psbt/tests/all/bump.rs (new): every row of §6.1 gives
+  exactly its result and lines; the Core pairs give Only the fee is
+  raised with "abandon" loaded, against the PSBT original and against
+  the finished one.
+- core/faraday-psbt/tests/all/diff.rs (new): each difference of §2.5
+  from a pair built for it, and none for a pair with its maps in another
+  order or its outputs reordered; the Core pair lists C10 or C11 for the
+  change and nothing for the payment.
+- faraday-core, tests/all/compare.rs: two files compared in Check a
+  signer: the Tools tile opens it; Files' ⋮ **Check a signer** on the
+  replacement opens it with the original as Sent and the result shown;
+  a scanned PSBT or transaction reaches its card and not Files; loading
+  "abandon" turns U2 into Only the fee is raised; two PSBTs get the
+  signer's verdict and a finished transaction on a card gets "The signer
+  check needs two PSBTs"; Tools and Files have no Compare.
+- faraday-core, the review: the Core replacement opened on Sign a
+  transaction with the original in Files shows "Only the fee is raised
+  from bump-core-original.psbt"; with no other transaction in Files, no
+  "Fee bump" label; a file of the same unsigned transaction does not
+  count; the original brought into Files while the review is open adds
+  the result; bump-pay-other shows its lines and signing still goes on;
+  **Compare** opens Check a signer on the pair.
+- Budget: drawing Check a signer's Result and the review's Transaction step
+  again, a pointer move and a scroll do no costly work; the press that
+  completes the second card counts its inspections; a press on the
+  review that changes nothing about the spend or Files makes no
+  inspection of another file.
+
+## 7. Decisions
+
+F233 records the design's calls that bind later changes: the comparison
+lists and does not judge; the fee bump is Faraday's own rule, failing
+closed, with I1 to I5, X1, P1, P2 and F1 to F3 as §3.2 has them; the
+result is a statement and never a gate; it shows only where §3.1 applies
+and, on the review, only where Files holds another transaction spending
+the same inputs. A change to any of these rules is a decision. It is on
+the checklist in `docs/KEYS.md`. F270 puts the comparison on Check a
+signer's Result, with no tile of its own.
+
+No difference from Material: the comparison and the fee bump are DESIGN
+§4's components on Check a signer's step flow (SIGNER-CHECK §11.5) and on
+Spend's review.

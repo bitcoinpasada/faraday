@@ -3,11 +3,11 @@
 **Cryptography:** computes
 
 **Purpose.** The stream cipher the KDBX 4 container needs
-(`faraday/faraday-vault/src/kdbx/`). KDBX encrypts its body and its inner random stream with plain
+(`core/faraday-vault/src/kdbx/`). KDBX encrypts its body and its inner random stream with plain
 ChaCha20 (RFC 8439), not with an AEAD: the authentication is KeePass's
 own HMAC-SHA-256 over the header and over each block of ciphertext.
 It is also the generator of the Secure Boot keys
-(`faraday/faraday-sb/src/rng.rs`): `ChaCha20Rng`, seeded from one fresh
+(`core/faraday-sb/src/rng.rs`): `ChaCha20Rng`, seeded from one fresh
 32-byte draw, feeds the RSA key generation and the signing's blinding.
 
 **Why this crate.** It is the RustCrypto stream cipher, by the publisher

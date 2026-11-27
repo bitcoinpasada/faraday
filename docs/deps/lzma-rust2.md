@@ -3,7 +3,7 @@
 **Purpose.** The Starter carries the release's images and the desktop
 app as the `.xz` files the release publishes, and decompresses one
 while it writes it to a stick or a card, or extracts it to run
-(`docs/STARTER.md` §1.3, §4.1). `faraday/faraday-payload` is the only
+(`docs/STARTER.md` §1.3, §4.1). `core/faraday-payload` is the only
 crate that uses it, and only for decoding: the payload is compressed by
 the `xz` program in the staging script, so nothing here compresses.
 
@@ -17,7 +17,7 @@ needs, read in its source:
 
 - It decodes what `xz -9e -T1` writes: an LZMA2 block with a 64 MiB
   dictionary and a CRC-64 check. The test vector in
-  `faraday/faraday-payload/tests/vectors/` was made by the xz program
+  `core/faraday-payload/tests/vectors/` was made by the xz program
   with those options.
 - It streams. `XzStream` is a sans-I/O decoder (an input slice in, an
   output slice out, as liblzma's `lzma_code`), so `faraday-payload`

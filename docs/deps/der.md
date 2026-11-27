@@ -1,7 +1,7 @@
 # der
 
 **Purpose.** The CMS SignedData and Authenticode structures that
-`faraday-sb` writes and reads (`faraday/faraday-sb/src/cms.rs`): a
+`faraday-sb` writes and reads (`core/faraday-sb/src/cms.rs`): a
 SignedData with one signer, the `.auth` file's detached form, Authenticode's
 SpcIndirectDataContent and the signed attributes, as `der` types. Faraday
 wrote the DER by hand before (a 164-line `der.rs`); only these structures

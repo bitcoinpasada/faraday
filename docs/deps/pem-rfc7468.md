@@ -3,7 +3,7 @@
 **Cryptography:** none
 
 **Purpose.** PEM (RFC 7468) for the private keys and certificates of a
-Secure Boot item in a KDBX vault (`faraday/faraday-vault/src/kdbx/items/`,
+Secure Boot item in a KDBX vault (`core/faraday-vault/src/kdbx/items/`,
 `docs/VAULT.md` §7): a `PRIVATE KEY` or `CERTIFICATE` block read to its DER
 bytes, its label checked, and DER written back as a block. A reader that
 took another label, or text around the block, would let a field hold what

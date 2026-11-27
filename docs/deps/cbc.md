@@ -4,12 +4,12 @@
 
 **Purpose.** AES-256 in CBC mode, two uses. It decrypts the body of a KDBX
 database a KeePass app saved under its default cipher, with PKCS #7 padding
-(`faraday/faraday-vault/src/kdbx`, `docs/VAULT.md` §7.1); there it only
+(`core/faraday-vault/src/kdbx`, `docs/VAULT.md` §7.1); there it only
 decrypts, Faraday writes ChaCha20. It also encrypts and decrypts Krux's
 encrypted code (KEF) versions 1, 10, 11 and 12, with the padding each version
-names, NUL or PKCS #7 (`faraday/faraday-kef`, `docs/KEF.md` §11): CBC is written
+names, NUL or PKCS #7 (`core/faraday-kef`, `docs/KEF.md` §11): CBC is written
 there, so something now encrypts under it.
-A third use only decrypts: it opens the master key and the private keys of a Bitcoin Core descriptor wallet, under the key Core's passphrase derivation gives, with PKCS #7 padding checked in `faraday/faraday-keys/src/core_wallet.rs` (`docs/decisions/F229.md`).
+A third use only decrypts: it opens the master key and the private keys of a Bitcoin Core descriptor wallet, under the key Core's passphrase derivation gives, with PKCS #7 padding checked in `core/faraday-keys/src/core_wallet.rs` (`docs/decisions/F229.md`).
 
 **Why this crate.** It is the RustCrypto mode over the block cipher the
 tree already trusts (`aes`, `docs/deps/aes.md`), by the same authors and

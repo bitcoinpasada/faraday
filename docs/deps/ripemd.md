@@ -4,7 +4,7 @@
 
 **Purpose.** An OpenTimestamps proof may take a value through RIPEMD-160
 (the older calendars' own step), so reading and walking a proof
-(`faraday/faraday-ots`, `docs/decisions/F230.md`) needs the hash to know
+(`core/faraday-ots`, `docs/decisions/F230.md`) needs the hash to know
 what the path leads to. A path through it is named and not counted; it is
 never used for a signature or a key.
 

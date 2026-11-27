@@ -3,7 +3,7 @@
 **Cryptography:** computes
 
 **Purpose.** The self-signed X.509 certificates of the Secure Boot keys
-(`faraday/faraday-sb/src/x509.rs`) and their reading: Faraday builds a
+(`core/faraday-sb/src/x509.rs`) and their reading: Faraday builds a
 PK, KEK or db certificate with its `CertificateBuilder` and reads a
 certificate's issuer, serial number, public key and common name, for the
 `.auth` files, the signature lists, the signed images and the Secure Boot
@@ -37,7 +37,7 @@ certificate. The crate's reader is stricter there, and the certificates
 Faraday writes and those of the signed boot programs it checks (sbsign,
 osslsigncode) are all DER. A certificate whose key is not an RSA public
 key verifies nothing, and a signature by another key does not verify.
-`faraday/faraday-sb/tests/certificates.rs` keeps a test of each.
+`core/faraday-sb/tests/certificates.rs` keeps a test of each.
 
 **Reopen when** `faraday-sb` writes no certificate and reads none, or the
 crate's builder no longer takes `rsa`'s signing key.

@@ -4,7 +4,7 @@
 
 **Purpose.** An OpenTimestamps proof may take a value through Keccak-256
 (the original padding, as Ethereum uses it), so walking a proof
-(`faraday/faraday-ots`, `docs/decisions/F230.md`) needs the hash. A path
+(`core/faraday-ots`, `docs/decisions/F230.md`) needs the hash. A path
 through it is named and not counted; it is never used for a signature or
 a key.
 

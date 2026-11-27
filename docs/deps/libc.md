@@ -1,7 +1,7 @@
 # `libc` 0.2 — for the V4L2 camera and `faraday-disk`'s direct read
 
 **Where it is used:** `faraday/shells/v4l2` (`faraday-v4l2`) and
-`faraday/faraday-disk`, which takes only the constant `O_DIRECT` from it
+`adapters/faraday-disk`, which takes only the constant `O_DIRECT` from it
 (the flag of its read-back from a stick, not the kernel's cache; no
 `unsafe`, no function). The Linux desktop shell depends on that crate under
 `[target.'cfg(target_os = "linux")'.dependencies]`; the Pi shell depends
@@ -52,7 +52,7 @@ interface and a fresh decision.
 
 ## `faraday-grant`: the grant helper
 
-**Where it is used:** `faraday/faraday-grant` (the `faraday-grant`
+**Where it is used:** `adapters/faraday-grant` (the `faraday-grant`
 binary), on top of its use in `faraday-v4l2`. The version is the
 workspace's; no new crate enters the lock file.
 

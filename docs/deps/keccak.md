@@ -3,7 +3,7 @@
 **Cryptography:** computes
 
 **Purpose.** The Keccak-f permutation that `sha3` (`docs/deps/sha3.md`)
-runs for Keccak-256 in `faraday/faraday-ots`.
+runs for Keccak-256 in `core/faraday-ots`.
 
 **Why this crate.** It is the permutation crate `sha3` 0.11 depends on,
 by the same RustCrypto developers; nothing in Faraday calls it directly.

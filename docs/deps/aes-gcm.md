@@ -3,7 +3,7 @@
 **Cryptography:** computes
 
 **Purpose.** AES-256 in GCM with a 12-byte nonce and a 4-byte tag, for Krux's
-encrypted code (KEF) versions 20 and 21 (`faraday/faraday-kef`, `docs/KEF.md`
+encrypted code (KEF) versions 20 and 21 (`core/faraday-kef`, `docs/KEF.md`
 §11). Krux, the project whose format this is, seals a seed's QR code under that
 mode and no other.
 
