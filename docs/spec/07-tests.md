@@ -111,8 +111,10 @@ impl TestView {
 }
 /// Minted with Compute::unchecked under expect (R2); counts costly work by kind.
 pub fn test_compute() -> &'static Compute;
-/// What an update returned, by kind, in order.
-pub struct Seen<M, O> { /* orders, asks, changes, jobs, thens, outs, notes */ }
+/// What an update returned, by kind, in order, no kind left out; `order`
+/// gives each effect's kind in the order returned, across the kinds.
+pub struct Seen<M, O> { /* orders, asks, changes, jobs, thens, outs, notes,
+                           dones, stops, views, order: Vec<Kind> */ }
 pub fn seen<M: Message, O: Message>(fx: Effects<M, O>) -> Seen<M, O>;
 /// Answers an ask or a change as an adapter or an owner would.
 pub fn answer<M: Message>(ask: AskFor<M>, a: port::Answer) -> M;
@@ -436,6 +438,10 @@ the rebuild as well. Reason: only the runtime drops a model as a lock does, and 
 blocks after that drop is the in-scope rule exactly. Turned down: leak flows inside each feature's
 update tests, which would put the allocator in every feature's test binary and end without the
 runtime's drop.
+
+The allocator lists the blocks of a thread from its `Leak::arm()` until its `Leak::disarm()`; a
+thread the flow spawns arms itself, and `Leak::live` is read while the other armed threads are
+idle or ended.
 
 - **Rule TS18.** Every feature whose state holds a typed, scanned or shown secret has a leak flow,
   and the leak crate's `flows` match over the device composite's features has no wildcard arm, so
