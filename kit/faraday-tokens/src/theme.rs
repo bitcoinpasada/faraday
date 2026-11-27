@@ -297,4 +297,17 @@ mod tests {
         }
         assert_eq!(Theme::from_stored("solarized"), None);
     }
+
+    /// Invariant: A kept theme, mode and contrast read back as they were written.
+    /// Regression: A theme's stored row or id no longer reads back to the scheme it was written from.
+    /// Owner: kit
+    #[test]
+    fn a_kept_theme_mode_and_contrast_read_back_as_written() {
+        for theme in Theme::all() {
+            assert_eq!(Theme::from_row(theme.row()), Some(theme));
+            assert_eq!(ThemeName::from_id(theme.name.id()), Some(theme.name));
+            assert_eq!(Mode::from_id(theme.mode.id()), Some(theme.mode));
+            assert_eq!(Contrast::from_id(theme.contrast.id()), Some(theme.contrast));
+        }
+    }
 }

@@ -1,8 +1,6 @@
 //! The kit's atoms level: faraday-ui's lib.rs, controls, press, region, hold, mark.
 //! Section 09 §3.2; `Ui` and the frame's output are 04 §7.1.
 
-#![expect(dead_code, reason = "the fields are read once the bodies are written")]
-
 pub mod badge;
 pub mod button;
 pub mod check;
@@ -36,14 +34,16 @@ pub use faraday_draw::icons::Icon;
 pub use faraday_port::values::Anchor;
 pub use faraday_tokens::{TextSize, Theme};
 
-pub use button::Style;
+pub use button::{Look, Style};
+pub use focus::step as focus_step;
 pub use frame_out::{FrameOut, Laid, Placement};
-pub use hits::Hit;
+pub use hits::{Hit, Plain, PressMark, Ring, Shape, Unpressed, hit_at};
+pub use icon_button::TipAnchor;
 pub use motion::{ComponentId, Motion, MotionStore, Turn};
 pub use offered::{Drawn, Offered};
 pub use region::Scrolled;
-pub use shown::{PlainRef, Shown};
-pub use ui::{Pointer, Ui};
+pub use shown::{PlainRef, Shown, btc, grouped, short, thousands};
+pub use ui::{Glyph, Pointer, Ui, W};
 
 /// A press: copied into the frame's hit list, compared for hover, focus and the pressed layer.
 /// Not `Public`: a typed character is a press (04 §2).
