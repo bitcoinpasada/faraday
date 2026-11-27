@@ -4,17 +4,38 @@ use faraday_tokens::palette::Role;
 
 use crate::Pressed;
 use crate::hits::{Ring, Shape};
+use crate::shown::Shown;
 use crate::ui::Ui;
 use crate::ui::W;
 use faraday_draw::icons::Icon;
 use faraday_tokens::dims::{ICON_GAP, ICON_GLYPH_BUTTON, SEGMENT_PAD, shape_full};
 
-/// The model. Its fields are those of `main`'s component, ported (09 §3.4).
-pub struct SegmentedModel<'s, A>(core::marker::PhantomData<(&'s (), A)>);
+/// A segmented button: its options, each with its press, and the one chosen.
+pub struct SegmentedModel<'s, A> {
+    pub options: &'s [(Shown<'s>, A)],
+    /// Options by index that are disabled: no press (one past its end is enabled).
+    pub off: &'s [bool],
+    pub chosen: Option<usize>,
+    /// While the choice moves, where the fill is, in segments from the first.
+    pub slide: Option<f32>,
+    /// The labels' size.
+    pub size: f32,
+}
 
-/// Draws the model. Not written: the `Ui` methods carry the drawing until the model is.
-pub fn draw<A: Pressed>(_m: &SegmentedModel<'_, A>, _ui: &mut Ui<'_, A>) {
-    todo!()
+/// Draws the button at (x, y), `h` tall, design units. Returns its width.
+pub fn draw<A: Pressed>(m: &SegmentedModel<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
+    let options: Vec<(&str, A)> = m
+        .options
+        .iter()
+        .map(|(l, a)| (l.as_str(), a.clone()))
+        .collect();
+    let secret = m.options.iter().map(|o| o.0).find(Shown::is_secret);
+    match secret {
+        Some(s) => ui.showing(s, |ui| {
+            ui.segmented_with(at, m.size, &options, m.chosen, m.slide, m.off)
+        }),
+        None => ui.segmented_with(at, m.size, &options, m.chosen, m.slide, m.off),
+    }
 }
 
 impl<A: Pressed> Ui<'_, A> {

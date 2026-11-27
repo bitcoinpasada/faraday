@@ -2,7 +2,7 @@
 //!
 //! The derive reads the item's name, generics and where clause from the token stream (the
 //! workspace takes no outside dependency, so there is no `syn`) and writes an impl whose method
-//! is `todo!()`.
+//! is a `match` over the variants marked `#[hides]`.
 //!
 //! The impl names `::faraday_organisms::Pressed`: a feature's crate depends on the organisms and
 //! templates crates, which re-export the trait (K7), and on no atoms crate. Section 09 §3.2 does
@@ -17,6 +17,9 @@ struct Item {
     decl: String,
     args: String,
     wher: String,
+    /// The names of the variants marked `#[hides]`, each with the pattern that matches it
+    /// whatever it holds.
+    hiding: Vec<String>,
 }
 
 impl Item {
@@ -64,10 +67,12 @@ impl Item {
 fn parse(input: TokenStream) -> Item {
     let mut it = input.into_iter().peekable();
     let mut name = String::new();
+    let mut is_enum = false;
     while let Some(t) = it.next() {
         if let TokenTree::Ident(i) = &t {
             let s = i.to_string();
             if s == "struct" || s == "enum" {
+                is_enum = s == "enum";
                 if let Some(TokenTree::Ident(n)) = it.next() {
                     name = n.to_string();
                 }
@@ -126,14 +131,20 @@ fn parse(input: TokenStream) -> Item {
     }
     let mut wher = String::new();
     let mut in_where = false;
+    let mut hiding = Vec::new();
     for t in it {
         match &t {
             TokenTree::Ident(i) if i.to_string() == "where" => {
                 in_where = true;
                 continue;
             }
-            TokenTree::Group(g) if in_where && g.delimiter() == Delimiter::Brace => break,
-            TokenTree::Punct(p) if in_where && p.as_char() == ';' => break,
+            TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => {
+                if is_enum {
+                    hiding = hiding_variants(g.stream());
+                }
+                break;
+            }
+            TokenTree::Punct(p) if p.as_char() == ';' => break,
             _ => {}
         }
         if in_where {
@@ -146,7 +157,52 @@ fn parse(input: TokenStream) -> Item {
         decl,
         args: args.join(", "),
         wher: wher.trim().trim_end_matches(',').to_string(),
+        hiding,
     }
+}
+
+/// The patterns of the variants of an enum's body marked `#[hides]`: `Self::V`, `Self::V(..)`
+/// or `Self::V { .. }`, by what the variant holds.
+fn hiding_variants(body: TokenStream) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut marked = false;
+    let mut name: Option<String> = None;
+    let mut pattern = String::new();
+    let mut it = body.into_iter().peekable();
+    while let Some(t) = it.next() {
+        match &t {
+            // An attribute: `#` and a bracket group. Only `hides` is read.
+            TokenTree::Punct(p) if p.as_char() == '#' && name.is_none() => {
+                if let Some(TokenTree::Group(g)) = it.peek() {
+                    if g.delimiter() == Delimiter::Bracket
+                        && g.stream().to_string().trim() == "hides"
+                    {
+                        marked = true;
+                    }
+                    it.next();
+                }
+            }
+            TokenTree::Punct(p) if p.as_char() == ',' => {
+                if let (true, Some(n)) = (marked, name.take()) {
+                    out.push(format!("Self::{n}{pattern}"));
+                }
+                name = None;
+                marked = false;
+                pattern.clear();
+            }
+            TokenTree::Ident(i) if name.is_none() => name = Some(i.to_string()),
+            TokenTree::Group(g) if name.is_some() && pattern.is_empty() => match g.delimiter() {
+                Delimiter::Parenthesis => pattern = "(..)".to_string(),
+                Delimiter::Brace => pattern = " { .. }".to_string(),
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+    if let (true, Some(n)) = (marked, name) {
+        out.push(format!("Self::{n}{pattern}"));
+    }
+    out
 }
 
 /// `#[derive(Pressed)]`: `faraday_atoms::Pressed` for a press type. A variant marked `#[hides]`
@@ -160,6 +216,11 @@ pub fn pressed(input: TokenStream) -> TokenStream {
         String::new()
     };
     let header = item.header("::faraday_organisms::Pressed", &extra);
-    let code = format!("{header} {{ fn hides(&self) -> bool {{ todo!() }} }}");
+    let body = if item.hiding.is_empty() {
+        "false".to_string()
+    } else {
+        format!("matches!(self, {})", item.hiding.join(" | "))
+    };
+    let code = format!("{header} {{ fn hides(&self) -> bool {{ {body} }} }}");
     code.parse().unwrap_or_default()
 }

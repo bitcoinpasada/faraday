@@ -2921,15 +2921,17 @@ changed = []
 
 [[module]]
 main = "faraday/faraday-ui/src/hold.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-atoms/src/hold.rs"]
-changed = []
+feature = ["ui-controls"]
+changed = ["a HoldModel and draw over the Ui methods; the held fraction is the model's, not read from a clock"]
 
 [[module]]
 main = "faraday/faraday-ui/src/mark.rs"
-fate = "copy"
+fate = "port"
 next = ["kit/faraday-atoms/src/mark.rs"]
-changed = []
+feature = ["ui-controls"]
+changed = ["a MarkModel and draw over the Ui methods"]
 
 [[module]]
 main = "faraday/faraday-ui/src/lists.rs"
@@ -2967,9 +2969,9 @@ changed = []
 [[module]]
 main = "faraday/faraday-ui/src/appearance.rs"
 fate = "port"
-next = ["kit/faraday-molecules/src/appearance.rs", "kit/faraday-molecules/src/chips.rs"]
+next = ["kit/faraday-molecules/src/appearance.rs", "kit/faraday-molecules/src/chips.rs", "kit/faraday-atoms/src/switch.rs"]
 feature = ["ui-theme"]
-changed = []
+changed = ["the switch moves to the atoms as a model and Ui::switch_with; its pressed and hover state is read from the pointer, not a per-press flag"]
 
 [[module]]
 main = "faraday/faraday-ui/src/flow.rs"

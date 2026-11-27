@@ -28,12 +28,15 @@ pub struct Hit<R> {
 }
 
 /// The hit a press at pixel (x, y) takes: of the top layer drawn, the last drawn first, the one
-/// whose target it falls in.
+/// whose control as drawn it falls on (an answered control and a press beside a sheet take
+/// theirs here, whatever target is grown over them); beside every control, the one whose target
+/// it falls in (`main`'s `Pointer::hit_at`).
 pub fn hit_at<R>(hits: &[Hit<R>], x: i32, y: i32) -> Option<&Hit<R>> {
     let top = hits.iter().map(|h| h.layer).max()?;
-    hits.iter()
-        .rev()
-        .find(|h| h.layer == top && h.target.contains(x, y))
+    let on_top = || hits.iter().rev().filter(move |h| h.layer == top);
+    on_top()
+        .find(|h| h.rect.contains(x, y))
+        .or_else(|| on_top().find(|h| h.target.contains(x, y)))
 }
 
 /// A control's shape: where its state layer and focus ring go, design
@@ -534,7 +537,7 @@ impl<A: Pressed> Ui<'_, A> {
 mod tests {
     use super::*;
     use crate::ui::testing::*;
-    use crate::{Look, Pointer};
+    use crate::{Drawn, Look, Offered, Pointer};
 
     /// Invariant: A press just beside a small button still presses it, and one far from it does not.
     /// Regression: A small button takes presses only on its drawn box, so a finger a little off it misses.
@@ -604,5 +607,31 @@ mod tests {
             });
             assert_eq!(pixel(&c, 160, 120) != rest, changed, "held {held}");
         }
+    }
+
+    /// Invariant: A press on a control's drawn box takes that control, and a neighbour's grown target takes only what lies beside every control.
+    /// Regression: A small button drawn after a refused, answered control grows its target over that control's box, so a press on the answered control sends the button's press.
+    /// Owner: kit
+    #[test]
+    fn a_grown_target_does_not_take_the_press_of_a_control_next_to_it() {
+        let mut c = canvas(160);
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            // An answered control, drawn dimmed: its target is its box and it has no Tab place.
+            ui.offered(&Offered::Refused(P(2), Drawn::Dimmed), |ui, press, _| {
+                ui.button_offered(
+                    (100.0, 138.0, Some(80.0), 30.0),
+                    "Down",
+                    None,
+                    Look::Secondary,
+                    press,
+                );
+            });
+            // A small button drawn after it, its target grown to reach into the answered box.
+            ui.button(100.0, 100.0, Some(80.0), 30.0, "Up", Look::Secondary, P(1));
+        });
+        // On the answered control's own box.
+        assert_eq!(hit_at(&out.hits, 140, 138).map(|h| h.press), Some(P(2)));
+        // Beside both, the grown target still takes its press.
+        assert_eq!(hit_at(&out.hits, 140, 133).map(|h| h.press), Some(P(1)));
     }
 }

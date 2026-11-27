@@ -15,6 +15,7 @@ use faraday_tokens::type_roles::{TypeFace, TypeRole};
 
 use crate::Pressed;
 use crate::field::FIELD_TEXT;
+use crate::shown::Shown;
 use crate::ui::{Ui, W};
 
 impl From<TypeFace> for W {
@@ -68,12 +69,18 @@ impl std::ops::Deref for Lines {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WrapBasis(faraday_draw::text::Font, faraday_draw::Scale, i32);
 
-/// The model. Its fields are those of `main`'s component, ported (09 §3.4).
-pub struct LineModel<'s, A>(core::marker::PhantomData<(&'s (), A)>);
+/// One line of text in a type role and a colour.
+pub struct LineModel<'s> {
+    pub text: Shown<'s>,
+    pub role: TypeRole,
+    pub color: Paint,
+}
 
-/// Draws the model. Not written: the `Ui` text methods of this file carry the drawing.
-pub fn draw<A: Pressed>(_m: &LineModel<'_, A>, _ui: &mut Ui<'_, A>) {
-    todo!()
+/// Draws the line with its top-left at (x, y), design units. Returns its width.
+pub fn draw<A: Pressed>(m: &LineModel<'_>, ui: &mut Ui<'_, A>, (x, y): (f32, f32)) -> f32 {
+    ui.showing(m.text, |ui| {
+        ui.text_as(x, y, m.role, m.color, m.text.as_str())
+    })
 }
 
 impl<A: Pressed> Ui<'_, A> {

@@ -1,6 +1,12 @@
 //! The kit's atoms level: faraday-ui's lib.rs, controls, press, region, hold, mark.
 //! Section 09 §3.2; `Ui` and the frame's output are 04 §7.1.
 
+// The derive names `::faraday_organisms::Pressed`, which a feature's crate has; here it is this crate.
+#[cfg(test)]
+extern crate self as faraday_organisms;
+#[cfg(test)]
+mod derive_tests;
+
 pub mod badge;
 pub mod button;
 pub mod check;

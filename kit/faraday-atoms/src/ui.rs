@@ -953,6 +953,8 @@ impl<A: Pressed> Ui<'_, A> {
 #[cfg(test)]
 pub(crate) mod testing {
     use super::*;
+    use crate::hold::HoldTone;
+    use crate::tag::Status;
     use faraday_port::values::{Display, Orientation};
 
     /// A press for the tests: a number.
@@ -999,24 +1001,27 @@ pub(crate) mod testing {
         ui.finish()
     }
 
-    /// The page's fill.
+    // The colours below are the roles the atoms themselves draw with (a tag's, a hold's), read
+    // through their own tables, so no test names the tokens crate (07 TS11).
+
+    /// A page fill: the neutral tag's container, any one the tints below lie over.
     pub fn page() -> Paint {
-        Role::Surface.paint()
+        Status::Neutral.roles().0.paint()
     }
 
-    /// A see-through ok tint.
+    /// A see-through ok tint: the ok tag's container, see-through.
     pub fn ok_tint() -> Paint {
-        Role::Ok.with_alpha(30)
+        Status::Ok.roles().0.with_alpha(30)
     }
 
-    /// A see-through primary edge.
+    /// A see-through primary edge: the primary hold's edge role, see-through.
     pub fn primary_edge() -> Paint {
-        Role::Primary.with_alpha(110)
+        HoldTone::Primary.roles().0.with_alpha(110)
     }
 
-    /// The error colour in `theme`.
+    /// The colour a refused hold's edge and a field's error line are drawn in, in `theme`.
     pub fn error_in(theme: Theme) -> Color {
-        theme.role(Role::Error)
+        theme.role(HoldTone::Error.roles().0)
     }
 
     /// The pixel at (x, y), red, green and blue.

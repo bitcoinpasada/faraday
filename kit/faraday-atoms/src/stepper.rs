@@ -3,16 +3,35 @@
 use faraday_tokens::palette::Role;
 
 use crate::Pressed;
+use crate::shown::Shown;
 use crate::ui::Ui;
 use faraday_draw::icons::Icon;
 use faraday_tokens::dims::*;
 
-/// The model. Its fields are those of `main`'s component, ported (09 §3.4).
-pub struct StepperModel<'s, A>(core::marker::PhantomData<(&'s (), A)>);
+/// A stepper: a label, a count between two icon buttons, and what the two presses are.
+pub struct StepperModel<'s, A> {
+    pub label: Shown<'s>,
+    pub value: usize,
+    pub minus: A,
+    pub plus: A,
+    /// The tips of the minus and the plus button.
+    pub tips: (&'s str, &'s str),
+    /// Not enabled, both buttons are faint and take no press.
+    pub enabled: bool,
+}
 
-/// Draws the model. Not written: the `Ui` methods carry the drawing until the model is.
-pub fn draw<A: Pressed>(_m: &StepperModel<'_, A>, _ui: &mut Ui<'_, A>) {
-    todo!()
+/// Draws the stepper's row at (x, y) in a width `w`, design units.
+pub fn draw<A: Pressed>(m: &StepperModel<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) {
+    ui.showing(m.label, |ui| {
+        ui.stepper(
+            at,
+            m.label.as_str(),
+            m.value,
+            (m.minus.clone(), m.plus.clone()),
+            m.tips,
+            m.enabled,
+        );
+    });
 }
 
 impl<A: Pressed> Ui<'_, A> {
