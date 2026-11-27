@@ -7,10 +7,15 @@ use crate::bytes::Bytes;
 
 pub enum HostAsk {
     /// A file in Downloads or one dropped on the window, for Transfer.
-    Read { path: Text },
+    Read {
+        path: Text,
+    },
     /// A received file into Downloads: never over a file; `name (2).ext`
     /// and on, up to 999.
-    Save { name: Text, bytes: Bytes },
+    Save {
+        name: Text,
+        bytes: Bytes,
+    },
     Open(Openable),
 }
 

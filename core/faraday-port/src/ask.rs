@@ -44,9 +44,7 @@ macro_rules! request {
         impl $crate::ask::Request for $ask {
             type Answer = $answer;
 
-            fn take(
-                _answer: $crate::ask::Answer,
-            ) -> Result<Self::Answer, $crate::ask::Answer> {
+            fn take(_answer: $crate::ask::Answer) -> Result<Self::Answer, $crate::ask::Answer> {
                 todo!()
             }
 

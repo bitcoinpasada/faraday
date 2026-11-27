@@ -182,41 +182,86 @@ pub enum ReleaseFault {
 pub enum Reason {
     NoWriter,
     NotCarried,
-    Changed { device: Text, serial: Text, size: u64 },
+    Changed {
+        device: Text,
+        serial: Text,
+        size: u64,
+    },
     InUse(InUse),
     BootOnly,
-    TooSmall { disk: u64, image: u64 },
+    TooSmall {
+        disk: u64,
+        image: u64,
+    },
     PayloadSum,
-    ImageChanged { path: Text, sha256: Text },
+    ImageChanged {
+        path: Text,
+        sha256: Text,
+    },
     Gone,
     Bus(Text),
     Unmounting(Text),
     OpenWrite(Text),
     OpenRead(Text),
-    Device { device: Text, detail: Text },
-    Flush { device: Text, detail: Text },
-    NotStick { device: Text, fault: StickFault },
+    Device {
+        device: Text,
+        detail: Text,
+    },
+    Flush {
+        device: Text,
+        detail: Text,
+    },
+    NotStick {
+        device: Text,
+        fault: StickFault,
+    },
     NotStickImage(StickFault),
-    BootLarger { image: u64, stick: u64 },
+    BootLarger {
+        image: u64,
+        stick: u64,
+    },
     BootLabel,
     BootShort,
-    SectorSize { device: Text, sector: u64 },
+    SectorSize {
+        device: Text,
+        sector: u64,
+    },
     TableChanged(Text),
     ReadingTable(Text),
-    BackEnds { device: Text, at: u64 },
-    BackDiffers { device: Text, at: u64 },
-    BackFailed { device: Text, detail: Text },
+    BackEnds {
+        device: Text,
+        at: u64,
+    },
+    BackDiffers {
+        device: Text,
+        at: u64,
+    },
+    BackFailed {
+        device: Text,
+        detail: Text,
+    },
     SourceRead(Text),
     WriteFailed(Text),
     PayloadChanged,
     Damaged(Text),
     Longer(u64),
-    Shorter { expected: u64, actual: u64 },
+    Shorter {
+        expected: u64,
+        actual: u64,
+    },
     WrongSum(Text),
     NoHome,
-    File { path: Text, detail: Text },
-    InTheWay { path: Text },
-    Start { path: Text, detail: Text },
+    File {
+        path: Text,
+        detail: Text,
+    },
+    InTheWay {
+        path: Text,
+    },
+    Start {
+        path: Text,
+        detail: Text,
+    },
     Restart(Text),
     Missing(Text),
     BootEntry(Text),
@@ -225,7 +270,10 @@ pub enum Reason {
     Declined,
     NoAdmin,
     Managed(u32),
-    BitLocker { call: Text, code: u32 },
+    BitLocker {
+        call: Text,
+        code: u32,
+    },
     NotEncrypted,
     NotRead,
     NoRecoveryKey,
@@ -242,8 +290,13 @@ pub enum Reason {
     ReleaseBootFile(ReleaseFault),
     Unsupported,
     Random(Text),
-    BackSum { device: Text, sha256: Text },
-    BootSum { sha256: Text },
+    BackSum {
+        device: Text,
+        sha256: Text,
+    },
+    BootSum {
+        sha256: Text,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -335,7 +388,9 @@ pub enum SystemAsk {
     Uninstall,
     RemoveBootEntry,
     RestartIntoFirmware,
-    RestartFromStick { device: Text },
+    RestartFromStick {
+        device: Text,
+    },
     ReadBitLocker,
     BitLocker(BitLockerStep),
     /// Answered with recovery keys as `SecretText`.
@@ -355,8 +410,13 @@ pub enum SystemAsk {
         want: Text,
         source: Source,
     },
-    CheckBootFile { path: Text, source: Source },
-    FindImages { dropped: Vec<Text> },
+    CheckBootFile {
+        path: Text,
+        source: Source,
+    },
+    FindImages {
+        dropped: Vec<Text>,
+    },
     CheckAgain,
     /// The desktop adapter makes the Demo's sticks folder, `BOOTSTICK` and `STICK-2`.
     PrepareDemoSticks,
@@ -382,7 +442,10 @@ pub enum SystemAnswer {
         result: Result<(Option<Text>, Option<Text>), Reason>,
         signed: Option<bool>,
     },
-    BootFiles { folder: Text, files: Vec<Text> },
+    BootFiles {
+        folder: Text,
+        files: Vec<Text>,
+    },
     BootJudged {
         disk: Text,
         serial: Text,

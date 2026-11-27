@@ -10,7 +10,10 @@ pub enum Order {
     /// (None: no sheet aims).
     AimInput(Option<InputId>),
     /// The person let a held device in, or kept it out.
-    DecideInput { id: InputId, believed: bool },
+    DecideInput {
+        id: InputId,
+        believed: bool,
+    },
     /// Run the device check and send `DevicesFact::Usb` and `Screen`.
     WatchDevices(bool),
     /// Whether this process has held or typed no secret; the stick
@@ -23,7 +26,9 @@ pub enum Order {
     /// Faraday Demo's stick pills: plug a folder stick in or pull it; a
     /// `SticksFact::Listed` follows.
     ToggleStick(StickId),
-    Vibrate { ms: u16 },
+    Vibrate {
+        ms: u16,
+    },
     Exit(Exit),
 }
 

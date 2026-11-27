@@ -143,17 +143,30 @@ pub struct Time {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Input {
     /// A finger, or the left button.
-    Touch { at: Point, phase: TouchPhase },
+    Touch {
+        at: Point,
+        phase: TouchPhase,
+    },
     /// `None`: the pointer left.
     Hover(Option<Point>),
     /// A trackpad, in whole pixels.
-    Scroll { at: Point, dy: i16 },
-    ScrollEnd { at: Point },
+    Scroll {
+        at: Point,
+        dy: i16,
+    },
+    ScrollEnd {
+        at: Point,
+    },
     /// 48 px a notch.
-    Wheel { at: Point, dy: i16 },
+    Wheel {
+        at: Point,
+        dy: i16,
+    },
     Key(Key),
     KeyUp(Key),
-    Shift { held: bool },
+    Shift {
+        held: bool,
+    },
     Back,
     Forward,
     Focus(bool),
@@ -193,7 +206,10 @@ pub enum SticksFact {
     /// Every stick present now, on start and on every change.
     Listed(Vec<StickInfo>),
     /// A stick the backup flow cannot use: not FAT32 as Faraday reads it, or read-only.
-    Problem { stick: StickId, read_only: bool },
+    Problem {
+        stick: StickId,
+        read_only: bool,
+    },
     BootMedium(BootMedium),
 }
 
@@ -210,11 +226,24 @@ pub enum DevicesFact {
         pointer: bool,
         touch: bool,
     },
-    Typed { id: InputId, ch: char },
-    Tapped { id: InputId, at: Point },
-    Used { id: InputId },
-    Gone { id: InputId },
-    Trust { pointer: bool, keyboard: bool },
+    Typed {
+        id: InputId,
+        ch: char,
+    },
+    Tapped {
+        id: InputId,
+        at: Point,
+    },
+    Used {
+        id: InputId,
+    },
+    Gone {
+        id: InputId,
+    },
+    Trust {
+        pointer: bool,
+        keyboard: bool,
+    },
 }
 
 pub enum CameraFact {
