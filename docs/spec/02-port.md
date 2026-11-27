@@ -249,7 +249,7 @@ pub struct Machine {
 }
 
 /// `Start::scheme` is `None` where the computer's setting says neither
-/// or cannot be read; the app then opens in Light.
+/// or cannot be read; the product's own default then holds (the Starter's is Light).
 pub enum Scheme { Light, Dark }
 ```
 
@@ -537,7 +537,10 @@ Inbox's secrets sits in an adapter while the app runs. Turned down: `main`'s `Sa
 every change to the Inbox or Outbox, which keeps every Inbox secret twice for the whole session.
 A failed keep first removes every file it wrote, zeroing each, and then hands the carry back in
 its answer (`Err((failure, carry))`), so the app still holds it and decides what to do (section
-05, §7.6).
+05, §7.6). The one case in which the carry does not come back is a wrong answer to `Keep` (P9): the
+carry went to the adapter, and the runtime reads the answer as a failed keep with an empty carry.
+That is an adapter defect, never a state the device is meant to reach: each adapter answers `Keep`
+only with `Kept`, held by the adapter's own test.
 
 **Decision: the mode and the input counts are entries of `kept`.** `main`'s stick shell read them
 from the app at lock (`mode_after_restart`, `input_carry`) and wrote them to its own files. Reason:
