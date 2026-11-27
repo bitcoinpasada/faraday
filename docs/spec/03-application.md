@@ -128,6 +128,9 @@ pub struct Holds {
     /// A lock would lose this; the Lock sheet names it and asks first.
     pub asks_first: Option<Loss>,
 }
+
+/// What a lock or a Cancel would lose, by a name the asking sheet words ("<feature>.<what>").
+#[derive(Clone, Copy, PartialEq, Eq, Debug)] pub struct Loss(pub &'static str);
 ```
 
 **Decision: `AtLock` has `holds`, `hide` and `at_lock`.** Reason: `main`'s clean state, idle lock,
@@ -161,6 +164,7 @@ pub enum Notice<'a> {
     /// A fact in `View::facts` changed: sticks, display, cameras, time.
     Facts(FactsChanged),
 }
+pub enum FactsChanged { Sticks, Display, Cameras, Time }
 ```
 
 - **Rule A13.** A screen left drops what it held, however it was left: the root's navigation
@@ -267,6 +271,8 @@ impl<M: Message, O: Message> Effects<M, O> {
     pub fn view(self, v: ViewOrder) -> Self;
     /// A composite takes a child's effects into its own (§6).
     pub fn lift<N: Message, P: Message>(self, msg: fn(M) -> N, out: fn(O) -> Route<N, P>) -> Effects<N, P>;
+    /// The runtime's only: the list, in the order it was made (section 05, §3).
+    pub fn into_list(self) -> Vec<Fx<M, O>>;
 }
 ```
 
@@ -308,8 +314,10 @@ wrong kind, `R::fault()`. `map` wraps it with one more `fn`. Two `fn` pointers c
 pointers alone, which is what P8 asks.
 
 - **Rule A16.** No feature, composite or root builds an `AskFor` or a `ChangeFor` but through
-  `new` and `map`, and only the runtime calls `into_parts`. Held by the private fields and by the
-  application directories' `clippy.toml` (`disallowed-methods` on `into_parts`). P8 then holds:
+  `new` and `map`, and only the runtime opens an effect: `AskFor::into_parts`,
+  `ChangeFor::into_parts`, `Job::into_parts` and `Effects::into_list`. Held by the private fields
+  and by the application, adapter and root directories' `clippy.toml` (`disallowed-methods` on the
+  four, the app set of 09 §1.4). P8 then holds:
   nothing a request waits on keeps a secret.
 
 ### 4.3 Jobs: `Job<M>`
@@ -318,8 +326,13 @@ pointers alone, which is what P8 asks.
 pub struct Job<M> {
     kind: JobKind,
     quiet: bool,   // runs without a busy line (main's VaultMeasure, KefTime)
+    heavy: bool,   // the heavy lane (section 05, §5.1)
+    seal: bool,    // runs to its end at a lock (section 05, §7.2)
     run: Box<dyn FnOnce(&Compute) -> M + Send>,
 }
+/// A job as the runtime opens it for the pool.
+pub struct JobParts<M> { pub kind: JobKind, pub quiet: bool, pub heavy: bool, pub seal: bool,
+                         pub run: Box<dyn FnOnce(&Compute) -> M + Send> }
 
 impl<M: Message> Job<M> {
     /// The input is moved in, a secret included; `work` is a function.
@@ -331,6 +344,8 @@ impl<M: Message> Job<M> {
     /// A seal: it runs to its end at a lock. Only the vault owner's crate calls it.
     pub fn seal(self) -> Self;
     pub fn map<N: Message>(self, f: fn(M) -> N) -> Job<N>;
+    /// The runtime's only (A16).
+    pub fn into_parts(self) -> JobParts<M>;
 }
 
 /// "<feature>.<job>", a constant of the feature's crate.
@@ -376,15 +391,6 @@ pub struct View<'a> {
 
 pub enum Started { Power, Lock, Rebuilt }   // Rebuilt: in process after a failed keep (section 05, §7.6)
 
-/// The three owners' states read for an owner's page, built by the runtime from its `Tops`
-/// (section 05 §1); `None` outside the Starter's lock scope. A composite shared by two products
-/// (the online app) takes this, never the runtime's `Tops`.
-pub struct TopsView<'a> {
-    pub settings: &'a Settings,
-    pub session: Option<&'a dyn session::Read>,
-    pub vaults: Option<&'a dyn vaults::Read>,
-}
-
 /// What `update` reads: the view, and the token for costly work.
 pub struct Ctx<'a> {
     pub view: View<'a>,
@@ -408,6 +414,15 @@ pub struct Facts {
 
 pub struct Clock { pub now_ms: u64, pub unix_secs: u64, pub offset_secs: i64, pub set: bool, pub last_input_ms: u64 }
 pub struct Running { pub kind: JobKind, pub began_ms: u64, pub done: u32, pub of: u32 }
+pub struct Sticks { pub attached: bool, pub listed: Vec<port::StickInfo>, pub boot_medium: Option<port::BootMedium>,
+                    pub problems: Vec<(port::StickId, bool)> }   // a stick the backup flow cannot use; read-only
+pub struct Downloads { pub dir: Text, pub files: Vec<(Text, u64)> }   // name and size
+pub struct SystemFacts {                      // one field per fact, the latest of each
+    pub computer: Option<port::Computer>, pub disks: Vec<port::Disk>, pub no_writer: bool,
+    pub installed: Option<port::Installed>, pub dev_image: Option<port::DevImage>,
+    pub images_wanted: Vec<Text>, pub concerns: Vec<port::Concern>,
+    pub other_encryption: Option<Text>, pub boot_entry: Option<bool>,
+}
 ```
 
 `Facts` holds the latest value of each fact that is a state of the world, the Starter's system
@@ -497,9 +512,12 @@ fn from_create(o: create::Out) -> Route<Msg, Out> {
         create::Out::MoveMoney { from } => Route::To(Msg::SpendBackup(FlowMsg::Own(
             spend_backup::Own::Begin { from }))),
         create::Out::Scan(purpose) => Route::Up(Out::Scan(purpose)),
-        create::Out::Ended(e) => Route::Up(Out::Leave(e)),
+        create::Out::Leave(e) => Route::Up(Out::Leave(e)),
     }
 }
+// create::Out::MoveMoney { from: WalletId } and spend_backup::Own::Begin { from: WalletId }:
+// the wallet the money is moved from. backup::From names where Back up was begun: Create here,
+// the rest the porting's (inventory features/wallet-backup.md).
 ```
 
 `backup::Own::Begin` answers with `Out::Open(Page::Backup)` among its effects, which the
@@ -537,7 +555,7 @@ pub mod session {
         fn key(&self, id: KeyId) -> Option<KeyView<'_>>;  // fingerprint, name, held, sample, made online
         fn wallets(&self) -> &[WalletView];               // public data only
         fn wallet(&self, id: WalletId) -> Option<&WalletView>;
-        fn waiting(&self) -> &[Waiting];                  // PSBTs to sign, keys held for backup
+        fn waiting(&self) -> &[WaitingItem];              // PSBTs to sign, keys held for backup
         fn inbox(&self) -> &[FileView];
         fn outbox(&self) -> &[FileView];
         fn seeded(&self) -> bool;
@@ -545,10 +563,14 @@ pub mod session {
         fn edits(&self) -> Edits;
     }
     pub struct WalletView { /* id, name, policy (faraday-bip), origin, source, checked, network */ }
+    pub struct FileView { pub id: FileId, pub name: Text, pub kind: FileKind, pub secret: bool }
+    /// What waits in the session: `handle::Waiting` is the ticket holder of §8.1, so this is
+    /// `WaitingItem`, and `waiting()` returns `&[WaitingItem]`.
+    pub enum WaitingItem { Psbt(WalletId), Held(KeyId) }   // a PSBT to sign; a key held for its backup
     pub enum Changed { KeyCame(KeyId), KeyGone(KeyId), WalletCame(WalletId), WalletGone(WalletId),
                        FileCame(FileId), FileGone(FileId), HeldReleased(KeyId), Network(Network) }
 }
-pub mod vaults { pub trait Read { fn open(&self) -> &faraday_keys::vault::OpenVaults; fn edits(&self) -> Edits; /* marks, current */ } }
+pub mod vaults { pub trait Read { fn open(&self) -> &faraday_keys::vault::OpenVaults; fn edits(&self) -> Edits; } }
 pub struct Settings { /* idle lock and off minutes, QR speed, time offset, appearance, scale, rotation */ }
 impl Settings { pub fn edits(&self) -> Edits; }
 ```

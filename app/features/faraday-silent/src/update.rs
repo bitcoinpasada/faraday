@@ -1,30 +1,91 @@
-use faraday_kernel::{Carried, Ctx, Effects, Feature, Notice, Public, View};
+use faraday_kernel::{
+    Back, CancelOffer, Carried, Ctx, Ending, FlowFx, Notice, Public, StepFlow, Steps, View, Width,
+};
 
-use crate::{Msg, Out, Silent, State};
+use crate::{Out, Own, Silent};
 
-/// Why a message is refused before `update` sees it.
+/// The flow's steps, in order.
+// Spec: 03 §9 names no steps of this flow.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub enum Step {}
+
+/// Why a step or a message is refused.
 #[derive(Public)]
 pub enum Refusal {}
 
-impl Feature for Silent {
-    type State = State;
-    type Msg = Msg;
+/// The value an answered step shows in Your choices.
+// Spec: 03 §9.1 names `Answer` without a shape.
+#[derive(Public)]
+pub struct Answer;
+
+impl StepFlow for Silent {
+    type Step = Step;
+    type Own = Own;
     type Out = Out;
     type Refusal = Refusal;
+    type Answer = Answer;
 
-    fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
+    fn steps(&self) -> Steps<Step> {
         todo!()
     }
 
-    fn update(_state: &mut State, _msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
+    fn at(&self) -> Step {
         todo!()
     }
 
-    fn notice(_state: &mut State, _notice: &Notice<'_>, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
+    fn answer(&self, _s: Step) -> Option<Answer> {
         todo!()
     }
 
-    fn refuses(_state: &State, _msg: &Msg, _view: &View<'_>) -> Option<Refusal> {
+    fn back_stop(&self) -> Option<Step> {
+        todo!()
+    }
+
+    fn running(&self) -> bool {
+        todo!()
+    }
+
+    fn begun(&self) -> bool {
+        todo!()
+    }
+
+    fn cancel(&self) -> CancelOffer {
+        todo!()
+    }
+
+    fn width(&self, _s: Step) -> Width {
+        todo!()
+    }
+
+    fn start(_carried: &mut Carried, _cx: &Ctx<'_>) -> (Silent, FlowFx<Silent>) {
+        todo!()
+    }
+
+    fn forward(&mut self, _cx: &Ctx<'_>) -> Result<FlowFx<Silent>, Refusal> {
+        todo!()
+    }
+
+    fn back(&mut self) -> Back {
+        todo!()
+    }
+
+    fn open(&mut self, _s: Step) -> bool {
+        todo!()
+    }
+
+    fn own(&mut self, _m: Own, _cx: &Ctx<'_>) -> FlowFx<Silent> {
+        todo!()
+    }
+
+    fn notice(&mut self, _n: &Notice<'_>, _cx: &Ctx<'_>) -> FlowFx<Silent> {
+        todo!()
+    }
+
+    fn refuses(&self, _m: &Own, _view: &View<'_>) -> Option<Refusal> {
+        todo!()
+    }
+
+    fn cancelled(&mut self) -> Ending {
         todo!()
     }
 }

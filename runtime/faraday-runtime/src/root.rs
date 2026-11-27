@@ -5,7 +5,7 @@ use core::borrow::Borrow;
 use faraday_atoms::{Pressed, Ui};
 use faraday_kernel::{
     AtLock, Carried, Ctx, Effects, Facts, Feature, Holds, Mode, Never, Notice, Public, Refused,
-    Show, Top, TopsView, View, Worded, session, shared, vaults,
+    Show, Top, View, Worded, session, shared, vaults,
 };
 use faraday_port as port;
 use faraday_port::event::{CameraFact, DevicesFact, HostFact, SystemFact};
@@ -51,14 +51,6 @@ pub struct Tops<'a, R: Root> {
     vaults: Option<&'a OwnerState<R::Vaults>>,
     app: Option<&'a <R::App as Feature>::State>,
     outside: &'a <R::Outside as Feature>::State,
-}
-
-impl<'a, R: Root> Tops<'a, R> {
-    /// The owners' reads as the kernel's type, for a frame in a composite shared by
-    /// two products (the online app), which may not name `Tops` (section 03 §5).
-    pub fn view(&self) -> TopsView<'_> {
-        todo!()
-    }
 }
 
 impl<'a, R: Root> Tops<'a, R> {

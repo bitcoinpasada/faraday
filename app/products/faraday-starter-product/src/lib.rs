@@ -16,7 +16,7 @@ mod starter;
 mod state;
 mod update;
 
-pub use model::{Body, Over};
+pub use model::{Body, DemoBody, DemoOver, DemoScreen, Over};
 pub use msg::{Msg, Press};
 pub use starter::{MODES, Starter, StarterOptions};
 pub use state::StarterApp;

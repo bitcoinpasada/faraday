@@ -2,6 +2,14 @@
 
 use super::change;
 use crate::cx::Edits;
+use crate::message::Public;
+
+/// The settings owner's pages (06 §4.2). The kernel's, as `vaults::Page` is.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub enum Page {
+    Settings,
+    SetTime,
+}
 
 /// The person's choices: idle lock and off minutes, QR speed, time offset, appearance, scale,
 /// rotation.

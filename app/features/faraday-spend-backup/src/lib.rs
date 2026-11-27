@@ -17,7 +17,7 @@ use faraday_kernel::{CarryName, JobKind};
 use faraday_port::values::Anchor;
 
 pub use model::Model;
-pub use msg::{Msg, Out, Own, Press, SampleAsk};
+pub use msg::{Msg, Out, Own, Press};
 pub use state::{SpendBackup, State};
 pub use update::{Answer, Refusal, Step};
 

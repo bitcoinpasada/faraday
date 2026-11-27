@@ -13,13 +13,13 @@ mod present;
 mod state;
 mod update;
 
-use faraday_kernel::{CarryName, JobKind, Public};
+use faraday_kernel::{CarryName, JobKind, Public, settings, vaults};
 use faraday_port::values::Anchor;
 
 pub use faraday_device::frame::FrameSheetModel;
-pub use model::{Body, Over, Screen};
+pub use model::{Body, Over};
 pub use msg::{Msg, Out, Press};
-pub use present::frame;
+pub use present::{body, frame_model, over, shown};
 pub use state::{OnlineApp, State};
 pub use update::Refusal;
 
@@ -31,17 +31,11 @@ pub struct Online;
 pub enum Page {
     Device(faraday_device::Page),
     Transfer,
-    // Spec: 06 §4.2 gives `Vaults(vaults::Page)` and `Settings(settings::Page)`, and 09 §4.5 lets
-    // no crate but an owner, a product or a tool depend on an owner: the page is its index.
-    Vaults(OwnerPage),
-    Settings(OwnerPage),
+    /// An owner's page: the kernel's type; the product presents it (06 §4.2).
+    Vaults(vaults::Page),
+    Settings(settings::Page),
     SelfTestFailed,
 }
-
-/// An owner's page, by its index in the owner's own `Page`; the product maps it.
-// Spec: see `Page`.
-#[derive(Public, Copy, PartialEq, Eq)]
-pub struct OwnerPage(pub u8);
 
 pub const JOBS: &[JobKind] = &[];
 pub const CARRY: &[CarryName] = &[];

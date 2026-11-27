@@ -1,7 +1,8 @@
 use faraday_kernel::{Line, Refused, Show, View, Worded};
-use faraday_present::Present;
+use faraday_organisms::content::Content;
+use faraday_present::{ChoiceLine, FlowPress, ShowFlow};
 
-use crate::{CoreImport, Model, Refusal, State};
+use crate::{Answer, CoreImport, Press, Refusal, Step};
 
 impl Worded for Refusal {
     fn words(&self, _show: &Show<'_>) -> Line {
@@ -11,10 +12,22 @@ impl Worded for Refusal {
 
 impl Refused for Refusal {}
 
-impl Present for CoreImport {
-    type Model<'s> = Model<'s>;
+impl ShowFlow for CoreImport {
+    type Press = Press;
 
-    fn present<'s>(_state: &'s State, _view: &View<'s>, _show: &Show<'s>) -> Model<'s> {
+    fn title(&self, _s: Step, _show: &Show<'_>) -> Line {
+        todo!()
+    }
+
+    fn choice(&self, _a: &Answer, _show: &Show<'_>) -> ChoiceLine {
+        todo!()
+    }
+
+    fn card<'s>(
+        &'s self,
+        _view: &View<'s>,
+        _show: &Show<'s>,
+    ) -> Content<'s, FlowPress<Step, Press>> {
         todo!()
     }
 }

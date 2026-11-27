@@ -24,8 +24,7 @@ pub(crate) struct Replies<R: Root> {
 }
 
 impl<R: Root> Runtime<R> {
-    /// Walk the effects a top state returned, in order (§3).
-    // Spec: 03 gives `Effects` no way to read its list; the runtime needs one.
+    /// Walk the effects a top state returned, in order (§3), from `Effects::into_list`.
     pub(crate) fn walk<M: Message>(&mut self, _from: Part, _effects: Effects<M, Top>) {
         todo!()
     }

@@ -257,9 +257,27 @@ pub enum starter::Page {
 ```
 
 A page value names a feature and which of its screens; a step flow's steps are the flow's state,
-not pages. Sheets are the features' own state (inventory `features/sheets-parts.md`), but for the
+not pages. A feature with one screen has no `Page` of its own (09 §4.4); the variants of those
+named here (`make_stick::Page`, `templates::Page`, `install::Page`, `backup::Page`) are the
+porting's, from the feature's inventory file. The Starter's `Tools` is the Starter's own page (its
+tools list, inventory `features/starter-app.md`), held by its composite, with no feature of its
+own; `About` is the appearance feature's second page. Sheets are the features' own state (inventory `features/sheets-parts.md`), but for the
 frame sheets in §4.4. The Starter names only `Page::Demo`: which Demo page shows is the online
 app's `Nav`, so no Starter crate names `online::Page`.
+
+**Decision: an owner's page is presented and drawn by the product crate, in every product; its
+page value is the kernel's.** `vaults::Page` and `settings::Page` are types of the kernel's
+`shared` module, as the owners' `Change` types are (03 §7.3), and the two owners re-export them.
+The online composite's `Nav` therefore names an owner's page with no edge to an owner (09 §4.5),
+and the app's press that begins an owner's page (§4.3) is a value the app can build. The online
+composite presents what it holds and nothing of an owner: its `Body` has no owner variant, and it
+gives the two products that hold it the shown page, the frame's model, its body and its sheets
+(09 §4.7). The product crate, which may depend on the owners, presents the owner's page from
+`Tops` when the shown page is one, and builds the screen model. Reason: presenting an owner's page
+calls the owner's `present` over its state, which only a crate with an edge to the owner can
+name, and the owners' presses are the product's `Press` (below). Turned down: an edge from the
+online composite to the owners, which would let a composite shared by two products hold an
+owner's state; and an index of the owner's page that the product maps, which no type holds.
 
 Each product crate gives the `ScreenModel<'s, B, O, R>` of section 04 (§4 there) a `Body` and an
 `Over` enum, one variant per page or sheet model, and a `Press`, one variant per top state's
@@ -273,14 +291,23 @@ pub enum Body<'s> {
 }
 pub enum Over<'s> { Device(device::Over<'s>), Vaults(vaults::SheetModel<'s>), Frame(FrameSheetModel<'s>) }
 #[derive(Pressed)]
-pub enum Press { Settings(settings::Press), Session(session::Press), Vaults(vaults::Press), App(device_app::Press) }
+pub enum Press { Settings(settings::Press), Session(session::Press), Vaults(vaults::Press), App(AppPress) }
+/// `device_app::Press`: what a press on the app's frame or the device composite's page sends.
+#[derive(Pressed)]
+pub enum AppPress { Device(device::Press), Open(device_app::Page), Back }  // a destination; the top bar's Back
 
-// Faraday Demo's: as the device app's, over `online::Body` and `online::Over`, with
-// `App(online::Press)`.
+// Faraday Demo's: the online app's page or an owner's, presented by the product.
+pub enum Body<'s> { Online(online::Body<'s>), Vaults(vaults::Model<'s>), Settings(settings::Model<'s>) }
+pub enum Over<'s> { Online(online::Over<'s>), Vaults(vaults::SheetModel<'s>) }
+// `Press` as the device app's, with `App(online::Press)`.
 
-// The Starter's: the Starter's own pages, and the Demo's whole screen under the Starter's bar.
-pub enum Body<'s> { Starter(starter::Body<'s>), Demo(online::Screen<'s>) }
+// The Starter's: the Starter's own pages, and the Demo's whole screen under the Starter's bar,
+// presented by the Starter's product as Faraday Demo's product presents its own.
+pub enum Body<'s> { Starter(starter::Body<'s>), Demo(DemoScreen<'s>) }
 pub enum Over<'s> { Starter(starter::Over<'s>), Frame(FrameSheetModel<'s>) }
+pub type DemoScreen<'s> = ScreenModel<'s, DemoBody<'s>, DemoOver<'s>, Press>;
+pub enum DemoBody<'s> { Online(online::Body<'s>), Vaults(vaults::Model<'s>), Settings(settings::Model<'s>) }
+pub enum DemoOver<'s> { Online(online::Over<'s>), Vaults(vaults::SheetModel<'s>) }
 #[derive(Pressed)]
 pub enum Press {
     Settings(settings::Press), Session(session::Press), Vaults(vaults::Press),
@@ -289,7 +316,12 @@ pub enum Press {
 ```
 
 `Root::press` maps each variant to the `Addr` of the same name. `ScreenModel::over` is a
-`Vec<(Anchor, O)>`, the lowest first.
+`Vec<(Anchor, O)>`, the lowest first. The vault composite exports `SheetModel` and
+`sheets(state, view, show) -> Vec<(Anchor, SheetModel)>` beside its `Model`, for the sheets of the
+vault area over any page. The device composite's `FailedModel` is the power feature's
+(`power::FailedModel`), re-exported by the device composite's `frame` module for the products,
+which do not depend on power. The Demo's and the Starter's products each write the three-variant
+Demo body; neither depends on the other (§1).
 
 - **Anchors.** Each page and each sheet has an `Anchor` (port `values`), a constant of the crate
   that holds it: `scope` is the crate and page or sheet name, `n` the variant's index. The screen
@@ -337,8 +369,10 @@ writing its own, three copies of the same rules.
 The frame is the app's `present` and `page`: the navigation rail or bar and the top app bar by
 size class, the page area, the notices (busy line, remove the stick, the snackbar), the session
 pane filled from `View::session`, and the sheets over the page. `Root::frame` presents the page
-the shown `Nav` names from the top state that holds it (an owner's page from `Tops`) and draws
-the screen template (section 04, §12.4). What differs by product:
+the shown `Nav` names from the top state that holds it (an owner's page from `Tops`, §4.2) and
+draws the screen template (section 04, §12.4). A frame model shared by two products (the online
+app's) is built in the product's press by a `lift: fn(online::Press) -> R` the product gives, as
+`Ui::within` lifts a body's presses. What differs by product:
 
 | | The device app | Faraday Demo and the Starter's Demo | The Starter |
 |---|---|---|---|

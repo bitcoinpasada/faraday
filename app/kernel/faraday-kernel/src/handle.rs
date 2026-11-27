@@ -67,3 +67,15 @@ pub struct Gate(pub u32);
 // Spec: 09 §4.1 gives one variant per Check row and Tools tile, which are the porting's.
 #[derive(Public, Copy, PartialEq, Eq)]
 pub enum Tool {}
+
+/// A published sample a device feature asks for: the online composite routes it to the strip,
+/// which loads it and answers the feature that asked; the device app drops it (09 §2.1).
+#[derive(Public, Copy, PartialEq, Eq)]
+pub enum SampleAsk {
+    /// The codex32 sample (BIP 93's second vector), for the share worksheet.
+    Codex32,
+    /// The loaded sample wallet's spend, read as a scanned PSBT.
+    Spend,
+    /// The open tool's sample text, typed into its field.
+    ToolText(Tool),
+}

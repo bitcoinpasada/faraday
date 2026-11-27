@@ -16,7 +16,6 @@ mod update;
 use faraday_kernel::{CarryName, JobKind, Public};
 use faraday_port::values::Anchor;
 
-pub use faraday_codex_shares::SampleAsk;
 pub use model::{Body, Over};
 pub use msg::{Msg, Out, Press};
 pub use present::{body, over};

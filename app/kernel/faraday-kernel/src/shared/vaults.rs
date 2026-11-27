@@ -4,6 +4,18 @@ use faraday_keys::vault::{OpenVaults, VaultId};
 
 use super::change;
 use crate::cx::Edits;
+use crate::message::Public;
+
+/// The vault area's pages, the vault composite's and its children's (06 §4.2). The kernel's, so
+/// that the online app's `Nav` names them without an edge to an owner (09 §4.5).
+#[derive(Public, Copy, PartialEq, Eq)]
+pub enum Page {
+    Vaults,
+    CreateVault,
+    Unlock,
+    Contents,
+    Codes,
+}
 
 pub trait Read {
     fn open(&self) -> &OpenVaults;

@@ -40,6 +40,11 @@ impl<M: Message, O: Message> Effects<M, O> {
         todo!()
     }
 
+    /// The runtime's only: the effects, in the order they were made (05 §3).
+    pub fn into_list(self) -> Vec<Fx<M, O>> {
+        todo!()
+    }
+
     pub fn order(self, _o: port::Order) -> Self {
         todo!()
     }
@@ -169,7 +174,20 @@ pub struct Job<M> {
     kind: JobKind,
     /// Runs without a busy line.
     quiet: bool,
+    /// On the heavy lane (05 §5.1).
+    heavy: bool,
+    /// Runs to its end at a lock (05 §7.2).
+    seal: bool,
     run: Box<dyn FnOnce(&Compute) -> M + Send>,
+}
+
+/// A job opened by the runtime: its kind, its lane and flags, and the work to run.
+pub struct JobParts<M> {
+    pub kind: JobKind,
+    pub quiet: bool,
+    pub heavy: bool,
+    pub seal: bool,
+    pub run: Box<dyn FnOnce(&Compute) -> M + Send>,
 }
 
 impl<M: Message> Job<M> {
@@ -194,6 +212,11 @@ impl<M: Message> Job<M> {
     }
 
     pub fn map<N: Message>(self, _f: fn(M) -> N) -> Job<N> {
+        todo!()
+    }
+
+    /// The runtime's only: the job's parts, for the pool (05 §5).
+    pub fn into_parts(self) -> JobParts<M> {
         todo!()
     }
 }

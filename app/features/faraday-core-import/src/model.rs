@@ -1,5 +1,7 @@
-use core::marker::PhantomData;
+use faraday_present::PressOf;
+use faraday_templates::flow::FlowModel;
 
-/// What `present` works out for the screen (04 §2).
-// Spec: 09 §4.4 names `Model` without a shape.
-pub struct Model<'s>(PhantomData<&'s ()>);
+use crate::CoreImport;
+
+/// What `present` works out for the screen: the step-flow template's model (04 §5).
+pub type Model<'s> = FlowModel<'s, PressOf<CoreImport>>;

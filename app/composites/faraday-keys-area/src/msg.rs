@@ -1,9 +1,8 @@
-use faraday_kernel::{Ending, Gate, Message, ScanFor};
+use faraday_kernel::{Ending, Gate, Message, SampleAsk, ScanFor};
 use faraday_organisms::Pressed;
 use faraday_present::FlowPress;
 
 use crate::Page;
-use crate::SampleAsk;
 
 #[derive(Message)]
 pub enum Msg {
@@ -43,9 +42,9 @@ pub enum Press {
     Randomness(faraday_randomness::Press),
     CodexShares(faraday_codex_shares::Press),
     AddKey(faraday_add_key::Press),
-    Krux(faraday_krux::Press),
+    Krux(FlowPress<faraday_krux::Step, faraday_krux::Press>),
     Bip85(FlowPress<faraday_bip85::Step, faraday_bip85::Press>),
     Convert(FlowPress<faraday_convert::Step, faraday_convert::Press>),
-    Vanity(faraday_vanity::Press),
+    Vanity(FlowPress<faraday_vanity::Step, faraday_vanity::Press>),
     SecureBoot(faraday_secure_boot::Press),
 }

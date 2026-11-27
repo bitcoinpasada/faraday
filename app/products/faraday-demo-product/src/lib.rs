@@ -9,7 +9,10 @@
 
 mod demo;
 mod l1;
+mod model;
+mod present;
 mod press;
 
 pub use demo::{Demo, DemoOptions, MODES};
+pub use model::{Body, Over};
 pub use press::Press;

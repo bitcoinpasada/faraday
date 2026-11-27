@@ -1,4 +1,4 @@
-use faraday_kernel::{Ending, FrameSheet, Message, Top};
+use faraday_kernel::{Ending, FrameSheet, Message, SampleAsk, Top};
 use faraday_organisms::Pressed;
 
 use crate::Page;
@@ -39,16 +39,6 @@ pub enum Out {
     Sample(SampleAsk),
     /// A lock, an end, a broadcast.
     Top(Top),
-}
-
-/// A published sample to load, from the area that asked.
-// Spec: 09 §4.4 names `SampleAsk` without a shape: the kernel has none, so each area carries its
-// feature's own, and the device composite names the three.
-#[derive(Message)]
-pub enum SampleAsk {
-    Keys(faraday_keys_area::SampleAsk),
-    Wallets(faraday_wallets_area::SampleAsk),
-    Tools(faraday_tools_area::SampleAsk),
 }
 
 /// What a press on a child's page sends.
