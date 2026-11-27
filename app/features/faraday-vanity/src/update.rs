@@ -2,7 +2,7 @@ use faraday_kernel::{
     Back, CancelOffer, Carried, Ctx, Ending, FlowFx, Notice, Public, StepFlow, Steps, View, Width,
 };
 
-use crate::{Vanity, Out, Own};
+use crate::{Out, Own, Vanity};
 
 /// The flow's steps, in order.
 // Spec: 03 §9 names no steps of this flow.

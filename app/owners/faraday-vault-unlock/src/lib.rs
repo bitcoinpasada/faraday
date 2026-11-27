@@ -22,7 +22,6 @@ pub use update::Refusal;
 /// The feature: `Feature`, `Present` and `faraday_present::Page`.
 pub struct VaultUnlock;
 
-
 pub const JOBS: &[JobKind] = &[JobKind("vault-unlock.stretch")];
 pub const CARRY: &[CarryName] = &[];
 pub const ANCHORS: &[Anchor] = &[];

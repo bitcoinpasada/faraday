@@ -14,7 +14,7 @@ use faraday_port::values::Anchor;
 
 pub use model::Model;
 pub use msg::{Msg, Out, Own, Press};
-pub use state::{Vanity, State};
+pub use state::{State, Vanity};
 pub use update::{Answer, Refusal, Step};
 
 pub const JOBS: &[JobKind] = &[];

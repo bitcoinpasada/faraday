@@ -190,7 +190,10 @@ pub struct Slot(pub &'static str);
 
 impl Memo {
     /// The runtime's only: the one store, empty. No `Default`, which would make one anywhere.
-    #[expect(clippy::new_without_default, reason = "only the runtime makes the memo (01 R1)")]
+    #[expect(
+        clippy::new_without_default,
+        reason = "only the runtime makes the memo (01 R1)"
+    )]
     pub fn new() -> Memo {
         todo!()
     }

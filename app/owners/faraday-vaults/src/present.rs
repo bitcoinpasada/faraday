@@ -21,6 +21,10 @@ impl Present for Vaults {
 }
 
 /// The vault area's sheets on show, each with its anchor, the lowest first (06 §4.2).
-pub fn sheets<'s>(_state: &'s State, _view: &View<'s>, _show: &Show<'s>) -> Vec<(Anchor, SheetModel<'s>)> {
+pub fn sheets<'s>(
+    _state: &'s State,
+    _view: &View<'s>,
+    _show: &Show<'s>,
+) -> Vec<(Anchor, SheetModel<'s>)> {
     todo!()
 }

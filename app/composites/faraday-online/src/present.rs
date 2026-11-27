@@ -35,7 +35,11 @@ pub fn body<'s>(_app: &'s OnlineApp, _view: &View<'s>, _show: &Show<'s>) -> Opti
 }
 
 /// The sheets over the page, each with its anchor, the lowest first.
-pub fn over<'s>(_app: &'s OnlineApp, _view: &View<'s>, _show: &Show<'s>) -> Vec<(Anchor, Over<'s>)> {
+pub fn over<'s>(
+    _app: &'s OnlineApp,
+    _view: &View<'s>,
+    _show: &Show<'s>,
+) -> Vec<(Anchor, Over<'s>)> {
     todo!()
 }
 

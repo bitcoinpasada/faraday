@@ -23,7 +23,6 @@ pub use update::Refusal;
 /// The feature: `Feature`, `Present` and `faraday_present::Page`.
 pub struct Session;
 
-
 pub const JOBS: &[JobKind] = &[JobKind("session.sign")];
 pub const CARRY: &[CarryName] = &[];
 pub const ANCHORS: &[Anchor] = &[];
