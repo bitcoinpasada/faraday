@@ -89,6 +89,12 @@ Quit, Power off and Restart), and each composite on the way lifts it into the to
 The window's close (`CloseAsked`) in the Starter is the Starter's own end (`End(Quit)` from the
 Starter's composite, outside the scope), which ends the process.
 
+The device root learns the end from the stick adapter: once it has carried an `Order::Exit` (or
+the panic chord was held), `Stick::ended()` is `Some(status)` and the root's process exits with
+it. The status is the one init reads: 0 for `Exit::End` and the panic chord (power off), 75 for
+`Exit::Lock` (a fresh process), 76 for `Exit::RestartComputer`. `Exit::Reset` does not end the
+process. A frame handed to `Stick::present` after the end is not drawn.
+
 **Decision: only the runtime orders `Exit`, on a top state's `Top`.** Reason: a lock and an end
 must pass through the runtime's order (the hide, the seal at a lock, `at_lock`), and a `Top`
 from inside the scope is told apart from one from the Starter's composite by the `Addr` it came
@@ -399,7 +405,12 @@ sheet but a lock's own; the sheets under it come back when it is put away.
   arrow, turns, attached sticks, the clean marker, the read-only root, the dev reports), the
   storage adapter over the disk process (the carry in the RAM directory, the memory figures), the
   V4L2 capture adapter and the scanning adapter with `ReadMode::Reduced`. The disk process and the
-  grant helper are their own processes (S2).
+  grant helper are their own processes (S2). The root joins the stick and storage adapters as
+  `DeviceAdapters::new(stick, storage, waker)`, which routes `Storage`, `Keep`, `Forget` and
+  `Memory` to the storage adapter and every other effect to the stick, gives the storage
+  adapter's thread the root's waker, and sends the stick's `Start` first, with `Start::carried`
+  from the storage adapter's carry; `DeviceAdapters::stick()` gives the root the stick for
+  `present` and `ended`.
 - **Carries alone:** held-back inputs and the device check's facts (`DevicesFact`), the clean
   marker, `Turn` and rotation offered, `RestartComputer`, the boot medium and the SD card medium,
   the read-only root, a lock that ends the process (`lock_ends_process`).
