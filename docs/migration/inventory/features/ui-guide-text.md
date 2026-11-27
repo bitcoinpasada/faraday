@@ -36,8 +36,12 @@ All `faraday/faraday-ui/src/`:
 
 ## Reach
 
-- Guide pane, About, the Starter's Cryptography sheet; flow pages (`word_flow`).
-- Demo items are used in `faraday/faraday-core/src/demo.rs`, `faraday/faraday-core/src/screens/entry.rs`, `faraday/faraday-core/src/screens/backup.rs`, `faraday/faraday-core/src/screens/sheets.rs` and others, and read by Faraday Demo's host.
+Callers at main `d89dde5de`, paths under `faraday/faraday-core/src/` unless a crate is named.
+
+- Guide pane: `screens/sheets.rs:2219` calls `faraday_ui::flow::lay_out` for the guide body's paragraphs (the laid-out `Flow` is kept in `screens/guide.rs:446`); `screens/sheets.rs:2311-2317` calls `how::blocks` with `PageLook` for the guide's how page.
+- Starter: `faraday/faraday-starter/src/draw/how.rs:29,48` (Cryptography sheet, `PageLook::SHEET`); `faraday/faraday-starter/src/draw/guide.rs:54` (`flow::word_flow`).
+- Demo items, `demo_line` and `demo_offer`: `demo.rs:269,278`; `seed_check/screen.rs:193`; `spend_backup/screen.rs:793,1368,1700`; `screens/backup.rs:1578`; `screens/sheets.rs:774,777`; `pass_field/screen.rs:167`; `samples/put.rs:80`; `multisig_check/screen.rs:76`; `screens/entry.rs:143,165,1207`; `decode/check_screen.rs:80`; `compact/screen.rs:581,870`.
+- `take_demo` is called at `screens/mod.rs:502,633` (kept in `samples/mod.rs:628-674`) and the items are read by Faraday Demo's host, `faraday/faraday-host/src/screen.rs:219-233`.
 - Uses `ui-text` wraps, `ui-regions` clip (a part wholly outside the clip is measured only).
 
 ## Rules and refusals
@@ -65,6 +69,5 @@ None given to this feature.
 
 ## Doubts
 
-- Callers were not traced past the component crates (faraday-ui and faraday-draw); the Reach section rests on the component code and a few searches, not on a read of every screen.
 - The guide caches are not keyed by language; strings are English only, so whether a language change would need a new key is unclear.
 - The guide's content (which blocks, from where) is outside this cluster.
