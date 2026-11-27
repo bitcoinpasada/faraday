@@ -2,7 +2,7 @@
 
 use faraday_text::Text;
 
-use crate::ask::{AskId, request};
+use crate::ask::{Answer, Ask, AskId, request};
 use crate::bytes::Bytes;
 
 /// The adapter's name for a camera, as `CameraInfo::id` gives it.
@@ -20,7 +20,10 @@ pub struct CameraInfo {
 pub struct On {
     pub camera: Option<CameraId>,
 }
-request!(On => Result<Started, Failure>);
+request!(On => Result<Started, Failure>;
+    into a => Ask::Camera(a);
+    take r @ Answer::Camera(r),
+    fault Err(Failure::Adapter));
 
 /// A stream is on: named by the `AskId` of the `On` that started it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

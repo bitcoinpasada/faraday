@@ -62,12 +62,19 @@ pub enum EffectKind {
 
 impl Effect {
     pub fn kind(&self) -> EffectKind {
-        todo!()
+        match self {
+            Effect::Ask(..) => EffectKind::Ask,
+            Effect::Order(_) => EffectKind::Order,
+        }
     }
 }
 
 impl fmt::Debug for Effect {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    /// The kind, and an ask's id and kind; an order's payload is not printed (P16).
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Effect::Ask(id, ask) => write!(f, "Effect::Ask({id:?}, {ask:?})"),
+            Effect::Order(_) => f.write_str("Effect::Order"),
+        }
     }
 }

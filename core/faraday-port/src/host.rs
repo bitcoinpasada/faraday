@@ -2,7 +2,7 @@
 
 use faraday_text::Text;
 
-use crate::ask::{Failure, request};
+use crate::ask::{Answer, Ask, Failure, request};
 use crate::bytes::Bytes;
 
 pub enum HostAsk {
@@ -40,15 +40,24 @@ pub enum Openable {
 pub struct Read {
     pub path: Text,
 }
-request!(Read => Result<Bytes, Failure>);
+request!(Read => Result<Bytes, Failure>;
+    into a => Ask::Host(HostAsk::Read { path: a.path });
+    take r @ Answer::Host(HostAnswer::Read(r)),
+    fault Err(Failure::Adapter));
 
 /// `HostAsk::Save`'s own type.
 pub struct Save {
     pub name: Text,
     pub bytes: Bytes,
 }
-request!(Save => Result<Text, Failure>);
+request!(Save => Result<Text, Failure>;
+    into a => Ask::Host(HostAsk::Save { name: a.name, bytes: a.bytes });
+    take r @ Answer::Host(HostAnswer::Saved(r)),
+    fault Err(Failure::Adapter));
 
 /// `HostAsk::Open`'s own type.
 pub struct Open(pub Openable);
-request!(Open => Result<(), Failure>);
+request!(Open => Result<(), Failure>;
+    into a => Ask::Host(HostAsk::Open(a.0));
+    take r @ Answer::Host(HostAnswer::Opened(r)),
+    fault Err(Failure::Adapter));

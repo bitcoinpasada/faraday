@@ -8,25 +8,23 @@ use core::fmt;
 pub type Bytes = faraday_crypto::Secret<Vec<u8>>;
 
 /// Randomness. Wipes on drop and is not `Clone` (02 §6).
-pub struct EntropyBytes(
-    #[expect(dead_code, reason = "read once the methods have bodies")]
-    faraday_crypto::Secret<[u8; 32]>,
-);
+pub struct EntropyBytes(faraday_crypto::Secret<[u8; 32]>);
 
 impl EntropyBytes {
-    pub fn new(_bytes: [u8; 32]) -> Self {
-        todo!()
+    pub fn new(bytes: [u8; 32]) -> Self {
+        Self(faraday_crypto::Secret::new(bytes))
     }
 
     /// Borrows the bytes: a type that wipes on drop cannot give them up by value.
     pub fn expose(&self) -> &[u8; 32] {
-        todo!()
+        self.0.expose()
     }
 }
 
 impl fmt::Debug for EntropyBytes {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    /// The length only (P16).
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "EntropyBytes({} bytes)", self.0.expose().len())
     }
 }
 

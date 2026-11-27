@@ -1,5 +1,6 @@
 //! Asks, answers and how an answer finds its request (02 §2, §4, §7.2).
 
+use alloc::vec::Vec;
 use core::fmt;
 
 use faraday_text::{Text, secret::SecretText};
@@ -35,8 +36,9 @@ pub trait Request: Into<Ask> {
     fn fault() -> Self::Answer;
 }
 
-/// Gives a request type its `Into<Ask>` and `Request` (every body `todo!()` until the port has
-/// behaviour).
+/// Gives a request type its `Into<Ask>` and `Request`. `into` builds the port's `Ask`, `take` names
+/// the one `Answer` variant that answers it, and `fault` is the answer for any other (P9). The
+/// one-argument form is for an ask no product's path carries yet: its bodies are `todo!()`.
 macro_rules! request {
     ($ask:ty => $answer:ty) => {
         impl From<$ask> for $crate::ask::Ask {
@@ -54,6 +56,33 @@ macro_rules! request {
 
             fn fault() -> Self::Answer {
                 todo!()
+            }
+        }
+    };
+    (
+        $ask:ty => $answer:ty;
+        into $a:ident => $into:expr;
+        take $r:ident @ $pat:pat,
+        fault $fault:expr
+    ) => {
+        impl From<$ask> for $crate::ask::Ask {
+            fn from($a: $ask) -> $crate::ask::Ask {
+                $into
+            }
+        }
+
+        impl $crate::ask::Request for $ask {
+            type Answer = $answer;
+
+            fn take(answer: $crate::ask::Answer) -> Result<Self::Answer, $crate::ask::Answer> {
+                match answer {
+                    $pat => Ok($r),
+                    other => Err(other),
+                }
+            }
+
+            fn fault() -> Self::Answer {
+                $fault
             }
         }
     };
@@ -108,45 +137,95 @@ pub enum AskKind {
 
 impl Ask {
     pub fn kind(&self) -> AskKind {
-        todo!()
+        match self {
+            Ask::Storage(_) => AskKind::Storage,
+            Ask::Keep(_) => AskKind::Keep,
+            Ask::Forget => AskKind::Forget,
+            Ask::Host(_) => AskKind::Host,
+            Ask::Camera(_) => AskKind::Camera,
+            Ask::Clipboard => AskKind::Clipboard,
+            Ask::Print(_) => AskKind::Print,
+            Ask::Entropy => AskKind::Entropy,
+            Ask::Memory => AskKind::Memory,
+            Ask::Settings(_) => AskKind::Settings,
+            Ask::System(_) => AskKind::System,
+        }
     }
 }
 
+/// Names only (P16): an ask carries files, text and bytes that may be secret.
 impl fmt::Debug for Ask {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Ask::{:?}", self.kind())
+    }
+}
+
+impl Answer {
+    /// The variant's name, which is all `Debug` prints (P16).
+    pub fn name(&self) -> &'static str {
+        match self {
+            Answer::Storage(_) => "Storage",
+            Answer::Kept(_) => "Kept",
+            Answer::Forgotten(_) => "Forgotten",
+            Answer::Host(_) => "Host",
+            Answer::Camera(_) => "Camera",
+            Answer::Clipboard(_) => "Clipboard",
+            Answer::Printed(_) => "Printed",
+            Answer::Entropy(_) => "Entropy",
+            Answer::Memory(_) => "Memory",
+            Answer::Settings(_) => "Settings",
+            Answer::System(_) => "System",
+        }
     }
 }
 
 impl fmt::Debug for Answer {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Answer::{}", self.name())
     }
 }
 
 /// `Ask::Keep`'s own type.
 pub struct Keep(pub Carry);
-request!(Keep => Result<(), (Failure, Carry)>);
+request!(Keep => Result<(), (Failure, Carry)>;
+    into a => Ask::Keep(a.0);
+    take r @ Answer::Kept(r),
+    fault Err((Failure::Adapter, Carry { inbox: Vec::new(), outbox: Vec::new(), kept: Vec::new() })));
 
 /// `Ask::Forget`'s own type.
 pub struct Forget;
-request!(Forget => Result<(), Failure>);
+request!(Forget => Result<(), Failure>;
+    into _a => Ask::Forget;
+    take r @ Answer::Forgotten(r),
+    fault Err(Failure::Adapter));
 
 /// `Ask::Clipboard`'s own type.
 pub struct Clipboard;
-request!(Clipboard => Result<SecretText, Failure>);
+request!(Clipboard => Result<SecretText, Failure>;
+    into _a => Ask::Clipboard;
+    take r @ Answer::Clipboard(r),
+    fault Err(Failure::Adapter));
 
 /// `Ask::Entropy`'s own type.
 pub struct Entropy;
-request!(Entropy => Result<EntropyAnswer, Failure>);
+request!(Entropy => Result<EntropyAnswer, Failure>;
+    into _a => Ask::Entropy;
+    take r @ Answer::Entropy(r),
+    fault Err(Failure::Adapter));
 
 /// `Ask::Memory`'s own type.
 pub struct Memory;
-request!(Memory => Option<u32>);
+request!(Memory => Option<u32>;
+    into _a => Ask::Memory;
+    take r @ Answer::Memory(r),
+    fault None);
 
 /// `Ask::Settings`'s own type: the app's settings text, kept unread.
 pub struct Settings(pub Text);
-request!(Settings => Result<(), Failure>);
+request!(Settings => Result<(), Failure>;
+    into a => Ask::Settings(a.0);
+    take r @ Answer::Settings(r),
+    fault Err(Failure::Adapter));
 
 /// What to print, and `Ask::Print`'s own type (02 §4.6).
 pub struct PrintJob {
@@ -154,7 +233,10 @@ pub struct PrintJob {
     pub pdf: crate::bytes::Bytes,
     pub holds_secret: bool,
 }
-request!(PrintJob => Result<Text, Failure>);
+request!(PrintJob => Result<Text, Failure>;
+    into a => Ask::Print(a);
+    take r @ Answer::Printed(r),
+    fault Err(Failure::Adapter));
 
 /// Why an ask failed (02 §7.2).
 #[derive(Clone, Debug, PartialEq, Eq)]

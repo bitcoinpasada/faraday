@@ -61,8 +61,8 @@ pub struct RecoveryKey {
 
 impl fmt::Debug for RecoveryKey {
     /// Names the drive only (P16).
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "RecoveryKey({})", self.drive.as_str())
     }
 }
 

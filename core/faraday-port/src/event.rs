@@ -54,13 +54,30 @@ pub enum EventKind {
 
 impl Event {
     pub fn kind(&self) -> EventKind {
-        todo!()
+        match self {
+            Event::Start(_) => EventKind::Start,
+            Event::Display(_) => EventKind::Display,
+            Event::Time(_) => EventKind::Time,
+            Event::Input(_) => EventKind::Input,
+            Event::Sticks(_) => EventKind::Sticks,
+            Event::Devices(_) => EventKind::Devices,
+            Event::Camera(_) => EventKind::Camera,
+            Event::Host(_) => EventKind::Host,
+            Event::System(_) => EventKind::System,
+            Event::CloseAsked => EventKind::CloseAsked,
+            Event::Answer(..) => EventKind::Answer,
+        }
     }
 }
 
 impl fmt::Debug for Event {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    /// The kind, and an answer's id and kind. Never the payload: a typed key is part of a
+    /// passphrase (P15, P16).
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Event::Answer(id, answer) => write!(f, "Event::Answer({id:?}, {answer:?})"),
+            other => write!(f, "Event::{:?}", other.kind()),
+        }
     }
 }
 

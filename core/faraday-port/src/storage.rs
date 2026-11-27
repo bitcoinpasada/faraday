@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use faraday_text::Text;
 
-use crate::ask::{Failure, request};
+use crate::ask::{Answer, Ask, Failure, request};
 use crate::bytes::Bytes;
 
 /// The adapter's name for a stick, as `StickInfo::id` gives it.
@@ -187,14 +187,20 @@ pub struct Read {
     pub stick: StickId,
     pub name: Text,
 }
-request!(Read => Result<Bytes, Failure>);
+request!(Read => Result<Bytes, Failure>;
+    into a => Ask::Storage(StorageAsk::Read { stick: a.stick, name: a.name });
+    take r @ Answer::Storage(StorageAnswer::Read(r)),
+    fault Err(Failure::Adapter));
 
 /// `StorageAsk::ReadCodes`'s own type.
 pub struct ReadCodes {
     pub stick: StickId,
     pub name: Text,
 }
-request!(ReadCodes => Result<Codes, Failure>);
+request!(ReadCodes => Result<Codes, Failure>;
+    into a => Ask::Storage(StorageAsk::ReadCodes { stick: a.stick, name: a.name });
+    take r @ Answer::Storage(StorageAnswer::Codes(r)),
+    fault Err(Failure::Adapter));
 
 /// `StorageAsk::Write`'s own type.
 pub struct Write {
@@ -206,33 +212,48 @@ pub struct Write {
     pub renamed: bool,
     pub on_taken: OnTaken,
 }
-request!(Write => Result<Written, Failure>);
+request!(Write => Result<Written, Failure>;
+    into a => Ask::Storage(StorageAsk::Write { stick: a.stick, name: a.name, bytes: a.bytes, copies: a.copies, replace: a.replace, renamed: a.renamed, on_taken: a.on_taken });
+    take r @ Answer::Storage(StorageAnswer::Written(r)),
+    fault Err(Failure::Adapter));
 
 /// `StorageAsk::Wipe`'s own type.
 pub struct Wipe {
     pub stick: StickId,
     pub name: Text,
 }
-request!(Wipe => Result<Wiped, Failure>);
+request!(Wipe => Result<Wiped, Failure>;
+    into a => Ask::Storage(StorageAsk::Wipe { stick: a.stick, name: a.name });
+    take r @ Answer::Storage(StorageAnswer::Wiped(r)),
+    fault Err(Failure::Adapter));
 
 /// `StorageAsk::Space`'s own type.
 pub struct Space {
     pub stick: StickId,
 }
-request!(Space => Result<Room, Failure>);
+request!(Space => Result<Room, Failure>;
+    into a => Ask::Storage(StorageAsk::Space { stick: a.stick });
+    take r @ Answer::Storage(StorageAnswer::Space(r)),
+    fault Err(Failure::Adapter));
 
 /// `StorageAsk::ZeroFree`'s own type.
 pub struct ZeroFree {
     pub stick: StickId,
     pub from: u32,
 }
-request!(ZeroFree => Result<Zeroing, Failure>);
+request!(ZeroFree => Result<Zeroing, Failure>;
+    into a => Ask::Storage(StorageAsk::ZeroFree { stick: a.stick, from: a.from });
+    take r @ Answer::Storage(StorageAnswer::Zeroing(r)),
+    fault Err(Failure::Adapter));
 
 /// `StorageAsk::MakeEmpty`'s own type.
 pub struct MakeEmpty {
     pub stick: StickId,
 }
-request!(MakeEmpty => Result<(), Failure>);
+request!(MakeEmpty => Result<(), Failure>;
+    into a => Ask::Storage(StorageAsk::MakeEmpty { stick: a.stick });
+    take r @ Answer::Storage(StorageAnswer::Emptied(r)),
+    fault Err(Failure::Adapter));
 
 /// `StorageAsk::Rename`'s own type.
 pub struct Rename {
@@ -241,18 +262,27 @@ pub struct Rename {
     pub to: Text,
     pub vaults: Vec<Vec<Sha256>>,
 }
-request!(Rename => Result<(), Unrenamed>);
+request!(Rename => Result<(), Unrenamed>;
+    into a => Ask::Storage(StorageAsk::Rename { stick: a.stick, from: a.from, to: a.to, vaults: a.vaults });
+    take r @ Answer::Storage(StorageAnswer::Renamed(r)),
+    fault Err(Unrenamed::Failed(Failure::Adapter)));
 
 /// `StorageAsk::Name`'s own type.
 pub struct Name {
     pub stick: StickId,
     pub label: Text,
 }
-request!(Name => Result<(), NameRefused>);
+request!(Name => Result<(), NameRefused>;
+    into a => Ask::Storage(StorageAsk::Name { stick: a.stick, label: a.label });
+    take r @ Answer::Storage(StorageAnswer::Named(r)),
+    fault Err(NameRefused::Failed(Failure::Adapter)));
 
 /// `StorageAsk::Hash`'s own type.
 pub struct Hash {
     pub stick: StickId,
     pub name: Text,
 }
-request!(Hash => Result<Sha256, Failure>);
+request!(Hash => Result<Sha256, Failure>;
+    into a => Ask::Storage(StorageAsk::Hash { stick: a.stick, name: a.name });
+    take r @ Answer::Storage(StorageAnswer::Hashed(r)),
+    fault Err(Failure::Adapter));
