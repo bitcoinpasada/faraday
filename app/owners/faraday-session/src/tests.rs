@@ -535,7 +535,13 @@ fn slip39_shares_load_with_their_passphrase() {
 /// Owner: app
 #[test]
 fn practice_takes_only_the_published_samples() {
-    let view = TestView::demo();
+    let public: Vec<[u8; 4]> = faraday_keys::published::samples().to_vec();
+    let set = Box::leak(Box::new(faraday_kernel::PracticeSamples {
+        handouts: &[],
+        public: public.leak(),
+        nodes: &[],
+    }));
+    let view = TestView::demo().with_samples(set);
     let cx = view.ctx();
     let mut state = started(&view);
     let fx = give(
@@ -583,4 +589,74 @@ fn an_xprv_that_does_not_read_is_refused_in_words() {
         }
         _ => panic!("not refused in words"),
     }
+}
+
+/// Invariant: A Practice given no samples takes no key at all.
+/// Regression: A Practice the product gave no set takes any key, so the boundary fails open.
+/// Owner: app
+#[test]
+fn practice_with_no_samples_takes_no_key() {
+    let view = TestView::demo();
+    let cx = view.ctx();
+    let mut state = started(&view);
+    let fx = give(
+        &mut state,
+        &cx,
+        1,
+        Change::AddKey(AddKey {
+            key: KeyInput::Words(SecretText::of(WORDS)),
+            passphrase: None,
+        }),
+    );
+    assert!(matches!(
+        fx.dones.as_slice(),
+        [(
+            _,
+            Done::Session(session::Done::AddKey(Err(Refusal::NotAllowed(_))))
+        )]
+    ));
+}
+
+/// Invariant: Codex32 strings of two sets, or two different strings at one index, load no key, and the same string twice is one.
+/// Regression: A secret string typed with a share of another seed loads, and the share is kept with the key.
+/// Owner: app
+#[test]
+fn codex32_strings_of_another_set_or_clashing_load_no_key() {
+    const SHARE_A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
+    const SHARE_C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
+    const OTHER_SECRET: &str = "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw";
+    let view = TestView::device();
+    let cx = view.ctx();
+
+    let mut state = started(&view);
+    let done = add_shares(&mut state, &cx, 1, &[SHARE_A, OTHER_SECRET]);
+    assert!(matches!(
+        done,
+        session::Done::AddKey(Err(Refusal::Words(t))) if t.as_str() == faraday_strings::EN.forms_other_seed_string
+    ));
+    assert!(state.keys().is_empty());
+
+    // A string at an index already given that differs from it.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a test makes two secret strings of one id, which no domain loader does"
+    )]
+    let made = |seed: u8| {
+        faraday_bip::codex32::Codex32::from_seed(0, *b"test", &[seed; 16])
+            .unwrap()
+            .encode()
+            .as_str()
+            .to_owned()
+    };
+    let (one, two) = (made(1), made(2));
+    let clash = add_shares(&mut state, &cx, 2, &[&one, &two]);
+    assert!(matches!(
+        clash,
+        session::Done::AddKey(Err(Refusal::Words(t))) if t.as_str() == faraday_strings::EN.forms_string_clash
+    ));
+    assert!(state.keys().is_empty());
+
+    // The same string twice is one string: two shares still make the key.
+    let done = add_shares(&mut state, &cx, 3, &[SHARE_A, SHARE_A, SHARE_C]);
+    assert!(matches!(done, session::Done::AddKey(Ok(_))));
 }

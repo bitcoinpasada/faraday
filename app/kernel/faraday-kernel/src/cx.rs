@@ -145,6 +145,31 @@ pub struct Mode {
     pub network: Network,
     pub practice: bool,
     pub online: bool,
+    /// What Practice takes (03 §11, A33), as the product that offers it gives it: `None` in
+    /// every mode that is not Practice, and the session takes no key in a Practice given none.
+    pub samples: Option<&'static PracticeSamples>,
+}
+
+/// The published samples Practice takes, as data the product gives at the build of the scope:
+/// public fingerprints, names and Lightning node ids (`main`'s `Samples::handouts`, `public`
+/// and `nodes`).
+#[derive(Public, Copy, PartialEq, Eq)]
+pub struct PracticeSamples {
+    /// What New key hands out.
+    pub handouts: &'static [Handout],
+    /// Every fingerprint Practice takes: each key's with no passphrase, and with `faraday`.
+    pub public: &'static [[u8; 4]],
+    /// The Lightning node ids Practice takes, for the mode's network.
+    pub nodes: &'static [[u8; 33]],
+}
+
+/// One sample New key hands out: the word it is made of, its word count and its two fingerprints.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub struct Handout {
+    pub name: &'static str,
+    pub words: u8,
+    pub plain: [u8; 4],
+    pub with_passphrase: [u8; 4],
 }
 
 impl Mode {

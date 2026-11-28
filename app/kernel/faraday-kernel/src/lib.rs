@@ -29,8 +29,8 @@ pub mod __private {
 }
 
 pub use cx::{
-    Clock, Ctx, Derived, Downloads, Edits, Facts, FactsChanged, Memo, Mode, NoteUp, Running,
-    SelfTest, Show, Slot, Started, Sticks, SystemFacts, View,
+    Clock, Ctx, Derived, Downloads, Edits, Facts, FactsChanged, Handout, Memo, Mode, NoteUp,
+    PracticeSamples, Running, SelfTest, Show, Slot, Started, Sticks, SystemFacts, View,
 };
 pub use effects::{
     AskFor, ChangeFor, ChangeReply, Effects, Fault, Fx, Job, JobKind, JobParts, Note, Reply, Route,

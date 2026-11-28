@@ -88,6 +88,7 @@ impl TestView {
                 network: Network::Mainnet,
                 practice: false,
                 online: false,
+                samples: None,
             },
         )
     }
@@ -102,6 +103,7 @@ impl TestView {
                 network: Network::Testnet,
                 practice: true,
                 online: true,
+                samples: None,
             },
         )
     }
@@ -167,6 +169,13 @@ impl TestView {
     pub fn with_sticks(mut self, sticks: Vec<port::storage::StickInfo>) -> Self {
         self.facts.sticks.attached = !sticks.is_empty();
         self.facts.sticks.listed = sticks;
+        self
+    }
+
+    /// The samples Practice takes, as the product gives them.
+    #[must_use]
+    pub fn with_samples(mut self, samples: &'static faraday_kernel::PracticeSamples) -> Self {
+        self.mode.samples = Some(samples);
         self
     }
 

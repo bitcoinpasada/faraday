@@ -74,6 +74,8 @@ macro_rules! words_forms {
     forms_not_a_codex32: "Not a codex32 string: {}",
     /// Error in `form_add_part`.
     forms_other_seed_string: "That string is of another seed: its id differs",
+    /// Error where the session takes codex32 strings: two differ at one index.
+    forms_string_clash: "Two different strings are given for the same index",
     /// Error in `form_add_part`.
     forms_share_duplicate: "That share is in already",
     /// A SLIP-39 share past the most a set can have (16 groups of 16).

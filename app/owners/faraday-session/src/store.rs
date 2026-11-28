@@ -4,9 +4,9 @@ use faraday_bip::codex32::Codex32;
 use faraday_bip::keys::Network;
 use faraday_bip::slip39::Share;
 use faraday_crypto::work::Compute;
-use faraday_kernel::Facts;
 use faraday_kernel::session::{KeyInput, KeyView, WaitingItem};
 use faraday_kernel::{AtLock, Holds, KeyId};
+use faraday_kernel::{Facts, PracticeSamples};
 use faraday_keys::{Keys, Refusal, codex32_seed, slip39_seed};
 use faraday_port::values::Medium;
 use faraday_text::{Text, secret::SecretText};
@@ -95,16 +95,29 @@ impl Store {
             .collect();
     }
 
-    /// Practice: the store takes only the published samples (03 §11, A33): the fingerprints
-    /// and Lightning nodes `faraday-keys` lists, which are the samples' own (`faraday-samples`
-    /// checks that). New key's handouts are the Demo strip's to set.
-    pub(crate) fn practice(&mut self) {
-        let public: Vec<faraday_bip::keys::Fingerprint> = faraday_keys::published::samples()
+    /// Practice: the store takes only the published samples the product gave (03 §11, A33). A
+    /// Practice given none takes no key at all: the boundary fails closed.
+    pub(crate) fn practice(&mut self, samples: Option<&PracticeSamples>) {
+        let Some(samples) = samples else {
+            self.keys.set_demo(&[], &[], &[]);
+            return;
+        };
+        let handouts: Vec<faraday_keys::Handout> = samples
+            .handouts
+            .iter()
+            .map(|h| faraday_keys::Handout {
+                name: h.name,
+                words: h.words,
+                plain: faraday_bip::keys::Fingerprint(h.plain),
+                with_passphrase: faraday_bip::keys::Fingerprint(h.with_passphrase),
+            })
+            .collect();
+        let public: Vec<faraday_bip::keys::Fingerprint> = samples
+            .public
             .iter()
             .map(|f| faraday_bip::keys::Fingerprint(*f))
             .collect();
-        self.keys
-            .set_demo(&[], &public, faraday_keys::published::sample_nodes());
+        self.keys.set_demo(&handouts, &public, samples.nodes);
     }
 
     pub(crate) fn view(&self, id: KeyId) -> Option<KeyView<'_>> {
@@ -196,10 +209,11 @@ impl Store {
                 &[&faraday_strings::bip::codex32_error(&e)],
             ))
         };
-        let mut typed = Vec::with_capacity(shares.len());
+        let mut typed: Vec<Codex32> = Vec::with_capacity(shares.len());
         for share in shares {
             typed.push(Codex32::parse(share.as_str().trim()).map_err(strings)?);
         }
+        typed = one_set(typed)?;
         let seed = codex32_seed(&typed).map_err(strings)?;
         let fp = self.keys.add_seed(c, &seed, "")?;
         let texts: Vec<Text> = typed
@@ -257,6 +271,36 @@ impl Store {
         self.sync();
         self.held.len() != before
     }
+}
+
+/// The strings of one set, one for each index: a string whose identifier differs from the
+/// first one's is of another seed, and a different string at an index already given clashes,
+/// both refused as `main` refused them as each was added (`add_codex32`); the same string again
+/// is dropped.
+fn one_set(typed: Vec<Codex32>) -> Result<Vec<Codex32>, Refusal> {
+    let mut kept: Vec<Codex32> = Vec::with_capacity(typed.len());
+    for string in typed {
+        if let Some(first) = kept.first()
+            && first.identifier() != string.identifier()
+        {
+            return Err(Refusal::Words(Text::of(
+                faraday_strings::EN.forms_other_seed_string,
+            )));
+        }
+        match kept
+            .iter()
+            .find(|k| k.share_index() == string.share_index())
+        {
+            Some(same) if same.encode().as_str() == string.encode().as_str() => {}
+            Some(_) => {
+                return Err(Refusal::Words(Text::of(
+                    faraday_strings::EN.forms_string_clash,
+                )));
+            }
+            None => kept.push(string),
+        }
+    }
+    Ok(kept)
 }
 
 /// The plain facts of the set the codex32 strings `typed` are of, for the key they load: k, the

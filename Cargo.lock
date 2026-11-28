@@ -858,6 +858,7 @@ dependencies = [
  "faraday-port",
  "faraday-present",
  "faraday-runtime",
+ "faraday-samples",
  "faraday-session",
  "faraday-settings",
  "faraday-strings",

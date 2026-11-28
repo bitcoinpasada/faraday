@@ -727,7 +727,7 @@ constant (S9) and an `l1` module with one `assert_not_clone!` per top state.
 | Crate | Metadata | Normal edges |
 |---|---|---|
 | `faraday-device-product` | | runtime, device, session, settings, vaults, bip, the feature base |
-| `faraday-demo-product` | `online` | runtime, online, session, settings, vaults, bip, the feature base |
+| `faraday-demo-product` | `online` | runtime, online, session, settings, vaults, bip, samples, the feature base |
 | `faraday-starter-product` | `online` | runtime, online, starter, session, settings, vaults, bip, text, the feature base |
 
 ```rust

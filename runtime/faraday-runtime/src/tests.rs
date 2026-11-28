@@ -436,6 +436,7 @@ macro_rules! test_root {
                     network: Network::Mainnet,
                     practice: false,
                     online: false,
+                    samples: None,
                 }
             }
 

@@ -19,21 +19,25 @@ pub const MODES: &[Mode] = &[
         network: Network::Mainnet,
         practice: false,
         online: false,
+        samples: None,
     },
     Mode {
         network: Network::Testnet,
         practice: false,
         online: false,
+        samples: None,
     },
     Mode {
         network: Network::Signet,
         practice: false,
         online: false,
+        samples: None,
     },
     Mode {
         network: Network::Regtest,
         practice: false,
         online: false,
+        samples: None,
     },
 ];
 

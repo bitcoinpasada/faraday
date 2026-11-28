@@ -26,7 +26,7 @@ impl Feature for Session {
         let mut state = State::new(cx.view.mode.network);
         state.store.set_stick(stick_in_the_way(cx.view.facts));
         if cx.view.mode.practice {
-            state.store.practice();
+            state.store.practice(cx.view.mode.samples);
         }
         // The system's answers are asked for at the start: the first is the seed, the rest the
         // pool (F102; `main` asked for one more than the pool holds).

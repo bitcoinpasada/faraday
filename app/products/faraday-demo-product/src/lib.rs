@@ -11,8 +11,10 @@ mod demo;
 mod l1;
 mod model;
 mod page;
+mod practice;
 mod press;
 
 pub use demo::{Demo, DemoOptions, MODES};
 pub use model::{Body, Over};
+pub use practice::practice_samples;
 pub use press::Press;
