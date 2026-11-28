@@ -1059,7 +1059,18 @@ pub enum Drawn { Dimmed, AsUsual }
 
 ```rust
 #[derive(Public, Copy, PartialEq, Eq)]
-pub struct Mode { pub network: Network, pub practice: bool, pub online: bool }
+pub struct Mode { pub network: Network, pub practice: bool, pub online: bool,
+                  pub samples: Option<&'static PracticeSamples> }  // None outside Practice
+
+/// The published samples Practice takes, as data the product gives (Faraday Demo builds it from
+/// `faraday-samples`; the device gives none).
+#[derive(Public, Copy, PartialEq, Eq)]
+pub struct PracticeSamples { pub handouts: &'static [Handout], pub public: &'static [[u8; 4]],
+                             pub nodes: &'static [[u8; 33]] }
+/// One sample New key hands out.
+#[derive(Public, Copy, PartialEq, Eq)]
+pub struct Handout { pub name: &'static str, pub words: u8, pub plain: [u8; 4],
+                     pub with_passphrase: [u8; 4] }
 ```
 
 The root picks the mode a build of the scope starts in (Faraday Demo, also in the Starter: Testnet,
@@ -1075,7 +1086,7 @@ asks for, as on `main` (inventory `features/settings-time.md`, `features/practic
   out; Silent payments' scan-key and descriptor outputs; Convert's source; a vault opened from
   those screens (`features/practice-demo.md`). Held by an update test per press.
 - **Rule A33.** The key boundary fails closed behind the gate: in Practice the session's key store
-  takes only the published samples, and on Mainnet it refuses a sample by every way a key comes
+  takes only the published samples the product gives as data (`Mode::samples`), and a Practice given none takes no key; on Mainnet it refuses a sample by every way a key comes
   in (`faraday_keys::Refusal`). A feature that forgot its gate still makes no secret. Held by
   `faraday-keys` and its tests, as on `main`.
 - The passphrase field part offers the `faraday` chip only when `view.mode.practice`, and not on
