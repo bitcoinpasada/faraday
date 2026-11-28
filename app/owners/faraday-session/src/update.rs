@@ -8,6 +8,7 @@ use faraday_port::Failure;
 use faraday_port::ask::Entropy as AskEntropy;
 use faraday_port::bytes::Entropy;
 
+use crate::random::{POOL, TAKE_MAX, answers};
 use crate::store::stick_in_the_way;
 use crate::{Msg, Out, Session, State};
 
@@ -24,7 +25,18 @@ impl Feature for Session {
     fn start(_carried: &mut Carried, cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
         let mut state = State::new(cx.view.mode.network);
         state.store.set_stick(stick_in_the_way(cx.view.facts));
-        (state, Effects::none())
+        if cx.view.mode.practice {
+            state.store.practice();
+        }
+        // The system's answers are asked for at the start: the first is the seed, the rest the
+        // pool (F102; `main` asked for one more than the pool holds).
+        state.random.begin(cx.view.clock.now_ms);
+        state.random.asked(POOL + 1);
+        let mut fx = Effects::none();
+        for _ in 0..=POOL {
+            fx = fx.ask(AskEntropy, false, came);
+        }
+        (state, fx)
     }
 
     fn update(state: &mut State, msg: Msg, cx: &Ctx<'_>) -> Effects<Msg, Out> {
@@ -118,7 +130,7 @@ fn given(state: &mut State, id: ChangeId, change: AnyChange, cx: &Ctx<'_>) -> Ef
             if new_seed {
                 state.reblind(cx.compute);
             }
-            answer(id, session::Done::Seed(())).and(serve(state, cx))
+            answer(id, session::Done::Seed(())).and(serve(state))
         }
         Change::AddOwn(own) => {
             state.random.own_add(own.0.expose());
@@ -158,54 +170,57 @@ fn given(state: &mut State, id: ChangeId, change: AnyChange, cx: &Ctx<'_>) -> Ef
     }
 }
 
-/// A draw of `what`: one answer of 32 bytes, from the pool once the seed is in (the seed comes
-/// first), else kept until the system's answers are. A draw of more than one answer is not
-/// given: the answer type is one answer, so a caller needing more draws again.
+/// A draw of `what`: `n` bytes, one pooled answer for every 32, from the pool once the seed is in
+/// (the seed comes first), else kept until the system's answers are. More than the pool's most
+/// is refused, and so is any draw once the seed is a minute late with the system giving none.
 fn draw_for(
     state: &mut State,
     id: ChangeId,
     draw: session::Draw,
     cx: &Ctx<'_>,
 ) -> Effects<Msg, Out> {
-    if draw.n == 0 || draw.n > 32 {
-        return answer(id, session::Done::Draw(Err(NoRandomness)));
+    if draw.n > TAKE_MAX {
+        return answer(id, session::Done::Draw(Err(NoRandomness::TooLong)));
+    }
+    let now = cx.view.clock.now_ms;
+    if state.random.gives_none(now) {
+        return answer(id, session::Done::Draw(Err(NoRandomness::System)));
     }
     if !state.random.is_waiting()
-        && let Some(bytes) = state.random.take(draw.what)
+        && let Some(bytes) = state.random.take_bytes(draw.what, draw.n)
     {
-        return answer(id, session::Done::Draw(Ok(bytes))).and(ask_more(state));
+        return answer(id, session::Done::Draw(Ok(bytes))).and(ask_more(state, answers(draw.n)));
     }
-    state.random.wait(id, draw.what, cx.view.clock.now_ms);
-    ask_more(state)
+    state.random.wait(id, draw.what, draw.n, now);
+    ask_more(state, 0)
 }
 
-/// The adapter is asked for one more answer, when none is on its way.
-fn ask_more(state: &mut State) -> Effects<Msg, Out> {
-    if state.random.in_flight() > 0 {
-        return Effects::none();
+/// The adapter is asked for the answers the draws waiting still need, and `extra` to refill
+/// what a draw took.
+fn ask_more(state: &mut State, extra: usize) -> Effects<Msg, Out> {
+    let n = state.random.wanted() + extra;
+    state.random.asked(n);
+    let mut fx = Effects::none();
+    for _ in 0..n {
+        fx = fx.ask(AskEntropy, false, came);
     }
-    state.random.asked();
-    Effects::none().ask(AskEntropy, false, came)
+    fx
 }
 
 fn came(_context: bool, answer: Result<Entropy, Failure>) -> Msg {
     Msg::Entropy(answer)
 }
 
-/// The draws waiting that the pool can serve now, each answered; and one more answer asked for
-/// while some still wait or one was taken.
-fn serve(state: &mut State, cx: &Ctx<'_>) -> Effects<Msg, Out> {
-    let _ = cx;
+/// The draws waiting that the pool can serve now, each answered; the answers they took are asked
+/// for again, and what the draws still waiting need.
+fn serve(state: &mut State) -> Effects<Msg, Out> {
     let mut fx = Effects::none();
-    let mut taken = false;
-    while let Some((id, bytes)) = state.random.serve() {
-        taken = true;
+    let mut taken = 0;
+    while let Some((id, bytes, used)) = state.random.serve() {
+        taken += used;
         fx = fx.and(answer(id, session::Done::Draw(Ok(bytes))));
     }
-    if taken || state.random.is_waiting() {
-        fx = fx.and(ask_more(state));
-    }
-    fx
+    fx.and(ask_more(state, taken))
 }
 
 /// The adapter answered the session's own ask.
@@ -224,18 +239,18 @@ fn entropy(
         state.reblind(cx.compute);
     }
     state.changed();
-    serve(state, cx)
+    serve(state)
 }
 
-/// A tick: the draws that waited as long as they do are answered with `NoRandomness`, and the
+/// A tick: the draws that waited as long as they do are answered with no randomness, and the
 /// ones left ask again when nothing is on its way.
 fn waited(state: &mut State, cx: &Ctx<'_>) -> Effects<Msg, Out> {
     let mut fx = Effects::none();
     for id in state.random.expired(cx.view.clock.now_ms) {
-        fx = fx.and(answer(id, session::Done::Draw(Err(NoRandomness))));
+        fx = fx.and(answer(id, session::Done::Draw(Err(NoRandomness::System))));
     }
-    if state.random.is_waiting() {
-        fx = fx.and(ask_more(state));
+    if state.random.in_flight() == 0 {
+        fx = fx.and(ask_more(state, 0));
     }
     fx
 }

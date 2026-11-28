@@ -3,7 +3,7 @@
 
 use faraday_crypto::Secret;
 use faraday_kernel::{AtLock, ChangeId, Holds};
-use faraday_port::bytes::EntropyBytes;
+use faraday_port::bytes::Bytes;
 
 /// Answers kept waiting for the next draw: `main`'s pool, which kept at most twice this many.
 pub(crate) const POOL: usize = 26;
@@ -12,11 +12,15 @@ pub(crate) const POOL: usize = 26;
 /// credits no generator can take many seconds on a slow board, so nothing is said sooner.
 pub(crate) const NO_SEED_MS: u64 = 60_000;
 
+/// The most bytes one draw gives: `POOL` answers of 32 (`main`'s `TAKE_MAX`).
+pub(crate) const TAKE_MAX: usize = POOL * 32;
+
 /// A draw that found no seed or no answer in the pool: kept, with the change it answers, until
 /// the answers are in or the wait is over.
 struct Waiting {
     id: ChangeId,
     what: &'static str,
+    n: usize,
     since_ms: u64,
 }
 
@@ -32,6 +36,13 @@ pub(crate) struct Random {
     waiting: Vec<Waiting>,
     /// Entropy asks of the session's own that are not answered yet.
     in_flight: usize,
+    /// When the wait for the seed began: the build of the scope (F102).
+    born_ms: u64,
+}
+
+/// The answers `n` bytes take: one for every 32.
+pub(crate) fn answers(n: usize) -> usize {
+    n.div_ceil(32)
 }
 
 /// SHA-256 of the parts one after the other, the bytes put together once in a buffer that wipes.
@@ -88,43 +99,74 @@ impl Random {
         Some(hash(&[what, seed.expose(), count]))
     }
 
-    /// One pooled answer for `what`, with the person's accumulator hashed in when they added
-    /// any. `None` while the seed is not in or no answer waits.
-    pub(crate) fn take(&mut self, what: &str) -> Option<EntropyBytes> {
+    /// `n` bytes for `what`, one pooled answer for every 32 (the last cut to length), each hashed
+    /// with `what` and with the person's accumulator when they added any. Nothing is taken, and
+    /// `None` given, while the seed is not in or fewer answers wait than it needs.
+    pub(crate) fn take_bytes(&mut self, what: &str, n: usize) -> Option<Bytes> {
         self.seed.as_ref()?;
-        let answer = self.pool.pop()?;
-        let mixed = match self.own.as_ref() {
-            Some(acc) => hash(&[
-                b"faraday fresh",
-                what.as_bytes(),
-                answer.expose(),
-                acc.expose(),
-            ]),
-            None => hash(&[b"faraday fresh", what.as_bytes(), answer.expose()]),
-        };
-        Some(EntropyBytes::new(*mixed.expose()))
+        let answers = answers(n);
+        if n > TAKE_MAX || self.pool.len() < answers {
+            return None;
+        }
+        let mut out = Secret::new(Vec::with_capacity(answers * 32));
+        for _ in 0..answers {
+            let answer = self.pool.pop()?;
+            let mixed = match self.own.as_ref() {
+                Some(acc) => hash(&[
+                    b"faraday fresh",
+                    what.as_bytes(),
+                    answer.expose(),
+                    acc.expose(),
+                ]),
+                None => hash(&[b"faraday fresh", what.as_bytes(), answer.expose()]),
+            };
+            out.expose_mut().extend_from_slice(mixed.expose());
+        }
+        out.expose_mut().truncate(n);
+        Some(out)
     }
 
-    pub(crate) fn wait(&mut self, id: ChangeId, what: &'static str, now_ms: u64) {
+    pub(crate) fn wait(&mut self, id: ChangeId, what: &'static str, n: usize, now_ms: u64) {
         self.waiting.push(Waiting {
             id,
             what,
+            n,
             since_ms: now_ms,
         });
     }
 
     /// The first draw waiting that can be served now, with its bytes.
-    pub(crate) fn serve(&mut self) -> Option<(ChangeId, EntropyBytes)> {
-        let what = self.waiting.first()?.what;
-        let bytes = self.take(what)?;
-        Some((self.waiting.remove(0).id, bytes))
+    pub(crate) fn serve(&mut self) -> Option<(ChangeId, Bytes, usize)> {
+        let first = self.waiting.first()?;
+        let (what, n) = (first.what, first.n);
+        let bytes = self.take_bytes(what, n)?;
+        Some((self.waiting.remove(0).id, bytes, answers(n)))
+    }
+
+    /// The build of the scope began: the wait for the seed counts from here.
+    pub(crate) fn begin(&mut self, now_ms: u64) {
+        self.born_ms = now_ms;
+    }
+
+    /// The seed is still missing a minute after the build began: the system gives none.
+    pub(crate) fn gives_none(&self, now_ms: u64) -> bool {
+        self.seed.is_none() && now_ms.saturating_sub(self.born_ms) >= NO_SEED_MS
+    }
+
+    /// How many more answers the adapter is to be asked for: what the draws waiting need, and
+    /// the seed's own, less what the pool holds and what is on its way.
+    pub(crate) fn wanted(&self) -> usize {
+        let need: usize = self.waiting.iter().map(|w| answers(w.n)).sum::<usize>()
+            + usize::from(self.seed.is_none());
+        need.saturating_sub(self.pool.len() + self.in_flight)
     }
 
     /// The draws that have waited for the system's answers as long as they do.
     pub(crate) fn expired(&mut self, now_ms: u64) -> Vec<ChangeId> {
         let mut gone = Vec::new();
+        let none = self.gives_none(now_ms);
         self.waiting.retain(|w| {
-            let over = now_ms.saturating_sub(w.since_ms) >= NO_SEED_MS;
+            let over = none || now_ms.saturating_sub(w.since_ms) >= NO_SEED_MS;
             if over {
                 gone.push(w.id);
             }
@@ -141,8 +183,8 @@ impl Random {
         self.in_flight
     }
 
-    pub(crate) fn asked(&mut self) {
-        self.in_flight += 1;
+    pub(crate) fn asked(&mut self, n: usize) {
+        self.in_flight += n;
     }
 
     pub(crate) fn answered(&mut self) {

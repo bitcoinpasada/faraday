@@ -148,8 +148,14 @@ pub enum KeyInput {
     Shares(Vec<SecretText>),
 }
 
-/// `Draw`'s answer when the seed never came.
-pub struct NoRandomness;
+/// Why a `Draw` gives no bytes.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NoRandomness {
+    /// The system gave no seed or no answers in the time it is given (F102).
+    System,
+    /// More bytes than one draw gives: the most is 26 answers of 32 bytes.
+    TooLong,
+}
 
 /// What `Sign` is answered with: the PSBT and the spend's MuSig2 round, moved back.
 pub struct Signed {
@@ -265,7 +271,7 @@ pub enum Done {
     MarkChecked(Result<(), Refusal>),
     Follow(Result<(), Refusal>),
     Sign(Result<Signed, Refusal>),
-    Draw(Result<EntropyBytes, NoRandomness>),
+    Draw(Result<Bytes, NoRandomness>),
     Seed(()),
     AddOwn(()),
     PutOutbox(Result<FileId, Refusal>),
@@ -287,7 +293,7 @@ change!(RenameWallet => Result<(), Refusal>);
 change!(MarkChecked => Result<(), Refusal>);
 change!(Follow => Result<(), Refusal>);
 change!(Sign => Result<Signed, Refusal>);
-change!(Draw => Result<EntropyBytes, NoRandomness>);
+change!(Draw => Result<Bytes, NoRandomness>);
 change!(Seed => ());
 change!(AddOwn => ());
 change!(PutOutbox => Result<FileId, Refusal>);

@@ -170,6 +170,13 @@ impl TestView {
         self
     }
 
+    /// The adapter's clock reads `now_ms`.
+    #[must_use]
+    pub fn with_now(mut self, now_ms: u64) -> Self {
+        self.clock.now_ms = now_ms;
+        self
+    }
+
     /// With the test `Compute`.
     #[must_use]
     pub fn ctx(&self) -> Ctx<'_> {

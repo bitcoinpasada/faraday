@@ -1,7 +1,7 @@
 //! The session owner's rules for its keys, the keys held for their backup and its randomness.
 
 use faraday_app_test::{TestView, seen};
-use faraday_kernel::session::{self, AddKey, Change, Draw, KeyInput, WaitingItem};
+use faraday_kernel::session::{self, AddKey, Change, Draw, KeyInput, NoRandomness, WaitingItem};
 use faraday_kernel::shared::Changed;
 use faraday_kernel::{
     AnyChange, AtLock, Carried, ChangeId, Ctx, Done, Feature, KeyId, Notice, Top, session::Read,
@@ -10,7 +10,7 @@ use faraday_keys::Refusal;
 use faraday_port::bytes::{Entropy, EntropyBytes, EntropySource};
 use faraday_text::secret::SecretText;
 
-use crate::random::{NO_SEED_MS, Random};
+use crate::random::{NO_SEED_MS, POOL, Random};
 use crate::{Msg, Session, State};
 
 /// BIP 39's first test vector.
@@ -78,7 +78,7 @@ fn a_lock_leaves_the_session_holding_nothing() {
         Change::AddOwn(session::AddOwn(EntropyBytes::new([9; 32]))),
     );
     let held = state.holds();
-    assert!(held.kept && held.session && held.asks_first.is_some());
+    assert!(held.kept && held.session && held.asks_first.is_none());
     assert!(state.seeded() && !state.waiting().is_empty());
 
     state.at_lock();
@@ -117,11 +117,11 @@ fn a_held_key_is_free_only_after_its_release() {
     assert!(state.waiting().is_empty());
 }
 
-/// Invariant: A key removed takes its hold with it, and its handle is never given to another key.
-/// Regression: A removed key's hold stays in what waits, or a new key takes the old handle.
+/// Invariant: A key held for its backup stays held when it is removed and typed in again, under a new handle that is never an old one.
+/// Regression: Removing a held key drops its hold, so the same key typed in again signs and receives with no backup.
 /// Owner: app
 #[test]
-fn a_removed_key_leaves_no_hold_and_no_handle_behind() {
+fn a_held_key_removed_and_added_again_is_still_held() {
     let view = TestView::device();
     let cx = view.ctx();
     let mut state = started(&view);
@@ -143,7 +143,15 @@ fn a_removed_key_leaves_no_hold_and_no_handle_behind() {
 
     let second = add_words(&mut state, &cx, 4);
     assert_ne!(first, second);
-    assert!(state.key(first).is_none());
+    assert!(state.key(second).is_some_and(|k| k.held));
+    assert!(matches!(state.waiting(), [WaitingItem::Held(held)] if *held == second));
+
+    let _ = give(&mut state, &cx, 5, Change::RemoveAll(session::RemoveAll));
+    let third = add_words(&mut state, &cx, 6);
+    assert!(state.key(third).is_some_and(|k| k.held));
+
+    let _ = give(&mut state, &cx, 7, Change::Release(session::Release(third)));
+    assert!(state.key(third).is_some_and(|k| !k.held));
 }
 
 /// Invariant: A lock carries the mark that a key held for its backup is the only copy of itself.
@@ -237,7 +245,7 @@ fn a_passphrase_with_a_master_seed_is_refused() {
     assert!(state.keys().is_empty());
 }
 
-/// Invariant: A draw made before the seed is in gets no bytes until the system's answers are, and is then answered once.
+/// Invariant: A draw made before the seed is in gets no bytes until the system's answers are, and is then answered once with the bytes asked for.
 /// Regression: A draw is answered from the pool before the seed, is dropped without an answer, or is answered twice.
 /// Owner: app
 #[test]
@@ -252,14 +260,13 @@ fn a_draw_before_the_seed_waits_and_is_answered_once() {
         1,
         Change::Draw(Draw {
             what: "a test",
-            n: 32,
+            n: 40,
         }),
     );
     assert!(fx.dones.is_empty());
-    assert_eq!(fx.asks.len(), 1);
     assert!(!state.seeded());
 
-    // The first answer is the seed, which draws nothing: the draw still waits, and the session asks again.
+    // The first answer is the seed, which draws nothing.
     let fx = seen(Session::update(
         &mut state,
         Msg::Entropy(Ok(entropy(1))),
@@ -267,25 +274,45 @@ fn a_draw_before_the_seed_waits_and_is_answered_once() {
     ));
     assert!(state.seeded());
     assert!(fx.dones.is_empty());
-    assert_eq!(fx.asks.len(), 1);
 
-    // The second goes to the pool and serves the draw.
+    // 40 bytes take two answers: one is not enough.
     let fx = seen(Session::update(
         &mut state,
         Msg::Entropy(Ok(entropy(2))),
         &cx,
     ));
-    assert!(matches!(
-        fx.dones.as_slice(),
-        [(waiting, Done::Session(session::Done::Draw(Ok(_))))] if *waiting == id(1)
-    ));
-
+    assert!(fx.dones.is_empty());
     let fx = seen(Session::update(
         &mut state,
         Msg::Entropy(Ok(entropy(3))),
         &cx,
     ));
+    match fx.dones.as_slice() {
+        [(waiting, Done::Session(session::Done::Draw(Ok(bytes))))] => {
+            assert_eq!(*waiting, id(1));
+            assert_eq!(bytes.expose().len(), 40);
+        }
+        _ => panic!("the draw was not answered once"),
+    }
+    // The two answers it took are asked for again.
+    assert_eq!(fx.asks.len(), 2);
+
+    let fx = seen(Session::update(
+        &mut state,
+        Msg::Entropy(Ok(entropy(4))),
+        &cx,
+    ));
     assert!(fx.dones.is_empty());
+}
+
+/// Invariant: The session asks the system for its seed and a pool of answers when it starts.
+/// Regression: Nothing asks until a feature draws, so a feature that waits for the seed waits for ever.
+/// Owner: app
+#[test]
+fn the_session_asks_for_its_seed_at_start() {
+    let view = TestView::device();
+    let (_state, fx) = Session::start(&mut Carried::empty(), &view.ctx());
+    assert_eq!(seen(fx).asks.len(), POOL + 1);
 }
 
 /// Invariant: A draw is the answer hashed with what it is for, so no two purposes draw the same bytes, and the person's own randomness is mixed in.
@@ -297,19 +324,19 @@ fn a_draw_is_the_answer_hashed_with_its_purpose_and_the_persons_own() {
     assert!(random.arrived(&[1; 32]));
     assert!(!random.arrived(&[2; 32]));
     assert!(!random.arrived(&[3; 32]));
-    let plain = random.take("a").map(|b| *b.expose());
-    let other = random.take("b").map(|b| *b.expose());
+    let plain = random.take_bytes("a", 32).map(|b| b.expose().clone());
+    let other = random.take_bytes("b", 32).map(|b| b.expose().clone());
     let mut expected = b"faraday fresh".to_vec();
     expected.extend_from_slice(b"a");
     expected.extend_from_slice(&[3; 32]);
-    assert_eq!(plain, Some(faraday_crypto::sha256(&expected)));
+    assert_eq!(plain, Some(faraday_crypto::sha256(&expected).to_vec()));
     assert_ne!(plain, other);
 
     let mut own = Random::default();
     own.own_add(&[5; 32]);
     assert!(own.arrived(&[1; 32]));
     assert!(!own.arrived(&[3; 32]));
-    let mixed = own.take("a").map(|b| *b.expose());
+    let mixed = own.take_bytes("a", 32).map(|b| b.expose().clone());
     assert_ne!(mixed, plain);
 }
 
@@ -319,17 +346,19 @@ fn a_draw_is_the_answer_hashed_with_its_purpose_and_the_persons_own() {
 #[test]
 fn a_draw_gives_up_after_its_minute() {
     let mut random = Random::default();
-    random.wait(id(1), "a test", 1_000);
+    random.begin(0);
+    assert!(random.arrived(&[1; 32]));
+    random.wait(id(1), "a test", 32, 1_000);
     assert!(random.expired(1_000 + NO_SEED_MS - 1).is_empty());
     assert_eq!(random.expired(1_000 + NO_SEED_MS), vec![id(1)]);
     assert!(!random.is_waiting());
 }
 
-/// Invariant: A draw is of one answer of 32 bytes at most; one for more is refused, not cut.
-/// Regression: A draw for more bytes than the answer holds is answered with fewer and read as whole.
+/// Invariant: A draw of more bytes than the pool's most is refused as too long, not as the system giving no randomness.
+/// Regression: A draw for 833 bytes is answered as if the system gave no randomness, or is cut and read as whole.
 /// Owner: app
 #[test]
-fn a_draw_of_more_than_one_answer_is_refused() {
+fn a_draw_of_too_many_bytes_is_refused_as_too_long() {
     let view = TestView::device();
     let cx = view.ctx();
     let mut state = started(&view);
@@ -339,12 +368,42 @@ fn a_draw_of_more_than_one_answer_is_refused() {
         1,
         Change::Draw(Draw {
             what: "a test",
-            n: 33,
+            n: 833,
         }),
     );
     assert!(matches!(
         fx.dones.as_slice(),
-        [(_, Done::Session(session::Done::Draw(Err(_))))]
+        [(
+            _,
+            Done::Session(session::Done::Draw(Err(NoRandomness::TooLong)))
+        )]
+    ));
+}
+
+/// Invariant: A draw made a minute after the build with no seed is answered with no randomness in the same dispatch.
+/// Regression: Every draw waits its own minute, so a board that gives no randomness answers a late draw a minute later.
+/// Owner: app
+#[test]
+fn a_draw_after_the_late_seed_minute_is_refused_at_once() {
+    let view = TestView::device().with_now(NO_SEED_MS);
+    let cx = view.ctx();
+    let mut state = started(&view);
+    state.random.begin(0);
+    let fx = give(
+        &mut state,
+        &cx,
+        1,
+        Change::Draw(Draw {
+            what: "a test",
+            n: 32,
+        }),
+    );
+    assert!(matches!(
+        fx.dones.as_slice(),
+        [(
+            _,
+            Done::Session(session::Done::Draw(Err(NoRandomness::System)))
+        )]
     ));
 }
 
@@ -362,4 +421,166 @@ fn a_tick_with_no_draw_waiting_asks_nothing() {
         &cx,
     ));
     assert!(fx.asks.is_empty() && fx.dones.is_empty());
+}
+
+fn hex(text: &str) -> Vec<u8> {
+    (0..text.len())
+        .step_by(2)
+        .filter_map(|i| u8::from_str_radix(&text[i..i + 2], 16).ok())
+        .collect()
+}
+
+fn fingerprint_of_seed(bytes: &[u8]) -> faraday_bip::keys::Fingerprint {
+    let mut keys = faraday_keys::Keys::on(faraday_bip::keys::Network::Mainnet);
+    keys.add_seed(faraday_app_test::test_compute(), bytes, "")
+        .unwrap()
+}
+
+fn add_shares(state: &mut State, cx: &Ctx<'_>, n: u32, strings: &[&str]) -> session::Done {
+    let fx = give(
+        state,
+        cx,
+        n,
+        Change::AddKey(AddKey {
+            key: KeyInput::Shares(strings.iter().map(|s| SecretText::of(s)).collect()),
+            passphrase: None,
+        }),
+    );
+    match fx.dones.into_iter().next() {
+        Some((_, Done::Session(done))) => done,
+        _ => panic!("no answer"),
+    }
+}
+
+/// Invariant: A codex32 secret string loads the master seed it carries, and a set of shares loads the seed they recover, as BIP 93's vectors give them.
+/// Regression: The string's 5-bit symbols are loaded as the seed, or a share nobody typed is recorded with the key.
+/// Owner: app
+#[test]
+fn codex32_strings_load_the_seed_of_bip_93s_vectors() {
+    let view = TestView::device();
+    let cx = view.ctx();
+
+    let mut state = started(&view);
+    let done = add_shares(
+        &mut state,
+        &cx,
+        1,
+        &["ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw"],
+    );
+    assert!(matches!(done, session::Done::AddKey(Ok(_))));
+    assert_eq!(
+        state.keys().first().map(|k| k.fingerprint),
+        Some(fingerprint_of_seed(&hex(
+            "318c6318c6318c6318c6318c6318c631"
+        )))
+    );
+
+    // Vector 2: shares A and C recover the seed, and only those two are recorded.
+    let mut state = started(&view);
+    let done = add_shares(
+        &mut state,
+        &cx,
+        1,
+        &[
+            "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
+            "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+        ],
+    );
+    assert!(matches!(done, session::Done::AddKey(Ok(_))));
+    let key = state.keys().first().unwrap();
+    assert_eq!(
+        key.fingerprint,
+        fingerprint_of_seed(&hex("d1808e096b35b209ca12132b264662a5"))
+    );
+    assert_eq!(key.codex32.as_ref().map(|c| c.strings.len()), Some(2));
+}
+
+/// Invariant: SLIP-39 shares load the seed they recover with the passphrase given, and a passphrase changes the key.
+/// Regression: SLIP-39 shares are refused as codex32, or the passphrase is dropped.
+/// Owner: app
+#[test]
+fn slip39_shares_load_with_their_passphrase() {
+    const SHARE: &str = "duckling enlarge academic academic agency result length solution \
+                         fridge kidney coal piece deal husband erode duke ajar critical \
+                         decision keyboard";
+    let view = TestView::device();
+    let cx = view.ctx();
+    let mut keys_seen = Vec::new();
+    for pass in [Some("TREZOR"), None] {
+        let mut state = started(&view);
+        let fx = give(
+            &mut state,
+            &cx,
+            1,
+            Change::AddKey(AddKey {
+                key: KeyInput::Shares(vec![SecretText::of(SHARE)]),
+                passphrase: pass.map(SecretText::of),
+            }),
+        );
+        assert!(matches!(
+            fx.dones.as_slice(),
+            [(_, Done::Session(session::Done::AddKey(Ok(_))))]
+        ));
+        keys_seen.push(state.keys().first().map(|k| k.fingerprint));
+    }
+    assert_ne!(keys_seen[0], keys_seen[1]);
+    let c = faraday_app_test::test_compute();
+    let share = faraday_bip::slip39::Share::parse(SHARE).unwrap();
+    let seed = faraday_keys::slip39_seed(c, &[share], b"TREZOR").unwrap();
+    assert_eq!(keys_seen[0], Some(fingerprint_of_seed(&seed)));
+}
+
+/// Invariant: In Practice the key store takes only the published samples.
+/// Regression: Practice's session takes any typed key, because nothing set the demo's list.
+/// Owner: app
+#[test]
+fn practice_takes_only_the_published_samples() {
+    let view = TestView::demo();
+    let cx = view.ctx();
+    let mut state = started(&view);
+    let fx = give(
+        &mut state,
+        &cx,
+        1,
+        Change::AddKey(AddKey {
+            key: KeyInput::Words(SecretText::of(
+                "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
+            )),
+            passphrase: None,
+        }),
+    );
+    assert!(matches!(
+        fx.dones.as_slice(),
+        [(
+            _,
+            Done::Session(session::Done::AddKey(Err(Refusal::NotAllowed(_))))
+        )]
+    ));
+    let _ = add_words(&mut state, &cx, 2);
+    assert_eq!(state.keys().len(), 1);
+}
+
+/// Invariant: An extended private key that does not read is refused with the words of what is wrong with it.
+/// Regression: The refusal carries no text, so the person sees an empty line.
+/// Owner: app
+#[test]
+fn an_xprv_that_does_not_read_is_refused_in_words() {
+    let view = TestView::device();
+    let cx = view.ctx();
+    let mut state = started(&view);
+    let fx = give(
+        &mut state,
+        &cx,
+        1,
+        Change::AddKey(AddKey {
+            key: KeyInput::Xprv(SecretText::of("xprvnotakey")),
+            passphrase: None,
+        }),
+    );
+    match fx.dones.as_slice() {
+        [(_, Done::Session(session::Done::AddKey(Err(Refusal::Words(text)))))] => {
+            assert!(!text.as_str().is_empty());
+        }
+        _ => panic!("not refused in words"),
+    }
 }

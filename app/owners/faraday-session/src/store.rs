@@ -1,14 +1,16 @@
 //! The key store, the handles over it and the keys held for their backup.
 
-use faraday_bip::codex32::{Codex32, INDEX_ORDER};
+use faraday_bip::codex32::Codex32;
 use faraday_bip::keys::Network;
+use faraday_bip::slip39::Share;
 use faraday_crypto::work::Compute;
 use faraday_kernel::Facts;
 use faraday_kernel::session::{KeyInput, KeyView, WaitingItem};
-use faraday_kernel::{AtLock, Holds, KeyId, Loss};
-use faraday_keys::{Keys, Making, Refusal, WorkSet};
+use faraday_kernel::{AtLock, Holds, KeyId};
+use faraday_keys::{Keys, Refusal, codex32_seed, slip39_seed};
 use faraday_port::values::Medium;
 use faraday_text::{Text, secret::SecretText};
+use faraday_vault::codex32::SetFacts;
 
 /// The name of the storage that is in the way of keys, when some is: the keys refuse to come in
 /// while it is attached.
@@ -18,9 +20,6 @@ pub(crate) fn stick_in_the_way(facts: &Facts) -> Option<&'static str> {
         Medium::Stick | Medium::Desktop => faraday_strings::EN.medium_stick_inline,
     })
 }
-
-/// What the Lock sheet names when a lock would lose a key held for its backup.
-const HELD_LOSS: Loss = Loss("session.held");
 
 /// A handle and the key it stands for: all 32 bytes of what tells the key from another, so a
 /// handle never reaches another key, and never an index that a removal moves.
@@ -36,7 +35,11 @@ pub(crate) struct Store {
     slots: Vec<Slot>,
     /// The next handle's number; never goes back within a build of the scope.
     next: u32,
-    /// What waits in the session: the keys held for their backup, in the order they were held.
+    /// The keys held for their backup, by the key's identity and not by its handle: removing a
+    /// key does not release it, and the key typed in again is held again. Only `release` and a
+    /// lock end a hold (`main`'s `made_here`, by fingerprint).
+    held: Vec<faraday_keys::KeyId>,
+    /// What waits in the session: the held keys that are here, in the order they were added.
     waiting: Vec<WaitingItem>,
 }
 
@@ -46,6 +49,7 @@ impl Store {
             keys: Keys::on(network),
             slots: Vec::new(),
             next: 0,
+            held: Vec::new(),
             waiting: Vec::new(),
         }
     }
@@ -78,7 +82,29 @@ impl Store {
 
     /// Whether any key is held.
     pub(crate) fn any_held(&self) -> bool {
-        !self.waiting.is_empty()
+        !self.held.is_empty()
+    }
+
+    /// `waiting` worked out again from the slots and the holds.
+    fn sync(&mut self) {
+        self.waiting = self
+            .slots
+            .iter()
+            .filter(|s| self.held.contains(&s.record))
+            .map(|s| WaitingItem::Held(s.id))
+            .collect();
+    }
+
+    /// Practice: the store takes only the published samples (03 §11, A33): the fingerprints
+    /// and Lightning nodes `faraday-keys` lists, which are the samples' own (`faraday-samples`
+    /// checks that). New key's handouts are the Demo strip's to set.
+    pub(crate) fn practice(&mut self) {
+        let public: Vec<faraday_bip::keys::Fingerprint> = faraday_keys::published::samples()
+            .iter()
+            .map(|f| faraday_bip::keys::Fingerprint(*f))
+            .collect();
+        self.keys
+            .set_demo(&[], &public, faraday_keys::published::sample_nodes());
     }
 
     pub(crate) fn view(&self, id: KeyId) -> Option<KeyView<'_>> {
@@ -110,49 +136,20 @@ impl Store {
                     .add_words_with(c, words.as_str(), pass, "", None)?
             }
             KeyInput::Seed(seed) => {
-                only_with_words(&passphrase)?;
+                only_with_words(passphrase.as_ref())?;
                 self.keys.add_seed(c, seed.expose(), "")?
             }
             KeyInput::Xprv(text) => {
-                only_with_words(&passphrase)?;
+                only_with_words(passphrase.as_ref())?;
                 match self.keys.add_xprv(c, text.as_str(), "") {
                     Ok(fp) => fp,
                     Err(faraday_keys::xprv::XprvError::Session(refusal)) => return Err(refusal),
-                    // A text that is no master key to load. `faraday-keys` words no refusal
-                    // for it yet: it stays refused, with no text of its own.
-                    Err(faraday_keys::xprv::XprvError::Read(_)) => {
-                        return Err(Refusal::Words(Text::new()));
+                    Err(faraday_keys::xprv::XprvError::Read(refusal)) => {
+                        return Err(Refusal::Words(crate::xprv_words::xprv_refusal(&refusal)));
                     }
                 }
             }
-            KeyInput::Shares(shares) => {
-                only_with_words(&passphrase)?;
-                let mut parsed = Vec::with_capacity(shares.len());
-                for share in &shares {
-                    parsed
-                        .push(Codex32::parse(share.as_str()).map_err(|e| {
-                            Refusal::Words(faraday_strings::bip::codex32_error(&e))
-                        })?);
-                }
-                let codex = |e: faraday_bip::codex32::Error| {
-                    Refusal::Words(faraday_strings::bip::codex32_error(&e))
-                };
-                match parsed.as_slice() {
-                    // The secret string itself: its payload is the master seed.
-                    [one] if one.is_secret() => self.keys.add_seed(c, one.payload(), "")?,
-                    // `k` shares of one set: `faraday-keys` rebuilds the seed and keeps the set.
-                    _ => {
-                        let taken: Vec<u8> = parsed.iter().map(Codex32::share_index).collect();
-                        let spare = INDEX_ORDER
-                            .iter()
-                            .copied()
-                            .find(|i| !taken.contains(i))
-                            .ok_or_else(|| Refusal::Words(Text::new()))?;
-                        let work = WorkSet::given(c, &parsed, Making::Add(spare)).map_err(codex)?;
-                        self.keys.add_codex32(c, &work, "")?
-                    }
-                }
-            }
+            KeyInput::Shares(shares) => self.add_shares(c, &shares, passphrase.as_ref())?,
         };
         let record = self
             .keys
@@ -162,10 +159,63 @@ impl Store {
         let id = KeyId::minted(self.next);
         self.next = self.next.saturating_add(1);
         self.slots.push(Slot { id, record });
+        self.sync();
         Ok(id)
     }
 
-    /// Key `id` goes, and its hold with it. Whether it was here.
+    /// Costs what `add_seed` costs and a recovery of the shares. The key the strings or the
+    /// words make: SLIP-39 shares with their passphrase, codex32 strings with none. A codex32
+    /// key keeps the plain facts of its set and the strings typed, as `main`'s did.
+    fn add_shares(
+        &mut self,
+        c: &Compute,
+        shares: &[SecretText],
+        passphrase: Option<&SecretText>,
+    ) -> Result<faraday_bip::keys::Fingerprint, Refusal> {
+        let words = |e: Text| Refusal::Words(e);
+        let codex = shares
+            .first()
+            .is_some_and(|s| s.as_str().trim().to_ascii_lowercase().starts_with("ms1"));
+        if !codex {
+            let mut parsed = Vec::with_capacity(shares.len());
+            for share in shares {
+                parsed.push(
+                    Share::parse(share.as_str())
+                        .map_err(|e| words(faraday_strings::bip::slip39_error(&e)))?,
+                );
+            }
+            let pass = passphrase.map_or("", |p| p.as_str());
+            let seed = slip39_seed(c, &parsed, pass.as_bytes())
+                .map_err(|e| words(faraday_strings::bip::slip39_error(&e)))?;
+            return self.keys.add_seed(c, &seed, "");
+        }
+        only_with_words(passphrase)?;
+        let strings = |e: faraday_bip::codex32::Error| {
+            words(Text::fill(
+                faraday_strings::EN.forms_the_strings_do,
+                &[&faraday_strings::bip::codex32_error(&e)],
+            ))
+        };
+        let mut typed = Vec::with_capacity(shares.len());
+        for share in shares {
+            typed.push(Codex32::parse(share.as_str().trim()).map_err(strings)?);
+        }
+        let seed = codex32_seed(&typed).map_err(strings)?;
+        let fp = self.keys.add_seed(c, &seed, "")?;
+        let texts: Vec<Text> = typed
+            .iter()
+            .map(|s| Text::of(s.encode().as_str()))
+            .collect();
+        let refs: Vec<&str> = texts.iter().map(Text::as_str).collect();
+        if let Some(i) = self.keys.position(fp) {
+            self.keys.set_codex32(i, set_facts(&typed));
+            self.keys.keep_codex32(c, i, &refs);
+        }
+        Ok(fp)
+    }
+
+    /// Key `id` goes. Its hold stays with the key's identity: the key typed in again is held
+    /// again. Whether it was here.
     pub(crate) fn remove(&mut self, id: KeyId) -> bool {
         let Some(at) = self.slots.iter().position(|s| s.id == id) else {
             return false;
@@ -174,37 +224,60 @@ impl Store {
         if let Some(place) = self.keys.place_of(slot.record) {
             self.keys.remove(place);
         }
-        self.waiting
-            .retain(|w| !matches!(w, WaitingItem::Held(held) if *held == id));
+        self.sync();
         true
     }
 
-    /// Every key goes, and every hold; the handles that were.
+    /// Every key goes, the holds stay; the handles that were.
     pub(crate) fn remove_all(&mut self) -> Vec<KeyId> {
         self.keys.remove_all();
-        self.waiting.clear();
-        self.slots.drain(..).map(|s| s.id).collect()
+        let gone = self.slots.drain(..).map(|s| s.id).collect();
+        self.sync();
+        gone
     }
 
     /// Key `id` is held for its backup, if it is here and not held already.
     pub(crate) fn hold(&mut self, id: KeyId) {
-        if self.slots.iter().any(|s| s.id == id) && !self.is_held(id) {
-            self.waiting.push(WaitingItem::Held(id));
+        let Some(record) = self.slots.iter().find(|s| s.id == id).map(|s| s.record) else {
+            return;
+        };
+        if !self.held.contains(&record) {
+            self.held.push(record);
         }
+        self.sync();
     }
 
     /// Key `id`'s backup is done: it is not held any more. Whether it was.
     pub(crate) fn release(&mut self, id: KeyId) -> bool {
-        let before = self.waiting.len();
-        self.waiting
-            .retain(|w| !matches!(w, WaitingItem::Held(held) if *held == id));
-        self.waiting.len() != before
+        let Some(record) = self.slots.iter().find(|s| s.id == id).map(|s| s.record) else {
+            return false;
+        };
+        let before = self.held.len();
+        self.held.retain(|h| *h != record);
+        self.sync();
+        self.held.len() != before
     }
 }
 
-/// A passphrase belongs to words (BIP 39): a master seed, an extended private key and a set of
-/// shares take none, and a key is never added with it left out unasked.
-fn only_with_words(passphrase: &Option<SecretText>) -> Result<(), Refusal> {
+/// The plain facts of the set the codex32 strings `typed` are of, for the key they load: k, the
+/// identifier, the length and each index typed (`main`'s `forms::set_facts`).
+fn set_facts(typed: &[Codex32]) -> Option<SetFacts> {
+    let first = typed.first()?;
+    Some(SetFacts {
+        threshold: first.threshold(),
+        identifier: first.identifier(),
+        length: u8::try_from(first.encode().as_str().len()).unwrap_or(0),
+        unknown: 0,
+        strings: typed
+            .iter()
+            .map(|s| (s.share_index(), faraday_vault::codex32::State::Made))
+            .collect(),
+    })
+}
+
+/// A passphrase belongs to words (BIP 39) and to SLIP-39 shares: a master seed, an extended
+/// private key and codex32 strings take none, and a key is never added with it left out unasked.
+fn only_with_words(passphrase: Option<&SecretText>) -> Result<(), Refusal> {
     match passphrase {
         Some(_) => Err(Refusal::Words(Text::new())),
         None => Ok(()),
@@ -217,7 +290,9 @@ impl AtLock for Store {
             kept: self.keys.holds_secret(),
             typed: false,
             session: self.any_held(),
-            asks_first: self.any_held().then_some(HELD_LOSS),
+            // `main` asks first at a lock only for what a lock loses of the flows and the
+            // vaults; a held key alone does not (its hold is the backup flow's).
+            asks_first: None,
         }
     }
 
@@ -227,6 +302,7 @@ impl AtLock for Store {
     fn at_lock(&mut self) {
         self.keys.clear();
         self.slots.clear();
+        self.held.clear();
         self.waiting.clear();
     }
 }

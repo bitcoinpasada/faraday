@@ -16,6 +16,7 @@ mod random;
 mod state;
 mod store;
 mod update;
+mod xprv_words;
 
 #[cfg(test)]
 mod tests;

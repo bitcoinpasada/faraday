@@ -740,7 +740,7 @@ The session's changes, from the inventory's uses (`features/wallets.md`, `add-ke
 | `AddWallet` | policy, name, source | `Result<WalletId, AddRefusal>`; `AddRefusal::Unconfirmed(Confirm)` for a wallet of several keys (F254) |
 | `ConfirmWallet`, `RemoveWallet`, `RenameWallet`, `MarkChecked`, `Follow(Network)` | | `Result<_, Refusal>` |
 | `Sign` | wallet, PSBT (`Bytes`), the spend's MuSig2 round (`Option<faraday_psbt::MusigSession>`) | after the session's sign job, `Result<Signed, Refusal>`: the PSBT and the round, moved back |
-| `Draw` | what for, how many bytes | `Result<EntropyBytes, NoRandomness>` |
+| `Draw` | what for, how many bytes | `Result<Bytes, NoRandomness>`: `n` bytes, one pooled answer for every 32, at most 26 answers |
 | `Seed`, `AddOwn` | the adapter's entropy; the person's own accumulator | `()` |
 | `PutOutbox`, `TakeFile`, `RemoveFile`, `RenameFile`, `MarkWritten` | the file's bytes (`Bytes`) | `Result<FileId, Refusal>`; `TakeFile` the bytes |
 | `Hold`, `Release` | key and copy written | `()` |
