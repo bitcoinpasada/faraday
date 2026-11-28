@@ -1474,6 +1474,8 @@ dependencies = [
 name = "faraday-pass-field"
 version = "0.0.0"
 dependencies = [
+ "faraday-app-test",
+ "faraday-bip",
  "faraday-kernel",
  "faraday-keys",
  "faraday-port",
@@ -1746,15 +1748,19 @@ dependencies = [
 name = "faraday-secrets"
 version = "0.0.0"
 dependencies = [
+ "faraday-app-test",
  "faraday-bip",
  "faraday-codec",
+ "faraday-crypto",
  "faraday-intake",
  "faraday-kernel",
  "faraday-keys",
  "faraday-pgp",
  "faraday-port",
+ "faraday-psbt",
  "faraday-qr",
  "faraday-text",
+ "faraday-vault",
 ]
 
 [[package]]
@@ -2200,6 +2206,7 @@ dependencies = [
 name = "faraday-text"
 version = "0.1.0"
 dependencies = [
+ "subtle",
  "zeroize",
 ]
 

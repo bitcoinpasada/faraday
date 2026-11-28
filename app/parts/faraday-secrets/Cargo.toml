@@ -15,6 +15,12 @@ faraday-keys = { path = "../../../core/faraday-keys" }
 faraday-pgp = { path = "../../../core/faraday-pgp" }
 faraday-qr = { path = "../../../core/faraday-qr" }
 faraday-text = { path = "../../../core/faraday-text" }
+faraday-crypto = { path = "../../../core/faraday-crypto" }
+faraday-psbt = { path = "../../../core/faraday-psbt" }
+faraday-vault = { path = "../../../core/faraday-vault" }
+
+[dev-dependencies]
+faraday-app-test = { path = "../../../tools/faraday-app-test" }
 
 [lints]
 workspace = true

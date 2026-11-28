@@ -13,6 +13,7 @@
 use core::fmt;
 use core::ops::Deref;
 
+use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
 use crate::Text;
@@ -73,6 +74,15 @@ impl SecretText {
     /// Replaces what it holds with `s`.
     pub fn set(&mut self, s: &str) {
         self.0.set(s);
+    }
+
+    /// Alike, compared in constant time over the bytes (the lengths are not hidden): for a
+    /// comparison that decides access, where `==` is not to be used.
+    pub fn ct_eq(&self, other: &SecretText) -> bool {
+        self.as_str()
+            .as_bytes()
+            .ct_eq(other.as_str().as_bytes())
+            .into()
     }
 
     /// The text.

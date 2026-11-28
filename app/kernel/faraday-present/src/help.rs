@@ -1,7 +1,7 @@
 //! The helpers every `present` shares (04 §2).
 
 use faraday_kernel::{Feature, JobKind, Line, Refused, Running, Show, View};
-use faraday_organisms::{BusyModel, Offered, PassModel, Pressed, Shown};
+use faraday_organisms::{BusyModel, Offered, PassModel, PassView, Pressed, Shown};
 use faraday_pass_field::Press as PassPress;
 
 /// A control's press or why not, from the one gate (A10, V11).
@@ -31,12 +31,39 @@ pub fn busy<'s>(_running: &[Running], _kind: JobKind, _show: &Show<'s>) -> Optio
 }
 
 /// The passphrase part's read view mapped to the kit's model; the text only while the eye is
-/// open, through `Shown::secret`.
+/// open, through `Shown::secret`. A field that takes no typing (a stick in the way) offers
+/// neither its box nor its eye.
 pub fn pass_model<'s, A: Pressed>(
-    _v: faraday_pass_field::Read<'s>,
-    _to: fn(PassPress) -> A,
+    v: faraday_pass_field::Read<'s>,
+    to: fn(PassPress) -> A,
 ) -> PassModel<'s, A> {
-    todo!()
+    let typing = v.typing();
+    let view = match v.revealed() {
+        Some(text) => PassView::revealed(text),
+        None => PassView::dots(v.count()),
+    };
+    let offer = |press: PassPress| {
+        if typing {
+            Offered::Yes(to(press))
+        } else {
+            Offered::No
+        }
+    };
+    let tip = if v.shown() {
+        faraday_strings::EN.vault_hide_passphrases
+    } else {
+        faraday_strings::EN.vault_show_passphrases
+    };
+    PassModel {
+        view,
+        focused: v.focused(),
+        marked: v.marked(),
+        hint: None,
+        none: None,
+        eye_tip: Shown::plain(tip),
+        press: offer(PassPress::Box(v.which())),
+        eye: offer(PassPress::Eye),
+    }
 }
 
 /// `Refused::drawn` to the kit's own `Drawn`.

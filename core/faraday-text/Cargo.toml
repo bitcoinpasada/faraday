@@ -9,8 +9,10 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-# The one dependency: wiping the buffer (docs/deps/zeroize.md).
+# Wiping the buffer (docs/deps/zeroize.md) and the constant-time equality of a secret
+# (docs/deps/subtle.md).
 zeroize = { workspace = true, features = ["alloc"] }
+subtle.workspace = true
 
 [lints]
 workspace = true
