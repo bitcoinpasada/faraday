@@ -125,7 +125,7 @@ mod tests {
 
     /// Invariant: A refusal of the device check reaches the product: a press of Continue anyway nobody asked for is refused, never swallowed.
     /// Regression: The product's Refusal was empty, so the device check's refusal broke the build and had nowhere to go.
-    /// Owner: the person whose untrusted input is refused
+    /// Owner: app
     #[test]
     fn the_device_checks_refusal_reaches_the_product() {
         let view = TestView::device();
