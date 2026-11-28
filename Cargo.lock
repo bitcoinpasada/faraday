@@ -1749,15 +1749,20 @@ dependencies = [
 name = "faraday-secrets"
 version = "0.0.0"
 dependencies = [
+ "faraday-app-test",
  "faraday-bip",
  "faraday-codec",
+ "faraday-crypto",
  "faraday-intake",
  "faraday-kernel",
  "faraday-keys",
  "faraday-pgp",
  "faraday-port",
+ "faraday-psbt",
  "faraday-qr",
  "faraday-text",
+ "faraday-vault",
+ "zeroize",
 ]
 
 [[package]]
