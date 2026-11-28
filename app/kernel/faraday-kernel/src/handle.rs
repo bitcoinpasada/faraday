@@ -20,6 +20,14 @@ pub struct WalletId(u32);
 #[derive(Public, Copy, PartialEq, Eq, Hash)]
 pub struct FileId(u32);
 
+impl FileId {
+    /// The `n`th handle of a build of the lock scope. Only the session owner counts, and never
+    /// gives one number twice (03 §3.3); a test names its own.
+    pub fn minted(n: u32) -> FileId {
+        FileId(n)
+    }
+}
+
 #[derive(Public, Copy, PartialEq, Eq)]
 pub struct Ticket(u32);
 

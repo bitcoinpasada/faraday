@@ -16,9 +16,6 @@ pub enum Answer {
     /// The session refused a file's write to the Outbox: the secret stays on the sheet, nothing
     /// is reported as saved.
     OutboxRefused,
-    /// The session refused to remove the earlier file of the same name: the new one is in, and
-    /// the old one is still there.
-    OldFileStays,
 }
 
 /// What the last press finished, for the owner to act on: it ends the sheet, and the part tells
@@ -28,7 +25,11 @@ pub enum Finished {
     /// The secret went into the open vault as `what` (a file's name, or a key's label).
     SavedToVault { what: Text },
     /// The secret went to the Outbox unprotected: this many files.
-    Unprotected { names: Vec<Text> },
+    Unprotected {
+        names: Vec<Text>,
+        /// An earlier file of the same name could not be removed: it is still in the Outbox.
+        old_stays: bool,
+    },
     /// An Inbox file on its way to another stick: ticked on the visit, written from the Inbox.
     ToVisit { name: Text },
     /// The hold was held for something the owner does.
@@ -51,6 +52,12 @@ pub(crate) struct Pending {
     pub(crate) refused: bool,
     /// Files of the same names the Outbox held before; removed once every new one is in.
     pub(crate) old: Vec<faraday_kernel::FileId>,
+    /// The files this save has written so far.
+    pub(crate) written: Vec<faraday_kernel::FileId>,
+    /// Removals of earlier files still to be answered, once every write is in.
+    pub(crate) removing: Option<usize>,
+    /// An earlier file could not be removed.
+    pub(crate) old_stays: bool,
 }
 
 /// The secret sheet's state.

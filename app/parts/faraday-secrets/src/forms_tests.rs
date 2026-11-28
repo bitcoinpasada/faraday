@@ -96,21 +96,20 @@ fn seedqr_digits_in_groups_of_four_are_refused() {
     assert!(!refused("0000 0000 0000 0000 0003"));
 }
 
-/// Invariant: A CompactSeedQR (16 or 32 bytes of entropy that read as no text) is a secret file; a PSBT of that size is not one.
-/// Regression: A scanned CompactSeedQR is kept as an ordinary file and goes out unprotected without the hold.
+/// Invariant: The 16 bytes of a 12-word seed's entropy (a CompactSeedQR) are named a CompactSeedQR by the scan.
+/// Regression: A scanned CompactSeedQR is read as no secret form and goes out as an ordinary code.
 /// Owner: app
 #[test]
-fn a_compact_seedqr_is_a_secret_file() {
-    use faraday_codec::classify::is_compact_seedqr;
-    let entropy = [0xffu8; 16];
-    assert!(is_compact_seedqr(&entropy));
-    assert!(is_compact_seedqr(&[0xffu8; 32]));
-    assert!(!is_compact_seedqr(&[0xffu8; 17]));
-    assert!(crate::may_be_secret(classify(
-        test_compute(),
-        "code.bin",
-        &entropy
-    )));
+fn a_compact_seedqr_is_named_by_the_scan() {
+    let c = test_compute();
+    let Ok(m) = faraday_keys::words::parse(c, Language::English, SEED) else {
+        panic!("a valid mnemonic");
+    };
+    let compact = faraday_codec::seedqr::to_entropy(&m);
+    assert_eq!(
+        crate::scan::secret_kind(c, compact.expose().as_bytes()),
+        Some(SecretKind::CompactSeedQr)
+    );
 }
 
 /// Invariant: A UR that can hold a secret is refused whole or in parts (a private key, a share, a type nobody here knows), a seed UR is named, and a UR of a PSBT or of a text with nothing secret in it is shown.
@@ -172,17 +171,16 @@ fn a_ur_that_can_hold_a_secret_is_refused_whole_or_in_parts() {
     assert!(!refused(&plain.join("\n")));
 }
 
-/// Invariant: A paperkey, whole or among other text, is named a paperkey; a file of one is a secret file.
+/// Invariant: A paperkey, whole or among other text, is named a paperkey by the text check and the scan.
 /// Regression: A GPG key's paperkey, the one backup of its secret key, goes out as a text file.
 /// Owner: app
 #[test]
 fn a_paperkey_is_named_and_filed_as_a_secret() {
     assert_eq!(checked(PAPERKEY), TextCheck::Secret(SecretKind::Paperkey));
-    assert!(crate::may_be_secret(classify(
-        test_compute(),
-        "paperkey.txt",
-        PAPERKEY.as_bytes()
-    )));
+    assert_eq!(
+        crate::scan::secret_kind(test_compute(), PAPERKEY.as_bytes()),
+        Some(SecretKind::Paperkey)
+    );
     assert!(refused(&format!("my key\n{PAPERKEY}")));
 }
 
@@ -395,6 +393,9 @@ fn a_private_key_in_groups_of_four_makes_a_key_file_secret() {
 
 /// BIP-370's smallest valid version 2 PSBT (`tools/vectors/psbt-bips`): one input, two outputs.
 const PSBT_V2: &str = "70736274ff01020402000000010401010105010201fb040200000000010e200b0ad921419c1c8719735d72dc739f9ea9e0638d1fe4c1eef0f9944084815fc8010f0400000000000103080008af2f000000000104160014c430f64c4756da310dbd1a085572ef299926272c000103088bbdeb0b0000000001041600144dd193ac964a56ac1b9e1cca8454fe2f474f851300";
+/// BIP-370's vector with no locktime that holds for both inputs: it parses, and does not read as
+/// version 0.
+const PSBT_V2_NO_LOCKTIME: &str = "70736274ff0102040200000001030400000000010401020105010101fb040200000000010e200f758dbfbd4da7c16c8a3309c3c81e1100f561ea646db5b01752c485e1bdde9f010f04010000000112041027000000010e203a1b3b3c837d6489ea7a31d8e6c7dd503c001bef3e06958e7574808d68ca78a5010f04000000000111048c8dc462000103084f9335770000000001041600140b1352cacd03cf6aa1b7f3c8d6388671b34a5e1100";
 /// The first valid vector of BIP-375, a version 2 PSBT with silent payment fields.
 const PSBT_SILENT: &str = "cHNidP8B+wQCAAAAAQIEAgAAAAEEAQEBBQEBAQYBAAABDiAYpxdmOwurFLEqGncTI/8eQHndUy5d0T4o6hCBxwCYSgEPBAAAAAABAQqghgEAAAAAAAFSIgICyBe7dSGvw16pbzv7Jw5utQ3f+lVgYnuWH+wA8pllCL9HMEQCIHLzeIUvuENyYHLyUHbw53Vg7UwuBHFm7mpibHW/2znWAiAhKq5fCVdONB9YhvX/8y9XFuq5AwpKU3nmAWtqTULcJAEBAwQBAAAAIgYCyBe7dSGvw16pbzv7Jw5utQ3f+lVgYnuWH+wA8pllCL8IAAAAgAAAAAABEAT+////Ih0Cekh/wZ+3aYd7h0LW6hgRjzxOcrHqjG3mAqetSkHb4GghA+yk/xG3KOLg9gzmIilDpv9VudlfYnv5qZ0IS8hy1QpbIh4Cekh/wZ+3aYd7h0LW6hgRjzxOcrHqjG3mAqetSkHb4GhAihOzmFVF9yvW6JcUrrkJs+NUqEKpu4tWzQ7e0h34oZlZizEiikngvX6VzhBT98WyistUOmhwdgDjzomCLuMgIQABAwgYcwEAAAAAAAEEIlEgMm31D+Cge3rLcgcL6ztjLrmtFbppXMHlqmqgB7YUb9gBCUICekh/wZ+3aYd7h0LW6hgRjzxOcrHqjG3mAqetSkHb4GgDYeGx6d5eQssgB/fKVLng1X7ROTj61W0/GeV1E6j84DkA";
 
@@ -473,13 +474,16 @@ fn a_psbt_the_device_refuses_is_not_a_psbt_file() {
         assert!(!is_psbt_file(&form));
     }
 
-    // A version 2 PSBT that parses and does not read as version 0: an output with no script.
-    let mut no_script = v2.clone();
-    no_script.outputs[0].remove_type(0x04);
-    assert!(!no_script.has_silent_fields() && no_script.to_v0(c).is_err());
+    // A version 2 PSBT that parses and does not read as version 0: BIP-370's vector whose
+    // inputs' locktimes cannot both hold.
+    let unreadable = from_hex(PSBT_V2_NO_LOCKTIME);
+    let Ok(parsed) = PsbtV2::parse_bytes(c, &unreadable) else {
+        panic!("the vector parses as version 2");
+    };
+    assert!(!parsed.has_silent_fields() && parsed.to_v0(c).is_err());
     for form in [
-        no_script.to_bytes(),
-        faraday_bip::base64::encode(&no_script.to_bytes()).into_bytes(),
+        unreadable.clone(),
+        faraday_bip::base64::encode(&unreadable).into_bytes(),
     ] {
         assert!(!is_psbt_file(&form));
     }

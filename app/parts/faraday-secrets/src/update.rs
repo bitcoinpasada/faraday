@@ -118,13 +118,8 @@ pub fn update(state: &mut State, msg: Msg, cx: &Ctx<'_>) -> Effects<Msg, Never> 
             }
             Effects::none()
         }
-        Msg::Outbox(done) => outbox_answered(state, done.is_ok()),
-        Msg::Removed(done) => {
-            if done.is_err() {
-                state.answer = Some(Answer::OldFileStays);
-            }
-            Effects::none()
-        }
+        Msg::Outbox(done) => outbox_answered(state, done.ok()),
+        Msg::Removed(done) => removed_answered(state, done.is_ok()),
     }
 }
 
@@ -178,7 +173,7 @@ fn key_record(
     let view = cx.view.session.key(key).filter(|k| k.fingerprint == fp)?;
     let keys = cx.view.session.keys();
     let at = keys.position(fp)?;
-    let flags = key_flags(view.held, view.made_online || cx.view.mode.online);
+    let flags = key_flags(view.held, view.made_online, cx.view.mode);
     keys.key_record(
         cx.compute,
         at,
@@ -192,9 +187,9 @@ fn key_record(
 
 /// The record's marks: its backup is pending while the key is held, and it was written on an online
 /// computer when the key was made online or the app runs online (`main`'s `written_online`).
-pub(crate) fn key_flags(held: bool, online: bool) -> Option<u8> {
+pub(crate) fn key_flags(held: bool, made_online: bool, mode: faraday_kernel::Mode) -> Option<u8> {
     let pending = held.then_some(records::BACKUP_PENDING);
-    match (pending, online) {
+    match (pending, made_online || mode.online) {
         (p, true) => Some(p.unwrap_or(0) | records::MADE_ONLINE),
         (p, false) => p,
     }
@@ -259,37 +254,92 @@ fn unprotected_now(state: &mut State, cx: &Ctx<'_>) -> Effects<Msg, Never> {
         names,
         refused: false,
         old,
+        written: Vec::new(),
+        removing: None,
+        old_stays: false,
     });
     fx
 }
 
-/// One Outbox write answered. When the last is in and none was refused, the secret leaves the
-/// sheet, the earlier files of the same names are removed and the sheet is finished.
-fn outbox_answered(state: &mut State, ok: bool) -> Effects<Msg, Never> {
-    let Some(pending) = state.pending.as_mut() else {
-        return Effects::none();
-    };
-    pending.waiting = pending.waiting.saturating_sub(1);
-    if !ok {
-        pending.refused = true;
-        state.answer = Some(Answer::OutboxRefused);
-    }
-    if pending.waiting > 0 {
-        return Effects::none();
-    }
-    let Some(pending) = state.pending.take() else {
-        return Effects::none();
-    };
-    if pending.refused {
-        return Effects::none();
-    }
-    drop(state.out.take());
-    state.finished = Some(Finished::Unprotected {
-        names: pending.names,
-    });
+/// The removals as changes.
+fn removing(ids: Vec<faraday_kernel::FileId>) -> Effects<Msg, Never> {
     let mut fx = Effects::none();
-    for id in pending.old {
+    for id in ids {
         fx = fx.change(RemoveFile(id), false, |_, done| Msg::Removed(done));
     }
     fx
+}
+
+/// One Outbox write answered, with the file it made.
+fn outbox_answered(state: &mut State, made: Option<faraday_kernel::FileId>) -> Effects<Msg, Never> {
+    removing(outbox_step(state, made))
+}
+
+/// The state's side of [`outbox_answered`]: the files to remove now. When the last write is in and
+/// every one was accepted, those are the earlier files of the same names, and the sheet finishes
+/// once those answers are in. When any was refused the save is all or nothing: those are the
+/// files this save wrote, the secret stays on the sheet and the refusal is said.
+pub(crate) fn outbox_step(
+    state: &mut State,
+    made: Option<faraday_kernel::FileId>,
+) -> Vec<faraday_kernel::FileId> {
+    let Some(pending) = state.pending.as_mut() else {
+        return Vec::new();
+    };
+    pending.waiting = pending.waiting.saturating_sub(1);
+    match made {
+        Some(id) => pending.written.push(id),
+        None => {
+            pending.refused = true;
+            state.answer = Some(Answer::OutboxRefused);
+        }
+    }
+    if pending.waiting > 0 {
+        return Vec::new();
+    }
+    if pending.refused {
+        let written = core::mem::take(&mut pending.written);
+        state.pending = None;
+        return written;
+    }
+    let old = core::mem::take(&mut pending.old);
+    if old.is_empty() {
+        finish_unprotected(state);
+    } else {
+        pending.removing = Some(old.len());
+    }
+    old
+}
+
+/// One removal answered. Only the removals of earlier files, after a save, count; those of a
+/// refused save's own files are not waited for.
+fn removed_answered(state: &mut State, ok: bool) -> Effects<Msg, Never> {
+    removed_step(state, ok);
+    Effects::none()
+}
+
+/// The state's side of [`removed_answered`].
+pub(crate) fn removed_step(state: &mut State, ok: bool) {
+    let Some(pending) = state.pending.as_mut() else {
+        return;
+    };
+    let Some(left) = pending.removing.as_mut() else {
+        return;
+    };
+    *left = left.saturating_sub(1);
+    pending.old_stays |= !ok;
+    if *left == 0 {
+        finish_unprotected(state);
+    }
+}
+
+/// Every write is in and the earlier files are dealt with: the secret leaves the sheet.
+fn finish_unprotected(state: &mut State) {
+    if let Some(pending) = state.pending.take() {
+        drop(state.out.take());
+        state.finished = Some(Finished::Unprotected {
+            names: pending.names,
+            old_stays: pending.old_stays,
+        });
+    }
 }

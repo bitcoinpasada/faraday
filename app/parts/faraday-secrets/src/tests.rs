@@ -7,6 +7,7 @@ use faraday_kernel::{AtLock, Message};
 use faraday_port::bytes::Bytes;
 use faraday_text::Text;
 
+use crate::update::{outbox_step, removed_step};
 use crate::{
     Answer, Exposure, Finished, MAX_TEXT, Msg, Press, SecretKind, SecretOut, State, TextCheck,
     Then, check, classify, exposure, update,
@@ -268,11 +269,11 @@ fn the_offered_secret_is_withheld_from_the_log() {
     assert!(!format!("{msg:?}").contains("abandon"));
 }
 
-/// Invariant: A refused write to the Outbox keeps the secret on the sheet, says the Outbox refused it, and never finishes the sheet as saved, however many files were asked for.
-/// Regression: A refused PutOutbox is dropped after the secret left the sheet and the owner said the file waits in the Outbox, so the secret is gone and nothing was written.
+/// Invariant: A save of several files is all or nothing: when one write is refused, the files this save already wrote are removed, the secret stays on the sheet, the refusal is said, and the sheet is never finished as saved.
+/// Regression: A refused PutOutbox is dropped after the secret left the sheet, or a partly refused save leaves its first files in the Outbox as plain files that nothing reports.
 /// Owner: app
 #[test]
-fn a_refused_outbox_write_keeps_the_secret_and_says_so() {
+fn a_refused_outbox_write_keeps_the_secret_and_removes_what_was_written() {
     let view = TestView::device();
     let cx = view.ctx();
     let mut state = State::new();
@@ -286,31 +287,71 @@ fn a_refused_outbox_write_keeps_the_secret_and_says_so() {
         waiting: 2,
         refused: false,
         old: Vec::new(),
+        written: Vec::new(),
+        removing: None,
+        old_stays: false,
     });
-    let refusal = || Msg::Outbox(Err(faraday_keys::Refusal::Unconfirmed));
-    let fx = seen(update(&mut state, refusal(), &cx));
-    assert!(fx.changes.is_empty() && state.take_finished().is_none());
-    let fx = seen(update(&mut state, refusal(), &cx));
-    assert!(fx.changes.is_empty());
+    // The first is in; the second is refused.
+    let first = faraday_kernel::FileId::minted(1);
+    assert!(outbox_step(&mut state, Some(first)).is_empty());
+    assert!(state.take_finished().is_none());
+    // The one file written is removed again; nothing is left from this save.
+    assert_eq!(outbox_step(&mut state, None), vec![first]);
     assert!(state.out().is_some());
     assert_eq!(state.answer(), Some(Answer::OutboxRefused));
     assert!(state.take_finished().is_none());
 }
 
-/// Invariant: A key's vault record is marked written on an online computer when the key was made online or the app runs online, and carries its pending backup mark while the key is held.
+/// Invariant: An unprotected save finishes only once the earlier same-name files are removed, and says if one stays; with none to remove it finishes at the last write.
+/// Regression: The sheet finishes before the removals are answered, so a refused removal is never worded.
+/// Owner: app
+#[test]
+fn an_unprotected_save_says_when_an_old_file_stays() {
+    let view = TestView::device();
+    let cx = view.ctx();
+    for (removed_ok, stays) in [(true, false), (false, true)] {
+        let mut state = State::new();
+        let _ = seen(update(&mut state, Msg::Offer(secret()), &cx));
+        state.pending = Some(crate::state::Pending {
+            names: vec![Text::of("seed.txt")],
+            waiting: 1,
+            refused: false,
+            old: vec![faraday_kernel::FileId::minted(7)],
+            written: Vec::new(),
+            removing: None,
+            old_stays: false,
+        });
+        let old = outbox_step(&mut state, Some(faraday_kernel::FileId::minted(8)));
+        assert_eq!(old, vec![faraday_kernel::FileId::minted(7)]);
+        assert!(state.out().is_some() && state.take_finished().is_none());
+        removed_step(&mut state, removed_ok);
+        assert!(state.out().is_none());
+        assert_eq!(
+            state.take_finished(),
+            Some(Finished::Unprotected {
+                names: vec![Text::of("seed.txt")],
+                old_stays: stays
+            })
+        );
+    }
+}
+
+/// Invariant: A key's vault record is marked written on an online computer when the key was made online or the app's mode is online, and carries its pending backup mark while the key is held.
 /// Regression: A seed picked into the vault in Faraday Demo loses the mark that it was handled on an online computer, because only the key's own fact was read.
 /// Owner: app
 #[test]
 fn a_key_record_is_marked_online_when_the_app_runs_online() {
     use faraday_vault::records::{BACKUP_PENDING, MADE_ONLINE};
-    assert_eq!(crate::update::key_flags(false, true), Some(MADE_ONLINE));
+    let demo = TestView::demo();
+    let device = TestView::device();
+    let (online, offline) = (demo.ctx().view.mode, device.ctx().view.mode);
+    let flags = crate::update::key_flags;
+    assert_eq!(flags(false, false, online), Some(MADE_ONLINE));
     assert_eq!(
-        crate::update::key_flags(true, true),
+        flags(true, false, online),
         Some(BACKUP_PENDING | MADE_ONLINE)
     );
-    assert_eq!(crate::update::key_flags(true, false), Some(BACKUP_PENDING));
-    assert_eq!(crate::update::key_flags(false, false), None);
-    // The flag the part reads is the app's mode as well as the key's own fact.
-    assert!(TestView::demo().ctx().view.mode.online);
-    assert!(!TestView::device().ctx().view.mode.online);
+    assert_eq!(flags(false, true, offline), Some(MADE_ONLINE));
+    assert_eq!(flags(true, false, offline), Some(BACKUP_PENDING));
+    assert_eq!(flags(false, false, offline), None);
 }
