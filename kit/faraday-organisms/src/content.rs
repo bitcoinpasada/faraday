@@ -39,6 +39,8 @@ pub enum Block<'s, A> {
     Headline(Shown<'s>),
     /// Bold and plain runs.
     Para(FlowText<'s>),
+    /// A line in the error tone: what is lost.
+    Lost(CautionModel<'s>),
     Fact {
         label: Shown<'s>,
         value: Shown<'s>,
@@ -128,6 +130,7 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
             cy - y
         }
         Block::Caution(m) => faraday_molecules::caution::draw(m, ui, at),
+        Block::Lost(m) => faraday_molecules::caution::draw_error(m, ui, at),
         Block::Buttons(items) => draw_items(items, &[], false, ui, at),
         Block::Busy(m) => status::draw_busy(m, ui, at),
         Block::Hold(m) => faraday_atoms::hold::draw(m, ui, at),

@@ -14,6 +14,8 @@ mod page;
 mod present;
 mod root;
 mod state;
+#[cfg(test)]
+mod tests;
 mod update;
 
 use faraday_kernel::Public;

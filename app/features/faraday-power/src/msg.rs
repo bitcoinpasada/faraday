@@ -51,7 +51,8 @@ pub enum Msg {
     },
     /// The settings owner asked for a mode change: the Lock sheet comes first whether or not
     /// anything would be lost, and its Lock seals (`main`'s `mode_act` into `lock_ask`).
-    ModeLock,
+    /// Carries the mode asked (`Top::ModeLock`).
+    ModeLock(u8),
 }
 
 impl From<Press> for Msg {

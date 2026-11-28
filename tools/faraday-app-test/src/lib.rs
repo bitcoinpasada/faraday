@@ -9,8 +9,8 @@ use faraday_bip::keys::Network;
 use faraday_crypto::work::{Compute, Hooks, Work};
 use faraday_kernel::shared;
 use faraday_kernel::{
-    AskFor, ChangeFor, ChangeReply, Clock, Ctx, Effects, Facts, Fx, Job, JobKind, Message, Mode,
-    Note, Reply, Started, View, ViewOrder, session, vaults,
+    AskFor, ChangeFor, ChangeReply, Clock, Ctx, Effects, Facts, Fx, Job, JobKind, Memo, Message,
+    Mode, Note, Reply, Show, Started, View, ViewOrder, session, vaults,
 };
 use faraday_keys::Keys;
 use faraday_port as port;
@@ -219,6 +219,15 @@ impl TestView {
 }
 
 impl TestView {
+    /// Runs `f` with the view and the `Show` a frame would give `present`: the English wording and
+    /// a memo of its own, no note up.
+    pub fn showing<R>(&self, f: impl FnOnce(&View<'_>, &Show<'_>) -> R) -> R {
+        let memo = Memo::new();
+        let ctx = self.ctx();
+        let show = Show::new(&faraday_strings::EN, &memo, None);
+        f(&ctx.view, &show)
+    }
+
     /// The wallets given to `with_wallet`.
     #[must_use]
     pub fn wallets_held(&self) -> &[TestWallet] {

@@ -3,7 +3,7 @@ use faraday_organisms::nav::WaysModel;
 use faraday_organisms::nav::{Badge, Dest, NavModel, Raise, SearchBarModel, TopBarModel};
 use faraday_organisms::{ButtonModel, Icon, Shown, Style};
 use faraday_port::values::Anchor;
-use faraday_present::{ScreenModel, offer};
+use faraday_present::{Present, ScreenModel, offer};
 use faraday_templates::screen::{BarSearch, FrameModel};
 
 use crate::{App, AppPress, Body, DeviceApp, Msg, Over, Page, Press, Refusal};
@@ -20,6 +20,7 @@ impl Refused for Refusal {}
 /// (06 §4.4).
 pub(crate) fn screen<'s>(
     app: &'s DeviceApp,
+    settings: &'s faraday_settings::State,
     view: &View<'s>,
     show: &Show<'s>,
 ) -> ScreenModel<'s, Body<'s>, Over<'s>, Press> {
@@ -34,8 +35,20 @@ pub(crate) fn screen<'s>(
             ))),
             faraday_device::anchor(page),
         ),
-        // The owners' pages and the failed self-test page are not built into the frame yet.
-        Page::Vaults(_) | Page::Settings(_) | Page::SelfTestFailed => todo!(),
+        // The settings owner holds which of its two pages is shown (Settings or Set the time):
+        // it is the one place that knows, so the page is drawn from it and the nav's
+        // `Page::Settings(_)` only says that Settings is the destination.
+        Page::Settings(_) => {
+            let page = settings.page();
+            (
+                Body::Settings(<faraday_settings::Settings as Present>::present(
+                    settings, view, show,
+                )),
+                faraday_settings::anchor(page),
+            )
+        }
+        // The vaults' pages and the failed self-test page are not built into the frame yet.
+        Page::Vaults(_) | Page::SelfTestFailed => todo!(),
     };
     let mut over: Vec<(Anchor, Over<'s>)> = faraday_device::over(app.device(), view, show)
         .into_iter()
@@ -233,5 +246,34 @@ fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> Fram
         notices: Vec::new(),
         keyboard_button: None,
         held: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use faraday_app_test::TestView;
+    use faraday_kernel::{Carried, Feature};
+
+    use super::*;
+
+    /// Invariant: With the navigation on Settings the screen draws the settings owner's page, not a page of the device composite or an unbuilt one.
+    /// Regression: The frame names Settings while the body is a todo, or the body is Home's.
+    /// Owner: app
+    #[test]
+    fn the_screen_on_settings_draws_the_settings_page() {
+        let view = TestView::device();
+        let cx = view.ctx();
+        let (mut app, _) = <App as Feature>::start(&mut Carried::empty(), &cx);
+        let (settings, _) =
+            <faraday_settings::Settings as Feature>::start(&mut Carried::empty(), &cx);
+        let _ = app
+            .parts()
+            .1
+            .nav_mut()
+            .open(Page::Settings(faraday_settings::Page::Settings));
+        view.showing(|view, show| {
+            let model = screen(&app, &settings, view, show);
+            assert!(matches!(model.body, Body::Settings(_)));
+        });
     }
 }

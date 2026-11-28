@@ -27,6 +27,17 @@ pub enum ModeAsked {
 }
 
 impl ModeAsked {
+    /// The number of this mode in `Mode::index` and in `Top::ModeLock`.
+    pub(crate) fn index(self) -> u8 {
+        match self {
+            ModeAsked::Practice => 0,
+            ModeAsked::Mainnet => 1,
+            ModeAsked::Testnet => 2,
+            ModeAsked::Signet => 3,
+            ModeAsked::Regtest => 4,
+        }
+    }
+
     /// The mode of a `Mode::index` (the kernel's number for the mode a scope is built in).
     pub(crate) fn of_index(i: u8) -> ModeAsked {
         match i {

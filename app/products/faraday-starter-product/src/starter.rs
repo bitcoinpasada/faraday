@@ -77,9 +77,9 @@ impl Root for Starter {
     /// A mode change shows the Lock sheet, which asks first (the device composite's, inside the
     /// online app). Every mode in `MODES` is one the person may ask for; the root falls back to
     /// the default for a mode not on the list.
-    fn mode_lock_asked(&self) -> Option<Addr<Self>> {
+    fn mode_lock_asked(&self, mode: u8) -> Option<Addr<Self>> {
         Some(Addr::App(faraday_online::Msg::Device(
-            faraday_device::Msg::Power(faraday_power::Msg::ModeLock),
+            faraday_device::Msg::Power(faraday_power::Msg::ModeLock(mode)),
         )))
     }
 
@@ -121,9 +121,9 @@ mod tests {
             },
         };
         assert!(matches!(
-            root.mode_lock_asked(),
+            root.mode_lock_asked(3),
             Some(Addr::App(faraday_online::Msg::Device(
-                faraday_device::Msg::Power(faraday_power::Msg::ModeLock)
+                faraday_device::Msg::Power(faraday_power::Msg::ModeLock(3))
             )))
         ));
         assert!(matches!(

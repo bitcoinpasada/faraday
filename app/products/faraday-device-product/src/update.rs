@@ -30,10 +30,8 @@ impl Feature for App {
                 Effects::none()
             }
             Msg::Open(page) => {
-                // The feature whose page was left is told `Notice::Left` once a feature holds
-                // what only its screen needed (03 §2.4); none does yet.
-                let _left = state.parts().1.nav_mut().open(page);
-                Effects::none()
+                let left = state.parts().1.nav_mut().open(page);
+                left_settings(left, state)
             }
             Msg::Find { typed, focused } => {
                 state.set_find(typed, focused);
@@ -41,8 +39,8 @@ impl Feature for App {
             }
             Msg::Press(AppPress::Back) => back(state, cx),
             Msg::Press(AppPress::Forward) => {
-                let _left = state.parts().1.nav_mut().forward();
-                Effects::none()
+                let left = state.parts().1.nav_mut().forward();
+                left_settings(left, state)
             }
             Msg::Press(press) => Self::update(state, Msg::from(press), cx),
         }
@@ -81,9 +79,21 @@ fn back(state: &mut DeviceApp, cx: &Ctx<'_>) -> Effects<Msg, Top> {
             Effects::none()
         }
         None => {
-            let _left = state.parts().1.nav_mut().back();
-            Effects::none()
+            let left = state.parts().1.nav_mut().back();
+            left_settings(left, state)
         }
+    }
+}
+
+/// A page left by the navigation: where it was the settings owner's, and the page shown now is
+/// not, the owner is told (A13), so what its screen held goes and the frame and the owner stay
+/// in step (06 §4.4). The device composite's pages hold nothing a feature's screen needs yet.
+fn left_settings(left: Option<Page>, state: &DeviceApp) -> Effects<Msg, Top> {
+    match left {
+        Some(Page::Settings(_)) if !matches!(state.frame().nav().shown(), Page::Settings(_)) => {
+            Effects::none().out(Top::SettingsLeft)
+        }
+        _ => Effects::none(),
     }
 }
 
