@@ -62,7 +62,19 @@ pub(crate) fn home_out(out: faraday_home::Out) -> Route<Msg, Out> {
             faraday_wallets_area::Page::Restore,
         ))),
         H::SpendBackup => Route::Up(Out::Open(Page::Signing(faraday_signing_area::Page::Spend))),
-        H::GuideWord(_) => Route::Up(Out::Front(Some(FrameSheet::Guide))),
+        H::GuideWord(_) | H::Guide => Route::Up(Out::Front(Some(FrameSheet::Guide))),
+        // A PSBT in Files and an unfinished backup are opened by the Spend and Back up flows,
+        // which are not built here: the lead's press shows the page that holds the PSBT.
+        H::SignPsbt(_) => Route::Up(Out::Open(Page::Signing(faraday_signing_area::Page::Spend))),
+        H::FinishBackup(_) => Route::Up(Out::Open(Page::WALLETS)),
+        H::Place(place) => match place {
+            faraday_home::Place::Wallets => Route::Up(Out::Open(Page::WALLETS)),
+            faraday_home::Place::Check => Route::Up(Out::Open(Page::CHECK)),
+            faraday_home::Place::Files => Route::Up(Out::Open(Page::FILES)),
+            faraday_home::Place::Tools => Route::Up(Out::Open(Page::TOOLS)),
+            faraday_home::Place::Vaults => Route::Up(Out::Vaults),
+            faraday_home::Place::Settings => Route::Up(Out::Settings),
+        },
         H::Search { typed, focused } => Route::Up(Out::Search { typed, focused }),
     }
 }

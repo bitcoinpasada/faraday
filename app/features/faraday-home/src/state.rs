@@ -1,6 +1,8 @@
 use faraday_kernel::AtLock;
 use faraday_text::Text;
 
+use crate::Going;
+
 /// What Home keeps: the words typed in the bar search and the guide words they found. Nothing
 /// here is a secret, so a lock leaves it (the next build starts over anyway).
 #[derive(AtLock)]
@@ -14,6 +16,9 @@ pub struct State {
     /// The places in the guide's glossary that hold every word typed, in its order.
     #[lock(public)]
     found: Vec<u32>,
+    /// The flows whose line stands above the lead: the lead skips a job that would open one.
+    #[lock(public)]
+    shown: Vec<Going>,
 }
 
 impl State {
@@ -22,6 +27,7 @@ impl State {
             find: Text::default(),
             focused: false,
             found: Vec::new(),
+            shown: Vec::new(),
         }
     }
 
@@ -65,5 +71,17 @@ impl State {
 
     pub(crate) fn set_found(&mut self, found: Vec<u32>) {
         self.found = found;
+    }
+
+    /// The flows shown above the lead.
+    pub fn shown(&self) -> &[Going] {
+        &self.shown
+    }
+
+    pub(crate) fn flow_shown(&mut self, going: Going, shown: bool) {
+        self.shown.retain(|g| *g != going);
+        if shown {
+            self.shown.push(going);
+        }
     }
 }

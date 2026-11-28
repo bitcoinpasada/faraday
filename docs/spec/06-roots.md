@@ -349,6 +349,7 @@ writing its own, three copies of the same rules.
   left, through its composites (A13).
 - **Reaching another feature.** A feature never opens another's page: it sends what it wants
   (`home::Out::CreateWallet`, a variant without fields; `Out::Go(Tool)`) and the composite that holds both routes it (A6).
+- Built: Home's lead (the first job whose flow is not shown above it; Make a new wallet last on the small panel), the wallet cards, the small panel's places (the Pi's Home, chosen by the physical size of `view.facts.display`, with no bottom bar) and the wide Home's first actions beside the search (`app/features/faraday-home`); its presses reach Wallets, Check, Files, Tools, the Guide, Vaults and Settings through `Out::Place` and `Out::Guide`. Not built: the head with the mode pill and the Scan button of the Pi's Home, a lead drawn as a card with its own button, and the jobs of a spend under way, an import put off, a stick's receipt, a locked vault file and a stick waiting.
 - **An owner's page.** A press that begins an owner's page (Unlock this file, a Settings section)
   is the app's: its `Nav` shows the owner's page and, where the page begins with something given
   (the file to unlock), the app sends the owner a change (03 §7.3). Presses on an owner's page are

@@ -1,14 +1,18 @@
 use faraday_kernel::{Line, Refused, Show, View, Worded};
 use faraday_organisms::content::{Block, Content};
-use faraday_organisms::nav::{Raise, SearchBarModel};
+use faraday_organisms::nav::{Raise, SearchBarModel, WaysModel};
 use faraday_organisms::session_pane::SessionPaneModel;
-use faraday_organisms::{Icon, Offered, Shown};
+use faraday_organisms::{ButtonModel, Icon, Offered, Shown, Style};
 use faraday_present::{Present, offer};
 use faraday_templates::menu_page::{Body, Face, Mark, MenuPageModel, Section};
 use faraday_templates::panes::{Left, Narrow, Panes, Tile};
 use faraday_templates::screen::BarSearch;
 
-use crate::{Home, Model, Msg, Press, Refusal, SCROLL, State};
+use faraday_strings::Strings;
+use faraday_text::Text;
+
+use crate::lead::{Lead, jobs, make, nothing_loaded, pick, small_panel, wallets};
+use crate::{Home, Model, Msg, Place, Press, Refusal, SCROLL, State};
 
 impl Worded for Refusal {
     fn words(&self, _show: &Show<'_>) -> Line {
@@ -28,7 +32,10 @@ impl Present for Home {
 
     fn present<'s>(state: &'s State, view: &View<'s>, show: &Show<'s>) -> Model<'s> {
         let s = show.strings();
-        let row = BarSearch {
+        let small = small_panel(&view.facts.display);
+        // The Pi's Home has no search field: its head, lead, places and Scan are all there is
+        // (`main`'s Pi menu model); the wide Home's search is the bar's.
+        let row = (!small).then(|| BarSearch {
             field: SearchBarModel {
                 typed: Shown::plain(state.find()),
                 hint: Shown::plain(s.home_search_hint),
@@ -37,17 +44,25 @@ impl Present for Home {
                 clear: (Press::Clear, Shown::plain(s.vault_search_clear)),
                 raise: Some(Raise::Level),
             },
-            ways: None,
-        };
-        let sections = if state.typed().trim().is_empty() {
-            first_run(state, view, show)
+            ways: Some(ways(state, view, s)),
+        });
+        let mut waiting = jobs(view, s);
+        let typed = !state.typed().trim().is_empty();
+        let (above, sections) = if typed {
+            (None, found(state, view, show))
+        } else if small {
+            // The Pi's lead falls back to Make a new wallet, the last job.
+            waiting.push(make(s));
+            let lead = lead_card(state, view, waiting);
+            (lead, places(state, view, show))
         } else {
-            found(state, view, show)
+            let lead = lead_card(state, view, waiting);
+            (None, wide(state, view, show, lead))
         };
         Model {
             page: MenuPageModel {
                 scroll: SCROLL,
-                row: Some(row),
+                row,
                 most_columns: 2,
                 fixed_columns: None,
                 bar_still: false,
@@ -63,7 +78,7 @@ impl Present for Home {
                     narrow: Narrow::OneColumn,
                 }),
                 sections,
-                above: None,
+                above,
                 results: None,
                 details: None,
                 on_placed: None,
@@ -75,16 +90,176 @@ impl Present for Home {
     }
 }
 
-/// Whether the session holds a key or a wallet.
-fn something_loaded(view: &View<'_>) -> bool {
-    view.session.keys().all().next().is_some() || !view.session.wallets().is_empty()
+/// Home's first actions beside the search: New wallet, Restore and Spend from backup, tonal
+/// with their icons, and the one Start button that stands for them where they do not fit.
+fn ways<'s>(state: &State, view: &View<'s>, s: &'s Strings) -> WaysModel<'s, Press> {
+    let button = |icon: Icon, label: &'static str, press: Press, style: Style| ButtonModel {
+        label: Shown::plain(label),
+        style,
+        offered: gate(state, view, press),
+        chosen: false,
+        icon: Some(icon),
+    };
+    WaysModel {
+        pills: vec![
+            button(Icon::Flag, s.home_ways_new_short, Press::Make, Style::Tonal),
+            button(
+                Icon::Wallet,
+                s.home_ways_restore_short,
+                Press::Restore,
+                Style::Tonal,
+            ),
+            button(
+                Icon::Sign,
+                s.home_ways_spend_short,
+                Press::SpendBackup,
+                Style::Tonal,
+            ),
+        ],
+        start: ButtonModel {
+            label: Shown::plain(s.home_ways_start),
+            style: Style::Filled,
+            offered: gate(state, view, Press::Make),
+            chosen: false,
+            icon: None,
+        },
+        pills_ok: true,
+        raise: Some(Raise::Level),
+    }
 }
 
-/// Nothing loaded: the three first actions, the first of them Make a new wallet. No lead stands
-/// above them: on the bar's and the rail's windows Make a new wallet is the first action and
-/// nothing leads (`main`'s Home §2). Wallet cards and the other jobs are not built here.
+/// The lead as a block across the page: its icon's row in the selected tone, the card as the
+/// press.
+fn lead_card<'s>(state: &State, view: &View<'s>, jobs: Vec<Lead>) -> Option<Content<'s, Press>> {
+    let lead = pick(jobs, state.shown())?;
+    Some(Content(vec![Block::Rows(vec![
+        faraday_organisms::RowModel {
+            headline: Shown::made(lead.line),
+            supporting: Shown::made(lead.under),
+            trailing: None,
+            offered: gate(state, view, lead.press),
+            chosen: true,
+            whole: false,
+            chevron: true,
+        },
+    ])]))
+}
+
+/// The wide Home's sections: the lead, the wallets as cards and, while nothing is loaded, the
+/// three first actions.
+fn wide<'s>(
+    state: &State,
+    view: &View<'s>,
+    show: &Show<'s>,
+    lead: Option<Content<'s, Press>>,
+) -> Vec<Section<'s, Press>> {
+    let mut sections = Vec::new();
+    if let Some(lead) = lead {
+        sections.push(Section {
+            label: None,
+            body: Body::Block(lead),
+        });
+    }
+    let cards = wallet_cards(state, view, show);
+    if !cards.is_empty() {
+        sections.push(Section {
+            label: None,
+            body: Body::Tiles(cards),
+        });
+    }
+    sections.extend(first_run(state, view, show));
+    sections
+}
+
+/// The session's wallets as tiles: the name and the one line that matters now, a warning where
+/// the line is something to do.
+fn wallet_cards<'s>(state: &State, view: &View<'s>, show: &Show<'s>) -> Vec<Face<'s, Press>> {
+    wallets(view, show.strings())
+        .into_iter()
+        .map(|card| Face {
+            mark: Mark::Beside(Icon::Wallet.into()),
+            name: Shown::made(card.name),
+            line: Shown::made(card.line),
+            warn: card.needs,
+            tags: Vec::new(),
+            offered: gate(state, view, Press::Place(Place::Wallets)),
+        })
+        .collect()
+}
+
+/// The places the Pi's Home lists, in the panel's order: Wallets, Check, Files, Vaults, Tools,
+/// Guide and Settings, each with what it holds.
+fn places<'s>(state: &State, view: &View<'s>, show: &Show<'s>) -> Vec<Section<'s, Press>> {
+    let s = show.strings();
+    let session = view.session;
+    let count = |n: usize| match n {
+        0 => Shown::plain(""),
+        n => Shown::made(Text::of(&Text::num(n as u64))),
+    };
+    let tile = |icon: Icon, name: &'static str, line: Shown<'s>, press: Press| Face {
+        mark: Mark::Beside(icon.into()),
+        name: Shown::plain(name),
+        line,
+        warn: false,
+        tags: Vec::new(),
+        offered: gate(state, view, press),
+    };
+    let files = Text::of(&format!(
+        "{} \u{b7} {}",
+        session.inbox().len(),
+        session.outbox().len()
+    ));
+    vec![Section {
+        label: None,
+        body: Body::Tiles(vec![
+            tile(
+                Icon::Wallet,
+                s.compact_wallets,
+                count(session.wallets().len()),
+                Press::Place(Place::Wallets),
+            ),
+            tile(
+                Icon::Verified,
+                s.compact_check,
+                Shown::plain(""),
+                Press::Place(Place::Check),
+            ),
+            tile(
+                Icon::File,
+                s.compact_files,
+                Shown::made(files),
+                Press::Place(Place::Files),
+            ),
+            tile(
+                Icon::Lock,
+                s.compact_vaults,
+                if view.vaults.current().is_some() {
+                    Shown::made(Text::fill(s.compact_open, &["1"]))
+                } else {
+                    Shown::plain("")
+                },
+                Press::Place(Place::Vaults),
+            ),
+            tile(
+                Icon::Tools,
+                s.compact_tools,
+                Shown::plain(""),
+                Press::Place(Place::Tools),
+            ),
+            tile(Icon::Help, s.compact_guide, Shown::plain(""), Press::Guide),
+            tile(
+                Icon::Settings,
+                s.compact_settings,
+                Shown::plain(""),
+                Press::Place(Place::Settings),
+            ),
+        ]),
+    }]
+}
+
+/// Nothing loaded: the three first actions, the first of them Make a new wallet.
 fn first_run<'s>(state: &State, view: &View<'s>, show: &Show<'s>) -> Vec<Section<'s, Press>> {
-    if something_loaded(view) {
+    if !nothing_loaded(view) {
         return Vec::new();
     }
     let s = show.strings();

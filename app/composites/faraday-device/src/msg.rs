@@ -42,6 +42,10 @@ impl From<Press> for Msg {
 pub enum Out {
     /// Show one of its pages (06 §4.3).
     Open(Page),
+    /// Show the vaults' page, which is the app's own (06 §4.3).
+    Vaults,
+    /// Show Settings, which is the app's own.
+    Settings,
     Leave(Ending),
     /// A child turned the camera on or off (06 §6.2).
     Camera(bool),

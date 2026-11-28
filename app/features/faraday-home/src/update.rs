@@ -66,6 +66,18 @@ impl Feature for Home {
             Msg::Press(Press::Restore) => Effects::none().out(Out::RestoreWallet),
             Msg::Press(Press::SpendBackup) => Effects::none().out(Out::SpendBackup),
             Msg::Press(Press::Word(at)) => Effects::none().out(Out::GuideWord(at)),
+            Msg::Press(Press::Sign(file)) => Effects::none().out(Out::SignPsbt(file)),
+            Msg::Press(Press::FinishBackup(key)) => Effects::none().out(Out::FinishBackup(key)),
+            Msg::Press(Press::Place(place)) => Effects::none().out(Out::Place(place)),
+            Msg::Press(Press::Guide) => Effects::none().out(Out::Guide),
+            Msg::FlowShown(going) => {
+                state.flow_shown(going, true);
+                Effects::none()
+            }
+            Msg::FlowHidden(going) => {
+                state.flow_shown(going, false);
+                Effects::none()
+            }
             Msg::Typed(c) => {
                 state.type_char(c);
                 state.set_found(found(state.typed()));

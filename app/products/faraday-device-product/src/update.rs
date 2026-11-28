@@ -93,6 +93,8 @@ fn out(out: faraday_device::Out) -> Route<Msg, Top> {
     use faraday_device::Out;
     match out {
         Out::Open(page) => Route::To(Msg::Open(Page::Device(page))),
+        Out::Vaults => Route::To(Msg::Open(Page::Vaults(faraday_vaults::Page::Vaults))),
+        Out::Settings => Route::To(Msg::Open(Page::Settings(faraday_settings::Page::Settings))),
         Out::Front(sheet) => Route::To(Msg::Front(sheet)),
         Out::Top(top) => Route::Up(top),
         Out::Search { typed, focused } => Route::To(Msg::Find { typed, focused }),

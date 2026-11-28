@@ -6,6 +6,7 @@
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
 
+mod lead;
 mod model;
 mod msg;
 mod page;
@@ -16,8 +17,9 @@ mod update;
 use faraday_kernel::{CarryName, JobKind};
 use faraday_port::values::Anchor;
 
+pub use lead::{Going, small_panel};
 pub use model::Model;
-pub use msg::{Msg, Out, Press};
+pub use msg::{Msg, Out, Place, Press};
 pub use state::State;
 pub use update::Refusal;
 

@@ -1,6 +1,7 @@
 use faraday_kernel::{Line, Refused, Show, View, Worded};
+use faraday_organisms::nav::WaysModel;
 use faraday_organisms::nav::{Badge, Dest, NavModel, Raise, SearchBarModel, TopBarModel};
-use faraday_organisms::{Icon, Shown};
+use faraday_organisms::{ButtonModel, Icon, Shown, Style};
 use faraday_port::values::Anchor;
 use faraday_present::{ScreenModel, offer};
 use faraday_templates::screen::{BarSearch, FrameModel};
@@ -95,41 +96,89 @@ fn under(page: Page) -> Option<Dest_> {
     }
 }
 
+/// Home's first actions beside the bar's search (`main`'s Home top row): the three tonal buttons
+/// and the one Start button that stands for them where they do not fit.
+fn ways<'s>(
+    app: &'s DeviceApp,
+    view: &View<'s>,
+    s: &'static faraday_strings::Strings,
+) -> WaysModel<'s, Press> {
+    use faraday_home::Press as H;
+    let press = |p: H| Press::App(AppPress::Device(faraday_device::Press::Home(p)));
+    let offered = |p: H| {
+        offer::<Press, App>(
+            app,
+            &Msg::from(AppPress::Device(faraday_device::Press::Home(p.clone()))),
+            press(p),
+            view,
+        )
+    };
+    let button = |icon: Icon, label: &'static str, p: H| ButtonModel {
+        label: Shown::plain(label),
+        style: Style::Tonal,
+        offered: offered(p),
+        chosen: false,
+        icon: Some(icon),
+    };
+    WaysModel {
+        pills: vec![
+            button(Icon::Flag, s.home_ways_new_short, H::Make),
+            button(Icon::Wallet, s.home_ways_restore_short, H::Restore),
+            button(Icon::Sign, s.home_ways_spend_short, H::SpendBackup),
+        ],
+        start: ButtonModel {
+            label: Shown::plain(s.home_ways_start),
+            style: Style::Filled,
+            offered: offered(H::Make),
+            chosen: false,
+            icon: None,
+        },
+        pills_ok: true,
+        raise: Some(Raise::Level),
+    }
+}
+
 /// The navigation, the top app bar and, on the wide layout, the bar's search (06 §4.4). Home's
 /// model holds the page's search row only, so the bar's is built here from the same state.
 fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> FrameModel<'s, Press> {
     let s = show.strings();
     let shown = app.frame().nav().shown();
     let here = under(shown);
-    let dests = [
-        (Dest_::Home, Icon::House, s.compact_home),
-        (Dest_::Check, Icon::Verify, s.compact_check),
-        (Dest_::Wallets, Icon::Wallet, s.compact_wallets),
-        (Dest_::Files, Icon::File, s.compact_files),
-        (Dest_::Vaults, Icon::Vault, s.compact_vaults),
-        (Dest_::Tools, Icon::Tools, s.compact_tools),
-        (Dest_::Settings, Icon::Settings, s.compact_settings),
-    ]
-    .into_iter()
-    .map(|(dest, icon, label)| {
-        let press = Press::App(AppPress::Open(dest_page(dest)));
-        Dest {
-            icon: icon.into(),
-            label: Shown::plain(label),
-            offered: offer::<Press, App>(
-                app,
-                &Msg::from(AppPress::Open(dest_page(dest))),
-                press,
-                view,
-            ),
-            current: here == Some(dest),
-            badge: Badge::None,
-            flows: 0,
-            // The bar keeps five destinations; Check and Settings are the rail's (`main`).
-            bar: !matches!(dest, Dest_::Check | Dest_::Settings),
-        }
-    })
-    .collect();
+    // The small panel's Home is the Pi's menu: its places are the page's, so no bottom bar.
+    let small = faraday_home::small_panel(&view.facts.display);
+    let dests: Vec<_> = if small && shown == Page::Device(faraday_device::Page::Home) {
+        Vec::new()
+    } else {
+        vec![
+            (Dest_::Home, Icon::House, s.compact_home),
+            (Dest_::Check, Icon::Verify, s.compact_check),
+            (Dest_::Wallets, Icon::Wallet, s.compact_wallets),
+            (Dest_::Files, Icon::File, s.compact_files),
+            (Dest_::Vaults, Icon::Vault, s.compact_vaults),
+            (Dest_::Tools, Icon::Tools, s.compact_tools),
+            (Dest_::Settings, Icon::Settings, s.compact_settings),
+        ]
+        .into_iter()
+        .map(|(dest, icon, label)| {
+            let press = Press::App(AppPress::Open(dest_page(dest)));
+            Dest {
+                icon: icon.into(),
+                label: Shown::plain(label),
+                offered: offer::<Press, App>(
+                    app,
+                    &Msg::from(AppPress::Open(dest_page(dest))),
+                    press,
+                    view,
+                ),
+                current: here == Some(dest),
+                badge: Badge::None,
+                flows: 0,
+                // The bar keeps five destinations; Check and Settings are the rail's (`main`).
+                bar: !matches!(dest, Dest_::Check | Dest_::Settings),
+            }
+        })
+        .collect()
+    };
     let title = match here {
         Some(Dest_::Home) => s.compact_home,
         Some(Dest_::Check) => s.compact_check,
@@ -156,7 +205,7 @@ fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> Fram
             ),
             raise: Some(Raise::Level),
         },
-        ways: None,
+        ways: Some(ways(app, view, s)),
     });
     FrameModel {
         nav: NavModel {
