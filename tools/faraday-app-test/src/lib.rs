@@ -186,6 +186,13 @@ impl TestView {
         self
     }
 
+    /// The computer's clock reads `unix_secs` (0: it gives no reading).
+    #[must_use]
+    pub fn with_unix_secs(mut self, unix_secs: u64) -> Self {
+        self.clock.unix_secs = unix_secs;
+        self
+    }
+
     /// With the test `Compute`.
     #[must_use]
     pub fn ctx(&self) -> Ctx<'_> {

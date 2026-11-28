@@ -667,6 +667,8 @@ and `set` are the runtime's copy of the settings' `offset_secs` and `checked`.
 
 - Built: the settings owner holds the choices and the mode asked for, reads the boot stick's settings file by `main`'s rules (`faraday-settings`'s `file`), answers `Set`, and carries `settings.kept` and `settings.mode` (both `any_mode`); a mode press is refused when it is the mode in use, and `Press::ModeLock` asks the Lock sheet through `Top::ModeLock` (05 §1.1).
 
+- Built: the settings owner's Settings page (cards on the menu page: Mode, Appearance, Lock and power, Time, Display, What is remembered, About, and the search's words), Set the time (`faraday-settings`'s `clock`: a real date from 2020 to 2099, a 24-hour time, Set offered only once a zone is chosen, Enter setting with none, Keep this time with a clock reading) and the version (`version_label`, `version_line`, `parse_version_output`); a lock settles the mode it carried in the owner's `carry`; the Demo and Starter products route a mode change to the Lock sheet.
+
 ### 7.3 Changing: `ChangeFor<M>`
 
 This answers section 01's question on how a feature asks the key store for an operation that

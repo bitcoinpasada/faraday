@@ -660,4 +660,135 @@ mod tests {
         let mut second = lock_carry(&mut state);
         assert_eq!(second.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));
     }
+
+    fn on_set_time(view: &TestView) -> State {
+        let mut state = started();
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::OpenSetTime), &view.ctx());
+        assert_eq!(state.page(), settings::Page::SetTime);
+        state
+    }
+
+    fn typed(state: &mut State, view: &TestView, text: &str) {
+        for c in text.chars() {
+            let _ = route::<Settings>(state, Msg::Typed(c), &view.ctx());
+        }
+    }
+
+    /// Invariant: Set is offered only once a zone is chosen and a real date and a real 24-hour time are typed, and then it makes the offset, marks the clock checked, announces it and returns to Settings.
+    /// Regression: Set works with no zone, with a date outside 2020 to 2099 or with a half-typed time, or leaves the clock unchecked, or stays on the screen.
+    /// Owner: app
+    #[test]
+    fn set_needs_a_zone_and_a_real_time_and_then_checks_the_clock() {
+        let view = TestView::device();
+        let mut state = on_set_time(&view);
+        let set = Msg::Press(Press::Set);
+        let offered = |state: &State| Settings::refuses(state, &set, &view.ctx().view);
+        typed(&mut state, &view, "12:00");
+        // The date is empty: no zone, so no date was filled from the clock either.
+        assert!(matches!(offered(&state), Some(Refusal::NotReady)));
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::Zone(60)), &view.ctx());
+        // The zone fills Date from the clock, so a zone and a real time make Set offered.
+        assert!(offered(&state).is_none());
+        let _ = route::<Settings>(&mut state, Msg::Tab, &view.ctx());
+        for _ in 0..10 {
+            let _ = route::<Settings>(&mut state, Msg::Erase, &view.ctx());
+        }
+        typed(&mut state, &view, "2019-12-31");
+        assert!(matches!(offered(&state), Some(Refusal::NotReady)));
+        for _ in 0..10 {
+            let _ = route::<Settings>(&mut state, Msg::Erase, &view.ctx());
+        }
+        typed(&mut state, &view, "2025-06-15");
+        assert!(offered(&state).is_none());
+        let out = seen(route::<Settings>(&mut state, Msg::Press(Press::Set), &view.ctx()));
+        assert_eq!(out.outs.len(), 1);
+        assert!(state.settings().checked);
+        assert_ne!(state.settings().offset_secs, 0);
+        assert_eq!(state.page(), settings::Page::Settings);
+    }
+
+    /// Invariant: Enter in a field sets whenever a real date and time are typed, with no zone chosen, as `main` did; a half-typed time does nothing.
+    /// Regression: Enter is held to the zone and a typed time cannot be set from the keyboard, or Enter sets a time that is not real.
+    /// Owner: app
+    #[test]
+    fn enter_sets_a_real_time_with_no_zone_chosen() {
+        let view = TestView::device();
+        let mut state = on_set_time(&view);
+        typed(&mut state, &view, "12:00");
+        let _ = route::<Settings>(&mut state, Msg::Tab, &view.ctx());
+        typed(&mut state, &view, "2025-06");
+        let _ = route::<Settings>(&mut state, Msg::Enter, &view.ctx());
+        assert!(!state.settings().checked);
+        assert_eq!(state.page(), settings::Page::SetTime);
+        typed(&mut state, &view, "-15");
+        let _ = route::<Settings>(&mut state, Msg::Enter, &view.ctx());
+        assert!(state.settings().checked);
+        assert_eq!(state.settings().zone_min, None);
+        assert_eq!(state.page(), settings::Page::Settings);
+    }
+
+    /// Invariant: Keep this time needs a clock reading and marks the clock checked with no offset, and Escape closes the zone list before it leaves Set the time.
+    /// Regression: Keep marks a clock that has no reading as checked, sets an offset, or Escape leaves the screen with the zone list open.
+    /// Owner: app
+    #[test]
+    fn keep_needs_a_reading_and_escape_closes_the_zone_list_first() {
+        let none = TestView::device().with_unix_secs(0);
+        let refused = Settings::refuses(&started(), &Msg::Press(Press::Keep), &none.ctx().view);
+        assert!(matches!(refused, Some(Refusal::NoClock)));
+        let view = TestView::device();
+        let mut state = on_set_time(&view);
+        assert!(Settings::refuses(&state, &Msg::Press(Press::Keep), &view.ctx().view).is_none());
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::ZoneList(true)), &view.ctx());
+        let _ = route::<Settings>(&mut state, Msg::Escape, &view.ctx());
+        assert_eq!(state.page(), settings::Page::SetTime);
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::SetTimeBack), &view.ctx());
+        assert_eq!(state.page(), settings::Page::Settings);
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::OpenSetTime), &view.ctx());
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::Keep), &view.ctx());
+        assert!(state.settings().checked);
+        assert_eq!(state.settings().offset_secs, 0);
+    }
+
+    /// Invariant: The zone steps a quarter hour at a time and stops at -12:00 and +14:00; opening the zone list from Settings opens Set the time.
+    /// Regression: The zone steps past either end, or the Time card's zone row opens a list with no screen to show it.
+    /// Owner: app
+    #[test]
+    fn the_zone_steps_to_its_ends_and_its_list_opens_set_the_time() {
+        let view = TestView::device();
+        let mut state = started();
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::ZoneList(true)), &view.ctx());
+        assert_eq!(state.page(), settings::Page::SetTime);
+        for _ in 0..70 {
+            let _ = route::<Settings>(&mut state, Msg::Press(Press::ZoneStep(-15)), &view.ctx());
+        }
+        assert_eq!(state.settings().zone_min, Some(-720));
+        for _ in 0..120 {
+            let _ = route::<Settings>(&mut state, Msg::Press(Press::ZoneStep(15)), &view.ctx());
+        }
+        assert_eq!(state.settings().zone_min, Some(840));
+    }
+
+    /// Invariant: The Mode card asks the Lock sheet at once for a mode that is offered and not in use; the one in use is refused.
+    /// Regression: A pick on the Mode card changes the mode with no Lock sheet, or the mode in use is asked for again.
+    /// Owner: app
+    #[test]
+    fn a_pick_on_the_mode_card_asks_the_lock_sheet() {
+        let view = TestView::device();
+        let mut state = started();
+        let out = seen(route::<Settings>(
+            &mut state,
+            Msg::Press(Press::ModeAsk(ModeAsked::Signet)),
+            &view.ctx(),
+        ));
+        assert_eq!(out.outs.len(), 1);
+        assert_eq!(state.mode_asked(), Some(ModeAsked::Signet));
+        let mut carried = lock_carry(&mut state);
+        assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));
+        let in_use = Settings::refuses(
+            &started(),
+            &Msg::Press(Press::ModeAsk(ModeAsked::of_index(view.ctx().view.mode.index()))),
+            &view.ctx().view,
+        );
+        assert!(matches!(in_use, Some(Refusal::ModeInUse)));
+    }
 }
