@@ -566,6 +566,8 @@ Inbox and Outbox are the session's.** Reason: most features put a file in the Ou
 session pane draws the files held; one owner keeps one list (K8). Turned down: a files feature
 others message, which would be a fourth owner for one list.
 
+**Built:** the key store, the keys held for their backup and the session's randomness (`faraday-session`); the wallets, the Inbox and the Outbox are not.
+
 The vault composite holds the open vaults (`faraday_keys::vault::OpenVaults`) and the vault
 features' states (section 01, §4.3). The settings owner holds the person's choices.
 

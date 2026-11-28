@@ -6,6 +6,14 @@ use crate::message::Public;
 #[derive(Public, Copy, PartialEq, Eq, Hash)]
 pub struct KeyId(u32);
 
+impl KeyId {
+    /// The `n`th handle of a build of the lock scope. Only the session owner counts, and never
+    /// gives one number twice (03 §3.3).
+    pub fn minted(n: u32) -> KeyId {
+        KeyId(n)
+    }
+}
+
 #[derive(Public, Copy, PartialEq, Eq, Hash)]
 pub struct WalletId(u32);
 

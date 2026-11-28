@@ -330,6 +330,12 @@ pub struct Edits(u64);
 impl Edits {
     /// The count of a part that has changed nothing: what the empty readers answer (05 R26).
     pub const NONE: Edits = Edits(0);
+
+    /// The count after one more change; only an owner calls it.
+    #[must_use]
+    pub fn after(self) -> Edits {
+        Edits(self.0.wrapping_add(1))
+    }
 }
 
 /// A costly value kept on a state by the inputs it came from. Public, so a state field of it is

@@ -12,8 +12,13 @@ mod model;
 mod msg;
 mod page;
 mod present;
+mod random;
 mod state;
+mod store;
 mod update;
+
+#[cfg(test)]
+mod tests;
 
 use faraday_kernel::{CarryName, JobKind};
 use faraday_port::values::Anchor;
