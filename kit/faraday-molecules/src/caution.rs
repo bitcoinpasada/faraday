@@ -23,17 +23,32 @@ pub struct CautionModel<'s> {
 }
 
 /// Draws the caution at (x, y), `w` wide, wrapped. Returns its height, no gap under it.
-pub fn draw<A: Pressed>(
+pub fn draw<A: Pressed>(m: &CautionModel<'_>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
+    draw_in(m, ui, at, Role::Warning)
+}
+
+/// The same line in the error tone: what is lost (`main`'s lock sheet lists what is kept nowhere
+/// else in it).
+pub fn draw_error<A: Pressed>(
+    m: &CautionModel<'_>,
+    ui: &mut Ui<'_, A>,
+    at: (f32, f32, f32),
+) -> f32 {
+    draw_in(m, ui, at, Role::Error)
+}
+
+fn draw_in<A: Pressed>(
     m: &CautionModel<'_>,
     ui: &mut Ui<'_, A>,
     (x, y, w): (f32, f32, f32),
+    tone: Role,
 ) -> f32 {
     let role = match m.size {
         Size::Label => LABEL_L,
         Size::Body => BODY_M,
     };
     ui.showing(&m.text, |ui| {
-        ui.wrap_as((x, y, w), role, Role::Warning, m.text.as_str())
+        ui.wrap_as((x, y, w), role, tone, m.text.as_str())
     })
 }
 

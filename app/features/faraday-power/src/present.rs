@@ -1,8 +1,9 @@
-use faraday_kernel::session::WaitingItem;
+use faraday_kernel::session::{WaitingItem, WalletSource};
 use faraday_kernel::{Line, Refused, SelfTest, Show, View, Worded};
 use faraday_organisms::content::{Block, Content};
 use faraday_organisms::sheet::{DialogModel, SheetModel};
 use faraday_organisms::{ButtonModel, ButtonsModel, CautionModel, CautionSize, Shown, Style};
+use faraday_port::values::Medium;
 use faraday_present::{Present, offer};
 use faraday_strings::{Strings, fill};
 use faraday_text::Text;
@@ -57,6 +58,14 @@ fn copy_checked(_view: &View<'_>, _fingerprint: [u8; 4]) -> bool {
     false
 }
 
+/// Where a file waits to go, mid-sentence, by the medium the device boots from.
+fn for_the(medium: Medium, s: &Strings) -> &'static str {
+    match medium {
+        Medium::SdCard => s.medium_for_the_card_or_stick_inline,
+        Medium::Stick | Medium::Desktop => s.medium_for_the_stick_inline,
+    }
+}
+
 /// What a lock wipes, from what the session holds, as `main`'s `kept_wiped_now` lists it for a
 /// mode change: Make a new wallet under way, the files for the stick, each key by its name and
 /// where else it is, and each wallet; what is nowhere else first. No vault can be open yet, so
@@ -83,7 +92,7 @@ fn wiped(s: &Strings, view: &View<'_>) -> Vec<Wiped> {
             s.vaults_files
         };
         lines.push(Wiped {
-            line: Text::of(&format!("{n} {noun} {}", s.medium_for_the_stick_inline)),
+            line: Text::of(&format!("{n} {noun} {}", for_the(view.facts.medium, s))),
             nowhere: true,
         });
     }
@@ -112,10 +121,26 @@ fn wiped(s: &Strings, view: &View<'_>) -> Vec<Wiped> {
             nowhere: !checked,
         });
     }
+    // Each wallet by where else it is, as `main`'s `wallets_wiped` words it: in a vault, in a
+    // file held, or nowhere else.
+    let in_files = |name: &str| {
+        view.session
+            .inbox()
+            .iter()
+            .chain(view.session.outbox())
+            .any(|f| f.name.as_str() == name)
+    };
     for wallet in view.session.wallets() {
+        let (state, nowhere) = match &wallet.source {
+            WalletSource::Vault(v) => (fill(s.vaults_kept_in_vault, &[v.as_str()]), false),
+            WalletSource::Named(file) if in_files(file.as_str()) => {
+                (String::from(s.vaults_in_files), false)
+            }
+            _ => (String::from(s.vaults_nowhere_else), true),
+        };
         lines.push(Wiped {
-            line: wallet.name.clone(),
-            nowhere: false,
+            line: Text::of(&format!("{} \u{b7} {state}", wallet.name.as_str())),
+            nowhere,
         });
     }
     // What is nowhere else first, where it is read.
@@ -171,16 +196,14 @@ impl Present for Power {
                     let head = Shown::made(Text::of(&fill(s.mode_change_title, &[to])));
                     (head, s.lock_mode_keeps_nothing, items)
                 }
+                // The plain Lock: Cancel and Lock. No vault can be open yet, so "Lock without
+                // saving" is not offered (`main` offers it only with `seal_waits`, a loss or
+                // short memory).
                 None => (
                     Shown::plain(s.vault_lock),
                     s.lock_ask_then,
                     vec![
                         on(s.lock_ask_cancel, Style::Tonal, Press::Away),
-                        on(
-                            s.vault_lock_without_saving,
-                            Style::Tonal,
-                            Press::LockWithoutSealing,
-                        ),
                         on(s.vault_lock, Style::Filled, Press::Lock),
                     ],
                 ),
@@ -197,15 +220,15 @@ impl Present for Power {
             ),
         };
         let mut blocks = vec![Block::Headline(title)];
-        // A mode change says what it wipes, as the Lock sheet of any lock does.
-        if state.mode_change().is_some() && which == Which::LockAsk {
+        // Every lock the sheet asks about says what it wipes.
+        if which == Which::LockAsk {
             let lines = wiped(s, view);
             if !lines.is_empty() {
                 blocks.push(Block::Heading(Shown::plain(s.kept_sections_wiped)));
                 for Wiped { line, nowhere } in lines {
-                    // Nowhere else is in the warning tone, the kit's one toned line.
+                    // Nowhere else is in the error tone, as `main` draws it.
                     blocks.push(if nowhere {
-                        Block::Caution(CautionModel {
+                        Block::Lost(CautionModel {
                             text: Shown::made(line),
                             size: CautionSize::Body,
                         })
@@ -268,11 +291,11 @@ mod tests {
 
     use super::*;
 
-    /// The Lock sheet of a mode change as a person reads it: its body's lines, each tagged by
+    /// The Lock sheet, a mode change's or the plain one, as a person reads it: its body's lines, each tagged by
     /// kind, and its buttons with whether each is the Filled one.
-    fn read(view: &TestView, mode: u8) -> (Vec<String>, Vec<(String, bool)>) {
+    fn read(view: &TestView, mode: Option<u8>) -> (Vec<String>, Vec<(String, bool)>) {
         let mut state = State::new(Some(Which::LockAsk));
-        state.set_mode_change(Some(mode));
+        state.set_mode_change(mode);
         view.showing(|view, show| {
             let model = <Power as Present>::present(&state, view, show);
             let sheet = model.sheet.expect("the Lock sheet is up").sheet;
@@ -284,7 +307,7 @@ mod tests {
                     Block::Headline(t) => format!("headline:{}", t.as_str()),
                     Block::Heading(t) => format!("heading:{}", t.as_str()),
                     Block::Fact { label, .. } => format!("fact:{}", label.as_str()),
-                    Block::Caution(c) => format!("caution:{}", c.text.as_str()),
+                    Block::Lost(c) => format!("lost:{}", c.text.as_str()),
                     _ => "other".to_owned(),
                 })
                 .collect();
@@ -303,7 +326,7 @@ mod tests {
     /// Owner: app
     #[test]
     fn the_mode_change_sheet_names_the_mode_asked() {
-        let (body, foot) = read(&TestView::device(), 1);
+        let (body, foot) = read(&TestView::device(), Some(1));
         assert!(body.contains(&"headline:Change to Mainnet?".to_owned()));
         assert_eq!(
             foot,
@@ -314,20 +337,25 @@ mod tests {
         );
     }
 
-    /// Invariant: A key with no checked copy is listed on the mode change's sheet under what is wiped as nowhere else, first, in the warning tone, by its name.
-    /// Regression: A key kept nowhere else is left off the list, or listed after what is safe.
+    /// Invariant: A key with no checked copy is listed under what is wiped by its name as nowhere else, in the error tone, on a mode change's Lock sheet and on the plain Lock sheet, which offers Cancel and Lock alone.
+    /// Regression: A key kept nowhere else is left off the list, drawn in the warning tone, or the plain Lock lists nothing and offers a Lock without saving that loses no less.
     /// Owner: app
     #[test]
-    fn a_key_kept_nowhere_else_is_listed_first_among_what_is_wiped() {
+    fn a_key_kept_nowhere_else_is_listed_in_the_error_tone_on_both_lock_sheets() {
         let seed = test_seeds()[0];
-        let (body, _) = read(&TestView::device().with_key(seed), 2);
-        let at = body
-            .iter()
-            .position(|l| l == "heading:Wiped from memory")
-            .expect("the wiped list");
-        assert_eq!(
-            body[at + 1],
-            format!("caution:{} \u{b7} nowhere else", seed.name)
-        );
+        let view = TestView::device().with_key(seed);
+        for mode in [Some(2), None] {
+            let (body, foot) = read(&view, mode);
+            let at = body
+                .iter()
+                .position(|l| l == "heading:Wiped from memory")
+                .expect("the wiped list");
+            assert_eq!(
+                body[at + 1],
+                format!("lost:{} \u{b7} nowhere else", seed.name)
+            );
+            // Neither sheet offers a lock without sealing: no vault can be open.
+            assert!(foot.iter().all(|(label, _)| !label.contains("without")));
+        }
     }
 }

@@ -157,9 +157,10 @@ A mode change is two of them because the settings owner stands beside the app, n
 cannot send the Lock sheet's feature a message, and a lock it began itself would skip the sheet
 (`main`'s `mode_act` into `lock_ask`). `Top::ModeLock` carries the mode asked; the power feature
 keeps it with the open Lock sheet (`State::mode_change`, public, `AtLock`), draws `main`'s "Change to
-X?", the list of what the lock wipes (each key with its state, "copy checked" or "nowhere else", the
-latter in the warning tone and first; each wallet; the files for the stick; Make a new wallet
-under way) and "Lock and use X" from it, and drops it when the sheet closes or the device locks.
+X?", the list of what the lock wipes (each key and each wallet with its state, "copy checked", "in
+Files", "in <vault>" or "nowhere else", the latter in the error tone and first; the files for the
+card or stick; Make a new wallet under way; the same list on the plain Lock sheet, which offers
+Cancel and Lock) and "Lock and use X" from it, and drops it when the sheet closes or the device locks.
 **Open:** the Kept list (a line for each open vault), and, with sealing, `main`'s `seal_waits`
 case: while an open vault has changes and the seal cannot be made yet, "Lock without sealing"
 takes the place of the sealing Lock, with the "Waiting for randomness" or "No randomness" line. No

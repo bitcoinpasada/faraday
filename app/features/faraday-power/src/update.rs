@@ -345,7 +345,7 @@ mod tests {
     }
 
     /// Invariant: The mode asked is kept only while its Lock sheet is open: it is gone once the lock begins; a number that is no mode is given up at once.
-    /// Regression: A mode asked before a lock stands in the next build's sheet, so a later Lock sheet says "Change to X?" for a change nobody asked for.
+    /// Regression: The asked mode is still marked after Lock, so a later Lock sheet says "Change to X?" for a change nobody asked for; or a number no mode has opens the sheet.
     /// Owner: app
     #[test]
     fn the_mode_asked_is_wiped_at_lock_and_a_number_that_is_no_mode_is_refused() {

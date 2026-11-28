@@ -176,8 +176,8 @@ fn settings_opens_on_settings_after_set_the_time_was_left_by_the_bar() {
     assert_eq!(run.page(), settings_page());
 }
 
-/// Invariant: A mode change's Lock and use finishes the lock: the vaults owner answers the runtime's Close, the keep is asked and answered, and the process ends with the lock, so nothing the session held outlives it.
-/// Regression: The lock waits for the vaults owner's answer to its Close and never ends, so the session's keys stay in the app's state.
+/// Invariant: A mode change's Lock and use runs the lock to its end: the vaults owner answers the runtime's Close, the carry is kept and the process ends with the lock.
+/// Regression: The lock waits for the vaults owner's answer to its Close and never reaches its keep, so the process does not end.
 /// Owner: app
 #[test]
 fn a_mode_change_lock_finishes() {
