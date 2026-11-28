@@ -26,6 +26,8 @@ vet:
 lint:
     python3 -I -B tools/lint-layers.py
     python3 -I -B tools/lint-test-headers.py
+    # The registry of what a change brings with it reads, and matches the tree (08 section 6).
+    python3 -I -B tools/impact.py lint
     just lint-tests
 
 # The lints' own tests: each rule refused on a fixture tree.

@@ -44,10 +44,24 @@ jobs:
           # The history is read by the lints that look at commits and trailers.
           fetch-depth: 0
           persist-credentials: false
+      - name: A local next to compare with
+        if: github.event_name == 'pull_request'
+        run: git branch --force next "origin/${GITHUB_BASE_REF}"
+      - name: The pushed range to check
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # A new branch has a `before` of all zeros: the default range then.
+          if git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "FARADAY_IMPACT_RANGE=${BEFORE}..${GITHUB_SHA}" >> "$GITHUB_ENV"
+          fi
       - uses: ./.github/actions/setup
         with:
           deps: check
       - name: just
         run: just
+      - name: No pair of the registry left unmet (08 IMP1)
+        run: python3 -I -B tools/impact.py check --quiet
       - if: github.event_name == 'push' && github.ref == 'refs/heads/next'
         uses: ./.github/actions/save-deps
