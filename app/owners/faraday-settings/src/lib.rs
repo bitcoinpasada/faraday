@@ -13,6 +13,7 @@ mod kept;
 mod model;
 mod msg;
 mod page;
+mod rows;
 mod present;
 mod state;
 mod update;
@@ -21,6 +22,7 @@ mod version;
 use faraday_kernel::{CarryName, JobKind};
 
 use faraday_port::values::Anchor;
+pub use clock::Focus;
 pub use file::{FILE, HEADER, MAX, is_file};
 
 pub use kept::{Kept, MODE, ModeAsked, SETTINGS};
@@ -38,4 +40,20 @@ pub use faraday_kernel::settings::Page;
 
 pub const JOBS: &[JobKind] = &[];
 pub const CARRY: &[CarryName] = &[SETTINGS, MODE];
-pub const ANCHORS: &[Anchor] = &[];
+/// Where Settings' scroll stands, keyed in the motion store beside the page's own anchor.
+pub(crate) const SCROLL: Anchor = Anchor {
+    scope: "settings.Settings",
+    n: 1,
+};
+
+/// Each page (06 §4.2): Settings and Set the time.
+pub const ANCHORS: &[Anchor] = &[
+    Anchor {
+        scope: "settings.Settings",
+        n: 0,
+    },
+    Anchor {
+        scope: "settings.SetTime",
+        n: 0,
+    },
+];

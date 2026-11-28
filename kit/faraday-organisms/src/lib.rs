@@ -33,7 +33,7 @@ pub use faraday_molecules::appearance::{AppearanceModel, Segments, TextSizeModel
 pub use faraday_molecules::buttons::ButtonsModel;
 pub use faraday_molecules::caution::CautionModel;
 pub use faraday_molecules::flow_text::FlowText;
-pub use faraday_molecules::options::ChoiceModel;
+pub use faraday_molecules::options::{ChoiceModel, OptionRow};
 pub use faraday_molecules::pads::PadModel;
 pub use faraday_molecules::pass::PassModel;
 pub use faraday_molecules::qr::QrModel;

@@ -2,7 +2,7 @@
 //! `set_time.rs`). What is set is an offset against the computer's own clock; Faraday never
 //! writes that clock.
 
-use faraday_kernel::Clock;
+use faraday_kernel::{Clock, Public};
 use faraday_text::Text;
 
 /// A computer clock below this (2020-01-01) is not a reading: a person's offset is what counts.
@@ -19,7 +19,7 @@ pub enum Focus {
 
 /// What Set the time holds: the two fields, where typing goes and whether the list of zones is
 /// shown in their place. Nothing here is secret.
-#[derive(Default)]
+#[derive(Default, Public)]
 pub(crate) struct Form {
     date: Text,
     time: Text,

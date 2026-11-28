@@ -53,7 +53,7 @@ pub(crate) enum Source {
 }
 
 /// The scheme the appearance names: its theme, mode and contrast, as one of the kit's rows.
-fn scheme(a: &Appearance) -> Theme {
+pub(crate) fn scheme(a: &Appearance) -> Theme {
     let contrast = match a.contrast {
         Contrast::Standard => 0,
         Contrast::Medium => 1,
@@ -64,7 +64,7 @@ fn scheme(a: &Appearance) -> Theme {
 }
 
 /// Puts `theme` into the appearance as its three parts.
-fn set_scheme(a: &mut Appearance, theme: Theme) {
+pub(crate) fn set_scheme(a: &mut Appearance, theme: Theme) {
     let row = theme.row();
     a.theme = ThemeId((row / 6) as u8);
     a.dark = (row / 3) % 2 == 1;

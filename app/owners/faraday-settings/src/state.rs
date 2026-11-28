@@ -1,8 +1,10 @@
 use core::borrow::Borrow;
 
 use faraday_kernel::AtLock;
-use faraday_kernel::settings::Settings;
+use faraday_kernel::settings::{Page, Settings};
+use faraday_text::Text;
 
+use crate::clock::Form;
 use crate::file;
 use crate::kept::ModeAsked;
 
@@ -40,6 +42,17 @@ pub struct State {
     /// The Lock sheet has been asked for the mode in `asked`: the only lock that applies it.
     #[lock(public)]
     pending: bool,
+    /// Which of the owner's two pages is shown.
+    #[lock(public)]
+    page: Page,
+    /// Set the time's fields and zone list.
+    #[lock(public)]
+    form: Form,
+    /// The words typed in Settings' search, and whether the typing goes to it.
+    #[lock(public)]
+    find: Text,
+    #[lock(public)]
+    finding: bool,
 }
 
 impl State {
@@ -57,7 +70,65 @@ impl State {
             asked: None,
             in_use,
             pending: false,
+            page: Page::Settings,
+            form: Form::default(),
+            find: Text::default(),
+            finding: false,
         }
+    }
+
+    /// Whether Set is offered: a zone is chosen and a real date and a real 24-hour time are
+    /// typed.
+    pub(crate) fn set_ready(&self, _view: &faraday_kernel::View<'_>) -> bool {
+        self.settings.zone_min.is_some() && self.form.ready()
+    }
+
+    /// Today's date on the clock in the chosen zone, when both are known.
+    pub(crate) fn today(&self, view: &faraday_kernel::View<'_>) -> Option<String> {
+        let tz = self.settings.zone_min?;
+        let t = crate::clock::now(&view.clock)?;
+        Some(crate::clock::date_text(crate::clock::local_secs(t, tz)).as_str().to_owned())
+    }
+
+    pub fn page(&self) -> Page {
+        self.page
+    }
+
+    pub(crate) fn show(&mut self, page: Page) {
+        self.page = page;
+    }
+
+    pub(crate) fn form(&self) -> &Form {
+        &self.form
+    }
+
+    pub(crate) fn form_mut(&mut self) -> &mut Form {
+        &mut self.form
+    }
+
+    /// The words typed in the search.
+    pub(crate) fn find(&self) -> &Text {
+        &self.find
+    }
+
+    pub(crate) fn finding(&self) -> bool {
+        self.finding
+    }
+
+    pub(crate) fn focus_find(&mut self, on: bool) {
+        self.finding = on;
+    }
+
+    pub(crate) fn type_find(&mut self, c: char) {
+        self.find.push(c);
+    }
+
+    pub(crate) fn erase_find(&mut self) {
+        self.find.pop();
+    }
+
+    pub(crate) fn clear_find(&mut self) {
+        self.find.clear();
     }
 
     pub(crate) fn settings(&self) -> &Settings {

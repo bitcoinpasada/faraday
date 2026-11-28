@@ -4,6 +4,7 @@ use faraday_kernel::{AnyChange, ChangeId, FactsChanged, Owner};
 use faraday_kernel::{Carried, Ctx, Effects, Feature, Notice, Public, View};
 use faraday_port::storage::{Read, StickId};
 
+use crate::clock::{self, Key, Typed};
 use crate::file;
 use crate::kept::{Kept, MODE, ModeAsked, SETTINGS};
 use crate::state::Look;
@@ -14,6 +15,10 @@ use crate::{Msg, Out, Press, Settings, State};
 pub enum Refusal {
     /// The mode pressed is the one in use: the sheet closes and nothing else happens.
     ModeInUse,
+    /// Set needs a zone chosen and a real date and a real 24-hour time typed.
+    NotReady,
+    /// Keep this time needs a clock reading to keep.
+    NoClock,
 }
 
 /// Asks for the settings file when the boot stick is listed and holds one: once per process, and
@@ -87,26 +92,12 @@ impl Feature for Settings {
     fn update(state: &mut State, msg: Msg, cx: &Ctx<'_>) -> Effects<Msg, Out> {
         state.refresh(cx.view.mode.index());
         match msg {
-            Msg::Press(press) => match press {
-                Press::Mode(m) => {
-                    state.ask_mode(Some(m));
-                    Effects::none()
-                }
-                Press::ModeCancel => {
-                    state.ask_mode(None);
-                    state.set_pending(false);
-                    Effects::none()
-                }
-                Press::ModeLock => match state.mode_asked() {
-                    // The Lock sheet asks first and its Lock seals: the power feature's, reached
-                    // through the root.
-                    Some(_) => {
-                        state.set_pending(true);
-                        Effects::none().out(Out::ModeLock)
-                    }
-                    None => Effects::none(),
-                },
-            },
+            Msg::Press(press) => pressed(state, press, cx),
+            Msg::Typed(c) => key(state, Key::Char(c), cx),
+            Msg::Erase => key(state, Key::Erase, cx),
+            Msg::Tab => key(state, Key::Tab, cx),
+            Msg::Enter => key(state, Key::Enter, cx),
+            Msg::Escape => key(state, Key::Escape, cx),
             Msg::Read(_, bytes) => {
                 if state.look() != Look::Asked {
                     return Effects::none();
@@ -143,11 +134,13 @@ impl Feature for Settings {
         }
     }
 
-    fn refuses(_state: &State, msg: &Msg, view: &View<'_>) -> Option<Refusal> {
+    fn refuses(state: &State, msg: &Msg, view: &View<'_>) -> Option<Refusal> {
         match msg {
-            Msg::Press(Press::Mode(m)) if *m == ModeAsked::of_index(view.mode.index()) => {
+            Msg::Press(Press::Mode(m) | Press::ModeAsk(m)) if *m == ModeAsked::of_index(view.mode.index()) => {
                 Some(Refusal::ModeInUse)
             }
+            Msg::Press(Press::Set) if !state.set_ready(view) => Some(Refusal::NotReady),
+            Msg::Press(Press::Keep) if clock::now(&view.clock).is_none() => Some(Refusal::NoClock),
             _ => None,
         }
     }
@@ -173,6 +166,159 @@ fn given(state: &mut State, id: ChangeId, change: AnyChange) -> Effects<Msg, Out
         }
         // Another owner's change is not this one's.
         _ => Effects::none(),
+    }
+}
+
+/// A press: the mode sheet's, a choice of Settings, or a step of Set the time.
+fn pressed(state: &mut State, press: Press, cx: &Ctx<'_>) -> Effects<Msg, Out> {
+    match press {
+        Press::Mode(m) => {
+            state.ask_mode(Some(m));
+            Effects::none()
+        }
+        Press::ModeAsk(m) => {
+            state.ask_mode(Some(m));
+            state.set_pending(true);
+            Effects::none().out(Out::ModeLock)
+        }
+        Press::ModeCancel => {
+            state.ask_mode(None);
+            state.set_pending(false);
+            Effects::none()
+        }
+        Press::ModeLock => match state.mode_asked() {
+            // The Lock sheet asks first and its Lock seals: the power feature's, reached
+            // through the root.
+            Some(_) => {
+                state.set_pending(true);
+                Effects::none().out(Out::ModeLock)
+            }
+            None => Effects::none(),
+        },
+        Press::Choose(choice) => {
+            if file::choose(state.settings_mut(), choice) {
+                changed(settings::Changed::Choices)
+            } else {
+                Effects::none()
+            }
+        }
+        Press::OpenSetTime => {
+            let date = state.today(&cx.view);
+            state.form_mut().open(date.as_deref());
+            state.show(settings::Page::SetTime);
+            Effects::none()
+        }
+        Press::SetTimeBack => {
+            state.show(settings::Page::Settings);
+            Effects::none()
+        }
+        Press::Focus(focus) => {
+            state.form_mut().set_focus(focus);
+            Effects::none()
+        }
+        Press::ZoneList(on) => {
+            // Opening the list from Settings opens Set the time on it.
+            if on && state.page() != settings::Page::SetTime {
+                let date = state.today(&cx.view);
+                state.form_mut().open(date.as_deref());
+                state.show(settings::Page::SetTime);
+            }
+            state.form_mut().set_zones(on);
+            Effects::none()
+        }
+        Press::ZoneStep(delta) => {
+            let at = state.settings().zone_min.unwrap_or(0);
+            zone(state, at.saturating_add(delta), &cx.view)
+        }
+        Press::Zone(min) => {
+            state.form_mut().set_zones(false);
+            zone(state, min, &cx.view)
+        }
+        Press::Set => set(state, &cx.view),
+        Press::Keep => {
+            if clock::now(&cx.view.clock).is_some() {
+                state.settings_mut().checked = true;
+                state.show(settings::Page::Settings);
+                changed(settings::Changed::Clock)
+            } else {
+                Effects::none()
+            }
+        }
+        Press::SelfTest => Effects::none().out(Out::SelfTest),
+        Press::Find => {
+            state.focus_find(true);
+            Effects::none()
+        }
+        Press::FindClear => {
+            state.clear_find();
+            Effects::none()
+        }
+        // The power feature's: the product routes these presses there.
+        Press::Lock | Press::PowerAsk => Effects::none(),
+    }
+}
+
+fn changed(what: settings::Changed) -> Effects<Msg, Out> {
+    Effects::none().out(Out::Shared(Changed::Settings(what)))
+}
+
+/// A zone chosen: kept (held to what is offered) and, while Date is empty and the clock is
+/// known, Date filled from the clock.
+fn zone(state: &mut State, min: i16, view: &View<'_>) -> Effects<Msg, Out> {
+    let moved = file::choose(state.settings_mut(), settings::Choice::Zone(min));
+    if state.form().date_empty()
+        && let Some(date) = state.today(view)
+    {
+        state.form_mut().fill_date(&date);
+    }
+    if moved {
+        changed(settings::Changed::Choices)
+    } else {
+        Effects::none()
+    }
+}
+
+/// Set: the local time typed, at :00 seconds, becomes the offset against the computer's own
+/// clock, and the clock counts as checked. Never writes the computer's clock.
+fn set(state: &mut State, view: &View<'_>) -> Effects<Msg, Out> {
+    let Some((local, _, _)) = state.form().typed_local() else {
+        return Effects::none();
+    };
+    let tz = state.settings().zone_min.unwrap_or(0);
+    let s = state.settings_mut();
+    s.offset_secs = clock::offset_for(local, tz, &view.clock);
+    s.checked = true;
+    state.show(settings::Page::Settings);
+    changed(settings::Changed::Clock)
+}
+
+/// A key typed on Set the time.
+fn key(state: &mut State, key: Key, cx: &Ctx<'_>) -> Effects<Msg, Out> {
+    if state.page() == settings::Page::Settings {
+        // The search takes what is typed while it is focused.
+        if state.finding() {
+            match key {
+                Key::Char(c) => state.type_find(c),
+                Key::Erase => state.erase_find(),
+                Key::Escape => state.focus_find(false),
+                _ => {}
+            }
+        }
+        return Effects::none();
+    }
+    match state.form_mut().key(key) {
+        Typed::Ignored | Typed::Taken => Effects::none(),
+        // Enter sets whenever the date and time are real, with no zone chosen (read as UTC), as
+        // `main` did; the Set button needs a zone.
+        Typed::Set => set(state, &cx.view),
+        Typed::Back if state.form().zones() => {
+            state.form_mut().set_zones(false);
+            Effects::none()
+        }
+        Typed::Back => {
+            state.show(settings::Page::Settings);
+            Effects::none()
+        }
     }
 }
 
