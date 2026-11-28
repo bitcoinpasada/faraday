@@ -567,7 +567,10 @@ pub enum Motion {
 pub enum Turn { Page, Step }
 ```
 
-Built: a wheel or a finger over a region writes its offset and `bar_shown_ms` from the frame's
+Built: the store also keeps, per component anchor, a list of part heights under a key of the width,
+the text size, the scale and the parts (`Ui::keep_heights`, `Ui::kept_heights`); the How blocks
+write each part's measured height there while drawing and the next frame under the same key
+passes over a part out of view without measuring it (V15's channel, not feature state). A wheel or a finger over a region writes its offset and `bar_shown_ms` from the frame's
 clock (`MotionStore::scroll_region`), and a hold held to its end sends its press once.
 
 - **Rule K9.** The motion store holds numbers, rectangles and times only: no text, no press, no
@@ -861,7 +864,7 @@ pub enum Style { Filled, Tonal, Outlined, Text, Elevated, Error }
   row of DESIGN §4.
 - Built: the keyboard (its layouts and keys), the ways in, the viewfinder, the QR copy grid and a row's details (`kit/faraday-organisms/src/{keyboard,ways_in,viewfinder,qr_grid,row_details}.rs`), each a model and a `draw` over its box.
 - Built: the guide sheet (`kit/faraday-organisms/src/guide.rs`, `draw_sheet`: the tabs, the page's pinned title, the Find field, the page, the contents or the How tab in a scrolled region, Contents and Done at the foot, held or in its box; the target section's place registered with `Ui::anchor`). Open: the pane's own look, Find's matching (the feature's).
-- Built: the How blocks (`kit/faraday-organisms/src/how.rs`, `how::draw`): blocks as list items, the cross-check, constructions with their tables, `PageLook`, all from a model of data.
+- Built: the How blocks (`kit/faraday-organisms/src/how.rs`, `how::draw`): blocks as list items, the cross-check, constructions with their tables, `PageLook`, all from a model of data; each part's height kept in the motion store, so a part out of view is not measured on the next frame at the same width and text size, and `how::draw_found` says where the target part begins.
 - Built: the step-flow template (`kit/faraday-templates/src/flow.rs`, `flow/compact.rs`): the chip and note, the heading and title, the card, the forward action (at the card's end; on the small panel in the pin bar, `FLOW_PIN_H`), Your choices with the lead row and the current row's tint (beside the card where the room holds the pair, else under it), a pick or the take-away in the pane's place, `under`, the foot (refusal, busy line held still under Reduce motion, Back and Cancel), the asking dialog over the page room, the raised card (outlined at High contrast alone), and on the small panel the page per step. Not built: Your choices as the bar's button and sheet on the small panel; Back and Cancel in the top bar and the dialog over the whole window are the screen frame's to take over.
 - Built: the screen template (`kit/faraday-templates/src/screen.rs`, `screen/pills.rs`): the navigation bar, the rail or the sidebar beside the page, the top app bar, the keyboard (at the small panel's foot, over the wide page), the tooltip, the stick pills (strip or in the bar), the busy line, the sheets and the note; and the menu page (`menu_page.rs`): section cards, cards of different heights, the box of rows, a typed search's results, Home's lead, the search row pinned or scrolling by the room, the raised padded tile in a pair or stack. Not built: Back and Cancel in the top bar, the dialog over the whole window, the Pi menu's Scan button and head (the feature's model).
 

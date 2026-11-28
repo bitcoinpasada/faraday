@@ -322,6 +322,8 @@ fn how_body(state: &State, s: &'static Strings, pane: bool) -> HowModel<'static>
     HowModel {
         parts,
         look: guide::how_look(pane),
+        id: crate::HOW,
+        target: None,
     }
 }
 

@@ -10,6 +10,9 @@ pub struct MotionStore {
     /// How far each region still has to glide, units (down is positive): a wheel notch or an
     /// arrow key asked for it and the offset follows ([`MotionStore::glide_region`]).
     glides: Vec<(ComponentId, f32)>,
+    /// The heights of a component's parts, kept for the next frame (04 V15), each list with the
+    /// key it was measured under ([`HeightsKey`]): a different key is a different list.
+    heights: Vec<(ComponentId, HeightsKey, Vec<f32>)>,
     /// Reduce motion: nothing coasts, stretches or glides; each goes to its end at once.
     rigid: bool,
 }
@@ -24,6 +27,7 @@ impl MotionStore {
         MotionStore {
             entries: Vec::new(),
             glides: Vec::new(),
+            heights: Vec::new(),
             rigid: false,
         }
     }
@@ -38,6 +42,23 @@ impl MotionStore {
     /// Whether Reduce motion is on.
     pub fn rigid(&self) -> bool {
         self.rigid
+    }
+
+    /// The heights `id` kept under `key`, if it kept them under that key.
+    pub fn kept_heights(&self, id: &ComponentId, key: HeightsKey) -> Option<&[f32]> {
+        self.heights
+            .iter()
+            .find(|(k, kk, _)| k == id && *kk == key)
+            .map(|(_, _, h)| h.as_slice())
+    }
+
+    /// Keeps `heights` for `id` under `key`, replacing its list.
+    pub fn keep_heights(&mut self, id: ComponentId, key: HeightsKey, heights: &[f32]) {
+        match self.heights.iter_mut().find(|(k, _, _)| *k == id) {
+            Some(e) if e.1 == key && e.2 == heights => {}
+            Some(e) => *e = (id, key, heights.to_vec()),
+            None => self.heights.push((id, key, heights.to_vec())),
+        }
     }
 
     /// The entry of a component, if a frame kept one.
@@ -402,6 +423,10 @@ pub enum Turn {
     Step,
 }
 
+/// What a list of kept heights depends on: the width it was set at, the size of the text, the
+/// scale, and a fingerprint of what it measured. Numbers only (K9).
+pub type HeightsKey = [u32; 4];
+
 /// A component's key in the store: the page's anchor, the component's anchor.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ComponentId(pub Anchor, pub Anchor);
@@ -496,6 +521,20 @@ pub fn busy_phase(began_ms: u64, now_ms: u64) -> f32 {
 }
 
 impl<A: crate::Pressed> crate::Ui<'_, A> {
+    /// The heights the component `id` kept on an earlier frame under `key`, if it did: a part's
+    /// height known without measuring it. A list kept under another key (a new width, text size or
+    /// content) is not returned.
+    pub fn kept_heights(&self, id: Anchor, key: HeightsKey) -> Option<&[f32]> {
+        self.motion.kept_heights(&ComponentId(self.page, id), key)
+    }
+
+    /// Keeps `heights` for the component `id` under `key`, replacing what it kept, for the next
+    /// frame to read ([`Ui::kept_heights`]).
+    pub fn keep_heights(&mut self, id: Anchor, key: HeightsKey, heights: &[f32]) {
+        self.motion
+            .keep_heights(ComponentId(self.page, id), key, heights);
+    }
+
     /// Where a pane that moves between two places stands: the box `to`, or, after `to` changed,
     /// the way from where it stood to the new place (`Motion::Glide` under `id`, `span_ms` long
     /// from the frame's time, eased as a page turn is). A pane first drawn, or drawn under Reduce

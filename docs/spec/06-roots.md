@@ -155,9 +155,9 @@ guide from Home with a room that is not extra-large and the root's follow gives 
 Built: `faraday-guide-sheet` (the state, the messages, the tabs, the contents and Find, the pane's
 rules, the sheet and pane models) and the device composite's `Msg::Guide` and Guide sheet; the
 pane drawn by `GuideSheet::draw_pane`. Not built: the pane's place and the page's room beside it
-(the pane container), the root's keys and follows, and the kept heights of the How blocks (a
-layout fact read by the next frame's drawing is the motion store's, 04 V15, and the store has no
-entry for it).
+(the pane container) and the root's keys and follows. The heights of the How blocks are kept in the
+motion store (04 V15), so a block out of view is not measured on the next frame at the same width
+and text size. Renders stay open until the tours exist.
 
 The shared owners, top states beside the app in each model (03 §7.1):
 

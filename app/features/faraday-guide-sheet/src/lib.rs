@@ -42,6 +42,12 @@ pub(crate) const SCROLL: Anchor = Anchor {
     n: 1,
 };
 
+/// Keys the How blocks' kept heights in the motion store.
+pub(crate) const HOW: Anchor = Anchor {
+    scope: "guide_sheet.How",
+    n: 3,
+};
+
 /// The section the guide is to scroll to, registered at its place while drawing.
 pub(crate) const TARGET: Anchor = Anchor {
     scope: "guide_sheet.Target",

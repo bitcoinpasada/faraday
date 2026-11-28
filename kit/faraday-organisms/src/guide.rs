@@ -297,7 +297,7 @@ fn draw_body<A: Pressed>(
                         guide_block::draw_found(block, ui, (at.0, at.1 + below, at.2));
                     (used + below, found)
                 }
-                SheetBody::How(how) => (how::draw(how, ui, at), None),
+                SheetBody::How(how) => how::draw_found(how, ui, at),
             };
             if let Some(off) = found {
                 let one = ui.line_as(TITLE_S);
@@ -478,6 +478,10 @@ mod tests {
         scope: "guide",
         n: 2,
     };
+    const HOW: Anchor = Anchor {
+        scope: "guide",
+        n: 3,
+    };
 
     fn look() -> GuideLook {
         GuideLook {
@@ -639,6 +643,8 @@ mod tests {
                 ],
             })],
             look: PageLook::SHEET,
+            id: HOW,
+            target: None,
         };
         let mut m = sheet(false, SheetBody::How(how), None);
         m.title = None;
@@ -654,5 +660,82 @@ mod tests {
             assert!(lines.iter().any(|l| l == want), "{want}: {lines:?}");
         }
         assert!(!lines.iter().any(|l| l == "A page"), "{lines:?}");
+    }
+
+    /// A How tab of `n` blocks, each a name and one field of a long text, the one numbered
+    /// `target` marked.
+    fn how_sheet(n: usize, target: Option<usize>) -> GuideSheetModel<'static, P> {
+        let block = |i: usize| {
+            Part::Block(HowBlock {
+                name: Shown::plain(&*Box::leak(format!("Block {i}").into_boxed_str())),
+                fields: vec![Field {
+                    label: Shown::plain("Standards"),
+                    body: FieldBody::Lines(vec![Line {
+                        text: Shown::plain(
+                            "A standard whose name and number run long enough to wrap onto a second line in a narrow sheet.",
+                        ),
+                        kind: Kind::Plain,
+                    }]),
+                }],
+            })
+        };
+        let how = HowModel {
+            parts: (0..n).map(block).collect(),
+            look: PageLook::SHEET,
+            id: HOW,
+            target,
+        };
+        let mut m = sheet(false, SheetBody::How(how), Some(TARGET));
+        m.title = None;
+        m.contents = None;
+        m
+    }
+
+    /// The anchors of a frame of `m` drawn into `store`, and how many parts it measured.
+    fn frame_into(
+        store: &mut MotionStore,
+        m: &GuideSheetModel<'static, P>,
+        (w, h): (u16, u16),
+    ) -> (Vec<(Anchor, faraday_draw::Rect)>, usize) {
+        let mut c = faraday_atoms::ui::testing::canvas_sized(160, (w, h));
+        let pointer = at_rest(None);
+        let mut ui = Ui::new(&mut c, Theme::default(), 1.0, store, &pointer, true);
+        ui.clear(Role::Surface);
+        crate::how::MEASURED.with(|n| n.set(0));
+        draw_sheet(m, &mut ui, (f32::from(w), f32::from(h)));
+        let out = ui.finish();
+        (out.anchors, crate::how::MEASURED.with(|n| n.get()))
+    }
+
+    /// Invariant: A second frame of the How tab at the same width and text size measures only the blocks in view, and a new width measures them again.
+    /// Regression: The How tab works every block's height out on every frame, or keeps the heights of another width and puts blocks where they do not fit.
+    /// Owner: kit
+    #[test]
+    fn the_how_tab_keeps_its_heights_for_the_next_frame() {
+        let m = how_sheet(40, None);
+        let mut store = MotionStore::new();
+        let (_, first) = frame_into(&mut store, &m, (480, 640));
+        assert_eq!(first, 40);
+        let (_, second) = frame_into(&mut store, &m, (480, 640));
+        assert!(second < 10, "{second}");
+        let (_, narrow) = frame_into(&mut store, &m, (360, 640));
+        assert_eq!(narrow, 40);
+    }
+
+    /// Invariant: A jump to a How block scrolled far out of sight has the same place on the first frame and on the frames that skip the blocks out of view.
+    /// Regression: A Reveal to a block far down the How tab lands short or past it once the heights are kept, because a skipped block was counted at another height.
+    /// Owner: kit
+    #[test]
+    fn a_jump_to_a_how_block_out_of_sight_lands_on_it_with_the_heights_kept() {
+        let m = how_sheet(40, Some(30));
+        let mut store = MotionStore::new();
+        let place = |anchors: &[(Anchor, faraday_draw::Rect)]| {
+            anchors.iter().find(|(a, _)| *a == TARGET).expect("its place").1
+        };
+        let (first, _) = frame_into(&mut store, &m, (480, 640));
+        let (second, measured) = frame_into(&mut store, &m, (480, 640));
+        assert!(place(&first).y > 640, "{:?}", place(&first));
+        assert!(measured < 10, "{measured}");
+        assert_eq!(place(&first), place(&second));
     }
 }

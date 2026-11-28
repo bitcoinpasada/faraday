@@ -7,7 +7,7 @@
 //! The words come in the model as data; the organism names no feature and no page. Only the
 //! lines in view are drawn (`Ui::wrap_seen`); the height of every part is still counted.
 
-use faraday_atoms::{Icon, Pressed, Shown, Ui};
+use faraday_atoms::{Anchor, HeightsKey, Icon, Pressed, Shown, Ui};
 use faraday_tokens::dims::{BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LIST_PAD_V, PAD};
 use faraday_tokens::dims::{TITLE_M, TITLE_S};
 use faraday_tokens::palette::Role;
@@ -126,11 +126,60 @@ impl PageLook {
 pub struct HowModel<'s> {
     pub parts: Vec<Part<'s>>,
     pub look: PageLook,
+    /// Keys the parts' heights in the motion store, which `draw` writes and reads (04 V15).
+    pub id: Anchor,
+    /// The part a jump is to reach: `draw_found` says where it begins.
+    pub target: Option<usize>,
 }
 
 /// Draws the parts one after another from (x, y), `w` wide, a full-width divider with a gap above
 /// and below between two. Returns the height used.
-pub fn draw<A: Pressed>(m: &HowModel<'_>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f32, f32)) -> f32 {
+pub fn draw<A: Pressed>(m: &HowModel<'_>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) -> f32 {
+    draw_found(m, ui, at).0
+}
+
+// What `draw_found` counts, so that a test can see a part measured.
+#[cfg(test)]
+thread_local! {
+    pub(crate) static MEASURED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// What the kept heights depend on: the width, the text size and the scale, and the parts
+/// (their count and the letters of their titles).
+fn key<A: Pressed>(m: &HowModel<'_>, ui: &Ui<'_, A>, w: f32) -> HeightsKey {
+    let mut shape: u32 = 0x811c_9dc5;
+    let mut eat = |b: u8| shape = (shape ^ u32::from(b)).wrapping_mul(0x0100_0193);
+    for part in &m.parts {
+        let title = match part {
+            Part::Block(b) => b.name.as_str(),
+            Part::Construction(c) => c.title.as_str(),
+        };
+        title.bytes().for_each(&mut eat);
+        eat(0);
+    }
+    [
+        w.to_bits(),
+        ui.line_as(BODY_M).to_bits(),
+        ui.f.to_bits(),
+        shape ^ (m.parts.len() as u32),
+    ]
+}
+
+/// [`draw`], and where within the parts the one marked `target` begins. Each part's height is
+/// kept in the motion store (`Ui::keep_heights`); the next frame under the same width, text size
+/// and parts reads them and passes over a part out of view without measuring it.
+pub fn draw_found<A: Pressed>(
+    m: &HowModel<'_>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+) -> (f32, Option<f32>) {
+    let key = key(m, ui, w);
+    let kept: Vec<f32> = match ui.kept_heights(m.id, key) {
+        Some(h) if h.len() == m.parts.len() => h.to_vec(),
+        _ => Vec::new(),
+    };
+    let mut heights = Vec::with_capacity(m.parts.len());
+    let mut found = None;
     let mut cy = y;
     for (i, part) in m.parts.iter().enumerate() {
         if i > 0 {
@@ -138,12 +187,25 @@ pub fn draw<A: Pressed>(m: &HowModel<'_>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f
             ui.rule(x, cy, w, Role::OutlineVariant);
             cy += GAP;
         }
-        cy += match part {
-            Part::Block(b) => block(ui, (x, cy, w), b),
-            Part::Construction(c) => construction(ui, (x, cy, w), c, &m.look),
+        if m.target == Some(i) {
+            found = Some(cy - y);
+        }
+        let h = match kept.get(i) {
+            Some(&h) if !ui.shows(cy, h) => h,
+            _ => {
+                #[cfg(test)]
+                MEASURED.with(|c| c.set(c.get() + 1));
+                match part {
+                    Part::Block(b) => block(ui, (x, cy, w), b),
+                    Part::Construction(c) => construction(ui, (x, cy, w), c, &m.look),
+                }
+            }
         };
+        heights.push(h);
+        cy += h;
     }
-    cy - y
+    ui.keep_heights(m.id, key, &heights);
+    (cy - y, found)
 }
 
 /// One block from (x, y): the action's name in Title S, then the fields.
