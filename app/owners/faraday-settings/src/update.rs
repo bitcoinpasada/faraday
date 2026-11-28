@@ -155,6 +155,7 @@ impl Feature for Settings {
     fn carry(state: &mut State, into: &mut Carried) {
         into.put(SETTINGS, &Kept::of(state.settings(), state.on_stick()));
         into.put(MODE, &state.mode_after_lock());
+        state.settle();
     }
 }
 
@@ -491,5 +492,26 @@ mod tests {
             &demo.ctx().view,
         );
         assert!(open.is_none());
+    }
+
+    /// Invariant: A lock settles the mode it carried at once, so an owner that outlives the scope knows its mode and holds no pick when the next lock comes, with no notice between.
+    /// Regression: The Starter's owner keeps the mode it started in until a once-a-second notice, so a lock before it carries the old mode and drops the session's entries.
+    /// Owner: app
+    #[test]
+    fn a_lock_settles_the_mode_it_carried_without_a_notice() {
+        let device = TestView::device();
+        let mut state = started();
+        let _ = route::<Settings>(
+            &mut state,
+            Msg::Press(Press::Mode(ModeAsked::Signet)),
+            &device.ctx(),
+        );
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::ModeLock), &device.ctx());
+        let mut first = lock_carry(&mut state);
+        assert_eq!(first.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));
+        assert_eq!(state.mode_asked(), None);
+        assert!(!state.pending());
+        let mut second = lock_carry(&mut state);
+        assert_eq!(second.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));
     }
 }

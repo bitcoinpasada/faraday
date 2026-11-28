@@ -120,6 +120,15 @@ impl State {
         }
     }
 
+    /// The lock that was just carried makes the mode it carried the one in use, and the pick and
+    /// its Lock sheet are done with. An owner that outlives the scope (the Starter's) needs no
+    /// later notice to know it; a lock that fails to keep is put right by `refresh`.
+    pub(crate) fn settle(&mut self) {
+        self.in_use = self.mode_after_lock();
+        self.asked = None;
+        self.pending = false;
+    }
+
     /// The mode asked for, if one is.
     pub fn mode_asked(&self) -> Option<ModeAsked> {
         self.asked

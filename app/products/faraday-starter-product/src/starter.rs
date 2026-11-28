@@ -74,6 +74,22 @@ impl Root for Starter {
         todo!()
     }
 
+    /// A mode change shows the Lock sheet, which asks first (the device composite's, inside the
+    /// online app). Every mode in `MODES` is one the person may ask for; the root falls back to
+    /// the default for a mode not on the list.
+    fn mode_lock_asked(&self) -> Option<Addr<Self>> {
+        Some(Addr::App(faraday_online::Msg::Device(
+            faraday_device::Msg::Power(faraday_power::Msg::ModeLock),
+        )))
+    }
+
+    /// The mode change's Lock sheet closed without locking: the asked mode is given up.
+    fn mode_cancel_asked(&self) -> Option<Addr<Self>> {
+        Some(Addr::Settings(faraday_settings::Msg::Press(
+            faraday_settings::Press::ModeCancel,
+        )))
+    }
+
     fn close_asked(&self) -> Option<Addr<Self>> {
         todo!()
     }
@@ -86,5 +102,30 @@ impl Root for Starter {
         _ui: &mut Ui<'_, Press>,
     ) {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Invariant: The Starter asks the Lock sheet for a mode change and gives the pick up when that sheet closes without locking, as the device does.
+    /// Regression: The hooks stay at their default, so a mode pick arms the settings owner with no sheet shown and the next plain lock changes the mode.
+    /// Owner: app
+    #[test]
+    fn a_mode_change_asks_the_lock_sheet_and_a_closed_sheet_cancels_it() {
+        let root = Starter { options: StarterOptions { uninstall: false, image: None } };
+        assert!(matches!(
+            root.mode_lock_asked(),
+            Some(Addr::App(faraday_online::Msg::Device(faraday_device::Msg::Power(
+                faraday_power::Msg::ModeLock
+            ))))
+        ));
+        assert!(matches!(
+            root.mode_cancel_asked(),
+            Some(Addr::Settings(faraday_settings::Msg::Press(
+                faraday_settings::Press::ModeCancel
+            )))
+        ));
     }
 }

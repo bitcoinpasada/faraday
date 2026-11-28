@@ -8,6 +8,8 @@ publish = false
 [dependencies]
 faraday-runtime = { path = "../../../runtime/faraday-runtime" }
 faraday-online = { path = "../../composites/faraday-online" }
+faraday-device = { path = "../../composites/faraday-device" }
+faraday-power = { path = "../../features/faraday-power" }
 faraday-starter = { path = "../../composites/faraday-starter" }
 faraday-session = { path = "../../owners/faraday-session" }
 faraday-settings = { path = "../../owners/faraday-settings" }
