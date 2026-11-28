@@ -196,12 +196,8 @@ impl Devices {
             Press::Ignore(d.id),
         )];
         if by_target {
-            target_lines(d, view, &mut blocks);
-            // A device let in by targets has Ignore and the target only; a trusted keyboard's
-            // Enter lets a pointer in too, and the sheet says so.
-            if d.pointer && !d.touch && inputs.typist() {
-                blocks.push(Block::Heading(Shown::plain(EN.new_input_enter_also)));
-            }
+            target_lines(state, d, view, &mut blocks);
+            // A device let in by targets has Ignore and the target only.
         } else {
             // A pointer with a trusted pointer to press it is let in by its button; a keyboard
             // by its code (`main`'s `new_input_sheet`).
@@ -238,9 +234,14 @@ impl Devices {
 
 /// The target lines of a device let in by pressing: which target of how many, tries left, or
 /// that none fits. The target itself is the root's to draw at its place (`spots`).
-fn target_lines<'s>(d: &NewInput, view: &View<'_>, blocks: &mut Vec<Block<'s, Press>>) {
+fn target_lines<'s>(
+    state: &State,
+    d: &NewInput,
+    view: &View<'_>,
+    blocks: &mut Vec<Block<'s, Press>>,
+) {
     let of = target_room(view);
-    let Some(of) = of.filter(|_| d.drawn()) else {
+    let Some(of) = of.filter(|_| d.drawn() && state.room_fits()) else {
         blocks.push(Block::Heading(Shown::plain(if d.touch {
             EN.new_input_no_target
         } else {
@@ -265,14 +266,20 @@ fn target_lines<'s>(d: &NewInput, view: &View<'_>, blocks: &mut Vec<Block<'s, Pr
     }
 }
 
-/// How many targets the sheet draws. The sheet is a dialog, and the room it leaves for the target
-/// is the root's; the count is worked out from the least room a dialog can leave (the kit's
-/// `dialog_room_least`), less the target's own size, so a blind device's chance is never better
-/// than a keyboard's whatever the dialog turns out to be (F202, `main`'s `target_count`).
-fn target_room(view: &View<'_>) -> Option<usize> {
+/// The room, `(width, height)` in units, the count of targets assumes for the target's place: the
+/// least a dialog leaves, less the target's own size. Whatever draws the target compares the room
+/// it has with this and, when it is smaller, draws none and sends `Msg::Room(false)`.
+#[must_use]
+pub fn assumed_room(view: &View<'_>) -> (f32, f32) {
     let display = &view.facts.display;
     let (iw, ih) = dialog_room_least(f32::from(display.width), f32::from(display.height));
-    let (w, h) = ((iw - TOUCH).max(0.0), (ih - TOUCH).max(0.0));
+    ((iw - TOUCH).max(0.0), (ih - TOUCH).max(0.0))
+}
+
+/// How many targets the sheet draws, from [`assumed_room`]: a blind device's chance is never
+/// better than a keyboard's where the room drawn in holds it (F202, `main`'s `target_count`).
+fn target_room(view: &View<'_>) -> Option<usize> {
+    let (w, h) = assumed_room(view);
     target_count(w, h, TOUCH).filter(|n| *n <= TARGETS_MAX)
 }
 

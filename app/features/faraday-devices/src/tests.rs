@@ -489,14 +489,53 @@ fn the_target_count_comes_from_the_least_dialog() {
     state.inputs_mut().set_trust(false, false);
     admit(&mut state, 3, (false, false, true));
     let _ = run(&mut state, Msg::Used(3));
-    let step = |w, h| {
-        let (said, _) = sheet_of(&state, w, h);
+    let step = |state: &State, w, h| {
+        let (said, _) = sheet_of(state, w, h);
         let line = said.iter().find(|s| s.starts_with("Target 1 of")).cloned();
         line.and_then(|l| l.rsplit(' ').next().and_then(|n| n.parse::<usize>().ok()))
     };
+    let no_target = |state: &State| {
+        let (said, _) = sheet_of(state, 1024, 600);
+        said.iter()
+            .any(|s| s == faraday_strings::EN.new_input_no_target)
+    };
+    // Before the root says its room holds the assumed one, no target fits.
+    assert_eq!(step(&state, 1024, 600), None);
+    assert!(no_target(&state));
     // A dialog 232 wide inside its padding leaves 184 by 144 for the target: 7 in a row.
-    assert_eq!(step(1920, 1080), Some(7));
-    assert_eq!(step(1024, 600), Some(7));
+    let _ = run(&mut state, Msg::Room(true));
+    assert_eq!(step(&state, 1920, 1080), Some(7));
+    assert_eq!(step(&state, 1024, 600), Some(7));
+    // A room smaller than the one the count assumed draws no target.
+    let _ = run(&mut state, Msg::Room(false));
+    assert_eq!(step(&state, 1920, 1080), None);
+    assert!(no_target(&state));
+}
+
+/// Invariant: A held device's New input sheet is put away by name, so a sheet over it is never the one taken away, and the lone pointer's sheet promises nothing that does not work.
+/// Regression: Front(None) took the top sheet, the idle warning or the Lock sheet, and left a stale New input entry that swallowed Back; the sheet said Enter lets the pointer in.
+/// Owner: app
+#[test]
+fn the_new_input_sheet_goes_by_name() {
+    let mut state = state_on(&machine());
+    state.inputs_mut().set_trust(false, true);
+    admit(&mut state, 3, (false, true, false));
+    let out = run(&mut state, Msg::Used(3)).outs;
+    assert!(
+        out.iter()
+            .any(|o| matches!(o, Out::Front(Some(FrameSheet::NewInput))))
+    );
+    let (said, _) = sheet_of(&state, 1024, 600);
+    assert!(
+        said.iter()
+            .all(|s| s != faraday_strings::EN.new_input_enter_also)
+    );
+    let out = run(&mut state, Msg::Gone(3)).outs;
+    assert!(
+        out.iter()
+            .any(|o| matches!(o, Out::Away(FrameSheet::NewInput)))
+    );
+    assert!(!out.iter().any(|o| matches!(o, Out::Front(None))));
 }
 
 /// Invariant: A press beside the target counts only when the last frame drew a target of that device; with none drawn, presses beside count for nothing.

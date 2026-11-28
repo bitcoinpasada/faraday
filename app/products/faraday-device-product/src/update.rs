@@ -28,6 +28,10 @@ impl Feature for App {
                 let (device, _) = state.parts();
                 route::<faraday_device::Device>(device, m, cx).lift(Msg::Device, out)
             }
+            Msg::Away(sheet) => {
+                take_out(state.parts().1, sheet);
+                Effects::none()
+            }
             Msg::Front(sheet) => {
                 cover(state.parts().1, sheet);
                 Effects::none()
@@ -69,22 +73,29 @@ impl Feature for App {
 /// it does not come back empty when the Lock sheet is put away. A New input sheet waits under
 /// it and stays.
 fn cover(frame: &mut Frame<Page>, sheet: Option<FrameSheet>) {
-    let locks = matches!(sheet, Some(FrameSheet::Lock | FrameSheet::LockAsk));
-    if locks && frame.sheets().contains(&FrameSheet::Devices) {
-        let keep: Vec<FrameSheet> = frame
-            .sheets()
-            .iter()
-            .copied()
-            .filter(|s| *s != FrameSheet::Devices)
-            .collect();
-        while !frame.sheets().is_empty() {
-            frame.front(None);
-        }
-        for s in keep {
-            frame.front(Some(s));
-        }
+    if matches!(sheet, Some(FrameSheet::Lock | FrameSheet::LockAsk)) {
+        take_out(frame, FrameSheet::Devices);
     }
     frame.front(sheet);
+}
+
+/// The sheet is taken out of the stack, whatever is over it; the others keep their places.
+fn take_out(frame: &mut Frame<Page>, sheet: FrameSheet) {
+    if !frame.sheets().contains(&sheet) {
+        return;
+    }
+    let keep: Vec<FrameSheet> = frame
+        .sheets()
+        .iter()
+        .copied()
+        .filter(|s| *s != sheet)
+        .collect();
+    while !frame.sheets().is_empty() {
+        frame.front(None);
+    }
+    for s in keep {
+        frame.front(Some(s));
+    }
 }
 
 /// Back goes first to the top sheet of the frame's stack, then one page back (06 §4.3).
@@ -107,8 +118,9 @@ fn back(state: &mut DeviceApp, cx: &Ctx<'_>) -> Effects<Msg, Top> {
         // The Devices sheet is put away, and the feature drops the press that waited under it
         // (`Notice::Left`) so a later press brings the sheet up again.
         Some(FrameSheet::Devices) => {
-            state.parts().1.front(None);
-            <App as Feature>::notice(state, &Notice::Left, cx)
+            take_out(state.parts().1, FrameSheet::Devices);
+            // Devices alone is told: Back leaves no page, so no other child's notice applies.
+            <App as Feature>::update(state, Msg::Device(faraday_device::Msg::devices_away()), cx)
         }
         Some(_) => {
             state.parts().1.front(None);
@@ -142,6 +154,7 @@ fn out(out: faraday_device::Out) -> Route<Msg, Top> {
         Out::Vaults => Route::To(Msg::Open(Page::Vaults(faraday_vaults::Page::Vaults))),
         Out::Settings => Route::To(Msg::Open(Page::Settings(faraday_settings::Page::Settings))),
         Out::Front(sheet) => Route::To(Msg::Front(sheet)),
+        Out::Away(sheet) => Route::To(Msg::Away(sheet)),
         Out::Top(top) => Route::Up(top),
         Out::Search { typed, focused } => Route::To(Msg::Find { typed, focused }),
         // Nothing built sends a scan, a camera hold or a sample yet.
@@ -295,6 +308,31 @@ mod tests {
             state.frame().sheets(),
             [FrameSheet::NewInput, FrameSheet::Devices]
         );
+    }
+
+    /// Invariant: A sheet the feature puts away goes by name: with the Lock sheet over New input, the New input entry goes and Back then puts the Lock sheet away.
+    /// Regression: The feature's put-away took the top sheet, so the Lock sheet went and a stale New input entry swallowed Back.
+    /// Owner: app
+    #[test]
+    fn a_sheet_put_away_by_name_leaves_what_is_over_it() {
+        let view = on_a_monitor();
+        let mut state = started(&view);
+        send(&mut state, Msg::Front(Some(FrameSheet::NewInput)), &view);
+        send(
+            &mut state,
+            Msg::Device(faraday_device::Msg::Power(faraday_power::Msg::Lock {
+                asks_first: true,
+            })),
+            &view,
+        );
+        assert_eq!(
+            state.frame().sheets(),
+            [FrameSheet::LockAsk, FrameSheet::NewInput]
+        );
+        send(&mut state, Msg::Away(FrameSheet::NewInput), &view);
+        assert_eq!(state.frame().sheets(), [FrameSheet::LockAsk]);
+        send(&mut state, Msg::Press(AppPress::Back), &view);
+        assert!(state.frame().sheets().is_empty());
     }
 
     /// Invariant: Check again sends the waiting press through the hold again: with a reminder still due it stays held and the Devices sheet stays up.

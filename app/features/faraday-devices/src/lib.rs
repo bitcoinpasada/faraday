@@ -29,6 +29,7 @@ pub use inputs::{
 };
 pub use model::Model;
 pub use msg::{Msg, Out, Press, Said};
+pub use present::assumed_room;
 pub use rules::{Concern, Kind, Reminder, screen_external, usb_kind, usb_name, virtual_machine};
 pub use state::State;
 pub use update::Refusal;

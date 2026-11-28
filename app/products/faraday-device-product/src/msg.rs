@@ -10,6 +10,8 @@ pub enum Msg {
     Press(AppPress),
     /// A frame sheet comes up or the top one goes (06 §4.4), from a child's `Out::Front`.
     Front(Option<FrameSheet>),
+    /// A frame sheet is put away by name, whatever is over it.
+    Away(FrameSheet),
     /// A page is shown (06 §4.3), from a destination or a child's `Out::Open`.
     Open(Page),
     /// Home's search field changed (from the composite's `Out::Search`): the bar shows it.

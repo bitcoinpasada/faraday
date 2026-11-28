@@ -19,6 +19,14 @@ pub enum Msg {
     Press(Press),
 }
 
+impl Msg {
+    /// The Devices sheet is put away without an answer: what waited under it is dropped.
+    #[must_use]
+    pub fn devices_away() -> Msg {
+        Msg::Devices(faraday_devices::Press::Cancel.into())
+    }
+}
+
 impl From<Press> for Msg {
     fn from(press: Press) -> Msg {
         match press {
@@ -51,6 +59,8 @@ pub enum Out {
     Camera(bool),
     /// A frame sheet (06 §4.4).
     Front(Option<FrameSheet>),
+    /// A frame sheet is put away by name.
+    Away(FrameSheet),
     /// Load a published sample (03 §4.4).
     Sample(SampleAsk),
     /// A lock, an end, a broadcast.

@@ -44,6 +44,10 @@ pub enum Msg {
         id: u32,
         hit: Hit,
     },
+    /// Whether the room the sheet has for its target holds the room the count of targets assumed
+    /// ([`crate::assumed_room`]): a laid fact, a yes or no (04 V16). With `false`, or before any
+    /// is sent, no target is drawn and the sheet says none fits.
+    Room(bool),
     /// The last frame drew a target of the device whose sheet shows (`true`), or none (`false`):
     /// a laid fact, a yes or no (04 V16). A press beside counts only after a `true`.
     Aimed(bool),
@@ -103,6 +107,8 @@ impl From<DevicesFact> for Msg {
 pub enum Out {
     /// A frame sheet.
     Front(Option<FrameSheet>),
+    /// A frame sheet of this feature is put away, by name: the stack may hold another over it.
+    Away(FrameSheet),
     /// The press that would show a secret may go on (06 §7).
     Cleared(Gate),
     /// Something that can capture the screen arrived: every secret on show goes off it, as the

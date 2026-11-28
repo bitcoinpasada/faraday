@@ -67,7 +67,8 @@ fn input_sheet(state: &mut State) -> Fx {
     } else if !shown && state.input_up() {
         state.set_input_up(false);
         state.set_target_drawn(false);
-        fx = fx.out(Out::Front(None));
+        state.set_room_fits(false);
+        fx = fx.out(Out::Away(FrameSheet::NewInput));
     }
     if aims != state.aimed() {
         state.aim(aims);
@@ -101,7 +102,7 @@ fn released(state: &mut State) -> Fx {
     let mut fx = Effects::none();
     if state.devices_up() {
         state.set_devices_up(false);
-        fx = fx.out(Out::Front(None));
+        fx = fx.out(Out::Away(FrameSheet::Devices));
     }
     match state.waiting() {
         Some(gate) => {
@@ -176,7 +177,7 @@ fn press(state: &mut State, press: Press) -> Fx {
             state.check_mut().set_asking(false);
             if state.devices_up() {
                 state.set_devices_up(false);
-                Effects::none().out(Out::Front(None))
+                Effects::none().out(Out::Away(FrameSheet::Devices))
             } else {
                 Effects::none()
             }
@@ -331,6 +332,10 @@ impl Feature for Devices {
                 }
                 let t = state.inputs_mut().tapped(id, hit);
                 tried(state, t, true, id)
+            }
+            Msg::Room(fits) => {
+                state.set_room_fits(fits);
+                Effects::none()
             }
             Msg::Aimed(drawn) => {
                 state.set_target_drawn(drawn);

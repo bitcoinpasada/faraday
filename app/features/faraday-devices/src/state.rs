@@ -24,6 +24,9 @@ pub struct State {
     /// The pointer whose targets the adapter's arrow aims at.
     #[lock(public)]
     aimed: Option<u32>,
+    /// The room the sheet has for its target holds the room the count assumed.
+    #[lock(public)]
+    room_fits: bool,
     /// The last frame drew a target of the device whose sheet shows.
     #[lock(public)]
     target_drawn: bool,
@@ -41,6 +44,7 @@ impl State {
             input_up: false,
             waiting: None,
             aimed: None,
+            room_fits: false,
             target_drawn: false,
             asked: Vec::new(),
         }
@@ -102,6 +106,16 @@ impl State {
 
     pub(crate) fn aim(&mut self, id: Option<u32>) {
         self.aimed = id;
+    }
+
+    /// The room the sheet has for its target holds the room the count assumed.
+    #[must_use]
+    pub fn room_fits(&self) -> bool {
+        self.room_fits
+    }
+
+    pub(crate) fn set_room_fits(&mut self, on: bool) {
+        self.room_fits = on;
     }
 
     /// The last frame drew a target of the device whose sheet shows.

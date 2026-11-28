@@ -166,6 +166,7 @@ pub(crate) fn devices_out(out: faraday_devices::Out) -> Route<Msg, Out> {
     use faraday_devices::Out as D;
     match out {
         D::Front(sheet) => Route::Up(Out::Front(sheet)),
+        D::Away(sheet) => Route::Up(Out::Away(sheet)),
         D::Hide => Route::Up(Out::Top(Top::Hide)),
         D::PowerOff => Route::Up(Out::Top(Top::End(End::PowerOff))),
         // The features that wait for the check are not built: no gate is open to answer.
