@@ -824,6 +824,9 @@ pub enum Block<'s, A> {
     Fact { label: Shown<'s>, value: Shown<'s>, mono: bool },
     Rows(Vec<RowModel<'s, A>>),         // list items: icon, headline, line, tags, chevron, press
     Choose(ChoiceModel<'s, A>),         // one or several of a list; segmented
+    Appearance(AppearanceModel<'s, A>), // Settings' Theme chips, Mode and Contrast rows
+    Segmented(TextSizeModel<'s, A>),    // one labelled row of segmented choices; `dim` draws it dimmed, taking no press
+    Zone(TimeZoneModel<'s, A>),         // the time zone as a row that opens the list, or as steppers
     Field(FieldModel<'s, A>),           // label, the typed line, its caret, an action in the field
     Pass(PassModel<'s, A>),             // the passphrase field part's drawing, from its read view
     Words(WordGridModel<'s, A>),
