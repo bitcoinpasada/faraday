@@ -24,6 +24,9 @@ pub struct State {
     /// The pointer whose targets the adapter's arrow aims at.
     #[lock(public)]
     aimed: Option<u32>,
+    /// The last frame drew a target of the device whose sheet shows.
+    #[lock(public)]
+    target_drawn: bool,
     /// Devices whose draw is on its way.
     #[lock(public)]
     asked: Vec<u32>,
@@ -38,6 +41,7 @@ impl State {
             input_up: false,
             waiting: None,
             aimed: None,
+            target_drawn: false,
             asked: Vec::new(),
         }
     }
@@ -98,6 +102,16 @@ impl State {
 
     pub(crate) fn aim(&mut self, id: Option<u32>) {
         self.aimed = id;
+    }
+
+    /// The last frame drew a target of the device whose sheet shows.
+    #[must_use]
+    pub fn target_drawn(&self) -> bool {
+        self.target_drawn
+    }
+
+    pub(crate) fn set_target_drawn(&mut self, on: bool) {
+        self.target_drawn = on;
     }
 
     /// Whether a draw for device `id` is on its way.

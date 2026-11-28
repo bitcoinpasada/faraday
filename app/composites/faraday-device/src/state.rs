@@ -56,6 +56,12 @@ impl State {
         (state, effects)
     }
 
+    /// The device check's and the held-back inputs' state.
+    #[must_use]
+    pub fn devices(&self) -> &faraday_devices::State {
+        &self.devices
+    }
+
     /// The power feature's state.
     #[must_use]
     pub fn power(&self) -> &faraday_power::State {

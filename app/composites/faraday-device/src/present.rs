@@ -3,7 +3,9 @@ use faraday_kernel::{Line, Refused, Show, View, Worded};
 use faraday_port::values::Anchor;
 use faraday_present::Present;
 
-use crate::{Body, Over, Page, Refusal, State};
+use faraday_devices::Devices;
+
+use crate::{Body, Over, Page, Press, Refusal, State};
 
 impl Worded for Refusal {
     fn words(&self, show: &Show<'_>) -> Line {
@@ -27,6 +29,15 @@ pub fn body<'s>(state: &'s State, page: Page, view: &View<'s>, show: &Show<'s>) 
         | Page::Tools(_)
         | Page::Files(_) => todo!(),
     }
+}
+
+/// The notices that stay over the page: each one's words and the press of its ×, the first
+/// lowest (06 §4.4). Now only the keyboards held back that have not acted.
+pub fn notices(state: &State, show: &Show<'_>) -> Vec<(faraday_text::Text, Press)> {
+    Devices::stays(&state.devices, show)
+        .map(|text| (text, Press::Devices(faraday_devices::Press::CloseNotice)))
+        .into_iter()
+        .collect()
 }
 
 /// The sheets over the page, each with its anchor, the lowest first. The scan sheet and the

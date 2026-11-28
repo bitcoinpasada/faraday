@@ -67,6 +67,9 @@ pub(crate) struct NewInput {
     letters: usize,
     /// It has acted since it was held: only then does its sheet show.
     pub(crate) used: bool,
+    /// A keyboard still named by the notice that stays: it has not acted and the notice was not
+    /// closed.
+    noticed: bool,
 }
 
 impl NewInput {
@@ -386,6 +389,7 @@ impl Inputs {
             typed: SecretText::new(),
             letters: 0,
             used: false,
+            noticed: keyboard,
         });
         Admitted::Held
     }
@@ -508,9 +512,32 @@ impl Inputs {
         }
         let mut d = self.held.remove(i);
         d.used = true;
+        d.noticed = false;
         let at = self.held.iter().take_while(|d| d.used).count();
         self.held.insert(at, d);
         true
+    }
+
+    /// The names of the keyboards the notice that stays names: held, not yet acted, not closed.
+    #[must_use]
+    pub fn noticed(&self) -> Vec<Text> {
+        self.held
+            .iter()
+            .filter(|d| d.noticed)
+            .map(|d| d.name.clone())
+            .collect()
+    }
+
+    /// The notice goes: its × or a key typed on a keyboard. The keyboards stay held.
+    pub(crate) fn notice_close(&mut self) {
+        for d in &mut self.held {
+            d.noticed = false;
+        }
+    }
+
+    /// Whether device `id` is held back.
+    pub(crate) fn is_held(&self, id: u32) -> bool {
+        self.held.iter().any(|d| d.id == id)
     }
 
     /// Whether the held device `id` has acted.

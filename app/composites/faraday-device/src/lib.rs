@@ -20,7 +20,7 @@ use faraday_port::values::Anchor;
 pub use frame::FailedModel;
 pub use model::{Body, Over};
 pub use msg::{Msg, Out, Press};
-pub use present::{anchor, body, over};
+pub use present::{anchor, body, notices, over};
 pub use state::State;
 pub use update::Refusal;
 

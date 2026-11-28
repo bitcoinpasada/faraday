@@ -558,7 +558,9 @@ order"). Each has one place:
 | A stick in the way of a key load | the press of a key-loading feature is taken, and its `update` opens the Pull sheet while `facts.sticks.attached` is set; the session refuses `AddKey` while a stick is attached | update tests; the session's update test |
 | The device check | a press that would show a secret is the feature's `Out::Reveal(r)`; the device composite routes it to devices, which answers `Cleared(r)` back to the feature, at once or after the Devices sheet | the device composite's routing test; update tests of devices |
 
-Built: the device check in `faraday-devices` (the Devices and NewInput sheets, the held-back inputs' code and targets, the door's counts carried across a lock) and the device composite's routes for its sheets, its hide of every secret on show when something that can capture the screen arrives, and its power off. A press's `Cleared` answer is dropped by the composite until a feature sends `Out::Reveal`; the root resolves a held device's press place into `Msg::Hit`.
+Built: the device check in `faraday-devices` (the Devices and NewInput sheets, the held-back inputs' code and targets as state, the door's counts carried across a lock), the keyboards held named by a notice the frame shows until a key is typed or its × is pressed, and the device composite's routes for its sheets, its hide of every secret on show when something that can capture the screen arrives, and its power off. The composite and the product forward every notice to devices, which drops what waited under the Devices sheet when it goes. A press's `Cleared` answer is dropped by the composite until a feature sends `Out::Reveal`.
+
+**Open:** no root resolves where a held device's press landed into `Msg::Hit`, so no pointer or touchscreen can be let in by targets; the target is not drawn at its place; the code's draw waits for the session's changes, so a device held back that acts panics until they are built; the list of what was plugged in at start shows as a toast, not as a notice that stays.
 
 ## 8. The tour root
 

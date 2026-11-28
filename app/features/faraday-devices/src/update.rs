@@ -66,6 +66,7 @@ fn input_sheet(state: &mut State) -> Fx {
         fx = fx.out(Out::Front(Some(FrameSheet::NewInput)));
     } else if !shown && state.input_up() {
         state.set_input_up(false);
+        state.set_target_drawn(false);
         fx = fx.out(Out::Front(None));
     }
     if aims != state.aimed() {
@@ -111,6 +112,16 @@ fn released(state: &mut State) -> Fx {
     }
 }
 
+/// The waiting press goes through the hold again once nothing is named (`main`'s
+/// `device_released`): while a reminder is still due it stays held under the sheet, which then
+/// shows the reminders and I understand.
+fn rerun(state: &mut State) -> Fx {
+    match state.waiting() {
+        Some(_) if state.check().holding() => Effects::none(),
+        _ => released(state),
+    }
+}
+
 /// A press that would show a secret.
 fn reveal(state: &mut State, gate: Gate) -> Fx {
     if !state.check().holding() {
@@ -133,7 +144,7 @@ fn press(state: &mut State, press: Press) -> Fx {
             if state.check_mut().check_again() {
                 Effects::none().note(Said::Still)
             } else {
-                released(state)
+                rerun(state)
             }
         }
         Press::Continue => {
@@ -176,6 +187,10 @@ fn press(state: &mut State, press: Press) -> Fx {
             decided(state).and(input_sheet(state))
         }
         Press::Use(id) => believe(state, id),
+        Press::CloseNotice => {
+            state.inputs_mut().notice_close();
+            Effects::none()
+        }
     }
 }
 
@@ -293,6 +308,10 @@ impl Feature for Devices {
                 }
             }
             Msg::Typed { id, ch } => {
+                // A key typed on a keyboard takes the notice away; the keyboards stay held.
+                if state.inputs().is_held(id) {
+                    state.inputs_mut().notice_close();
+                }
                 let fx = used(state, id).and(draw(state, id));
                 let t = state.inputs_mut().typed(id, ch);
                 fx.and(tried(state, t, false, id))
@@ -307,11 +326,15 @@ impl Feature for Devices {
                 {
                     return Effects::none();
                 }
-                if hit == Hit::Beside && !state.input_up() {
+                if hit == Hit::Beside && !state.target_drawn() {
                     return Effects::none();
                 }
                 let t = state.inputs_mut().tapped(id, hit);
                 tried(state, t, true, id)
+            }
+            Msg::Aimed(drawn) => {
+                state.set_target_drawn(drawn);
+                Effects::none()
             }
             Msg::Used(id) => used(state, id).and(draw(state, id)),
             Msg::Gone(id) => {
@@ -341,13 +364,13 @@ impl Feature for Devices {
 
     fn notice(state: &mut State, notice: &Notice<'_>, _cx: &Ctx<'_>) -> Fx {
         match notice {
-            // Neither sheet is on show any more (a press elsewhere, a sheet over them, a lock's
-            // sheet): what waited for the check is dropped, and Continue anyway asks again.
+            // The Devices sheet is not on show any more (Back, a lock's sheet over it): what
+            // waited for the check is dropped, and Continue anyway asks again. The New input
+            // sheet stays until its device is decided (F202), so this does not touch it.
             Notice::Left => {
                 state.wait(None);
                 state.check_mut().set_asking(false);
                 state.set_devices_up(false);
-                state.set_input_up(false);
                 Effects::none()
             }
             _ => Effects::none(),

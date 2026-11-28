@@ -44,6 +44,9 @@ pub enum Msg {
         id: u32,
         hit: Hit,
     },
+    /// The last frame drew a target of the device whose sheet shows (`true`), or none (`false`):
+    /// a laid fact, a yes or no (04 V16). A press beside counts only after a `true`.
+    Aimed(bool),
     /// A held-back device acted.
     Used(u32),
     /// A held-back device was unplugged.
@@ -129,6 +132,8 @@ pub enum Press {
     Ignore(u32),
     /// Use this pointer.
     Use(u32),
+    /// The × of the notice naming the keyboards held.
+    CloseNotice,
 }
 
 /// What the feature tells the person in a toast.
@@ -155,4 +160,7 @@ pub enum Said {
     Plugged(Vec<Text>),
     /// Check again found them still attached.
     Still,
+    /// The keyboards held, named by a notice that stays until a key is typed on a keyboard or its
+    /// × is pressed (F202): it is shown by the frame, never as a toast.
+    KeyboardsHeld(Vec<Text>),
 }

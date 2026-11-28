@@ -1,6 +1,6 @@
 use faraday_kernel::{Line, Refused, Show, View, Worded};
 use faraday_organisms::content::{Block, Content};
-use faraday_organisms::sheet::{DialogModel, SheetModel};
+use faraday_organisms::sheet::{DialogModel, SheetModel, dialog_room_least};
 use faraday_organisms::{ButtonModel, ButtonsModel, HoldModel, HoldTone, Shown, Style};
 use faraday_present::{Present, offer};
 use faraday_strings::{EN, fill};
@@ -53,6 +53,13 @@ impl Worded for Said {
                 ))
             }
             Said::Still => Line::Fixed(EN.devices_still),
+            Said::KeyboardsHeld(names) => {
+                let named: Vec<&str> = names.iter().map(named).collect();
+                Line::Filled(Text::fill(
+                    EN.inputs_keyboard_attached,
+                    &[Text::joined(&named, ", ").as_str()],
+                ))
+            }
         }
     }
 }
@@ -190,22 +197,28 @@ impl Devices {
         )];
         if by_target {
             target_lines(d, view, &mut blocks);
-            if d.pointer && !d.touch {
-                if inputs.typist() {
-                    blocks.push(Block::Heading(Shown::plain(EN.new_input_enter_also)));
-                }
+            // A device let in by targets has Ignore and the target only; a trusted keyboard's
+            // Enter lets a pointer in too, and the sheet says so.
+            if d.pointer && !d.touch && inputs.typist() {
+                blocks.push(Block::Heading(Shown::plain(EN.new_input_enter_also)));
+            }
+        } else {
+            // A pointer with a trusted pointer to press it is let in by its button; a keyboard
+            // by its code (`main`'s `new_input_sheet`).
+            if !d.keyboard {
                 foot.push(on(
                     EN.new_input_use_pointer,
                     Style::Filled,
                     Press::Use(d.id),
                 ));
             }
-        } else {
-            blocks.push(Block::Heading(Shown::plain(match d.code() {
-                Some(_) => EN.new_input_type_code,
-                None => EN.new_input_no_code,
-            })));
-            if let Some(code) = d.code() {
+            if d.keyboard {
+                blocks.push(Block::Heading(Shown::plain(match d.code() {
+                    Some(_) => EN.new_input_type_code,
+                    None => EN.new_input_no_code,
+                })));
+            }
+            if let Some(code) = d.code().filter(|_| d.keyboard) {
                 blocks.push(Block::Fact {
                     label: Shown::plain(EN.new_input_type_code),
                     value: Shown::secret(code),
@@ -252,19 +265,39 @@ fn target_lines<'s>(d: &NewInput, view: &View<'_>, blocks: &mut Vec<Block<'s, Pr
     }
 }
 
-/// How many targets the sheet draws. The room the sheet leaves is the root's; half the display
-/// each way is a room no sheet is smaller than, so the count is never fewer than needed.
+/// How many targets the sheet draws. The sheet is a dialog, and the room it leaves for the target
+/// is the root's; the count is worked out from the least room a dialog can leave (the kit's
+/// `dialog_room_least`), less the target's own size, so a blind device's chance is never better
+/// than a keyboard's whatever the dialog turns out to be (F202, `main`'s `target_count`).
 fn target_room(view: &View<'_>) -> Option<usize> {
     let display = &view.facts.display;
-    let (w, h) = (
-        f32::from(display.width) / 2.0,
-        f32::from(display.height) / 2.0,
-    );
+    let (iw, ih) = dialog_room_least(f32::from(display.width), f32::from(display.height));
+    let (w, h) = ((iw - TOUCH).max(0.0), (ih - TOUCH).max(0.0));
     target_count(w, h, TOUCH).filter(|n| *n <= TARGETS_MAX)
 }
 
 /// The size of a touch, in logical pixels (the kit's `TOUCH`).
 const TOUCH: f32 = 48.0;
+
+impl Devices {
+    /// The words of the notice that stays: the keyboards held back that have not acted, until a
+    /// key is typed on a keyboard or the × is pressed (F202). The frame shows it; `None` when it
+    /// names none. Not while a held device's sheet is up: that sheet is the whole screen.
+    #[must_use]
+    pub fn stays(state: &State, show: &Show<'_>) -> Option<Text> {
+        if state.input_up() {
+            return None;
+        }
+        let names = state.inputs().noticed();
+        if names.is_empty() {
+            return None;
+        }
+        match Said::KeyboardsHeld(names).words(show) {
+            Line::Filled(text) => Some(text),
+            Line::Fixed(fixed) => Some(Text::of(fixed)),
+        }
+    }
+}
 
 impl Present for Devices {
     type Model<'s> = Model<'s>;

@@ -193,6 +193,21 @@ impl TestView {
         self
     }
 
+    /// The display `width` by `height` wide, in the facts.
+    #[must_use]
+    pub fn with_display(mut self, width: u16, height: u16) -> Self {
+        self.facts.display.width = width;
+        self.facts.display.height = height;
+        self
+    }
+
+    /// The machine the adapter read at start, changed by `f`.
+    #[must_use]
+    pub fn with_machine(mut self, f: impl FnOnce(&mut port::event::Machine)) -> Self {
+        f(&mut self.facts.machine);
+        self
+    }
+
     /// With the test `Compute`.
     #[must_use]
     pub fn ctx(&self) -> Ctx<'_> {
@@ -274,6 +289,14 @@ pub fn counted() -> Vec<Work> {
 /// Clears the count of this thread's test token.
 pub fn forget_counts() {
     COUNTED.with(|counted| counted.borrow_mut().clear());
+}
+
+/// Runs `f` with a `Show` made as the runtime makes one: the English strings, an empty memo and
+/// no note on show, for a test of what `present` draws.
+pub fn with_show<R>(f: impl FnOnce(&Show<'_>) -> R) -> R {
+    let memo = Memo::new();
+    let show = Show::new(&faraday_strings::EN, &memo, None);
+    f(&show)
 }
 
 /// The kind of one effect, for the order an update returned them in.

@@ -12,7 +12,7 @@ use faraday_atoms::{Anchor, Glyph, Pressed, Shown, Ui};
 use faraday_molecules::buttons::{self, ButtonsModel};
 use faraday_tokens::dims::{
     BODY_M, BODY_S, BUTTON_H, DIALOG_MAX, DIALOG_MIN, DIALOG_PAD, GAP, GAP_SMALL, ICON,
-    ICON_GLYPH_SMALL, LABEL_L, PAD, SHAPE_XL, SIDE_SHEET_PAD,
+    ICON_GLYPH_SMALL, LABEL_L, PAD, SHAPE_XL, SIDE_SHEET_PAD, TOUCH,
 };
 use faraday_tokens::elevation::ELEVATION_SHEET;
 use faraday_tokens::palette::{Paint, Role};
@@ -76,6 +76,17 @@ pub fn scroll_sheet<A: Pressed>(
     frame: (f32, f32, f32),
 ) {
     framed(m, ui, place, frame, (false, Role::SurfaceContainerLow));
+}
+
+/// The least room, `(width, height)` in units, a dialog leaves inside its padding on a display `w`
+/// by `h`: [`DIALOG_MIN`] wide on a wide panel, the panel's width less its margins on a small one,
+/// and four touches tall. A taller or wider dialog leaves more; a count that must hold in any
+/// dialog is worked out from this.
+pub fn dialog_room_least(w: f32, h: f32) -> (f32, f32) {
+    let wide = DIALOG_MIN.min(w - 2.0 * PAD) - 2.0 * DIALOG_PAD;
+    let small = w - 2.0 * GAP - 2.0 * PAD;
+    let tall = (4.0 * TOUCH).min(h - 2.0 * PAD - 2.0 * DIALOG_PAD);
+    (wide.min(small).max(0.0), tall.max(0.0))
 }
 
 /// Draws the dialog centred in a frame `w` by `h` whose left edge is at `x0`. On a small panel

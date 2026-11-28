@@ -4,7 +4,7 @@ use faraday_organisms::nav::{Badge, Dest, NavModel, Raise, SearchBarModel, TopBa
 use faraday_organisms::{ButtonModel, Icon, Shown, Style};
 use faraday_port::values::Anchor;
 use faraday_present::{Present, ScreenModel, offer};
-use faraday_templates::screen::{BarSearch, FrameModel};
+use faraday_templates::screen::{BarSearch, FrameModel, Notice};
 
 use crate::{App, AppPress, Body, DeviceApp, Msg, Over, Page, Press, Refusal};
 
@@ -245,7 +245,14 @@ fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> Fram
         keyboard: None,
         pills: None,
         tip: None,
-        notices: Vec::new(),
+        // The keyboards held back, named until a key is typed on a keyboard or the × is pressed.
+        notices: faraday_device::notices(app.device(), show)
+            .into_iter()
+            .map(|(text, press)| Notice {
+                text: Shown::made(text),
+                close: Press::App(AppPress::Device(press)),
+            })
+            .collect(),
         keyboard_button: None,
         held: None,
     }

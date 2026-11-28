@@ -2,7 +2,7 @@ use faraday_devices::Devices;
 use faraday_guide_sheet::GuideSheet;
 use faraday_home::Home;
 use faraday_kernel::{
-    Carried, Ctx, Effects, End, Feature, FrameSheet, Notice, Public, Route, Top, View, route,
+    Carried, Ctx, Effects, End, Feature, Notice, Public, Route, Top, View, route,
 };
 use faraday_power::Power;
 
@@ -28,7 +28,18 @@ impl Feature for Device {
     fn update(state: &mut State, msg: Msg, cx: &Ctx<'_>) -> Effects<Msg, Out> {
         match msg {
             Msg::Home(m) => route::<Home>(&mut state.home, m, cx).lift(Msg::Home, home_out),
-            Msg::Power(m) => route::<Power>(&mut state.power, m, cx).lift(Msg::Power, power_out),
+            Msg::Power(m) => {
+                let covered = lock_up(state);
+                let fx = route::<Power>(&mut state.power, m, cx).lift(Msg::Power, power_out);
+                if covered || !lock_up(state) {
+                    return fx;
+                }
+                // The Lock sheet comes up over whatever is open: what waited under the Devices
+                // sheet goes (`main`'s `lock_sheet_replaces_devices`). Only devices is told: a
+                // notice to power would give a mode change's Lock sheet up.
+                let left = <Devices as Feature>::notice(&mut state.devices, &Notice::Left, cx);
+                fx.and(left.lift(Msg::Devices, devices_out))
+            }
             Msg::Guide(m) => {
                 route::<GuideSheet>(&mut state.guide, m, cx).lift(Msg::Guide, guide_out)
             }
@@ -48,9 +59,23 @@ impl Feature for Device {
         }
     }
 
-    /// No notice reaches a child yet: Home and Power take none, and the others are not built.
-    fn notice(_state: &mut State, _notice: &Notice<'_>, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
-        Effects::none()
+    /// Every notice goes to each child that is built, in order (03 A21); the other children are
+    /// not built and take none.
+    fn notice(state: &mut State, notice: &Notice<'_>, cx: &Ctx<'_>) -> Effects<Msg, Out> {
+        <Home as Feature>::notice(&mut state.home, notice, cx)
+            .lift(Msg::Home, home_out)
+            .and(
+                <Power as Feature>::notice(&mut state.power, notice, cx)
+                    .lift(Msg::Power, power_out),
+            )
+            .and(
+                <Devices as Feature>::notice(&mut state.devices, notice, cx)
+                    .lift(Msg::Devices, devices_out),
+            )
+            .and(
+                <GuideSheet as Feature>::notice(&mut state.guide, notice, cx)
+                    .lift(Msg::Guide, guide_out),
+            )
     }
 
     fn refuses(state: &State, msg: &Msg, view: &View<'_>) -> Option<Refusal> {
@@ -62,6 +87,14 @@ impl Feature for Device {
             _ => None,
         }
     }
+}
+
+/// A Lock sheet is up: the one a lock asked for, or the one after it.
+fn lock_up(state: &State) -> bool {
+    matches!(
+        state.power.sheet(),
+        Some(faraday_power::Which::LockAsk | faraday_power::Which::Locked)
+    )
 }
 
 /// What Home asks of the composite (06 §4.3): the flows it begins are other features' pages.
