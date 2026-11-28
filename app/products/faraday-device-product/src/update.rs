@@ -232,8 +232,16 @@ mod tests {
     fn a_lock_sheet_drops_the_press_that_waited_under_the_devices_sheet() {
         let view = on_a_monitor();
         let mut state = started(&view);
-        send(&mut state, devices(faraday_devices::Msg::Usb(vec![kvm()])), &view);
-        send(&mut state, devices(faraday_devices::Msg::Reveal(Gate(1))), &view);
+        send(
+            &mut state,
+            devices(faraday_devices::Msg::Usb(vec![kvm()])),
+            &view,
+        );
+        send(
+            &mut state,
+            devices(faraday_devices::Msg::Reveal(Gate(1))),
+            &view,
+        );
         assert_eq!(waiting(&state), Some(Gate(1)));
         assert!(state.frame().sheets().contains(&FrameSheet::Devices));
 
@@ -258,13 +266,25 @@ mod tests {
     fn back_puts_the_devices_sheet_away_and_leaves_new_input() {
         let view = on_a_monitor();
         let mut state = started(&view);
-        send(&mut state, devices(faraday_devices::Msg::Usb(vec![kvm()])), &view);
-        send(&mut state, devices(faraday_devices::Msg::Reveal(Gate(1))), &view);
+        send(
+            &mut state,
+            devices(faraday_devices::Msg::Usb(vec![kvm()])),
+            &view,
+        );
+        send(
+            &mut state,
+            devices(faraday_devices::Msg::Reveal(Gate(1))),
+            &view,
+        );
         send(&mut state, Msg::Press(AppPress::Back), &view);
         assert!(state.frame().sheets().is_empty());
         assert_eq!(waiting(&state), None);
         assert!(!state.device().devices().devices_up());
-        send(&mut state, devices(faraday_devices::Msg::Reveal(Gate(2))), &view);
+        send(
+            &mut state,
+            devices(faraday_devices::Msg::Reveal(Gate(2))),
+            &view,
+        );
         assert_eq!(state.frame().sheets(), [FrameSheet::Devices]);
         assert_eq!(waiting(&state), Some(Gate(2)));
 
@@ -296,7 +316,11 @@ mod tests {
             devices(faraday_devices::Msg::Usb(vec![kvm(), receiver.clone()])),
             &view,
         );
-        send(&mut state, devices(faraday_devices::Msg::Reveal(Gate(1))), &view);
+        send(
+            &mut state,
+            devices(faraday_devices::Msg::Reveal(Gate(1))),
+            &view,
+        );
         send(
             &mut state,
             devices(faraday_devices::Msg::Usb(vec![receiver])),

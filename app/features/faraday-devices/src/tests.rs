@@ -2,10 +2,10 @@
 
 use faraday_app_test::{Seen, TestView, seen, with_show};
 use faraday_kernel::{AtLock, Carried, CarryValue, FrameSheet, Gate, Notice, route};
+use faraday_organisms::content::Block;
 use faraday_port::bytes::Bytes;
 use faraday_port::devices::{Edid, Interface, UsbDevice};
 use faraday_port::event::Machine;
-use faraday_organisms::content::Block;
 use faraday_port::{Order, Text};
 
 use crate::inputs::Inputs;
@@ -449,7 +449,9 @@ fn check_again_holds_the_press_while_a_reminder_is_due() {
     let view = TestView::device();
     let ctx = view.ctx();
     let (said, foot) = with_show(|show| {
-        let dialog = Devices::present_devices(&state, &ctx.view, show).sheet.unwrap();
+        let dialog = Devices::present_devices(&state, &ctx.view, show)
+            .sheet
+            .unwrap();
         let said: Vec<String> = dialog
             .sheet
             .body
@@ -470,7 +472,10 @@ fn check_again_holds_the_press_while_a_reminder_is_due() {
         (said, foot)
     });
     assert!(said.iter().any(|s| s == Reminder::Receiver.line()));
-    assert!(foot.iter().any(|s| s == faraday_strings::EN.devices_understood));
+    assert!(
+        foot.iter()
+            .any(|s| s == faraday_strings::EN.devices_understood)
+    );
     let out = run(&mut state, Msg::Press(Press::Understood)).outs;
     assert_eq!(cleared(&out), Some(Gate(1)));
 }
@@ -535,7 +540,9 @@ fn a_press_beside_counts_only_with_a_target_drawn() {
 #[test]
 fn a_held_keyboard_is_named_until_a_key_or_the_x() {
     let mut state = state_on(&machine());
-    let words = |state: &State| with_show(|show| Devices::stays(state, show).map(|t| t.as_str().to_string()));
+    let words = |state: &State| {
+        with_show(|show| Devices::stays(state, show).map(|t| t.as_str().to_string()))
+    };
     assert_eq!(words(&state), None);
     state
         .inputs_mut()
@@ -544,7 +551,13 @@ fn a_held_keyboard_is_named_until_a_key_or_the_x() {
     assert!(named.contains("Acme Keys"), "{named}");
     // Time and other devices pass: it stays.
     let _ = run(&mut state, Msg::Usb(vec![usb("PiKVM", 3, 0x1d6b, 0x0104)]));
-    let _ = run(&mut state, Msg::Trust { pointer: true, keyboard: true });
+    let _ = run(
+        &mut state,
+        Msg::Trust {
+            pointer: true,
+            keyboard: true,
+        },
+    );
     assert_eq!(words(&state).as_deref(), Some(named.as_str()));
     // The x closes it; the keyboard stays held.
     let _ = run(&mut state, Msg::Press(Press::CloseNotice));
