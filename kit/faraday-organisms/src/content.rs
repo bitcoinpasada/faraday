@@ -5,6 +5,7 @@ use faraday_atoms::field::FieldModel;
 use faraday_atoms::hold::HoldModel;
 use faraday_atoms::{Offered, Pressed, Shown, Ui};
 use faraday_molecules::address::AddressModel;
+use faraday_molecules::appearance::{AppearanceModel, TextSizeModel};
 use faraday_molecules::buttons::draw_items;
 use faraday_molecules::caution::CautionModel;
 use faraday_molecules::flow_text::FlowText;
@@ -14,6 +15,7 @@ use faraday_molecules::pass::PassModel;
 use faraday_molecules::qr::QrModel;
 use faraday_molecules::row::RowModel;
 use faraday_molecules::status::BusyModel;
+use faraday_molecules::time_zone::TimeZoneModel;
 use faraday_molecules::words::WordGridModel;
 use faraday_molecules::{flow_text, row, status};
 use faraday_tokens::dims::{BODY_M, BODY_S, GAP, GAP_SMALL};
@@ -46,6 +48,13 @@ pub enum Block<'s, A> {
     Rows(Vec<RowModel<'s, A>>),
     /// One or several of a list; segmented.
     Choose(ChoiceModel<'s, A>),
+    /// Settings' Theme, Mode and Contrast rows.
+    Appearance(AppearanceModel<'s, A>),
+    /// One labelled row of segmented choices (Text size, Motion, Scale, an idle time), dimmed
+    /// where the model says.
+    Segmented(TextSizeModel<'s, A>),
+    /// The time zone as a row that opens the list, or as steppers.
+    Zone(TimeZoneModel<'s, A>),
     /// Label, the typed line, its caret, an action in the field.
     Field(FieldModel<'s, A>),
     /// The passphrase field part's drawing, from its read view.
@@ -125,6 +134,9 @@ fn block<A: Pressed>(b: &Block<'_, A>, ui: &mut Ui<'_, A>, at: (f32, f32, f32)) 
         Block::Field(m) => faraday_atoms::field::draw(m, ui, at),
         // The blocks below draw in the molecules and organisms that are not yet ported.
         Block::Choose(m) => faraday_molecules::options::draw(m, ui, at),
+        Block::Appearance(m) => faraday_molecules::appearance::draw(m, ui, at),
+        Block::Segmented(m) => faraday_molecules::appearance::draw_text_size(m, ui, at),
+        Block::Zone(m) => faraday_molecules::time_zone::draw(m, ui, at),
         Block::Pass(m) => faraday_molecules::pass::draw(m, ui, at),
         Block::Words(m) => faraday_molecules::words::draw(m, ui, at),
         Block::Pad(m) => faraday_molecules::pads::draw(m, ui, at),

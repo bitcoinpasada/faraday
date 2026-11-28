@@ -34,6 +34,8 @@ pub struct TextSizeModel<'s, A> {
     pub sizes: Segments<'s, A>,
     /// The label's column, as [`AppearanceModel::label_w`].
     pub label_w: Option<f32>,
+    /// Every choice is drawn dimmed and takes no press (Speed while Motion is Off).
+    pub dim: bool,
 }
 
 /// Where a row's control goes: its x, its width and its top, with the row's label drawn.
@@ -104,7 +106,24 @@ pub fn draw_text_size<A: Pressed>(
 ) -> f32 {
     let line = ui.button_height(SEGMENTED_H);
     let (cx, cw, top) = row_label(ui, (x, y, w), m.label_w, &m.label, line);
-    let used = segments(&m.sizes, ui, (cx, top, cw));
+    let used = if m.dim {
+        let options: Vec<(&str, A)> = m
+            .sizes
+            .items
+            .iter()
+            .map(|(l, a)| (l.as_str(), a.clone()))
+            .collect();
+        let off = vec![true; options.len()];
+        ui.choices_with(
+            (cx, top, cw, SEGMENTED_H),
+            LABEL_L.size,
+            &options,
+            m.sizes.chosen,
+            &off,
+        )
+    } else {
+        segments(&m.sizes, ui, (cx, top, cw))
+    };
     top + used - y
 }
 
@@ -172,5 +191,29 @@ mod tests {
         let want: Vec<u8> = (0..10).chain(20..22).chain(30..33).collect();
         assert_eq!(got, want);
         assert!(h > 150.0, "the rows share a place: {h}");
+    }
+
+    /// Invariant: A labelled row of choices sends a press for each choice, and none while it is dimmed.
+    /// Regression: Speed stays pressable while Motion is Off, or a live row loses a choice.
+    /// Owner: kit
+    #[test]
+    fn a_dimmed_row_takes_no_press() {
+        let row = |dim| TextSizeModel {
+            label: Shown::plain("Speed"),
+            sizes: segs(&["Quick", "Medium", "Relaxed"], 1, 40),
+            label_w: None,
+            dim,
+        };
+        let presses = |dim| {
+            let m = row(dim);
+            let mut canvas = canvas(120);
+            let out = frame(&mut canvas, &at_rest(None), |ui| {
+                ui.clear(page());
+                draw_text_size(&m, ui, (8.0, 8.0, 320.0));
+            });
+            out.hits.iter().map(|h| h.press.0).collect::<Vec<u8>>()
+        };
+        assert_eq!(presses(false), [40, 41, 42]);
+        assert!(presses(true).is_empty());
     }
 }
