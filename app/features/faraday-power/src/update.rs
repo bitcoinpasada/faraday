@@ -21,8 +21,16 @@ fn show(state: &mut State, which: Which) -> Fx {
 fn away(state: &mut State) -> Fx {
     match state.sheet() {
         Some(_) => {
+            // A Lock sheet that asked for a mode change closes without it: the asked mode is
+            // given up.
+            let cancel = state.mode_change();
             state.show(None);
-            Effects::none().out(Out::Front(None))
+            let fx = Effects::none().out(Out::Front(None));
+            if cancel {
+                fx.out(Out::Top(Top::ModeCancel))
+            } else {
+                fx
+            }
         }
         None => Effects::none(),
     }
@@ -83,8 +91,14 @@ impl Feature for Power {
     }
 
     /// The feature holds no secret and no screen: every notice leaves its sheet as it is.
-    fn notice(_state: &mut State, _notice: &Notice<'_>, _cx: &Ctx<'_>) -> Fx {
-        Effects::none()
+    fn notice(state: &mut State, notice: &Notice<'_>, _cx: &Ctx<'_>) -> Fx {
+        match notice {
+            // The Lock sheet of a mode change closed any other way than its Lock (Back, a press
+            // elsewhere): the asked mode is given up. A pressed Lock has already cleared the
+            // mark.
+            Notice::Left if state.mode_change() => away(state),
+            _ => Effects::none(),
+        }
     }
 
     fn refuses(_state: &State, _msg: &Msg, _view: &View<'_>) -> Option<Refusal> {
@@ -234,5 +248,36 @@ mod tests {
             }))]
         ));
         assert!(!state.mode_change());
+    }
+
+    /// Invariant: A mode change's Lock sheet that closes without its Lock gives the asked mode up, by Not now or by leaving it, and its Lock does not.
+    /// Regression: Not now or Back leaves the asked mode standing, so a later lock changes the mode.
+    /// Owner: app
+    #[test]
+    fn a_mode_sheet_closed_without_locking_cancels_the_mode() {
+        let view = TestView::device();
+        let mut state = State::new(None);
+        let _ = run(&view, &mut state, Msg::ModeLock);
+        let away = run(&view, &mut state, Msg::Press(Press::Away)).outs;
+        assert!(away.iter().any(|o| matches!(o, Out::Top(Top::ModeCancel))));
+
+        let _ = run(&view, &mut state, Msg::ModeLock);
+        let left = seen(Power::notice(&mut state, &Notice::Left, &view.ctx())).outs;
+        assert!(left.iter().any(|o| matches!(o, Out::Top(Top::ModeCancel))));
+
+        let _ = run(&view, &mut state, Msg::ModeLock);
+        let locked = run(&view, &mut state, Msg::Press(Press::Lock)).outs;
+        assert!(
+            !locked
+                .iter()
+                .any(|o| matches!(o, Out::Top(Top::ModeCancel)))
+        );
+        let plain = run(
+            &view,
+            &mut State::new(Some(Which::LockAsk)),
+            Msg::Press(Press::Away),
+        )
+        .outs;
+        assert!(!plain.iter().any(|o| matches!(o, Out::Top(Top::ModeCancel))));
     }
 }

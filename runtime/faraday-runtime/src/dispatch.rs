@@ -332,6 +332,11 @@ impl<R: Root> Runtime<R> {
                     self.queue.push(Item::Msg(addr));
                 }
             }
+            Top::ModeCancel => {
+                if let Some(addr) = self.root.mode_cancel_asked() {
+                    self.queue.push(Item::Msg(addr));
+                }
+            }
             Top::SelfTest => self.run_selftest(),
             Top::Open => {
                 if has_outside::<R>() && self.phase == Phase::Closed {

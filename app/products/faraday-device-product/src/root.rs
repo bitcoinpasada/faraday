@@ -88,6 +88,13 @@ impl Root for Device {
         ))))
     }
 
+    /// The mode change's Lock sheet closed: the asked mode is given up.
+    fn mode_cancel_asked(&self) -> Option<Addr<Self>> {
+        Some(Addr::Settings(faraday_settings::Msg::Press(
+            faraday_settings::Press::ModeCancel,
+        )))
+    }
+
     /// The device has no window.
     fn close_asked(&self) -> Option<Addr<Self>> {
         None

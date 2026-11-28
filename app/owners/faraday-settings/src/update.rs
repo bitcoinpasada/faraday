@@ -291,6 +291,17 @@ mod tests {
         let mut carried = lock_carry(&mut state);
         assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Mainnet));
 
+        // The Lock sheet asked, Not now, then an idle lock: the mode in use.
+        let _ = route::<Settings>(
+            &mut state,
+            Msg::Press(Press::Mode(ModeAsked::Signet)),
+            &view.ctx(),
+        );
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::ModeLock), &view.ctx());
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::ModeCancel), &view.ctx());
+        let mut idle = lock_carry(&mut state);
+        assert_eq!(idle.take::<ModeAsked>(MODE), Some(ModeAsked::Mainnet));
+
         // Picked, then left by Back or a press elsewhere: given up.
         let _ = route::<Settings>(
             &mut state,

@@ -42,6 +42,11 @@ pub trait Root: Sized + 'static {
     fn mode_lock_asked(&self) -> Option<Addr<Self>> {
         None
     }
+    /// The mode change's Lock sheet closed without locking (`Top::ModeCancel`): the message that
+    /// gives the asked mode up.
+    fn mode_cancel_asked(&self) -> Option<Addr<Self>> {
+        None
+    }
     /// The window's close button, as a message (desktop roots).
     fn close_asked(&self) -> Option<Addr<Self>>;
     /// Present then draw (04 §1, V5): the app's frame and the page its navigation shows,
