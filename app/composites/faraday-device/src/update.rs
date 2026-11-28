@@ -1,7 +1,6 @@
+use faraday_guide_sheet::GuideSheet;
 use faraday_home::Home;
-use faraday_kernel::{
-    Carried, Ctx, Effects, Feature, FrameSheet, Notice, Public, Route, View, route,
-};
+use faraday_kernel::{Carried, Ctx, Effects, Feature, Notice, Public, Route, View, route};
 use faraday_power::Power;
 
 use crate::{Device, Msg, Out, Page, State};
@@ -24,12 +23,14 @@ impl Feature for Device {
         match msg {
             Msg::Home(m) => route::<Home>(&mut state.home, m, cx).lift(Msg::Home, home_out),
             Msg::Power(m) => route::<Power>(&mut state.power, m, cx).lift(Msg::Power, power_out),
+            Msg::Guide(m) => {
+                route::<GuideSheet>(&mut state.guide, m, cx).lift(Msg::Guide, guide_out)
+            }
             Msg::Press(press) => Self::update(state, Msg::from(press), cx),
             // The features and areas below are not built: no page of theirs is shown and no
             // sheet of theirs comes up, so no message of theirs arrives.
             Msg::Devices(_)
             | Msg::Scan(_)
-            | Msg::Guide(_)
             | Msg::Keys(_)
             | Msg::Wallets(_)
             | Msg::Signing(_)
@@ -48,6 +49,7 @@ impl Feature for Device {
         match msg {
             Msg::Home(m) => Home::refuses(&state.home, m, view).map(|r| match r {}),
             Msg::Power(m) => Power::refuses(&state.power, m, view).map(|r| match r {}),
+            Msg::Guide(m) => GuideSheet::refuses(&state.guide, m, view).map(|r| match r {}),
             _ => None,
         }
     }
@@ -62,7 +64,11 @@ pub(crate) fn home_out(out: faraday_home::Out) -> Route<Msg, Out> {
             faraday_wallets_area::Page::Restore,
         ))),
         H::SpendBackup => Route::Up(Out::Open(Page::Signing(faraday_signing_area::Page::Spend))),
-        H::GuideWord(_) | H::Guide => Route::Up(Out::Front(Some(FrameSheet::Guide))),
+        H::GuideWord(i) => Route::To(Msg::Guide(faraday_guide_sheet::Msg::OpenWord(
+            home_place(),
+            i,
+        ))),
+        H::Guide => Route::To(Msg::Guide(faraday_guide_sheet::Msg::Open(home_place()))),
         // A PSBT in Files and an unfinished backup are opened by the Spend and Back up flows,
         // which are not built here: the lead's press shows the page that holds the PSBT.
         H::SignPsbt(_) => Route::Up(Out::Open(Page::Signing(faraday_signing_area::Page::Spend))),
@@ -76,6 +82,30 @@ pub(crate) fn home_out(out: faraday_home::Out) -> Route<Msg, Out> {
             faraday_home::Place::Settings => Route::Up(Out::Settings),
         },
         H::Search { typed, focused } => Route::Up(Out::Search { typed, focused }),
+    }
+}
+
+/// Where the guide opens from Home: the Home page's section, in a window this composite knows
+/// nothing of. The window's class and what the page leaves free are the root's: its follow
+/// message carries them, and the guide becomes the pane then where the window holds one.
+fn home_place() -> faraday_guide_sheet::Place {
+    faraday_guide_sheet::Place {
+        key: faraday_text::Text::of("home"),
+        how_screen: None,
+        release: faraday_text::Text::default(),
+        room: faraday_guide_sheet::Room {
+            extra_large: false,
+            compact: false,
+            held: false,
+            place_free: true,
+        },
+    }
+}
+
+/// What the guide asks of the composite: its sheet goes up.
+pub(crate) fn guide_out(out: faraday_guide_sheet::Out) -> Route<Msg, Out> {
+    match out {
+        faraday_guide_sheet::Out::Front(sheet) => Route::Up(Out::Front(sheet)),
     }
 }
 

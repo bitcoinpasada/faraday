@@ -14,7 +14,7 @@ pub struct State {
     #[lock(kept)]
     scan: faraday_scan::State,
     #[lock(kept)]
-    guide: faraday_guide_sheet::State,
+    pub(crate) guide: faraday_guide_sheet::State,
     #[lock(kept)]
     keys: faraday_keys_area::State,
     #[lock(kept)]

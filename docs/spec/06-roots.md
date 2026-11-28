@@ -145,6 +145,20 @@ which features share a crate is section 09's). Its children reach one another on
 | scan | feature | the scan sheet, its read card and the QR view (`scanner-qr.md`), over the scanner part | the Scan and Qr sheets |
 | guide | feature | the Guide button and its side pane (`guide.md`) | the Guide sheet |
 
+The guide's routing: the Guide button, a glossary word and a change of page reach the guide as
+`Msg::Open(Place)`, `Msg::OpenWord(Place, word)` and `Msg::Follow(Place)`. A `Place` is the page's
+section key, its screen name among the How blocks (none where it has none), the build's release
+and the window's room (extra-large, compact, held, place free); the parent maps its own page to it,
+since a feature never names another feature's pages (A5), and sends a follow only while no other
+sheet is over the page. The window's class is the drawing runtime's, so the composite opens the
+guide from Home with a room that is not extra-large and the root's follow gives it the real one.
+Built: `faraday-guide-sheet` (the state, the messages, the tabs, the contents and Find, the pane's
+rules, the sheet and pane models) and the device composite's `Msg::Guide` and Guide sheet; the
+pane drawn by `GuideSheet::draw_pane`. Not built: the pane's place and the page's room beside it
+(the pane container), the root's keys and follows, and the kept heights of the How blocks (a
+layout fact read by the next frame's drawing is the motion store's, 04 V15, and the store has no
+entry for it).
+
 The shared owners, top states beside the app in each model (03 §7.1):
 
 | Owner | Features (inventory file) | Pages |

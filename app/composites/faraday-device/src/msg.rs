@@ -26,7 +26,7 @@ impl From<Press> for Msg {
             Press::Power(p) => Msg::Power(p.into()),
             Press::Devices(p) => match p {},
             Press::Scan(p) => match p {},
-            Press::Guide(p) => match p {},
+            Press::Guide(p) => Msg::Guide(p.into()),
             Press::Keys(p) => Msg::Keys(p.into()),
             Press::Wallets(p) => Msg::Wallets(p.into()),
             Press::Signing(p) => Msg::Signing(p.into()),

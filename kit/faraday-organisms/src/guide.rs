@@ -16,17 +16,25 @@
 use faraday_atoms::button::{self, ButtonModel, Look};
 use faraday_atoms::region::Region;
 use faraday_atoms::{Anchor, Offered, Plain, Pressed, Shown, Ui, W};
-use faraday_molecules::guide_block::{self, GuideBlockModel};
+use faraday_molecules::guide_block;
 use faraday_molecules::row::{self, RowModel};
-use faraday_molecules::tabs::{self, TabsModel};
+use faraday_molecules::tabs;
 use faraday_tokens::dims::{
-    BODY_M, BUTTON_H, CARET_MIN, ELEVATION_DIALOG, GAP_SMALL, GRID, GUIDE_SEARCH_AFTER,
-    GUIDE_SEARCH_TOP, HOME_RESULTS_LINE, SHAPE_XL, TAB_H, TEXT_FIELD, TITLE_S, TYPED_INSET,
+    BODY_M, BUTTON_H, CARET_MIN, ELEVATION_DIALOG, GAP, GAP_SMALL, GRID, GUIDE_PANE_CLOSE_TOP,
+    GUIDE_PANE_PAD, GUIDE_PANE_PARA, GUIDE_PANE_TABS_TOP, GUIDE_SEARCH_AFTER, GUIDE_SEARCH_TOP,
+    HOME_RESULTS_LINE, PAD, SHAPE_L, SHAPE_XL, TAB_H, TEXT_FIELD, TITLE_L, TITLE_S, TOUCH,
+    TYPED_INSET,
 };
 use faraday_tokens::palette::Role;
 use faraday_tokens::type_roles::TypeRole;
 
+pub use faraday_molecules::guide_block::{
+    GuideBlockModel, GuideBody, GuideGroup, GuideLook, GuideNone, GuidePage, GuideSection,
+};
+pub use faraday_molecules::tabs::{Tab, TabKind, TabsModel};
+
 use crate::how::{self, HowModel};
+use crate::nav;
 
 /// The Find field: what is typed, the hint until something is. Typing on its page always lands
 /// here, with no press to focus it first, so the caret is drawn whether or not anything is typed.
@@ -74,6 +82,44 @@ pub struct GuideSheetModel<'s, A> {
     pub scroll: Anchor,
     /// Where the section the guide is to scroll to is registered, when the page has one.
     pub target: Option<Anchor>,
+}
+
+/// How the sheet sets its text, and the type of the pinned title.
+#[must_use]
+pub fn sheet_look() -> (GuideLook, TypeRole) {
+    (
+        GuideLook {
+            heading: TITLE_S,
+            body: BODY_M,
+            after: [16.0, 8.0, 12.0, 10.0],
+        },
+        TITLE_L,
+    )
+}
+
+/// How the supporting pane sets its text, and the type of the pinned title.
+#[must_use]
+pub fn pane_look() -> (GuideLook, TypeRole) {
+    (
+        GuideLook {
+            heading: TITLE_S,
+            body: BODY_M,
+            after: [GAP, GAP_SMALL, GUIDE_PANE_PARA, GAP],
+        },
+        TITLE_L,
+    )
+}
+
+/// The How tab's text as the guide sets it: the title in the page's head type.
+#[must_use]
+pub fn how_look(pane: bool) -> how::PageLook {
+    let (look, head) = if pane { pane_look() } else { sheet_look() };
+    how::PageLook {
+        title: head,
+        heading: look.heading,
+        body: look.body,
+        after: look.after,
+    }
 }
 
 /// The height of the foot row under the text, where Contents and Done stand.
@@ -139,32 +185,91 @@ pub fn draw_sheet<A: Pressed>(m: &GuideSheetModel<'_, A>, ui: &mut Ui<'_, A>, (w
         }
         (x, y, sw, sh)
     };
+    let look = Metrics {
+        pad,
+        tabs_edge: pad,
+        tabs_top: if m.searching && !m.held {
+            GUIDE_SEARCH_TOP
+        } else {
+            14.0
+        },
+        after_tabs: if m.searching {
+            GUIDE_SEARCH_AFTER
+        } else {
+            18.0
+        },
+        rule: 8.0,
+        inset: 4.0,
+        text_top: 12.0,
+        clip_hits: false,
+        ground: if m.held {
+            Role::Surface
+        } else {
+            Role::SurfaceContainerHigh
+        },
+    };
+    draw_body(m, ui, (x, y, sw, sh), &look);
+}
+
+/// How the body sits in its box: the sheet's and the pane's differ in these and in nothing else.
+struct Metrics {
+    pad: f32,
+    /// The tabs' inset from the box's sides.
+    tabs_edge: f32,
+    tabs_top: f32,
+    after_tabs: f32,
+    /// The divider's distance over the text, where there are no tabs.
+    rule: f32,
+    /// The text's inset within the padding.
+    inset: f32,
+    text_top: f32,
+    /// What is scrolled out of the text's view takes no press.
+    clip_hits: bool,
+    /// What the text's edges fade into.
+    ground: Role,
+}
+
+/// The tabs, the pinned title, the scrolled text and the foot's Contents and Done in the box
+/// (x, y, w, h), as `look` sets them.
+fn draw_body<A: Pressed>(
+    m: &GuideSheetModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, sw, sh): (f32, f32, f32, f32),
+    look: &Metrics,
+) {
+    let compact = ui.compact;
+    let pad = look.pad;
     let foot = foot_height(ui);
     let foot_top = y + sh - foot + GAP_SMALL;
     let searching = m.searching;
-    let tabs_top = if searching && !m.held {
-        GUIDE_SEARCH_TOP
-    } else {
-        14.0
-    };
-    let after_tabs = if searching { GUIDE_SEARCH_AFTER } else { 18.0 };
     let row = m
         .tabs
         .as_ref()
         .filter(|t| !searching && !t.items.is_empty());
     let mut tabs_h = 0.0;
     if let Some(t) = row {
-        tabs_h = tabs::draw(t, ui, (x + pad, y + tabs_top, sw - 2.0 * pad, TAB_H));
+        let at = (
+            x + look.tabs_edge,
+            y + look.tabs_top,
+            sw - 2.0 * look.tabs_edge,
+            TAB_H,
+        );
+        tabs_h = tabs::draw(t, ui, at);
     }
-    let mut top = y + tabs_top + tabs_h + after_tabs;
+    let mut top = y + look.tabs_top + tabs_h + look.after_tabs;
     // Without tabs, a divider of its own over the text.
     if row.is_none() && !searching {
-        ui.rule(x + pad, top - 8.0, sw - 2.0 * pad, Role::OutlineVariant);
+        ui.rule(
+            x + pad,
+            top - look.rule,
+            sw - 2.0 * pad,
+            Role::OutlineVariant,
+        );
     }
-    let (bx, bw) = (x + pad + 4.0, sw - 2.0 * pad - 8.0);
+    let (bx, bw) = (x + pad + look.inset, sw - 2.0 * pad - 2.0 * look.inset);
     // The page's title is pinned under the tabs: it stays where it is while the text scrolls
     // under it, so a reader partway down a page sees which page it is.
-    let mut text_top = 12.0;
+    let mut text_top = look.text_top;
     if let (Some(title), SheetBody::Page(block), false) = (&m.title, &m.body, searching) {
         let th = ui.wrap_as(
             (bx, top + text_top, bw),
@@ -177,30 +282,33 @@ pub fn draw_sheet<A: Pressed>(m: &GuideSheetModel<'_, A>, ui: &mut Ui<'_, A>, (w
     }
     let view = sh - (top - y) - foot;
     let clip = ui.rect(x, top, sw, view);
-    let ground = if m.held {
-        Role::Surface
-    } else {
-        Role::SurfaceContainerHigh
-    };
     let mut place = None;
-    ui.region(Region::new(m.scroll, clip).on(ground).bar_shown(), |ui| {
-        let at = (bx, top + text_top, bw);
-        let (used, found) = match &m.body {
-            SheetBody::Page(block) => guide_block::draw_found(block, ui, at),
-            SheetBody::Contents { find, block } => {
-                find_field(ui, at, find);
-                let below = TEXT_FIELD + block.look.after[3];
-                let (used, found) = guide_block::draw_found(block, ui, (at.0, at.1 + below, at.2));
-                (used + below, found)
+    let mark = ui.presses_mark();
+    ui.region(
+        Region::new(m.scroll, clip).on(look.ground).bar_shown(),
+        |ui| {
+            let at = (bx, top + text_top, bw);
+            let (used, found) = match &m.body {
+                SheetBody::Page(block) => guide_block::draw_found(block, ui, at),
+                SheetBody::Contents { find, block } => {
+                    find_field(ui, at, find);
+                    let below = TEXT_FIELD + block.look.after[3];
+                    let (used, found) =
+                        guide_block::draw_found(block, ui, (at.0, at.1 + below, at.2));
+                    (used + below, found)
+                }
+                SheetBody::How(how) => (how::draw(how, ui, at), None),
+            };
+            if let Some(off) = found {
+                let one = ui.line_as(TITLE_S);
+                place = Some(ui.rect(bx, top + text_top + off, bw, one));
             }
-            SheetBody::How(how) => (how::draw(how, ui, at), None),
-        };
-        if let Some(off) = found {
-            let one = ui.line_as(TITLE_S);
-            place = Some(ui.rect(bx, top + text_top + off, bw, one));
-        }
-        (text_top + used - view).max(0.0)
-    });
+            (text_top + used - view).max(0.0)
+        },
+    );
+    if look.clip_hits {
+        ui.clip_presses_since(mark, clip);
+    }
     if let (Some(id), Some(rect)) = (m.target, place) {
         // Registered outside the view's clip, so a section scrolled out of sight still has its
         // place.
@@ -216,6 +324,39 @@ pub fn draw_sheet<A: Pressed>(m: &GuideSheetModel<'_, A>, ui: &mut Ui<'_, A>, (w
         let dw = if compact { 72.0 } else { 96.0 };
         button::draw(b, ui, (x + sw - pad - dw, foot_top, Some(dw), BUTTON_H));
     }
+}
+
+/// The guide as the supporting pane (`docs/LAYOUT.md` §6) in the box (x, y, w, h): its own
+/// container, the close button in the header row so that the tabs run the pane's whole width,
+/// and nothing of the page under it taking a press. What is scrolled out of the text's view
+/// takes none either.
+pub fn draw_pane<A: Pressed>(
+    m: &GuideSheetModel<'_, A>,
+    (close, tip): (A, &Shown<'_>),
+    ui: &mut Ui<'_, A>,
+    (x, y, w, h): (f32, f32, f32, f32),
+) {
+    let area = ui.rect(x, y, w, h);
+    ui.drop_presses_inside(area);
+    ui.fill(x, y, w, h, SHAPE_L, Role::SurfaceContainer);
+    let look = Metrics {
+        pad: GUIDE_PANE_PAD,
+        tabs_edge: 0.0,
+        tabs_top: GUIDE_PANE_TABS_TOP,
+        after_tabs: PAD,
+        rule: GAP,
+        inset: 0.0,
+        text_top: GAP,
+        clip_hits: true,
+        ground: Role::SurfaceContainer,
+    };
+    draw_body(m, ui, (x, y, w, h), &look);
+    nav::close_button(
+        ui,
+        (x + w - GAP - TOUCH, y + GUIDE_PANE_CLOSE_TOP),
+        close,
+        tip,
+    );
 }
 
 /// The words the search found in the guide.

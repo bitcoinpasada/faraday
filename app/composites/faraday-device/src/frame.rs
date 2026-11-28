@@ -13,7 +13,7 @@ pub use faraday_power::FailedModel;
 pub enum FrameSheetModel<'s> {
     Power(faraday_power::Model<'s>),
     Devices(faraday_devices::Model<'s>),
-    Guide(faraday_guide_sheet::Model<'s>),
+    Guide(Box<faraday_guide_sheet::Model<'s>>),
 }
 
 pub fn frame_model<'s>(
@@ -51,7 +51,16 @@ pub fn sheets<'s>(
                     ));
                 }
             }
-            // The device check's, the guide's and the other kinds' sheets are not built.
+            FrameSheet::Guide => {
+                let model = faraday_guide_sheet::GuideSheet::present(&state.guide, view, show);
+                if model.is_open() {
+                    out.push((
+                        faraday_guide_sheet::ANCHORS[0],
+                        FrameSheetModel::Guide(Box::new(model)),
+                    ));
+                }
+            }
+            // The device check's and the other kinds' sheets are not built.
             _ => todo!(),
         }
     }
