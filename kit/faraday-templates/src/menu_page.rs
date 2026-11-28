@@ -84,7 +84,7 @@ pub struct Section<'s, A> {
 }
 
 /// The model: what a menu page declares of itself.
-pub struct MenuPageModel<'s, A> {
+pub struct MenuPageModel<'s, A: Pressed> {
     /// The page's scroll, keyed in the motion store.
     pub scroll: Anchor,
     /// The search row the small panel's page draws; on the wide layout the bar holds it.
@@ -112,7 +112,13 @@ pub struct MenuPageModel<'s, A> {
     pub glide: Option<Anchor>,
     /// The scroll of the tile in a pair, within the window's height.
     pub tile_scroll: Option<Anchor>,
+    /// The page's own left pane where its [`Panes`] say `Left::Own`: drawn at `(x, y, w)`,
+    /// returns its height.
+    pub own: Option<OwnFn<'s, A>>,
 }
+
+/// A page's own pane as the model holds it: drawn through a shared reference, once a frame.
+pub type OwnFn<'s, A> = &'s dyn Fn(&mut Ui<'_, A>, (f32, f32, f32)) -> f32;
 
 /// A typed search's results: sections in the place of the page's own, placed as the page is, or
 /// as `panes` where the page has none of its own.
@@ -593,6 +599,14 @@ pub fn draw<A: Pressed>(m: &MenuPageModel<'_, A>, ui: &mut Ui<'_, A>) {
         .or(m.panes.as_ref())
         .filter(|_| !compact);
     let all: &[Section<'_, A>] = m.results.as_ref().map_or(&m.sections, |r| &r.sections);
+    // A search typed on a wide page with no pane: its results alone, in a card's place.
+    if let (false, Some(r), None) = (compact, &m.results, panes) {
+        let body = |ui: &mut Ui<'_, A>, (bx, by): (f32, f32), bw: f32| {
+            sections(m, &r.sections, ui, (bx, by), bw, None)
+        };
+        crate::panes::draw_alone(ui, m.scroll, (0.0, cw, h), false, body);
+        return;
+    }
     let above_h = match (&m.above, panes) {
         (Some(a), None) => content::height(a, ui, width),
         _ => 0.0,
@@ -633,8 +647,10 @@ pub fn draw<A: Pressed>(m: &MenuPageModel<'_, A>, ui: &mut Ui<'_, A>) {
                 tile_surface(ui, (tx, ty, tw, th));
                 inner(ui, tx, ty)
             };
+            let mut own =
+                |ui: &mut Ui<'_, A>, at: (f32, f32, f32)| m.own.map_or(0.0, |f| f(ui, at));
             let parts = Parts {
-                own: None,
+                own: Some(&mut own),
                 details: m.details.as_ref(),
                 guide: None,
                 on_placed: m.on_placed,
@@ -685,6 +701,7 @@ mod tests {
             on_placed: None,
             glide: None,
             tile_scroll: None,
+            own: None,
         }
     }
 
@@ -731,6 +748,9 @@ mod tests {
             keyboard: None,
             pills: None,
             tip: None,
+            notices: Vec::new(),
+            keyboard_button: None,
+            held: None,
         };
         let out = frame(&mut c, &at_rest(None), |ui| {
             ui.compact = true;
@@ -772,14 +792,25 @@ mod tests {
             keyboard: None,
             pills: None,
             tip: None,
+            notices: Vec::new(),
+            keyboard_button: None,
+            held: None,
         }
     }
 
     fn presses_of(m: &MenuPageModel<'_, P>) -> Vec<u8> {
-        let mut c = canvas(160);
+        presses_at(m, true)
+    }
+
+    fn presses_at(m: &MenuPageModel<'_, P>, compact: bool) -> Vec<u8> {
+        let mut c = if compact {
+            canvas(160)
+        } else {
+            faraday_atoms::ui::testing::canvas_sized(160, (1000, 640))
+        };
         let f = frame_for();
         let out = frame(&mut c, &at_rest(None), |ui| {
-            ui.compact = true;
+            ui.compact = compact;
             draw_screen(
                 Anchor { scope: "t", n: 1 },
                 &f,
@@ -917,5 +948,58 @@ mod tests {
             out.regions[0].view.y
         };
         assert!(region_top(1600) > region_top(300));
+    }
+
+    /// Invariant: A typed search on a wide page with no pane shows its results alone in a card's place: they take presses and the sections do not.
+    /// Regression: The results of a search on a page with no pane left out, or drawn under the sections.
+    /// Owner: kit
+    #[test]
+    fn a_search_on_a_wide_page_with_no_pane_stands_alone() {
+        let mut m = page(vec![Section {
+            label: None,
+            body: Body::Tiles(vec![face("Section", 1)]),
+        }]);
+        m.results = Some(Results {
+            sections: vec![Section {
+                label: None,
+                body: Body::Tiles(vec![face("Result", 2)]),
+            }],
+            panes: None,
+        });
+        let presses = presses_at(&m, false);
+        assert!(presses.contains(&2));
+        assert!(!presses.contains(&1));
+    }
+
+    /// Invariant: A page whose panes say its left pane is its own has it drawn at the place the pair gives, beside the tile.
+    /// Regression: The page's own pane never drawn on a menu page.
+    /// Owner: kit
+    #[test]
+    fn a_pages_own_left_pane_is_drawn_beside_its_tile() {
+        use crate::panes::{Left, Narrow, Tile};
+        let drawn = std::cell::Cell::new(false);
+        let own = |ui: &mut Ui<'_, P>, (x, y, w): (f32, f32, f32)| {
+            drawn.set(true);
+            ui.press(
+                Shape::new(x, y, w, 20.0, 4.0),
+                faraday_atoms::ui::testing::page(),
+                P(77),
+            );
+            20.0
+        };
+        let mut m = page(vec![Section {
+            label: None,
+            body: Body::Tiles(vec![face("Section", 1)]),
+        }]);
+        m.panes = Some(Panes {
+            left: Left::Own,
+            tile: Tile::Card,
+            stacks: false,
+            narrow: Narrow::OneColumn,
+        });
+        m.own = Some(&own);
+        let presses = presses_at(&m, false);
+        assert!(drawn.get());
+        assert!(presses.contains(&77) && presses.contains(&1));
     }
 }

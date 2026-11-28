@@ -389,6 +389,17 @@ pub fn title_whole<A: Pressed>(m: &TopBarModel<'_, A>, ui: &Ui<'_, A>) -> bool {
 /// and surface-container once the page is scrolled under it; no rule under it. Returns the top of
 /// the mode pill, at the first line's end, centred on the page's name's line.
 pub fn draw_top<A: Pressed>(m: &TopBarModel<'_, A>, ui: &mut Ui<'_, A>, w: f32) -> f32 {
+    draw_top_less(m, ui, w, 0.0)
+}
+
+/// [`draw_top`] with `taken` of the room before `right` already spoken for (the stick pills that
+/// stand in the bar): the title is kept left of `right - taken`.
+pub fn draw_top_less<A: Pressed>(
+    m: &TopBarModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    w: f32,
+    taken: f32,
+) -> f32 {
     fill_behind(m, ui, (0.0, w, APP_BAR_H));
     let title = m.title.as_str();
     let mut x = MARGIN_COMPACT;
@@ -401,7 +412,7 @@ pub fn draw_top<A: Pressed>(m: &TopBarModel<'_, A>, ui: &mut Ui<'_, A>, w: f32) 
         ),
         None => w,
     }
-    .min(m.right);
+    .min(m.right - taken);
     let room = |x: f32| (limit - x).max(0.0);
     let Some(back) = &m.back else {
         let first = (room(x) - m.pill_w).max(0.0);

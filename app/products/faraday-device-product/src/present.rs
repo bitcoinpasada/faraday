@@ -181,5 +181,8 @@ fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> Fram
         keyboard: None,
         pills: None,
         tip: None,
+        notices: Vec::new(),
+        keyboard_button: None,
+        held: None,
     }
 }

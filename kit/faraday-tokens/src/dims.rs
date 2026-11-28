@@ -2081,6 +2081,13 @@ pub const DIALOG_ACTION_GAP: f32 = GAP;
 
 /// The toast's least height, one line (Material's snackbar).
 pub const TOAST_H: f32 = 48.0;
+/// The wide window's keyboard button: a circle this wide, its top this far down the top row, its
+/// keyboard glyph this size.
+pub const KEYBOARD_BUTTON: f32 = 28.0;
+pub const KEYBOARD_BUTTON_Y: f32 = 12.0;
+pub const KEYBOARD_BUTTON_GLYPH: f32 = 13.0;
+/// How far its tooltip's target reaches past the circle.
+pub const KEYBOARD_BUTTON_TIP: f32 = 6.0;
 /// The toast's room each side of its line.
 pub const TOAST_PAD: f32 = 16.0;
 /// The toast's room above and below its text: one line of body medium

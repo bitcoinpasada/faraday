@@ -69,6 +69,7 @@ impl Present for Home {
                 on_placed: None,
                 glide: None,
                 tile_scroll: None,
+                own: None,
             },
         }
     }

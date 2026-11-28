@@ -132,6 +132,7 @@ fn settings_page<'s>(
         on_placed: None,
         glide: None,
         tile_scroll: None,
+        own: None,
     }
 }
 

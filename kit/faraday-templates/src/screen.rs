@@ -5,10 +5,13 @@
 //! A strip of stick pills stands across the top where the model has one.
 
 mod pills;
+mod selftest;
 
-pub use pills::{PillsModel, PillsPlace, StripPill, bar_room as pills_bar_room};
+pub use pills::{PillsModel, PillsPlace, StripPill};
+pub use selftest::{SelftestFailed, draw_selftest_failed};
 
-use faraday_atoms::{Anchor, Pressed, Ui};
+use faraday_atoms::hits::Shape;
+use faraday_atoms::{Anchor, Icon, Pressed, Shown, Ui};
 use faraday_molecules::status::{self, BusyModel};
 use faraday_organisms::keyboard::{self, KeyboardModel};
 use faraday_organisms::nav::{
@@ -17,10 +20,10 @@ use faraday_organisms::nav::{
 use faraday_organisms::snackbar::{self, SnackbarModel};
 use faraday_organisms::tooltip::{self, TipModel};
 use faraday_tokens::dims::{
-    APP_BAR_H, GAP_SMALL, MARGIN_COMPACT, MENU_GAP, NAV_BAR_H, RAIL_W, SEARCH_BAR_H,
-    SEARCH_FIELD_MAX,
+    APP_BAR_H, GAP_SMALL, KEYBOARD_BUTTON, KEYBOARD_BUTTON_GLYPH, KEYBOARD_BUTTON_TIP,
+    KEYBOARD_BUTTON_Y, MARGIN_COMPACT, MENU_GAP, NAV_BAR_H, RAIL_W, SEARCH_BAR_H, SEARCH_FIELD_MAX,
 };
-use faraday_tokens::palette::Role;
+use faraday_tokens::palette::{Role, on_selected, selected_or};
 use faraday_tokens::type_roles::TITLE_L;
 
 /// The search the top app bar holds on the wide layout, with Home's first actions beside it. The
@@ -48,6 +51,22 @@ pub struct Keyboard<'s, R> {
     pub lift: f32,
 }
 
+/// A note that stays until it is closed (what was plugged in at start, the keyboards waiting):
+/// its words and the press of its ×.
+pub struct Notice<'s, R> {
+    pub text: Shown<'s>,
+    pub close: R,
+}
+
+/// The wide window's keyboard button, in the top row with its right edge at `right`: it brings
+/// the docked keyboard up and puts it away. `shown` is whether the keyboard is up.
+pub struct KeyboardButton<'s, R> {
+    pub shown: bool,
+    pub press: R,
+    pub tip: Shown<'s>,
+    pub right: f32,
+}
+
 /// The screen template's model: the navigation, the top app bar with its pills, the busy line.
 /// The template chooses the bar or, on the wide layout, none, by the room (04 V10).
 pub struct FrameModel<'s, R> {
@@ -64,6 +83,15 @@ pub struct FrameModel<'s, R> {
     pub pills: Option<PillsModel<'s, R>>,
     /// The tooltip on show (`Tips::model` over the anchors the last frame carried).
     pub tip: Option<TipModel<'s>>,
+    /// The notices that stay, over the page and any sheet at the window's foot, the first lowest
+    /// and the rest above it, the page's note above them all.
+    pub notices: Vec<Notice<'s, R>>,
+    /// The keyboard button of a wide window where a sheet has a field of its own.
+    pub keyboard_button: Option<KeyboardButton<'s, R>>,
+    /// A held app's frame (the holder draws the top app bar and the way in): no sidebar, rail,
+    /// navigation bar or top app bar of its own, the page the whole window; the press is the
+    /// holder's way back, the one Back and Escape take.
+    pub held: Option<R>,
 }
 
 /// The room the page has, `(width, height)` in units, read inside the body closure of [`draw`]:
@@ -94,7 +122,10 @@ pub fn draw<'s, R: Pressed, O>(
         .pills
         .as_ref()
         .map_or(0.0, |p| pills::strip_height(p, ui, w));
+    // A held app has no frame of its own beside the page and above it.
+    let held = frame.held.is_some();
     let side_w = match &frame.side {
+        _ if held => 0.0,
         Side::None => 0.0,
         Side::Rail(_) => RAIL_W,
         Side::Sidebar(s) => s.w,
@@ -110,7 +141,7 @@ pub fn draw<'s, R: Pressed, O>(
 
     // What stands at the foot, under the page: the navigation bar on the small panel (not while
     // the keyboard takes the foot), then the busy line.
-    let bar_h = if ui.compact && kb_h == 0.0 && !frame.nav.dests.is_empty() {
+    let bar_h = if !held && ui.compact && kb_h == 0.0 && !frame.nav.dests.is_empty() {
         NAV_BAR_H
     } else {
         0.0
@@ -119,7 +150,7 @@ pub fn draw<'s, R: Pressed, O>(
         .busy
         .as_ref()
         .map_or(0.0, |_| status::busy_height(ui) + MENU_GAP);
-    let top = APP_BAR_H;
+    let top = if held { 0.0 } else { APP_BAR_H };
     let page_h = (h - strip - kb_foot - bar_h - busy_h - top).max(0.0);
 
     // The page, under the top app bar, which the page scrolls under, beside the rail or sidebar.
@@ -141,10 +172,14 @@ pub fn draw<'s, R: Pressed, O>(
     }
     ui.ox = ox;
     ui.oy = oy + strip;
+    if let Some(back) = &frame.held {
+        ui.back(back.clone());
+    }
     if bar_h > 0.0 {
         nav::draw_bar(&frame.nav, ui, (h - strip - kb_foot - bar_h, w));
     }
     match &frame.side {
+        _ if held => {}
         Side::None => {}
         Side::Rail(r) => nav::draw(r, ui, h - strip),
         Side::Sidebar(s) => nav::draw_sidebar(s, ui, h - strip),
@@ -153,12 +188,15 @@ pub fn draw<'s, R: Pressed, O>(
     // The top app bar over the page, the search in it on the wide layout, the pills in it where
     // they stand there.
     ui.ox = ox + side_w;
-    nav::draw_top(&frame.top, ui, area_w);
-    if let (false, Some(search)) = (ui.compact, &frame.search) {
+    let taken = frame.pills.as_ref().map_or(0.0, |p| pills::bar_room(p, ui));
+    if !held {
+        nav::draw_top_less(&frame.top, ui, area_w, taken);
+    }
+    if let (false, false, Some(search)) = (held, ui.compact, &frame.search) {
         let back = if frame.top.back.is_some() { 48.0 } else { 0.0 };
         let name = ui.measure_as(TITLE_L, frame.top.title.as_str());
         let from = MARGIN_COMPACT + back + name + frame.top.pill_w + MENU_GAP;
-        let to = frame.top.right - GAP_SMALL;
+        let to = frame.top.right - taken - GAP_SMALL;
         nav::draw_group(
             &search.field,
             search.ways.as_ref(),
@@ -193,17 +231,77 @@ pub fn draw<'s, R: Pressed, O>(
         ui.layer += 1;
         draw_over(sheet, ui);
     }
+    // A sheet with a field of its own: the keyboard button stays within reach, over it.
+    if let Some(b) = &frame.keyboard_button {
+        ui.ox = ox;
+        keyboard_button(b, ui);
+    }
     // The keyboard over everything the page and its sheets drew, at the foot of the page's area.
     if let Some(k) = &frame.keyboard {
         keyboard::draw(&k.model, ui, (side_w, h - kb_h, area_w));
     }
+    // What was plugged in at start, over the page and any sheet at the foot of the window (above
+    // the keyboard), the first lowest; the page's note above them.
+    ui.ox = ox;
+    ui.oy = oy;
+    let mut notices_foot = h - kb_h;
+    for n in &frame.notices {
+        let m = SnackbarModel {
+            text: n.text.clone(),
+        };
+        notices_foot -= snackbar::draw_held(&m, ui, (w, notices_foot), n.close.clone());
+    }
     if let Some(note) = note {
-        let foot = kb_foot + bar_h + busy_h;
-        snackbar::draw_at(note, ui, (w, h - foot));
+        let foot = (h - kb_foot - bar_h - busy_h).min(notices_foot);
+        snackbar::draw_at(note, ui, (w, foot));
     }
     if let Some(tip) = &frame.tip {
         tooltip::draw(tip, ui);
     }
+}
+
+/// The wide window's keyboard button: a circle in the top row, its right edge at the model's
+/// `right`, filled and edged in the selected tone while the keyboard is up.
+fn keyboard_button<R: Pressed>(b: &KeyboardButton<'_, R>, ui: &mut Ui<'_, R>) {
+    let (s, y) = (KEYBOARD_BUTTON, KEYBOARD_BUTTON_Y);
+    let x = b.right - s;
+    let tint = if b.shown {
+        Role::SecondaryContainer
+    } else {
+        Role::Surface
+    };
+    ui.fill(x, y, s, s, s / 2.0, tint);
+    ui.stroke(
+        x,
+        y,
+        s,
+        s,
+        s / 2.0,
+        selected_or(b.shown, Role::OutlineVariant),
+    );
+    ui.press(
+        Shape::new(x, y, s, s, s / 2.0),
+        Role::OnSurface.paint(),
+        b.press.clone(),
+    );
+    ui.icon(
+        x,
+        y,
+        s,
+        Icon::Keyboard,
+        KEYBOARD_BUTTON_GLYPH,
+        on_selected(b.shown, Role::OnSurfaceVariant),
+    );
+    ui.tip_plain(
+        (
+            x - KEYBOARD_BUTTON_TIP,
+            y - KEYBOARD_BUTTON_TIP,
+            s + 2.0 * KEYBOARD_BUTTON_TIP,
+            s + 2.0 * KEYBOARD_BUTTON_TIP,
+        ),
+        &b.press,
+        b.tip.as_str(),
+    );
 }
 
 #[cfg(test)]
@@ -245,6 +343,9 @@ mod tests {
             keyboard: None,
             pills: None,
             tip: None,
+            notices: Vec::new(),
+            keyboard_button: None,
+            held: None,
         }
     }
 
@@ -404,5 +505,77 @@ mod tests {
         let (room, out) = room_of(&m, true);
         assert!(room.1 < bare.1);
         assert!(out.hits.iter().any(|h| h.press == P(7)));
+    }
+
+    /// Invariant: A held app's frame draws no sidebar, top app bar or navigation bar: the page has the whole window, and the holder's way back is the frame's back link.
+    /// Regression: A held page drawn with its own sidebar or bar beside the holder's, or without the way back Back and Escape take.
+    /// Owner: kit
+    #[test]
+    fn a_held_frame_gives_the_page_the_whole_window() {
+        let (bare, _) = room_of(&model("Home", 3), true);
+        let mut m = model("Home", 3);
+        m.held = Some(P(7));
+        let (room, out) = room_of(&m, true);
+        assert_eq!(room.0, 640.0);
+        assert!(room.1 > bare.1);
+        assert!(!out.hits.iter().any(|h| h.press == P(0)));
+        assert_eq!(out.back.map(|b| b.0), Some(P(7)));
+    }
+
+    /// Invariant: A notice that stays takes the press of its close over the page, and the page's note stands above it.
+    /// Regression: The boot or keyboard notice drawn without a close, or under the note it should carry.
+    /// Owner: kit
+    #[test]
+    fn a_notice_takes_its_close_press() {
+        let mut m = model("Home", 0);
+        m.notices = vec![
+            Notice {
+                text: Shown::plain("Keyboard in"),
+                close: P(5),
+            },
+            Notice {
+                text: Shown::plain("Wireless keyboard"),
+                close: P(6),
+            },
+        ];
+        let (_, out) = room_of(&m, false);
+        let y = |p: u8| out.hits.iter().find(|h| h.press == P(p)).map(|h| h.rect.y);
+        assert!(y(5).is_some() && y(6).is_some());
+        assert!(y(6) < y(5));
+    }
+
+    /// Invariant: The wide window's keyboard button takes its press at the top row.
+    /// Regression: The button missing over a sheet with a field of its own.
+    /// Owner: kit
+    #[test]
+    fn the_wide_keyboard_button_takes_its_press() {
+        let mut m = model("Home", 0);
+        m.keyboard_button = Some(KeyboardButton {
+            shown: false,
+            press: P(8),
+            tip: Shown::plain("Keyboard"),
+            right: 600.0,
+        });
+        let (_, out) = room_of(&m, false);
+        assert!(out.hits.iter().any(|h| h.press == P(8)));
+    }
+
+    /// Invariant: The failed self-test is the whole screen: it names the check and Exit takes its press.
+    /// Regression: A failed self-test with no way out, or drawn under a frame.
+    /// Owner: kit
+    #[test]
+    fn a_failed_selftest_offers_exit() {
+        let mut c = canvas(160);
+        let m = SelftestFailed {
+            title: Shown::plain("Self-test failed"),
+            check_row: Shown::plain("Check"),
+            check: Shown::plain("sha256"),
+            exit_label: Shown::plain("Exit"),
+            exit: P(3),
+        };
+        let out = frame(&mut c, &at_rest(None), |ui| {
+            draw_selftest_failed(&m, ui, (640.0, 480.0))
+        });
+        assert!(out.hits.iter().any(|h| h.press == P(3)));
     }
 }

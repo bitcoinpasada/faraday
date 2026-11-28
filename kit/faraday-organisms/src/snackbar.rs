@@ -80,8 +80,31 @@ pub fn draw_timed<A: Pressed>(
     if shown <= 0.0 {
         return;
     }
+    bar(m, ui, (w, foot), (shown, lift), on.close);
+}
+
+/// A notice that stays until its × is pressed, over the foot of the window: fully shown at once,
+/// no rise and no fade. Returns the room it takes above `foot`, where a second one's foot goes.
+pub fn draw_held<A: Pressed>(
+    m: &SnackbarModel<'_>,
+    ui: &mut Ui<'_, A>,
+    (w, foot): (f32, f32),
+    close: A,
+) -> f32 {
+    bar(m, ui, (w, foot), (1.0, 0.0), Some(close));
+    height(ui) + MARGIN_COMPACT
+}
+
+/// The bar faded in to `shown`, `lift` units below its place, with its close where one is given.
+fn bar<A: Pressed>(
+    m: &SnackbarModel<'_>,
+    ui: &mut Ui<'_, A>,
+    (w, foot): (f32, f32),
+    (shown, lift): (f32, f32),
+    close: Option<A>,
+) {
     let h = height(ui);
-    let side = if on.close.is_some() { TOUCH } else { 0.0 };
+    let side = if close.is_some() { TOUCH } else { 0.0 };
     let bw = w - 2.0 * MARGIN_COMPACT;
     let (x, y) = (MARGIN_COMPACT, foot - h - MARGIN_COMPACT + lift);
     // The shadow's ring reaches under the fill's edge: at a linear share of its strength it
@@ -99,7 +122,7 @@ pub fn draw_timed<A: Pressed>(
             &text,
         );
     });
-    if let Some(close) = on.close {
+    if let Some(close) = close {
         // Material's standard icon button, centred on the end of the bar in a touch target; the
         // × is the multiplication sign.
         let (bx, by) = (x + bw - TOUCH, y + (h - TOUCH) / 2.0);
