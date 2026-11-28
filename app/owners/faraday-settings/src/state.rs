@@ -87,7 +87,11 @@ impl State {
     pub(crate) fn today(&self, view: &faraday_kernel::View<'_>) -> Option<String> {
         let tz = self.settings.zone_min?;
         let t = crate::clock::now(&view.clock)?;
-        Some(crate::clock::date_text(crate::clock::local_secs(t, tz)).as_str().to_owned())
+        Some(
+            crate::clock::date_text(crate::clock::local_secs(t, tz))
+                .as_str()
+                .to_owned(),
+        )
     }
 
     pub fn page(&self) -> Page {

@@ -2,18 +2,18 @@ use faraday_kernel::settings::{
     Appearance, Choice, Contrast, MotionSpeed, MotionStyle, Page, Settings as Choices, TextSize,
 };
 use faraday_kernel::{Line, Refused, SelfTest, Show, View, Worded};
+use faraday_organisms::Offered;
 use faraday_organisms::content::{Block, Content};
 use faraday_organisms::nav::{Raise, SearchBarModel};
 use faraday_organisms::{
-    AppearanceModel, ButtonModel, ChipsModel, ChoiceModel, FieldModel, OptionRow, Segments,
-    Shown, Style, TextSizeModel, ThemeChip, TimeZoneKind, TimeZoneModel,
+    AppearanceModel, ButtonModel, ChipsModel, ChoiceModel, FieldModel, OptionRow, Segments, Shown,
+    Style, TextSizeModel, ThemeChip, TimeZoneKind, TimeZoneModel,
 };
-use faraday_organisms::Offered;
 use faraday_present::{Present, offer};
 use faraday_strings::{Strings, fill};
+use faraday_templates::Theme;
 use faraday_templates::menu_page::{Body, MenuPageModel, Section};
 use faraday_templates::screen::BarSearch;
-use faraday_templates::Theme;
 use faraday_text::Text;
 
 use crate::clock::{self, Focus, Source};
@@ -284,15 +284,35 @@ fn appearance<'s>(c: &Choices, s: &Strings, blocks: &mut Vec<Block<'s, Press>>) 
         false,
     ));
     let styles = [
-        (s.settings_motion_smooth, s.settings_motion_smooth_line, MotionStyle::Smooth),
-        (s.settings_motion_crossfade, s.settings_motion_crossfade_line, MotionStyle::Crossfade),
-        (s.settings_motion_off, s.settings_motion_off_line, MotionStyle::Off),
+        (
+            s.settings_motion_smooth,
+            s.settings_motion_smooth_line,
+            MotionStyle::Smooth,
+        ),
+        (
+            s.settings_motion_crossfade,
+            s.settings_motion_crossfade_line,
+            MotionStyle::Crossfade,
+        ),
+        (
+            s.settings_motion_off,
+            s.settings_motion_off_line,
+            MotionStyle::Off,
+        ),
     ];
     blocks.push(row(
         s.settings_motion,
         styles
             .iter()
-            .map(|&(n, _, m)| (Shown::plain(n), pick(Appearance { motion: Some(m), ..a })))
+            .map(|&(n, _, m)| {
+                (
+                    Shown::plain(n),
+                    pick(Appearance {
+                        motion: Some(m),
+                        ..a
+                    }),
+                )
+            })
             .collect(),
         styles.iter().position(|&(_, _, m)| Some(m) == a.motion),
         false,
@@ -327,24 +347,29 @@ fn minutes<'s>(s: &Strings, m: u16) -> Shown<'s> {
     }
 }
 
-fn session<'s>(
-    state: &State,
-    view: &View<'s>,
-    s: &Strings,
-    blocks: &mut Vec<Block<'s, Press>>,
-) {
+fn session<'s>(state: &State, view: &View<'s>, s: &Strings, blocks: &mut Vec<Block<'s, Press>>) {
     let n = view.session.keys().len();
     blocks.push(Block::Heading(made(fill_text(
         s.settings_loaded,
         &[
             &n.to_string(),
-            if n == 1 { s.settings_key } else { s.settings_keys },
+            if n == 1 {
+                s.settings_key
+            } else {
+                s.settings_keys
+            },
         ],
     ))));
     let online = view.mode.online;
     let mut buttons = Vec::new();
     if n > 0 {
-        buttons.push(button(state, view, s.settings_lock, Style::Tonal, Press::Lock));
+        buttons.push(button(
+            state,
+            view,
+            s.settings_lock,
+            Style::Tonal,
+            Press::Lock,
+        ));
     }
     let leave = if online {
         s.settings_quit
@@ -601,7 +626,13 @@ fn set_time_page<'s>(state: &'s State, view: &View<'s>, show: &Show<'s>) -> Cont
             &[&both(local), &file::tz_offset_text(tz), &both(utc)],
         ))));
     }
-    let mut buttons = vec![button(state, view, s.set_time_set, Style::Filled, Press::Set)];
+    let mut buttons = vec![button(
+        state,
+        view,
+        s.set_time_set,
+        Style::Filled,
+        Press::Set,
+    )];
     if clock::now(&view.clock).is_some() && zone.is_some() {
         buttons.push(button(
             state,

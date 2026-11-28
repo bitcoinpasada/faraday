@@ -11,9 +11,15 @@ fn only_a_line_of_our_own_name_and_a_build_is_a_version_output() {
         Some((Program::DesktopApp, "1.2.3+abc.test"))
     );
     let old = format!("{} 0.9", EN.name_faraday_starter_app_old);
-    assert_eq!(parse_version_output(&old), Some((Program::StarterApp, "0.9")));
     assert_eq!(
-        parse_version_output(&format!("  {}  \nignored", version_line(Program::StarterApp, "2.0"))),
+        parse_version_output(&old),
+        Some((Program::StarterApp, "0.9"))
+    );
+    assert_eq!(
+        parse_version_output(&format!(
+            "  {}  \nignored",
+            version_line(Program::StarterApp, "2.0")
+        )),
         Some((Program::StarterApp, "2.0"))
     );
     for refused in [

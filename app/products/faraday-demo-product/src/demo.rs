@@ -113,12 +113,17 @@ mod tests {
     /// Owner: app
     #[test]
     fn a_mode_change_asks_the_lock_sheet_and_a_closed_sheet_cancels_it() {
-        let root = Demo { options: DemoOptions { text: None, transfer: false } };
+        let root = Demo {
+            options: DemoOptions {
+                text: None,
+                transfer: false,
+            },
+        };
         assert!(matches!(
             root.mode_lock_asked(),
-            Some(Addr::App(faraday_online::Msg::Device(faraday_device::Msg::Power(
-                faraday_power::Msg::ModeLock
-            ))))
+            Some(Addr::App(faraday_online::Msg::Device(
+                faraday_device::Msg::Power(faraday_power::Msg::ModeLock)
+            )))
         ));
         assert!(matches!(
             root.mode_cancel_asked(),

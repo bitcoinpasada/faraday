@@ -136,7 +136,9 @@ impl Feature for Settings {
 
     fn refuses(state: &State, msg: &Msg, view: &View<'_>) -> Option<Refusal> {
         match msg {
-            Msg::Press(Press::Mode(m) | Press::ModeAsk(m)) if *m == ModeAsked::of_index(view.mode.index()) => {
+            Msg::Press(Press::Mode(m) | Press::ModeAsk(m))
+                if *m == ModeAsked::of_index(view.mode.index()) =>
+            {
                 Some(Refusal::ModeInUse)
             }
             Msg::Press(Press::Set) if !state.set_ready(view) => Some(Refusal::NotReady),
@@ -700,7 +702,11 @@ mod tests {
         }
         typed(&mut state, &view, "2025-06-15");
         assert!(offered(&state).is_none());
-        let out = seen(route::<Settings>(&mut state, Msg::Press(Press::Set), &view.ctx()));
+        let out = seen(route::<Settings>(
+            &mut state,
+            Msg::Press(Press::Set),
+            &view.ctx(),
+        ));
         assert_eq!(out.outs.len(), 1);
         assert!(state.settings().checked);
         assert_ne!(state.settings().offset_secs, 0);
@@ -786,7 +792,9 @@ mod tests {
         assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));
         let in_use = Settings::refuses(
             &started(),
-            &Msg::Press(Press::ModeAsk(ModeAsked::of_index(view.ctx().view.mode.index()))),
+            &Msg::Press(Press::ModeAsk(ModeAsked::of_index(
+                view.ctx().view.mode.index(),
+            ))),
             &view.ctx().view,
         );
         assert!(matches!(in_use, Some(Refusal::ModeInUse)));

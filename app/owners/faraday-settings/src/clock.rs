@@ -98,8 +98,7 @@ impl Form {
     pub(crate) fn typed_local(&self) -> Option<(i64, u32, u32)> {
         let (y, m, d) = valid_date(self.date.as_str())?;
         let (h, mi) = valid_time(self.time.as_str())?;
-        let local =
-            days_from_civil(y, m, d) * 86_400 + i64::from(h) * 3600 + i64::from(mi) * 60;
+        let local = days_from_civil(y, m, d) * 86_400 + i64::from(h) * 3600 + i64::from(mi) * 60;
         Some((local, h, mi))
     }
 
@@ -258,7 +257,9 @@ pub(crate) fn now(clock: &Clock) -> Option<u64> {
         return None;
     };
     if clock.offset_secs != 0 {
-        let at = i64::try_from(raw).unwrap_or(i64::MAX).saturating_add(clock.offset_secs);
+        let at = i64::try_from(raw)
+            .unwrap_or(i64::MAX)
+            .saturating_add(clock.offset_secs);
         Some(u64::try_from(at).unwrap_or(0))
     } else {
         (raw >= CLOCK_FLOOR).then_some(raw)

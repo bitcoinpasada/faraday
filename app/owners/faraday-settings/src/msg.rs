@@ -1,5 +1,5 @@
-use faraday_kernel::{AnyChange, ChangeId, Message};
 use faraday_kernel::settings::Choice;
+use faraday_kernel::{AnyChange, ChangeId, Message};
 use faraday_port::storage::StickId;
 use faraday_present::Pressed;
 

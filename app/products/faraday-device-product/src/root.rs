@@ -59,16 +59,12 @@ impl Root for Device {
     fn press(press: Press) -> Addr<Self> {
         match press {
             // Settings' Lock and Power off buttons are the power feature's (06 §4.3).
-            Press::Settings(faraday_settings::Press::Lock) => {
-                Addr::App(Msg::Device(faraday_device::Msg::Power(
-                    faraday_power::Msg::Lock { asks_first: true },
-                )))
-            }
-            Press::Settings(faraday_settings::Press::PowerAsk) => {
-                Addr::App(Msg::Device(faraday_device::Msg::Power(
-                    faraday_power::Msg::Show(faraday_power::Which::Power),
-                )))
-            }
+            Press::Settings(faraday_settings::Press::Lock) => Addr::App(Msg::Device(
+                faraday_device::Msg::Power(faraday_power::Msg::Lock { asks_first: true }),
+            )),
+            Press::Settings(faraday_settings::Press::PowerAsk) => Addr::App(Msg::Device(
+                faraday_device::Msg::Power(faraday_power::Msg::Show(faraday_power::Which::Power)),
+            )),
             Press::Settings(p) => Addr::Settings(p.into()),
             Press::Session(p) => Addr::Session(p.into()),
             Press::Vaults(p) => Addr::Vaults(p.into()),
@@ -88,9 +84,13 @@ impl Root for Device {
             Input::Key(Key::Char(c)) if set_time => {
                 Some(Addr::Settings(faraday_settings::Msg::Typed(*c)))
             }
-            Input::Key(Key::Backspace) if set_time => Some(Addr::Settings(faraday_settings::Msg::Erase)),
+            Input::Key(Key::Backspace) if set_time => {
+                Some(Addr::Settings(faraday_settings::Msg::Erase))
+            }
             Input::Key(Key::Tab) if set_time => Some(Addr::Settings(faraday_settings::Msg::Tab)),
-            Input::Key(Key::Enter) if set_time => Some(Addr::Settings(faraday_settings::Msg::Enter)),
+            Input::Key(Key::Enter) if set_time => {
+                Some(Addr::Settings(faraday_settings::Msg::Enter))
+            }
             Input::Key(Key::Escape) if set_time => {
                 Some(Addr::Settings(faraday_settings::Msg::Escape))
             }

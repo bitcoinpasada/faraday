@@ -54,7 +54,9 @@ fn a_date_is_a_real_calendar_date_from_2020_to_2099() {
 fn a_time_is_hh_mm_on_a_24_hour_clock() {
     assert_eq!(valid_time("00:00"), Some((0, 0)));
     assert_eq!(valid_time("23:59"), Some((23, 59)));
-    for refused in ["24:00", "12:60", "1200", "1:30", "12:3", "12-30", "+1:30", "12:+5", ""] {
+    for refused in [
+        "24:00", "12:60", "1200", "1:30", "12:3", "12-30", "+1:30", "12:+5", "",
+    ] {
         assert_eq!(valid_time(refused), None, "{refused}");
     }
 }
