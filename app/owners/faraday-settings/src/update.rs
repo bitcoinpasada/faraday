@@ -84,7 +84,8 @@ impl Feature for Settings {
         (state, fx)
     }
 
-    fn update(state: &mut State, msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Out> {
+    fn update(state: &mut State, msg: Msg, cx: &Ctx<'_>) -> Effects<Msg, Out> {
+        state.refresh(cx.view.mode.index());
         match msg {
             Msg::Press(press) => match press {
                 Press::Mode(m) => {
@@ -127,6 +128,7 @@ impl Feature for Settings {
     }
 
     fn notice(state: &mut State, notice: &Notice<'_>, cx: &Ctx<'_>) -> Effects<Msg, Out> {
+        state.refresh(cx.view.mode.index());
         match notice {
             Notice::Facts(FactsChanged::Sticks) => look(state, cx),
             // A pick left on the mode sheet, by Back or a press elsewhere, is given up; one the
@@ -141,9 +143,11 @@ impl Feature for Settings {
         }
     }
 
-    fn refuses(state: &State, msg: &Msg, _view: &View<'_>) -> Option<Refusal> {
+    fn refuses(_state: &State, msg: &Msg, view: &View<'_>) -> Option<Refusal> {
         match msg {
-            Msg::Press(Press::Mode(m)) if *m == state.in_use() => Some(Refusal::ModeInUse),
+            Msg::Press(Press::Mode(m)) if *m == ModeAsked::of_index(view.mode.index()) => {
+                Some(Refusal::ModeInUse)
+            }
             _ => None,
         }
     }
@@ -448,5 +452,44 @@ mod tests {
         );
         assert!(seen(stray).outs.is_empty());
         assert_eq!(state3.settings().scale_pct, 100);
+    }
+
+    /// Invariant: An owner that outlives the scope (the Starter's) refuses the mode now in use, not the one it started in, and a mode change that took effect leaves no asked mode behind.
+    /// Regression: The owner keeps the mode of its start, so after a change it refuses the wrong mode and its next plain lock returns to the old one.
+    /// Owner: app
+    #[test]
+    fn a_mode_change_that_took_effect_leaves_the_owner_in_the_new_mode() {
+        let device = TestView::device();
+        let demo = TestView::demo();
+        let mut state = started();
+        let _ = route::<Settings>(
+            &mut state,
+            Msg::Press(Press::Mode(ModeAsked::Signet)),
+            &device.ctx(),
+        );
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::ModeLock), &device.ctx());
+        let mut carried = lock_carry(&mut state);
+        assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));
+
+        // The scope is built again in another mode and the owner is not started again.
+        let _ = route::<Settings>(
+            &mut state,
+            Msg::Press(Press::Mode(ModeAsked::Testnet)),
+            &demo.ctx(),
+        );
+        let refused = Settings::refuses(
+            &state,
+            &Msg::Press(Press::Mode(ModeAsked::Practice)),
+            &demo.ctx().view,
+        );
+        assert!(matches!(refused, Some(Refusal::ModeInUse)));
+        let mut carried = lock_carry(&mut state);
+        assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Practice));
+        let open = Settings::refuses(
+            &state,
+            &Msg::Press(Press::Mode(ModeAsked::Mainnet)),
+            &demo.ctx().view,
+        );
+        assert!(open.is_none());
     }
 }

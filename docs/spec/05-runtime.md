@@ -50,6 +50,12 @@ pub trait Root: Sized + 'static {
     fn input(&self, tops: &Tops<'_, Self>, input: &port::Input) -> Option<Addr<Self>>;
     /// A stream fact (devices, camera frames and codes, a host's drop, a write's progress).
     fn fact(&self, tops: &Tops<'_, Self>, fact: Stream) -> Option<Addr<Self>>;
+    /// The settings owner asked for a mode change (`Top::ModeLock`, §1.1): the message that
+    /// shows the Lock sheet. Default `None`.
+    fn mode_lock_asked(&self) -> Option<Addr<Self>> { None }
+    /// The mode change's Lock sheet closed without locking (`Top::ModeCancel`): the message that
+    /// gives the asked mode up. Default `None`.
+    fn mode_cancel_asked(&self) -> Option<Addr<Self>> { None }
     /// The window's close button, as a message (desktop roots).
     fn close_asked(&self) -> Option<Addr<Self>>;
     /// Present then draw (04 §1, V5): the app's frame and the page its navigation shows,
@@ -126,6 +132,12 @@ pub enum Top {
     Lock(Lock),
     /// End the process, or close the Starter's scope (§7.7, §7.9).
     End(End),
+    /// The settings owner asks for a mode change: the runtime gives `Root::mode_lock_asked`'s
+    /// message to the app, which shows the Lock sheet whether or not anything would be lost.
+    ModeLock,
+    /// That Lock sheet closed any other way than by its Lock: `Root::mode_cancel_asked`'s message
+    /// gives the asked mode up.
+    ModeCancel,
     /// Run the self-test again (Settings' Run again).
     SelfTest,
     /// The Starter only: build the lock scope, after `PrepareDemoSticks` answers `Ok` (§7.9).
@@ -135,7 +147,9 @@ pub struct Lock { pub seal: bool, pub idle: bool }   // seal: false is "lock wit
 pub enum End { PowerOff, RestartComputer, Quit }
 ```
 
-Reason: a lock must pass through the runtime's order (§7.2) and a broadcast must reach every top
+A mode change is two of them because the settings owner stands beside the app, not under it: it
+cannot send the Lock sheet's feature a message, and a lock it began itself would skip the sheet
+(`main`'s `mode_act` into `lock_ask`). Reason: a lock must pass through the runtime's order (§7.2) and a broadcast must reach every top
 state, and both are already an `Out` in section 03's routing. Turned down: new `Fx` variants for
 lock and broadcast, which would give every feature a way to skip its parents.
 
@@ -626,7 +640,7 @@ through `StepFlow::carry`, which the kernel's blanket impl forwards (03 §9.1).
 | held keys | the session | fingerprints and digests of keys held until their backup (`features/lock.md`, "Held keys") | the session |
 | vault summaries | the vault owner | seal counts, what was sealed or failed, a memory step not raised (`features/vault-seal.md`) | the vault owner; the lock feature's Locked sheet reads them through `vaults::Read` |
 | settings, `any_mode` | the settings owner | the person's choices, the clock's offset and whether it was checked (`features/settings-time.md`) | the settings owner |
-| mode, `any_mode` | the settings owner | the mode asked for, which takes effect at this lock | `Root::mode` (§7.5) |
+| mode, `any_mode` | the settings owner | always written: the mode asked for once the Lock sheet asked for it (`Top::ModeLock`) and was not closed without its Lock (`Top::ModeCancel`), else the mode in use (`main`'s `next_mode.unwrap_or(in_use)`) | `Root::mode` (§7.5) |
 | the backup flow, `first` | the backup flow | its plan, its stage, which keys it holds, by fingerprint; no key material (`features/backup-flow.md`) | the backup flow |
 | write waiting | the stick visit | a "Lock and write": names and hashes, no bytes (`features/files-inbox.md`) | the stick visit |
 | input counts, `any_mode` | the devices feature | kept out, beside presses, wrong letters (`features/devices-inputs.md`) | the devices feature |

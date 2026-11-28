@@ -91,8 +91,16 @@ impl State {
         self.asked = m;
     }
 
-    pub(crate) fn in_use(&self) -> ModeAsked {
-        self.in_use
+    /// This build of the scope runs in `mode` (the kernel's `Mode::index`). An owner that
+    /// outlives the scope (the Starter's) sees a change here: the asked mode took effect, so it
+    /// and its Lock sheet are done with.
+    pub(crate) fn refresh(&mut self, index: u8) {
+        let now = ModeAsked::of_index(index);
+        if now != self.in_use {
+            self.in_use = now;
+            self.asked = None;
+            self.pending = false;
+        }
     }
 
     pub(crate) fn set_pending(&mut self, on: bool) {

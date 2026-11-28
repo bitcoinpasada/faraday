@@ -663,7 +663,7 @@ lossily from a file's bytes (to show it) is kept only for a file of a kind that 
 in the state of the feature that shows it, and never in `FileView`. `View::clock`'s `offset_secs`
 and `set` are the runtime's copy of the settings' `offset_secs` and `checked`.
 
-- Built: the settings owner holds the choices and the mode asked for, reads the boot stick's settings file by `main`'s rules (`faraday-settings`'s `file`), answers `Set`, and carries `settings.kept` and `settings.mode` (both `any_mode`).
+- Built: the settings owner holds the choices and the mode asked for, reads the boot stick's settings file by `main`'s rules (`faraday-settings`'s `file`), answers `Set`, and carries `settings.kept` and `settings.mode` (both `any_mode`); a mode press is refused when it is the mode in use, and `Press::ModeLock` asks the Lock sheet through `Top::ModeLock` (05 §1.1).
 
 ### 7.3 Changing: `ChangeFor<M>`
 

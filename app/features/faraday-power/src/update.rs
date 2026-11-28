@@ -13,8 +13,21 @@ type Fx = Effects<Msg, Out>;
 
 /// The sheet comes up.
 fn show(state: &mut State, which: Which) -> Fx {
+    // Another sheet over a mode change's Lock sheet gives the asked mode up.
+    let cancel = give_up(state, which != Which::LockAsk);
     state.show(Some(which));
-    Effects::none().out(Out::Front(Some(which.frame())))
+    cancel.out(Out::Front(Some(which.frame())))
+}
+
+/// The mode change's mark is cleared, and the settings owner told, when `leaving`: every way out
+/// of the mode change's Lock sheet but its Lock presses sends it.
+fn give_up(state: &mut State, leaving: bool) -> Fx {
+    if leaving && state.mode_change() {
+        state.set_mode_change(false);
+        Effects::none().out(Out::Top(Top::ModeCancel))
+    } else {
+        Effects::none()
+    }
 }
 
 /// The sheet goes away, when one is up.
@@ -46,8 +59,9 @@ fn lock(state: &mut State, seal: bool) -> Fx {
 /// The end of the app: Quit in the app of someone's own system, else power off or restart. The
 /// Power sheet asks first where something would be lost; with nothing held it does not.
 fn end(state: &mut State, end: End) -> Fx {
+    let cancel = give_up(state, true);
     state.show(None);
-    Effects::none().out(Out::Top(Top::End(end)))
+    cancel.out(Out::Top(Top::End(end)))
 }
 
 impl Feature for Power {
@@ -70,12 +84,18 @@ impl Feature for Power {
     fn update(state: &mut State, msg: Msg, cx: &Ctx<'_>) -> Fx {
         match msg {
             Msg::Show(which) => show(state, which),
-            Msg::Lock { asks_first: true } => show(state, Which::LockAsk),
+            Msg::Lock { asks_first: true } => {
+                // A plain Lock sheet replaces the mode change's.
+                let cancel = give_up(state, true);
+                cancel.and(show(state, Which::LockAsk))
+            }
             Msg::ModeLock => {
                 state.set_mode_change(true);
                 show(state, Which::LockAsk)
             }
-            Msg::Lock { asks_first: false } | Msg::Press(Press::Lock) => lock(state, true),
+            // A lock asked for anywhere is no mode change: the sheet that asked for one ends.
+            Msg::Lock { asks_first: false } => give_up(state, true).and(lock(state, true)),
+            Msg::Press(Press::Lock) => lock(state, true),
             Msg::Press(Press::LockWithoutSealing) => lock(state, false),
             Msg::Press(Press::Away) => away(state),
             Msg::Press(Press::Restart) => end(state, End::RestartComputer),
@@ -279,5 +299,40 @@ mod tests {
         )
         .outs;
         assert!(!plain.iter().any(|o| matches!(o, Out::Top(Top::ModeCancel))));
+    }
+
+    /// Invariant: Every way out of a mode change's Lock sheet but its Lock presses gives the asked mode up: another sheet over it, a plain lock, a Lock sheet of the ordinary kind.
+    /// Regression: The mark clears without telling the settings owner, so a later lock applies a mode nobody confirmed.
+    /// Owner: app
+    #[test]
+    fn every_way_out_of_the_mode_sheet_but_its_lock_gives_the_mode_up() {
+        let view = TestView::device();
+        let cancels = |outs: &[Out]| {
+            outs.iter()
+                .filter(|o| matches!(o, Out::Top(Top::ModeCancel)))
+                .count()
+        };
+        for msg in [
+            Msg::Show(Which::Power),
+            Msg::Show(Which::IdleWarn),
+            Msg::Lock { asks_first: false },
+            Msg::Lock { asks_first: true },
+            Msg::Press(Press::PowerOff),
+        ] {
+            let mut state = State::new(None);
+            let _ = run(&view, &mut state, Msg::ModeLock);
+            let outs = run(&view, &mut state, msg).outs;
+            assert_eq!(cancels(&outs), 1);
+            assert!(!state.mode_change());
+            // Nothing more to cancel when the sheet is put away.
+            let away = run(&view, &mut state, Msg::Press(Press::Away)).outs;
+            assert_eq!(cancels(&away), 0);
+        }
+        for press in [Press::Lock, Press::LockWithoutSealing] {
+            let mut state = State::new(None);
+            let _ = run(&view, &mut state, Msg::ModeLock);
+            let outs = run(&view, &mut state, Msg::Press(press)).outs;
+            assert_eq!(cancels(&outs), 0);
+        }
     }
 }
