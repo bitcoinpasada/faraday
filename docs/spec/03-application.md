@@ -669,6 +669,10 @@ and `set` are the runtime's copy of the settings' `offset_secs` and `checked`.
 
 - Built: the settings owner's Settings page (cards on the menu page: Mode, Appearance, Lock and power, Time, Display, What is remembered, About, and the search's words), Set the time (`faraday-settings`'s `clock`: a real date from 2020 to 2099, a 24-hour time, Set offered only once a zone is chosen, Enter setting with none, Keep this time with a clock reading) and the version (`version_label`, `version_line`, `parse_version_output`); a lock settles the mode it carried in the owner's `carry`; the Demo and Starter products route a mode change to the Lock sheet.
 
+- Built: the mode change's Lock sheet: `Top::ModeLock` carries the mode asked (`Mode::index`), the power feature keeps it with the open sheet (public, gone when the sheet closes or a lock begins) and draws "Change to X?", the list of what the lock wipes (keys, wallets and files held), "Lock and use X", and "Lock without sealing" only while the session cannot seal (05 §1.1).
+
+- Built: the device product draws the Settings page from the settings owner's own model (`faraday-settings`'s `anchor` by its page), and Back on Set the time goes to Settings; the `settings` tour renders it. The frame has no rail or sidebar yet, so the bar carries a Settings destination until it has one.
+
 ### 7.3 Changing: `ChangeFor<M>`
 
 This answers section 01's question on how a feature asks the key store for an operation that

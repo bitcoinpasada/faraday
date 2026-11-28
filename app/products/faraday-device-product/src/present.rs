@@ -3,7 +3,7 @@ use faraday_organisms::nav::WaysModel;
 use faraday_organisms::nav::{Badge, Dest, NavModel, Raise, SearchBarModel, TopBarModel};
 use faraday_organisms::{ButtonModel, Icon, Shown, Style};
 use faraday_port::values::Anchor;
-use faraday_present::{ScreenModel, offer};
+use faraday_present::{Present, ScreenModel, offer};
 use faraday_templates::screen::{BarSearch, FrameModel};
 
 use crate::{App, AppPress, Body, DeviceApp, Msg, Over, Page, Press, Refusal};
@@ -20,6 +20,7 @@ impl Refused for Refusal {}
 /// (06 §4.4).
 pub(crate) fn screen<'s>(
     app: &'s DeviceApp,
+    settings: &'s faraday_settings::State,
     view: &View<'s>,
     show: &Show<'s>,
 ) -> ScreenModel<'s, Body<'s>, Over<'s>, Press> {
@@ -34,8 +35,20 @@ pub(crate) fn screen<'s>(
             ))),
             faraday_device::anchor(page),
         ),
-        // The owners' pages and the failed self-test page are not built into the frame yet.
-        Page::Vaults(_) | Page::Settings(_) | Page::SelfTestFailed => todo!(),
+        // The settings owner holds which of its two pages is shown (Settings or Set the time):
+        // it is the one place that knows, so the page is drawn from it and the nav's
+        // `Page::Settings(_)` only says that Settings is the destination.
+        Page::Settings(_) => {
+            let page = settings.page();
+            (
+                Body::Settings(<faraday_settings::Settings as Present>::present(
+                    settings, view, show,
+                )),
+                faraday_settings::anchor(page),
+            )
+        }
+        // The vaults' pages and the failed self-test page are not built into the frame yet.
+        Page::Vaults(_) | Page::SelfTestFailed => todo!(),
     };
     let mut over: Vec<(Anchor, Over<'s>)> = faraday_device::over(app.device(), view, show)
         .into_iter()

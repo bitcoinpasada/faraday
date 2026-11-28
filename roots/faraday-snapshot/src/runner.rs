@@ -136,11 +136,28 @@ impl Tour {
     /// Queues a touch on the control whose press has this kind, in the frame last taken: the
     /// first one drawn (07 §5.1 names a press by its message's kind, never by a position).
     pub fn press(&mut self, kind: &str) -> Result<(), String> {
+        self.press_nth(kind, 0)
+    }
+
+    /// The same, for the `n`th (from zero) control drawn with this kind: the destinations of the
+    /// navigation all send one kind, in the bar's order.
+    pub fn press_nth(&mut self, kind: &str, n: usize) -> Result<(), String> {
         let hit = self
             .last
             .as_ref()
-            .and_then(|look| look.hits.iter().find(|h| h.message == kind))
-            .ok_or_else(|| format!("no control with the press {kind} in the frame"))?;
+            .and_then(|look| look.hits.iter().filter(|h| h.message == kind).nth(n))
+            .ok_or_else(|| {
+                let mut kinds: Vec<&str> = self
+                    .last
+                    .iter()
+                    .flat_map(|l| &l.hits)
+                    .map(|h| h.message.as_str())
+                    .collect();
+                kinds.dedup();
+                format!(
+                    "no control with the press {kind} (number {n}) in the frame; it has {kinds:?}"
+                )
+            })?;
         let at = faraday_port::values::Point {
             x: hit.rect.x + hit.rect.w / 2,
             y: hit.rect.y + hit.rect.h / 2,
@@ -550,9 +567,9 @@ mod tests {
     #[test]
     fn the_tours_written_run_to_their_end() {
         let command = parse_from(&[]).expect("the default command line");
-        // Home and the Power sheet (06 §8). Each tour joins this list when it is written; the
-        // rest of the table is still its `todo!()` bodies.
-        for name in ["default", "power"] {
+        // Home, the Power sheet and Settings (06 §8). Each tour joins this list when it is
+        // written; the rest of the table is still its `todo!()` bodies.
+        for name in ["default", "power", "settings"] {
             let played = play(&command, Some(name), (480, 640), 286, None, false);
             assert!(played.is_ok(), "{name}: {:?}", played.err());
         }

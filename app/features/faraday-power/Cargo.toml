@@ -10,6 +10,7 @@ faraday-kernel = { path = "../../kernel/faraday-kernel" }
 faraday-present = { path = "../../kernel/faraday-present" }
 faraday-port = { path = "../../../core/faraday-port" }
 faraday-strings = { path = "../../../core/faraday-strings" }
+faraday-text = { path = "../../../core/faraday-text" }
 faraday-organisms = { path = "../../../kit/faraday-organisms" }
 faraday-templates = { path = "../../../kit/faraday-templates" }
 

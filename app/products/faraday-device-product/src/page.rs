@@ -14,8 +14,11 @@ impl Drawn<Press> for Body<'_> {
     fn draw(&self, ui: &mut Ui<'_, Press>) {
         match self {
             Body::Device(body) => ui.within(device_press, |ui| body.draw(ui)),
-            // The owners' pages and the failed self-test page are not built yet.
-            Body::Vaults(_) | Body::Settings(_) | Body::SelfTestFailed(_) => todo!(),
+            Body::Settings(model) => ui.within(Press::Settings, |ui| {
+                <faraday_settings::Settings as Page>::draw(model, ui);
+            }),
+            // The vaults' page and the failed self-test page are not built yet.
+            Body::Vaults(_) | Body::SelfTestFailed(_) => todo!(),
         }
     }
 }

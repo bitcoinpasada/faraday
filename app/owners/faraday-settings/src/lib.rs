@@ -49,6 +49,21 @@ pub(crate) const SCROLL: Anchor = Anchor {
 };
 
 /// Each page (06 §4.2): Settings and Set the time.
+/// The scroll anchor of a page of this owner (the first of `ANCHORS` for Settings).
+#[must_use]
+pub fn anchor(page: Page) -> Anchor {
+    match page {
+        Page::Settings => Anchor {
+            scope: "settings.Settings",
+            n: 0,
+        },
+        Page::SetTime => Anchor {
+            scope: "settings.SetTime",
+            n: 0,
+        },
+    }
+}
+
 pub const ANCHORS: &[Anchor] = &[
     Anchor {
         scope: "settings.Settings",

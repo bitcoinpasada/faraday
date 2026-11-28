@@ -80,8 +80,10 @@ pub enum Top {
     /// Begin a lock of the scope.
     Lock(Lock),
     /// The settings owner asks for a mode change: the root shows the Lock sheet, which always
-    /// asks for it, and the lock it then begins seals.
-    ModeLock,
+    /// asks for it, and the lock it then begins seals. Carries the mode asked, as the number the
+    /// settings owner carries it by (`Mode::index`: 0 Practice, 1 Mainnet, 2 Testnet, 3 Signet,
+    /// 4 Regtest).
+    ModeLock(u8),
     /// The Lock sheet that asked for a mode change closed without its Lock: the settings owner
     /// gives the asked mode up.
     ModeCancel,

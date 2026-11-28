@@ -327,8 +327,8 @@ impl<R: Root> Runtime<R> {
                     self.fault("an End while one is under way");
                 }
             }
-            Top::ModeLock => {
-                if let Some(addr) = self.root.mode_lock_asked() {
+            Top::ModeLock(mode) => {
+                if let Some(addr) = self.root.mode_lock_asked(mode) {
                     self.queue.push(Item::Msg(addr));
                 }
             }

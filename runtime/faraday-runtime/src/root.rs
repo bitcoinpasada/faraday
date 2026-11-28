@@ -39,7 +39,7 @@ pub trait Root: Sized + 'static {
     fn fact(&self, tops: &Tops<'_, Self>, fact: Stream) -> Option<Addr<Self>>;
     /// The settings owner asked for a mode change (`Top::ModeLock`): the message that shows the
     /// Lock sheet, which asks first. A root with no mode change has none.
-    fn mode_lock_asked(&self) -> Option<Addr<Self>> {
+    fn mode_lock_asked(&self, _mode: u8) -> Option<Addr<Self>> {
         None
     }
     /// The mode change's Lock sheet closed without locking (`Top::ModeCancel`): the message that

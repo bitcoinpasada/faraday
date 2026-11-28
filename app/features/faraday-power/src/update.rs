@@ -9,6 +9,9 @@ use crate::{Msg, Out, Power, Press, State, Which};
 #[derive(Public)]
 pub enum Refusal {}
 
+/// The highest number a mode asked for has (`Top::ModeLock`).
+const MODES: u8 = 4;
+
 type Fx = Effects<Msg, Out>;
 
 /// The sheet comes up.
@@ -22,8 +25,8 @@ fn show(state: &mut State, which: Which) -> Fx {
 /// The mode change's mark is cleared, and the settings owner told, when `leaving`: every way out
 /// of the mode change's Lock sheet but its Lock presses sends it.
 fn give_up(state: &mut State, leaving: bool) -> Fx {
-    if leaving && state.mode_change() {
-        state.set_mode_change(false);
+    if leaving && state.mode_change().is_some() {
+        state.set_mode_change(None);
         Effects::none().out(Out::Top(Top::ModeCancel))
     } else {
         Effects::none()
@@ -36,7 +39,7 @@ fn away(state: &mut State) -> Fx {
         Some(_) => {
             // A Lock sheet that asked for a mode change closes without it: the asked mode is
             // given up.
-            let cancel = state.mode_change();
+            let cancel = state.mode_change().is_some();
             state.show(None);
             let fx = Effects::none().out(Out::Front(None));
             if cancel {
@@ -89,9 +92,14 @@ impl Feature for Power {
                 let cancel = give_up(state, true);
                 cancel.and(show(state, Which::LockAsk))
             }
-            Msg::ModeLock => {
-                state.set_mode_change(true);
-                show(state, Which::LockAsk)
+            // A mode the device does not number is no mode asked: the settings owner is told it
+            // is given up.
+            Msg::ModeLock(mode) if mode > MODES => Effects::none().out(Out::Top(Top::ModeCancel)),
+            Msg::ModeLock(mode) => {
+                let fx = show(state, Which::LockAsk);
+                // `show` clears the mark of any other sheet; the asked mode is set after it.
+                state.set_mode_change(Some(mode));
+                fx
             }
             // A lock asked for anywhere is no mode change: the sheet that asked for one ends.
             Msg::Lock { asks_first: false } => give_up(state, true).and(lock(state, true)),
@@ -116,7 +124,7 @@ impl Feature for Power {
             // The Lock sheet of a mode change closed any other way than its Lock (Back, a press
             // elsewhere): the asked mode is given up. A pressed Lock has already cleared the
             // mark.
-            Notice::Left if state.mode_change() => away(state),
+            Notice::Left if state.mode_change().is_some() => away(state),
             _ => Effects::none(),
         }
     }
@@ -255,10 +263,10 @@ mod tests {
     fn a_mode_change_asks_first_and_its_lock_seals() {
         let view = TestView::device();
         let mut state = State::new(None);
-        let shown = run(&view, &mut state, Msg::ModeLock).outs;
+        let shown = run(&view, &mut state, Msg::ModeLock(3)).outs;
         assert!(matches!(shown.as_slice(), [Out::Front(Some(_))]));
         assert_eq!(state.sheet(), Some(Which::LockAsk));
-        assert!(state.mode_change());
+        assert_eq!(state.mode_change(), Some(3));
         let locked = run(&view, &mut state, Msg::Press(Press::Lock)).outs;
         assert!(matches!(
             locked.as_slice(),
@@ -267,7 +275,7 @@ mod tests {
                 idle: false
             }))]
         ));
-        assert!(!state.mode_change());
+        assert_eq!(state.mode_change(), None);
     }
 
     /// Invariant: A mode change's Lock sheet that closes without its Lock gives the asked mode up, by Not now or by leaving it, and its Lock does not.
@@ -277,15 +285,15 @@ mod tests {
     fn a_mode_sheet_closed_without_locking_cancels_the_mode() {
         let view = TestView::device();
         let mut state = State::new(None);
-        let _ = run(&view, &mut state, Msg::ModeLock);
+        let _ = run(&view, &mut state, Msg::ModeLock(3));
         let away = run(&view, &mut state, Msg::Press(Press::Away)).outs;
         assert!(away.iter().any(|o| matches!(o, Out::Top(Top::ModeCancel))));
 
-        let _ = run(&view, &mut state, Msg::ModeLock);
+        let _ = run(&view, &mut state, Msg::ModeLock(3));
         let left = seen(Power::notice(&mut state, &Notice::Left, &view.ctx())).outs;
         assert!(left.iter().any(|o| matches!(o, Out::Top(Top::ModeCancel))));
 
-        let _ = run(&view, &mut state, Msg::ModeLock);
+        let _ = run(&view, &mut state, Msg::ModeLock(3));
         let locked = run(&view, &mut state, Msg::Press(Press::Lock)).outs;
         assert!(
             !locked
@@ -320,19 +328,42 @@ mod tests {
             Msg::Press(Press::PowerOff),
         ] {
             let mut state = State::new(None);
-            let _ = run(&view, &mut state, Msg::ModeLock);
+            let _ = run(&view, &mut state, Msg::ModeLock(3));
             let outs = run(&view, &mut state, msg).outs;
             assert_eq!(cancels(&outs), 1);
-            assert!(!state.mode_change());
+            assert_eq!(state.mode_change(), None);
             // Nothing more to cancel when the sheet is put away.
             let away = run(&view, &mut state, Msg::Press(Press::Away)).outs;
             assert_eq!(cancels(&away), 0);
         }
         for press in [Press::Lock, Press::LockWithoutSealing] {
             let mut state = State::new(None);
-            let _ = run(&view, &mut state, Msg::ModeLock);
+            let _ = run(&view, &mut state, Msg::ModeLock(3));
             let outs = run(&view, &mut state, Msg::Press(press)).outs;
             assert_eq!(cancels(&outs), 0);
         }
+    }
+
+    /// Invariant: The mode asked is kept only while its Lock sheet is open: it is gone once the lock begins, and the next build of the scope starts without it; a number that is no mode is given up at once.
+    /// Regression: A mode asked before a lock stands in the next build's sheet, so a later Lock sheet says "Change to X?" for a change nobody asked for.
+    /// Owner: app
+    #[test]
+    fn the_mode_asked_is_wiped_at_lock_and_a_number_that_is_no_mode_is_refused() {
+        let view = TestView::device();
+        let mut state = State::new(None);
+        let _ = run(&view, &mut state, Msg::ModeLock(2));
+        assert_eq!(state.mode_change(), Some(2));
+        let _ = run(&view, &mut state, Msg::Press(Press::Lock));
+        assert_eq!(state.mode_change(), None);
+
+        let after = view.with_started(Started::Lock);
+        let (next, _) = Power::start(&mut Carried::empty(), &after.ctx());
+        assert_eq!(next.mode_change(), None);
+        assert_eq!(next.sheet(), Some(Which::Locked));
+
+        let mut state = State::new(None);
+        let outs = run(&after, &mut state, Msg::ModeLock(9)).outs;
+        assert!(matches!(outs.as_slice(), [Out::Top(Top::ModeCancel)]));
+        assert_eq!(state.sheet(), None);
     }
 }

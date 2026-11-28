@@ -51,8 +51,9 @@ pub trait Root: Sized + 'static {
     /// A stream fact (devices, camera frames and codes, a host's drop, a write's progress).
     fn fact(&self, tops: &Tops<'_, Self>, fact: Stream) -> Option<Addr<Self>>;
     /// The settings owner asked for a mode change (`Top::ModeLock`, §1.1): the message that
-    /// shows the Lock sheet. Default `None`.
-    fn mode_lock_asked(&self) -> Option<Addr<Self>> { None }
+    /// shows the Lock sheet; `mode` is the mode asked, as `Top::ModeLock` carries it. Default
+    /// `None`.
+    fn mode_lock_asked(&self, mode: u8) -> Option<Addr<Self>> { None }
     /// The mode change's Lock sheet closed without locking (`Top::ModeCancel`): the message that
     /// gives the asked mode up. Default `None`.
     fn mode_cancel_asked(&self) -> Option<Addr<Self>> { None }
@@ -134,7 +135,9 @@ pub enum Top {
     End(End),
     /// The settings owner asks for a mode change: the runtime gives `Root::mode_lock_asked`'s
     /// message to the app, which shows the Lock sheet whether or not anything would be lost.
-    ModeLock,
+    /// Carries the mode asked (`Mode::index`: 0 Practice, 1 Mainnet, 2 Testnet, 3 Signet,
+    /// 4 Regtest), which the root passes on; the sheet keeps it until it closes or a lock.
+    ModeLock(u8),
     /// That Lock sheet closed any other way than by its Lock: `Root::mode_cancel_asked`'s message
     /// gives the asked mode up.
     ModeCancel,
@@ -149,7 +152,10 @@ pub enum End { PowerOff, RestartComputer, Quit }
 
 A mode change is two of them because the settings owner stands beside the app, not under it: it
 cannot send the Lock sheet's feature a message, and a lock it began itself would skip the sheet
-(`main`'s `mode_act` into `lock_ask`). Reason: a lock must pass through the runtime's order (§7.2) and a broadcast must reach every top
+(`main`'s `mode_act` into `lock_ask`). `Top::ModeLock` carries the mode asked; the power feature
+keeps it with the open Lock sheet (`State::mode_change`, public, `AtLock`), draws `main`'s "Change to
+X?", the kept and wiped lists and "Lock and use X" from it, offers "Lock without sealing" only
+where nothing can seal, and drops it when the sheet closes or the device locks. Reason: a lock must pass through the runtime's order (§7.2) and a broadcast must reach every top
 state, and both are already an `Out` in section 03's routing. Turned down: new `Fx` variants for
 lock and broadcast, which would give every feature a way to skip its parents.
 

@@ -94,6 +94,8 @@ impl Root for Device {
             Input::Key(Key::Escape) if set_time => {
                 Some(Addr::Settings(faraday_settings::Msg::Escape))
             }
+            // Back on Set the time goes back to Settings, the owner's page and the nav's.
+            Input::Back if set_time => Some(Addr::Settings(faraday_settings::Msg::Escape)),
             Input::Back | Input::Key(Key::Escape) => Some(Addr::App(AppPress::Back.into())),
             Input::Forward => Some(Addr::App(AppPress::Forward.into())),
             // Typing on Home goes to the bar's search (06 §4.3).
@@ -109,9 +111,9 @@ impl Root for Device {
     }
 
     /// A mode change shows the Lock sheet, which asks first.
-    fn mode_lock_asked(&self) -> Option<Addr<Self>> {
+    fn mode_lock_asked(&self, mode: u8) -> Option<Addr<Self>> {
         Some(Addr::App(Msg::Device(faraday_device::Msg::Power(
-            faraday_power::Msg::ModeLock,
+            faraday_power::Msg::ModeLock(mode),
         ))))
     }
 
@@ -137,7 +139,10 @@ impl Root for Device {
         let Some(app) = tops.app() else {
             return;
         };
-        faraday_present::draw(&crate::present::screen(app, view, show), ui);
+        faraday_present::draw(
+            &crate::present::screen(app, tops.settings(), view, show),
+            ui,
+        );
     }
 }
 

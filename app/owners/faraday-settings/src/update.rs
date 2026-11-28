@@ -181,7 +181,7 @@ fn pressed(state: &mut State, press: Press, cx: &Ctx<'_>) -> Effects<Msg, Out> {
         Press::ModeAsk(m) => {
             state.ask_mode(Some(m));
             state.set_pending(true);
-            Effects::none().out(Out::ModeLock)
+            Effects::none().out(Out::ModeLock(m.index()))
         }
         Press::ModeCancel => {
             state.ask_mode(None);
@@ -191,9 +191,9 @@ fn pressed(state: &mut State, press: Press, cx: &Ctx<'_>) -> Effects<Msg, Out> {
         Press::ModeLock => match state.mode_asked() {
             // The Lock sheet asks first and its Lock seals: the power feature's, reached
             // through the root.
-            Some(_) => {
+            Some(m) => {
                 state.set_pending(true);
-                Effects::none().out(Out::ModeLock)
+                Effects::none().out(Out::ModeLock(m.index()))
             }
             None => Effects::none(),
         },
@@ -490,7 +490,7 @@ mod tests {
             Msg::Press(Press::ModeLock),
             &view.ctx(),
         ));
-        assert!(matches!(asked.outs.as_slice(), [Out::ModeLock]));
+        assert!(matches!(asked.outs.as_slice(), [Out::ModeLock(_)]));
         let _ = Settings::notice(&mut state, &Notice::Left, &view.ctx());
         let mut carried = lock_carry(&mut state);
         assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));

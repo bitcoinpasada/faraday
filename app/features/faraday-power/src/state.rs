@@ -7,16 +7,17 @@ use crate::Which;
 pub struct State {
     #[lock(public)]
     sheet: Option<Which>,
-    /// The Lock sheet on show is a mode change's: it says "Change to X?".
+    /// The Lock sheet on show is a mode change's, and the mode it asks for (`Mode::index`): it
+    /// says "Change to X?". Public data, and still dropped with the sheet.
     #[lock(public)]
-    mode_change: bool,
+    mode_change: Option<u8>,
 }
 
 impl State {
     pub(crate) fn new(sheet: Option<Which>) -> State {
         State {
             sheet,
-            mode_change: false,
+            mode_change: None,
         }
     }
 
@@ -26,19 +27,19 @@ impl State {
         self.sheet
     }
 
-    /// Whether the Lock sheet on show asks for a mode change.
+    /// The mode the Lock sheet on show asks for, when it is a mode change's.
     #[must_use]
-    pub fn mode_change(&self) -> bool {
+    pub fn mode_change(&self) -> Option<u8> {
         self.mode_change
     }
 
-    pub(crate) fn set_mode_change(&mut self, on: bool) {
-        self.mode_change = on;
+    pub(crate) fn set_mode_change(&mut self, mode: Option<u8>) {
+        self.mode_change = mode;
     }
 
     pub(crate) fn show(&mut self, sheet: Option<Which>) {
         if sheet != Some(Which::LockAsk) {
-            self.mode_change = false;
+            self.mode_change = None;
         }
         self.sheet = sheet;
     }
