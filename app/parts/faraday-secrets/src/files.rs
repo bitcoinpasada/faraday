@@ -8,9 +8,9 @@ use faraday_crypto::work::Compute;
 use faraday_kernel::session::FileKind;
 use faraday_text::Text;
 
-use crate::words::{other_list_entries, other_list_index, typed_index, typed_mnemonic};
 use crate::key_file::{read_key, read_keys};
 use crate::share::is_share;
+use crate::words::{other_list_entries, other_list_index, typed_index, typed_mnemonic};
 
 /// The most a plain text file may hold to be kept as a note.
 pub const TEXT_MAX: usize = 64 * 1024;

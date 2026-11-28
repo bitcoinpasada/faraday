@@ -28,7 +28,6 @@ pub(crate) fn typed_index(lang: Language, typed: &str) -> Option<u16> {
     })
 }
 
-
 /// The index of `word` on `lang`'s list, a list other than English.
 pub(crate) fn other_list_index(lang: Language, word: &str) -> Option<u16> {
     let at = Language::ALL.iter().position(|&l| l == lang)? as u8;
@@ -37,10 +36,6 @@ pub(crate) fn other_list_index(lang: Language, word: &str) -> Option<u16> {
         .find(|e| e.0 == at)
         .map(|e| e.1)
 }
-
-/// Whether the keys typed for the word in progress on `w` already type
-/// one word whole, with no other word on the list starting the same
-/// way: the point at which typing takes it as Tab would. A read list's
 
 /// The typed words as a mnemonic in `lang`, when every one is a word and the checksum holds.
 pub(crate) fn typed_mnemonic(lang: Language, typed: &str) -> Option<Mnemonic> {

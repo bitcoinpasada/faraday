@@ -34,7 +34,10 @@ fn a_text_that_is_a_secret_is_refused_and_named_by_its_kind() {
     assert_eq!(checked(WIF), TextCheck::Secret(SecretKind::Wif));
     assert_eq!(checked(""), TextCheck::Fine);
     assert_eq!(checked("  \n "), TextCheck::Fine);
-    assert_eq!(checked("lunch at noon, send it to the bakery"), TextCheck::Fine);
+    assert_eq!(
+        checked("lunch at noon, send it to the bakery"),
+        TextCheck::Fine
+    );
     assert_eq!(checked(&"ab".repeat(32)), TextCheck::Fine);
     assert_eq!(checked(&"ab".repeat(20)), TextCheck::SeedHex);
 }
@@ -125,13 +128,21 @@ fn a_file_with_a_secret_is_classified_as_one() {
     assert_eq!(classify(c, "k.txt", XPRV.as_bytes()), FileKind::KeyLine);
     assert_eq!(classify(c, "n.txt", b"buy milk, call mum"), FileKind::Text);
     assert_eq!(classify(c, "a.pdf", b"%PDF-1.4 ..."), FileKind::Pdf);
-    assert_eq!(classify(c, "w", b"SQLite format 3\0..."), FileKind::CoreWallet);
+    assert_eq!(
+        classify(c, "w", b"SQLite format 3\0..."),
+        FileKind::CoreWallet
+    );
     assert_eq!(classify(c, "BOOT.EFI", b"MZ\0\0"), FileKind::EfiImage);
     assert_eq!(classify(c, "x.bin", &[0, 159, 146, 150]), FileKind::Other);
 }
 
 fn secret() -> SecretOut {
-    SecretOut::new("seed.txt", Bytes::new(WORDS.as_bytes().to_vec()), "a seed", "all of it")
+    SecretOut::new(
+        "seed.txt",
+        Bytes::new(WORDS.as_bytes().to_vec()),
+        "a seed",
+        "all of it",
+    )
 }
 
 /// Invariant: A secret waiting on the sheet is held as typed until a lock, which drops it; a secret for an Inbox file on its way to another stick holds nothing, since the Inbox already holds it.
@@ -144,7 +155,11 @@ fn a_lock_drops_the_secret_waiting_on_the_sheet() {
     let mut state = State::new();
     let _ = seen(update(&mut state, Msg::Offer(secret()), &cx));
     assert!(state.holds().typed && state.out().is_some());
-    let _ = seen(update(&mut state, Msg::UnprotectedOn(Text::of("stick")), &cx));
+    let _ = seen(update(
+        &mut state,
+        Msg::UnprotectedOn(Text::of("stick")),
+        &cx,
+    ));
     assert!(state.plain().is_some());
     state.at_lock();
     assert!(!state.holds().typed && state.out().is_none() && state.plain().is_none());
@@ -167,7 +182,11 @@ fn a_secret_goes_out_unprotected_only_past_the_hold() {
     // Without the ask nothing is sent.
     let fx = seen(update(&mut state, Msg::Press(Press::Hold), &cx));
     assert!(fx.changes.is_empty() && state.out().is_some());
-    let _ = seen(update(&mut state, Msg::UnprotectedOn(Text::of("stick")), &cx));
+    let _ = seen(update(
+        &mut state,
+        Msg::UnprotectedOn(Text::of("stick")),
+        &cx,
+    ));
     assert_eq!(state.plain().map(|p| p.then), Some(Then::Secret));
     assert_eq!(
         state.plain().map(|p| p.name.as_str().to_string()),
@@ -202,7 +221,10 @@ fn a_secret_goes_out_unprotected_only_past_the_hold() {
     ));
     let _ = seen(update(&mut state, Msg::Press(Press::Cancel), &cx));
     assert!(state.out().is_none() && state.plain().is_none());
-    assert_eq!(state.take_finished(), Some(Finished::Cancelled(Some(Then::Plan))));
+    assert_eq!(
+        state.take_finished(),
+        Some(Finished::Cancelled(Some(Then::Plan)))
+    );
 }
 
 /// Invariant: A secret for another stick's visit is ticked on the visit and goes nowhere else; with no vault open a press on the vault changes nothing and leaves the secret waiting.
@@ -216,12 +238,18 @@ fn a_visit_file_is_ticked_and_no_vault_leaves_the_secret_waiting() {
     let mut visit = secret();
     visit.to_visit = true;
     let _ = seen(update(&mut state, Msg::Offer(visit), &cx));
-    let _ = seen(update(&mut state, Msg::UnprotectedOn(Text::of("stick")), &cx));
+    let _ = seen(update(
+        &mut state,
+        Msg::UnprotectedOn(Text::of("stick")),
+        &cx,
+    ));
     let fx = seen(update(&mut state, Msg::Press(Press::Hold), &cx));
     assert!(fx.changes.is_empty());
     assert_eq!(
         state.take_finished(),
-        Some(Finished::ToVisit { name: Text::of("seed.txt") })
+        Some(Finished::ToVisit {
+            name: Text::of("seed.txt")
+        })
     );
 
     let _ = seen(update(&mut state, Msg::Offer(secret()), &cx));

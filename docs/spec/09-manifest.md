@@ -494,6 +494,10 @@ pub enum SecretKind { SeedWords, SeedQr, CompactSeedQr, Codex32Secret, Codex32Sh
                       Entries, Wallet }
 ```
 
+**Built:** `faraday-pass-field`: the kinds, the stick rule, the pair, the eye and its wait for a hardware passphrase, the wipes, and its `Read` (which the presentation kernel's `pass_model` maps to the kit's `PassModel`, whose box and eye are offered or not).
+
+**Built:** `faraday-secrets`: file classification (`classify`, `exposure`), the text check (`check`, `TextCheck`, `SecretKind`) and the Secret out sheet's state and messages; the sheet's write to the Outbox waits for the session's `PutOutbox` change to be served (the kernel's changes are not yet), and `main`'s `made` (a convert set's public facts) has no place until the convert feature is built.
+
 This answers section 03's question: **the making of a key is the part `faraday-key-making`**,
 embedded by New key and by Make a new wallet. Parts embed parts (asked of section 01 below).
 

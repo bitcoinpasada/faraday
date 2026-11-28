@@ -19,9 +19,9 @@ mod scan;
 mod share;
 mod sheet;
 mod state;
-mod text_check;
 #[cfg(test)]
 mod tests;
+mod text_check;
 mod update;
 mod words;
 

@@ -1,8 +1,8 @@
 //! What waits on the sheet: a secret on its way out and the hold that sends one out as a plain
 //! file (`main`'s `SecretOut`, `Plain`).
 
-use faraday_kernel::{KeyId, Public};
 use faraday_bip::keys::Fingerprint;
+use faraday_kernel::{KeyId, Public};
 use faraday_port::bytes::Bytes;
 use faraday_text::Text;
 

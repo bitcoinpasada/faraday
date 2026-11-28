@@ -46,13 +46,13 @@ fn each_kind_takes_the_characters_of_its_standard() {
         let mut s = State::new(kind);
         assert_eq!(key(&mut s, Key::Char('é')), Last::Refused(Refused::Ascii));
         assert_eq!(key(&mut s, Key::Char('a')), Last::Typed);
-        assert_eq!(s.borrow().as_str(), "a");
+        assert_eq!(s.secret().as_str(), "a");
     }
     for kind in [Kind::KefRead, Kind::Vault, Kind::Kdbx, Kind::CoreWallet] {
         let mut s = State::new(kind);
         assert_eq!(key(&mut s, Key::Char('é')), Last::Typed);
         assert_eq!(key(&mut s, Key::Char('\u{7}')), Last::Ignored);
-        assert_eq!(s.borrow().as_str(), "é");
+        assert_eq!(s.secret().as_str(), "é");
     }
 }
 
@@ -179,7 +179,7 @@ fn a_lock_empties_both_texts_and_hide_only_closes_the_eye() {
     s.at_lock();
     let held = s.holds();
     assert!(!held.kept && !held.typed && !held.session && held.asks_first.is_none());
-    assert!(s.borrow().is_empty() && !s.holds_any() && !s.shown() && !s.waits() && !s.on_again());
+    assert!(s.secret().is_empty() && !s.holds_any() && !s.shown() && !s.waits() && !s.on_again());
     assert!(s.read(Which::Again, true).revealed().is_none());
 }
 
@@ -229,7 +229,10 @@ fn the_passphrase_is_never_cloned_printed_or_logged() {
     let mut s = State::pair(Kind::Vault);
     type_in(&mut s, PHRASE, By::Screen);
     let printed = format!("{s:?}");
-    assert!(!printed.contains("horse") && !printed.contains(PHRASE), "{printed}");
+    assert!(
+        !printed.contains("horse") && !printed.contains(PHRASE),
+        "{printed}"
+    );
 
     let msg = Msg::Key(Key::Char('h'), By::Screen);
     assert!(msg.public().is_none());

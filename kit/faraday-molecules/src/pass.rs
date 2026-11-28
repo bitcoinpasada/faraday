@@ -10,8 +10,8 @@ use faraday_atoms::hits::{Shape, Unpressed};
 use faraday_atoms::{Drawn, Icon, Offered, Pressed, Shown, Ui, W};
 use faraday_text::Text;
 use faraday_tokens::dims::{
-    BODY_M, FIELD_RADIUS, GAP, GAP_SMALL, PASS_CODE_INSET, PASS_CODE_TEXT, RADIUS_SMALL, SHAPE_S,
-    STATE_PRESS, TYPED_INSET, DISABLED_CONTENT,
+    BODY_M, DISABLED_CONTENT, FIELD_RADIUS, GAP, GAP_SMALL, PASS_CODE_INSET, PASS_CODE_TEXT,
+    RADIUS_SMALL, SHAPE_S, STATE_PRESS, TYPED_INSET,
 };
 use faraday_tokens::palette::Role;
 

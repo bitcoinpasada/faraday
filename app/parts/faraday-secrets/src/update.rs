@@ -158,6 +158,10 @@ fn to_vault(state: &mut State, cx: &Ctx<'_>) -> Effects<Msg, Never> {
 /// Session key `key` as the vault's key record, when it is still the key whose fingerprint was
 /// offered. The record says the key was made here and its backup not done, and that it was
 /// written on an online computer, as `main` does.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a key's vault record leaves its guard here, for the open vault: the reveal named VaultEntry (docs/KEYS.md)"
+)]
 fn key_record(
     cx: &Ctx<'_>,
     key: faraday_kernel::KeyId,
@@ -211,7 +215,8 @@ fn unprotected_now(state: &mut State, cx: &Ctx<'_>) -> Effects<Msg, Never> {
     }
     let mut fx = Effects::none();
     let mut names = Vec::new();
-    let files = core::iter::once((&out.name, &out.bytes)).chain(out.also.iter().map(|(n, b)| (n, b)));
+    let files =
+        core::iter::once((&out.name, &out.bytes)).chain(out.also.iter().map(|(n, b)| (n, b)));
     for (name, bytes) in files {
         for held in cx.view.session.outbox().iter().filter(|f| f.name == *name) {
             fx = fx.change(RemoveFile(held.id), false, |_, done| Msg::Removed(done));

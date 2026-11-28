@@ -8,9 +8,9 @@
 use crate::files::{self, LineForm};
 use crate::kind::{Exposure, SecretKind, exposure};
 use crate::scan;
-use faraday_kernel::session::FileKind;
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
+use faraday_kernel::session::FileKind;
 use faraday_text::Text;
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;

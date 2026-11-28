@@ -3,7 +3,6 @@
 use faraday_bip::multisig_config;
 use faraday_text::Text;
 
-
 /// What one multisig config file, whole or a share, says.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigParts {

@@ -4,7 +4,6 @@ use faraday_bip::policy::PolicyKey;
 use faraday_bip::slip132;
 use faraday_text::Text;
 
-
 /// The account key in a file, if the file is one: the first of
 /// [`read_keys`].
 pub fn read_key(text: &str) -> Option<Text> {

@@ -164,7 +164,7 @@ impl State {
     }
 
     /// The passphrase, for a call of `faraday-keys` that takes one.
-    pub fn borrow(&self) -> &SecretText {
+    pub fn secret(&self) -> &SecretText {
         &self.text
     }
 
