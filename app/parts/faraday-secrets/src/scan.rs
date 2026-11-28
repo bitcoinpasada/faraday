@@ -104,13 +104,13 @@ fn is_aezeed(words: &[&str]) -> bool {
         match Language::English.index_of(&Text::lowercase(w)) {
             Some(i) => *slot = i,
             None => {
-                zeroize::Zeroize::zeroize(&mut idx);
+                faraday_crypto::Zeroize::zeroize(&mut idx);
                 return false;
             }
         }
     }
     let holds = faraday_bip::aezeed::checksum_holds(&idx);
-    zeroize::Zeroize::zeroize(&mut idx);
+    faraday_crypto::Zeroize::zeroize(&mut idx);
     holds
 }
 
@@ -135,7 +135,7 @@ pub(crate) fn on_a_word_list(words: &[&str]) -> Option<Language> {
 /// Whether `words`, all on `lang`'s list, are a seed of it by their
 /// checksum. A lookup per word.
 fn checksum_holds(lang: Language, words: &[&str]) -> bool {
-    let mut idx = zeroize::Zeroizing::new(Vec::with_capacity(words.len()));
+    let mut idx = faraday_crypto::Zeroizing::new(Vec::with_capacity(words.len()));
     for w in words {
         match lang.find_in(w) {
             Some(i) => idx.push(i),

@@ -13,6 +13,12 @@ pub enum Answer {
     NoVaultOpen,
     /// The vault refused the record (it does not fit, or holds it): the sheet stays as it was.
     VaultRefused,
+    /// The session refused a file's write to the Outbox: the secret stays on the sheet, nothing
+    /// is reported as saved.
+    OutboxRefused,
+    /// The session refused to remove the earlier file of the same name: the new one is in, and
+    /// the old one is still there.
+    OldFileStays,
 }
 
 /// What the last press finished, for the owner to act on: it ends the sheet, and the part tells
@@ -35,9 +41,22 @@ pub enum Finished {
     Closed,
 }
 
+/// The Outbox writes of one unprotected save, still to be answered.
+pub(crate) struct Pending {
+    /// The files asked for.
+    pub(crate) names: Vec<Text>,
+    /// Answers still to come.
+    pub(crate) waiting: usize,
+    /// A write was refused.
+    pub(crate) refused: bool,
+    /// Files of the same names the Outbox held before; removed once every new one is in.
+    pub(crate) old: Vec<faraday_kernel::FileId>,
+}
+
 /// The secret sheet's state.
 #[derive(Default)]
 pub struct State {
+    pub(crate) pending: Option<Pending>,
     pub(crate) out: Option<SecretOut>,
     pub(crate) plain: Option<Plain>,
     pub(crate) answer: Option<Answer>,
@@ -102,6 +121,7 @@ impl State {
     /// Drops the secret, its bytes wiped.
     pub(crate) fn clear(&mut self) {
         self.out = None;
+        self.pending = None;
         self.plain = None;
         self.answer = None;
         self.finished = None;

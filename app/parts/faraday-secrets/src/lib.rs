@@ -13,6 +13,8 @@
 )]
 
 mod files;
+#[cfg(test)]
+mod forms_tests;
 mod key_file;
 mod kind;
 mod scan;

@@ -267,3 +267,50 @@ fn the_offered_secret_is_withheld_from_the_log() {
     assert!(msg.public().is_none());
     assert!(!format!("{msg:?}").contains("abandon"));
 }
+
+/// Invariant: A refused write to the Outbox keeps the secret on the sheet, says the Outbox refused it, and never finishes the sheet as saved, however many files were asked for.
+/// Regression: A refused PutOutbox is dropped after the secret left the sheet and the owner said the file waits in the Outbox, so the secret is gone and nothing was written.
+/// Owner: app
+#[test]
+fn a_refused_outbox_write_keeps_the_secret_and_says_so() {
+    let view = TestView::device();
+    let cx = view.ctx();
+    let mut state = State::new();
+    let mut out = secret();
+    out.also = vec![(Text::of("seed-2.txt"), Bytes::new(b"two".to_vec()))];
+    let _ = seen(update(&mut state, Msg::Offer(out), &cx));
+    // The two writes the hold sent are waiting for their answers (the kernel's changes are not
+    // served yet, so the hold's own effects cannot be run here).
+    state.pending = Some(crate::state::Pending {
+        names: vec![Text::of("seed.txt"), Text::of("seed-2.txt")],
+        waiting: 2,
+        refused: false,
+        old: Vec::new(),
+    });
+    let refusal = || Msg::Outbox(Err(faraday_keys::Refusal::Unconfirmed));
+    let fx = seen(update(&mut state, refusal(), &cx));
+    assert!(fx.changes.is_empty() && state.take_finished().is_none());
+    let fx = seen(update(&mut state, refusal(), &cx));
+    assert!(fx.changes.is_empty());
+    assert!(state.out().is_some());
+    assert_eq!(state.answer(), Some(Answer::OutboxRefused));
+    assert!(state.take_finished().is_none());
+}
+
+/// Invariant: A key's vault record is marked written on an online computer when the key was made online or the app runs online, and carries its pending backup mark while the key is held.
+/// Regression: A seed picked into the vault in Faraday Demo loses the mark that it was handled on an online computer, because only the key's own fact was read.
+/// Owner: app
+#[test]
+fn a_key_record_is_marked_online_when_the_app_runs_online() {
+    use faraday_vault::records::{BACKUP_PENDING, MADE_ONLINE};
+    assert_eq!(crate::update::key_flags(false, true), Some(MADE_ONLINE));
+    assert_eq!(
+        crate::update::key_flags(true, true),
+        Some(BACKUP_PENDING | MADE_ONLINE)
+    );
+    assert_eq!(crate::update::key_flags(true, false), Some(BACKUP_PENDING));
+    assert_eq!(crate::update::key_flags(false, false), None);
+    // The flag the part reads is the app's mode as well as the key's own fact.
+    assert!(TestView::demo().ctx().view.mode.online);
+    assert!(!TestView::device().ctx().view.mode.online);
+}

@@ -6,6 +6,7 @@ use faraday_kernel::{AtLock, Message};
 use faraday_port::event::Key;
 use faraday_port::storage::{StickId, StickInfo};
 use faraday_text::Text;
+use faraday_text::secret::SecretText;
 
 use crate::{By, Kind, Last, Msg, Press, Refused, State, Which, differ, ready, update};
 
@@ -123,7 +124,13 @@ fn a_pair_is_ready_only_when_both_are_alike_and_not_empty() {
     assert!(s.ready() && !s.differ());
     assert_eq!(key(&mut s, Key::BackTab), Last::Typed);
     assert!(!s.on_again());
-    assert!(ready("a", "a") && !ready("", "") && !differ("", "") && differ("a", "ab"));
+    let sec = SecretText::of;
+    assert!(
+        ready(&sec("a"), &sec("a"))
+            && !ready(&sec(""), &sec(""))
+            && !differ(&sec(""), &sec(""))
+            && differ(&sec("a"), &sec("ab"))
+    );
     let mut single = State::new(Kind::Vault);
     assert!(!single.ready() && !single.differ());
     type_in(&mut single, "x", By::Screen);
@@ -180,7 +187,7 @@ fn a_lock_empties_both_texts_and_hide_only_closes_the_eye() {
     let held = s.holds();
     assert!(!held.kept && !held.typed && !held.session && held.asks_first.is_none());
     assert!(s.secret().is_empty() && !s.holds_any() && !s.shown() && !s.waits() && !s.on_again());
-    assert!(s.read(Which::Again, true).revealed().is_none());
+    assert!(s.read(Which::Again, true, false).revealed().is_none());
 }
 
 /// Invariant: A clear when the screen is done, the entry given up or a stick arrives empties both texts and closes the eye; a take moves the passphrase out and leaves the field empty.
@@ -195,13 +202,13 @@ fn a_clear_empties_both_texts_and_a_take_leaves_the_field_empty() {
     let taken = s.take();
     assert_eq!(taken.as_str(), "one");
     assert!(s.is_empty());
-    let _ = seen(update(&mut s, Msg::Fill(Text::of("faraday")), &cx));
+    let _ = seen(update(&mut s, Msg::Fill(SecretText::of("faraday")), &cx));
     assert!(s.ready());
     let _ = seen(update(&mut s, Msg::Press(Press::Eye), &cx));
     let _ = seen(update(&mut s, Msg::Clear, &cx));
     assert!(!s.holds_any() && !s.shown());
-    let _ = seen(update(&mut s, Msg::FillFirst(Text::of("a")), &cx));
-    let _ = seen(update(&mut s, Msg::FillAgain(Text::of("b")), &cx));
+    let _ = seen(update(&mut s, Msg::FillFirst(SecretText::of("a")), &cx));
+    let _ = seen(update(&mut s, Msg::FillAgain(SecretText::of("b")), &cx));
     assert!(s.differ());
 }
 
@@ -239,6 +246,60 @@ fn the_passphrase_is_never_cloned_printed_or_logged() {
     assert!(!format!("{msg:?}").contains('h'));
 }
 
+/// Invariant: A fill puts the passphrase in the field and is withheld: it never reaches the message log or a replay.
+/// Regression: A carried passphrase (a vault's, a seed read's) filled through a public message lands in the 512-line log.
+/// Owner: app
+#[test]
+fn a_fill_is_withheld_from_the_log() {
+    for msg in [
+        Msg::Fill(SecretText::of(PHRASE)),
+        Msg::FillFirst(SecretText::of(PHRASE)),
+        Msg::FillAgain(SecretText::of(PHRASE)),
+    ] {
+        assert!(msg.public().is_none());
+        assert!(!format!("{msg:?}").contains("horse"));
+    }
+    let view = TestView::device();
+    let mut s = State::pair(Kind::Vault);
+    let _ = seen(update(
+        &mut s,
+        Msg::Fill(SecretText::of(PHRASE)),
+        &view.ctx(),
+    ));
+    assert_eq!(s.secret().as_str(), PHRASE);
+    assert!(s.ready());
+}
+
+/// Invariant: The `faraday` chip is offered only in Practice, never for a KeePass prompt, and only while this field and the other of a pair are empty.
+/// Regression: The chip is offered on a Mainnet device, on a KeePass export prompt whose minimum it is under, or over what the person typed.
+/// Owner: app
+#[test]
+fn the_chip_is_offered_only_in_practice_and_over_nothing_typed() {
+    let pair = State::pair(Kind::Vault);
+    assert!(pair.read(Which::First, true, true).chip());
+    assert!(pair.read(Which::Again, true, true).chip());
+    assert!(!pair.read(Which::First, true, false).chip());
+    assert!(
+        !State::pair(Kind::Kdbx)
+            .read(Which::First, true, true)
+            .chip()
+    );
+
+    let mut typed = State::pair(Kind::Vault);
+    type_in(&mut typed, "ab", By::Screen);
+    assert!(!typed.read(Which::First, true, true).chip());
+    assert!(!typed.read(Which::Again, true, true).chip());
+    let mut again_typed = State::pair(Kind::Vault);
+    let _ = key(&mut again_typed, Key::Tab);
+    type_in(&mut again_typed, "ab", By::Screen);
+    assert!(!again_typed.read(Which::First, true, true).chip());
+    assert!(
+        State::new(Kind::Vault)
+            .read(Which::First, true, true)
+            .chip()
+    );
+}
+
 /// Invariant: The read view hands out the text only while the eye is open, and counts characters, not bytes, for the dots; focus follows the field typing goes to.
 /// Regression: The view gives the passphrase while the eye is closed, so the screen draws it.
 /// Owner: app
@@ -248,14 +309,14 @@ fn the_read_view_gives_the_text_only_while_the_eye_is_open() {
     let cx = view.ctx();
     let mut s = State::pair(Kind::Vault);
     type_in(&mut s, "é1", By::Screen);
-    let first = s.read(Which::First, true);
+    let first = s.read(Which::First, true, false);
     assert_eq!(first.count(), 2);
     assert!(first.revealed().is_none() && first.focused());
-    assert!(!s.read(Which::Again, true).focused());
+    assert!(!s.read(Which::Again, true, false).focused());
     let _ = seen(update(&mut s, Msg::Press(Press::Eye), &cx));
-    assert_eq!(s.read(Which::First, true).revealed(), Some("é1"));
-    assert_eq!(s.read(Which::Again, true).revealed(), Some(""));
+    assert_eq!(s.read(Which::First, true, false).revealed(), Some("é1"));
+    assert_eq!(s.read(Which::Again, true, false).revealed(), Some(""));
     let _ = seen(update(&mut s, Msg::Press(Press::Box(Which::Again)), &cx));
-    assert!(s.read(Which::Again, true).focused());
-    assert!(!s.read(Which::Again, false).focused());
+    assert!(s.read(Which::Again, true, false).focused());
+    assert!(!s.read(Which::Again, false, false).focused());
 }

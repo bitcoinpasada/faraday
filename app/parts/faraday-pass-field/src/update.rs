@@ -2,7 +2,6 @@
 
 use faraday_kernel::{Ctx, Effects, Message, Never, Public};
 use faraday_port::event::Key;
-use faraday_text::Text;
 use faraday_text::secret::SecretText;
 
 use crate::kind::Refused;
@@ -32,12 +31,16 @@ pub enum Msg {
     /// One key; the character is a secret, so the variant is withheld from the log.
     #[withheld]
     Key(Key, By),
-    /// Sets the passphrase and its repeat: Practice's `faraday` chip (a public sample).
-    Fill(Text),
-    /// Sets the passphrase only.
-    FillFirst(Text),
-    /// Sets the repeat only.
-    FillAgain(Text),
+    /// Sets the passphrase and its repeat: Practice's `faraday` chip, or a passphrase an owner
+    /// carries. Withheld: what it holds is a passphrase, never in the log or a replay.
+    #[withheld]
+    Fill(SecretText),
+    /// Sets the passphrase only; withheld.
+    #[withheld]
+    FillFirst(SecretText),
+    /// Sets the repeat only; withheld.
+    #[withheld]
+    FillAgain(SecretText),
     /// Wipes both texts, puts typing on the first and closes the eye: the screen is left, a stick
     /// arrived, the entry is given up or done.
     Clear,

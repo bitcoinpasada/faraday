@@ -181,7 +181,7 @@ fn lines_hold_secret(c: &Compute, lines: &[&str]) -> bool {
 /// share, however many lines it is over.
 fn slip39_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
     use faraday_bip::slip39;
-    let mut run = zeroize::Zeroizing::new(Vec::<u16>::with_capacity(slip39::MAX_WORDS));
+    let mut run = faraday_crypto::Zeroizing::new(Vec::<u16>::with_capacity(slip39::MAX_WORDS));
     let mut seen = 0usize;
     for part in parts {
         let words = faraday_intake::file_words(part);
@@ -278,7 +278,7 @@ fn words_across<'a>(parts: impl Iterator<Item = &'a str>) -> bool {
 /// `parts` hold a seed written in `lang`'s list.
 fn words_across_in(lang: Language, parts: &[Text]) -> bool {
     // The word numbers of the run: a wiping buffer sized once.
-    let mut run = zeroize::Zeroizing::new(Vec::<u16>::with_capacity(25));
+    let mut run = faraday_crypto::Zeroizing::new(Vec::<u16>::with_capacity(25));
     let mut overlong = false;
     let mut seen = 0usize;
     for part in parts {
@@ -366,19 +366,50 @@ pub(crate) fn seed_mnemonic(c: &Compute, words: &str) -> Option<faraday_bip::bip
         .find_map(|(_, &l)| faraday_keys::words::parse(c, l, words).ok())
 }
 
-/// Whether `bytes` are a PSBT, binary or base64, version 0 or version 2.
+/// Whether `bytes` are a PSBT `main`'s `read_psbt` reads: binary or base64, version 0 or version
+/// 2, without a silent payment field (BIP-375), a version 2 one that reads as version 0. One
+/// that is refused falls through to a text or other file, as on `main`.
 fn is_psbt(c: &Compute, bytes: &[u8]) -> bool {
     use faraday_psbt::Psbt;
     use faraday_psbt::v2::PsbtV2;
     let text = std::str::from_utf8(bytes).ok().map(str::trim);
-    Psbt::parse_bytes(c, bytes)
+    if let Some(p) = Psbt::parse_bytes(c, bytes)
         .ok()
         .or_else(|| Psbt::parse_base64(c, text?).ok())
-        .is_some()
-        || PsbtV2::parse_bytes(c, bytes)
-            .ok()
-            .or_else(|| PsbtV2::parse_base64(c, text?).ok())
-            .is_some()
+    {
+        return !v0_has_silent_fields(&p);
+    }
+    PsbtV2::parse_bytes(c, bytes)
+        .ok()
+        .or_else(|| PsbtV2::parse_base64(c, text?).ok())
+        .is_some_and(|v2| !v2.has_silent_fields() && v2.to_v0(c).is_ok())
+}
+
+/// Whether a version 0 PSBT carries a field type of BIP-375 (global 0x07 or 0x08, input 0x1d or
+/// 0x1e, output 0x09 or 0x0a) among its unknown fields. BIP-375 allows them in version 2 only, and
+/// a version 0 file that has them is a silent payment's, to be refused as one (`main`'s
+/// `v0_has_silent_fields`).
+fn v0_has_silent_fields(p: &faraday_psbt::Psbt) -> bool {
+    use faraday_psbt::v2::{
+        GLOBAL_SP_DLEQ, GLOBAL_SP_ECDH_SHARE, IN_SP_DLEQ, IN_SP_ECDH_SHARE, OUT_SP_V0_INFO,
+        OUT_SP_V0_LABEL,
+    };
+    let inner = p.inner();
+    let has = |types: Vec<u8>, wanted: [u8; 2]| types.iter().any(|t| wanted.contains(t));
+    has(
+        inner.unknown.keys().map(|k| k.type_value).collect(),
+        [GLOBAL_SP_ECDH_SHARE, GLOBAL_SP_DLEQ],
+    ) || inner.inputs.iter().any(|i| {
+        has(
+            i.unknown.keys().map(|k| k.type_value).collect(),
+            [IN_SP_ECDH_SHARE, IN_SP_DLEQ],
+        )
+    }) || inner.outputs.iter().any(|o| {
+        has(
+            o.unknown.keys().map(|k| k.type_value).collect(),
+            [OUT_SP_V0_INFO, OUT_SP_V0_LABEL],
+        )
+    })
 }
 
 /// The text as a signed message, when its first line is an address: the one reading of "this is

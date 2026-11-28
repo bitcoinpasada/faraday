@@ -1480,7 +1480,6 @@ dependencies = [
  "faraday-keys",
  "faraday-port",
  "faraday-text",
- "subtle",
 ]
 
 [[package]]
@@ -1762,7 +1761,6 @@ dependencies = [
  "faraday-qr",
  "faraday-text",
  "faraday-vault",
- "zeroize",
 ]
 
 [[package]]
@@ -2208,6 +2206,7 @@ dependencies = [
 name = "faraday-text"
 version = "0.1.0"
 dependencies = [
+ "subtle",
  "zeroize",
 ]
 

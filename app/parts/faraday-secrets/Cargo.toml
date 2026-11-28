@@ -18,7 +18,6 @@ faraday-text = { path = "../../../core/faraday-text" }
 faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-psbt = { path = "../../../core/faraday-psbt" }
 faraday-vault = { path = "../../../core/faraday-vault" }
-zeroize.workspace = true
 
 [dev-dependencies]
 faraday-app-test = { path = "../../../tools/faraday-app-test" }

@@ -20,7 +20,7 @@ pub(crate) fn typed_index(lang: Language, typed: &str) -> Option<u16> {
     }
     // The characters go into a wiping buffer sized once, so no grown-out
     // block is freed holding them; a word has no more characters than bytes.
-    let mut chars = zeroize::Zeroizing::new(Vec::<char>::with_capacity(typed.len()));
+    let mut chars = faraday_crypto::Zeroizing::new(Vec::<char>::with_capacity(typed.len()));
     chars.extend(typed.chars());
     lang.candidates_typed(&chars).find(|&i| {
         lang.typed(i)
@@ -42,7 +42,7 @@ pub(crate) fn typed_mnemonic(lang: Language, typed: &str) -> Option<Mnemonic> {
     // The word numbers name the words: a wiping buffer sized once (it is wiped on every return,
     // the early one included).
     let mut idx =
-        zeroize::Zeroizing::new(Vec::<u16>::with_capacity(typed.split_whitespace().count()));
+        faraday_crypto::Zeroizing::new(Vec::<u16>::with_capacity(typed.split_whitespace().count()));
     for w in typed.split_whitespace() {
         idx.push(typed_index(lang, w)?);
     }

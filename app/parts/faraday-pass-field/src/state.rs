@@ -123,6 +123,15 @@ impl State {
         !self.text.is_empty() || self.again.as_ref().is_some_and(|a| !a.is_empty())
     }
 
+    /// The field other than `which` holds text (a single field has no other).
+    pub(crate) fn other_typed(&self, which: Which) -> bool {
+        match (which, self.again.as_ref()) {
+            (Which::First, Some(again)) => !again.is_empty(),
+            (Which::Again, _) => !self.text.is_empty(),
+            (Which::First, None) => false,
+        }
+    }
+
     /// Both texts' bytes.
     pub fn bytes(&self) -> usize {
         self.text.len() + self.again.as_ref().map_or(0, |a| a.len())
@@ -131,7 +140,7 @@ impl State {
     /// A pair is typed alike and not empty; a single one is not empty.
     pub fn ready(&self) -> bool {
         match &self.again {
-            Some(again) => pair::ready(self.text.as_str(), again.as_str()),
+            Some(again) => pair::ready(&self.text, again),
             None => !self.is_empty(),
         }
     }
@@ -140,7 +149,7 @@ impl State {
     pub fn differ(&self) -> bool {
         self.again
             .as_ref()
-            .is_some_and(|again| pair::differ(self.text.as_str(), again.as_str()))
+            .is_some_and(|again| pair::differ(&self.text, again))
     }
 
     /// The repeat is begun while the two differ: the line "The two passphrases differ" shows (an

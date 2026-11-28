@@ -11,7 +11,6 @@ faraday-port = { path = "../../../core/faraday-port" }
 faraday-text = { path = "../../../core/faraday-text" }
 faraday-keys = { path = "../../../core/faraday-keys" }
 faraday-bip = { path = "../../../core/faraday-bip" }
-subtle.workspace = true
 
 [dev-dependencies]
 faraday-app-test = { path = "../../../tools/faraday-app-test" }

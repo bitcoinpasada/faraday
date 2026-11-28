@@ -472,13 +472,13 @@ and what the row adds.
 
 | Crate | Holds | Adds | Inventory |
 |---|---|---|---|
-| `faraday-pass-field` | the passphrase field and its eye, the one holder of a typed passphrase (A3) | text, keys | `secrets.md` (the field) |
+| `faraday-pass-field` | the passphrase field and its eye, the one holder of a typed passphrase (A3) | bip, keys, text | `secrets.md` (the field) |
 | `faraday-text-field` | a text field, its caret and selection, invisible characters | text, forms | `typing.md` |
 | `faraday-word-grid` | the on-screen word grid and the wordlist pick | text, bip | `add-key.md` (the grid) |
 | `faraday-ways-in` | the ways in to a key (Scan, From Files, Type) and the key-form pick | text, forms, intake, text-field, word-grid | `add-key.md` (the ways in) |
 | `faraday-key-making` | making a key: its entries, the words made, the quiz (03 §9.3) | bip, entropy, keys, word-grid, pass-field | `keygen-flow.md` (the making) |
 | `faraday-scan-part` | the scanner sheet's state: the decoder's parts, the read card, classification | codec, intake, qr, bip, pgp | `scanner-qr.md` (the state) |
-| `faraday-secrets` | the Secret out sheet, the text checks (`TextCheck`), file classification | bip, codec, intake, keys, pgp, qr, text | `secrets.md` |
+| `faraday-secrets` | the Secret out sheet, the text checks (`TextCheck`), file classification | bip, codec, crypto, intake, keys, pgp, psbt, qr, text, vault | `secrets.md` |
 
 The text check of `faraday-secrets` (Transfer's Send text, My seed's Compare, a wallet's name;
 inventory `features/secrets.md`) answers with `main`'s `text_check::TextCheck`:
@@ -496,7 +496,7 @@ pub enum SecretKind { SeedWords, SeedQr, CompactSeedQr, Codex32Secret, Codex32Sh
 
 **Built:** `faraday-pass-field`: the kinds, the stick rule, the pair, the eye and its wait for a hardware passphrase, the wipes, and its `Read` (which the presentation kernel's `pass_model` maps to the kit's `PassModel`, whose box and eye are offered or not).
 
-**Built:** `faraday-secrets`: file classification (`classify`, `exposure`), the text check (`check`, `TextCheck`, `SecretKind`) and the Secret out sheet's state and messages; the sheet's write to the Outbox waits for the session's `PutOutbox` change to be served (the kernel's changes are not yet), and `main`'s `made` (a convert set's public facts) has no place until the convert feature is built.
+**Built:** `faraday-secrets`: file classification (`classify`, `exposure`), the text check (`check`, `TextCheck`, `SecretKind`) and the Secret out sheet's state and messages; the sheet's write to the Outbox waits for the session's `PutOutbox` change to be served (the kernel's changes are not yet); the unprotected file's secret mark is open until `PutOutbox` carries it, and `main`'s `made` (a convert set's public facts) has no place until the convert feature is built.
 
 This answers section 03's question: **the making of a key is the part `faraday-key-making`**,
 embedded by New key and by Make a new wallet. Parts embed parts (asked of section 01 below).
