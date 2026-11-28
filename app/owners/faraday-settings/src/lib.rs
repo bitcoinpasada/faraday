@@ -7,6 +7,8 @@
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
 
+mod file;
+mod kept;
 mod model;
 mod msg;
 mod page;
@@ -15,8 +17,11 @@ mod state;
 mod update;
 
 use faraday_kernel::{CarryName, JobKind};
-use faraday_port::values::Anchor;
 
+use faraday_port::values::Anchor;
+pub use file::{FILE, HEADER, MAX, is_file};
+
+pub use kept::{Kept, MODE, ModeAsked, SETTINGS};
 pub use model::Model;
 pub use msg::{Msg, Out, Press};
 pub use state::State;
@@ -29,5 +34,5 @@ pub struct Settings;
 pub use faraday_kernel::settings::Page;
 
 pub const JOBS: &[JobKind] = &[];
-pub const CARRY: &[CarryName] = &[];
+pub const CARRY: &[CarryName] = &[SETTINGS, MODE];
 pub const ANCHORS: &[Anchor] = &[];

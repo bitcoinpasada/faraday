@@ -7,7 +7,7 @@ pub mod panes;
 pub mod screen;
 
 pub use faraday_atoms::{
-    Drawn, Laid, Offered, Placement, PlainRef, Pressed, Shown, Style, TextSize, Ui,
+    Drawn, Laid, Offered, Placement, PlainRef, Pressed, Shown, Style, TextSize, Theme, Ui,
 };
 
 pub use faraday_organisms::content::{Block, Content, Organism};
