@@ -6,7 +6,10 @@ use crate::{App, AppPress, DeviceApp, Msg, Page};
 
 /// Why a message is refused before `update` sees it.
 #[derive(Public)]
-pub enum Refusal {}
+pub enum Refusal {
+    /// The device composite refused it.
+    Device(faraday_device::Refusal),
+}
 
 impl Feature for App {
     type State = DeviceApp;
@@ -54,7 +57,7 @@ impl Feature for App {
     fn refuses(state: &DeviceApp, msg: &Msg, view: &View<'_>) -> Option<Refusal> {
         match msg {
             Msg::Device(m) => <faraday_device::Device as Feature>::refuses(state.device(), m, view)
-                .map(|r| match r {}),
+                .map(Refusal::Device),
             _ => None,
         }
     }
@@ -110,5 +113,31 @@ fn out(out: faraday_device::Out) -> Route<Msg, Top> {
         Out::Search { typed, focused } => Route::To(Msg::Find { typed, focused }),
         // Nothing built sends a scan, a camera hold or a sample yet.
         Out::Leave(_) | Out::Camera(_) | Out::Sample(_) => todo!(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use faraday_app_test::TestView;
+    use faraday_kernel::Carried;
+
+    use super::*;
+
+    /// Invariant: A refusal of the device check reaches the product: a press of Continue anyway nobody asked for is refused, never swallowed.
+    /// Regression: The product's Refusal was empty, so the device check's refusal broke the build and had nowhere to go.
+    /// Owner: the person whose untrusted input is refused
+    #[test]
+    fn the_device_checks_refusal_reaches_the_product() {
+        let view = TestView::device();
+        let (state, _) = <App as Feature>::start(&mut Carried::empty(), &view.ctx());
+        let msg = Msg::Device(faraday_device::Msg::Devices(
+            faraday_devices::Press::LetThrough.into(),
+        ));
+        assert!(matches!(
+            <App as Feature>::refuses(&state, &msg, &view.ctx().view),
+            Some(Refusal::Device(faraday_device::Refusal::Devices(
+                faraday_devices::Refusal::NotAsked
+            )))
+        ));
     }
 }

@@ -915,6 +915,7 @@ dependencies = [
  "faraday-app-test",
  "faraday-bip",
  "faraday-device",
+ "faraday-devices",
  "faraday-fixture-adapters",
  "faraday-home",
  "faraday-kernel",

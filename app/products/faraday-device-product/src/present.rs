@@ -9,8 +9,10 @@ use faraday_templates::screen::{BarSearch, FrameModel};
 use crate::{App, AppPress, Body, DeviceApp, Msg, Over, Page, Press, Refusal};
 
 impl Worded for Refusal {
-    fn words(&self, _show: &Show<'_>) -> Line {
-        match *self {}
+    fn words(&self, show: &Show<'_>) -> Line {
+        match self {
+            Refusal::Device(r) => r.words(show),
+        }
     }
 }
 

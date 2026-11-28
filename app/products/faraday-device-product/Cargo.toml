@@ -23,6 +23,7 @@ faraday-templates = { path = "../../../kit/faraday-templates" }
 faraday-bip = { path = "../../../core/faraday-bip" }
 
 [dev-dependencies]
+faraday-devices = { path = "../../features/faraday-devices" }
 faraday-app-test = { path = "../../../tools/faraday-app-test" }
 faraday-fixture-adapters = { path = "../../../tools/faraday-fixture-adapters" }
 
