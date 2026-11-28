@@ -248,3 +248,32 @@ fn frame_model<'s>(app: &'s DeviceApp, view: &View<'s>, show: &Show<'s>) -> Fram
         held: None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use faraday_app_test::TestView;
+    use faraday_kernel::{Carried, Feature};
+
+    use super::*;
+
+    /// Invariant: With the navigation on Settings the screen draws the settings owner's page, not a page of the device composite or an unbuilt one.
+    /// Regression: The frame names Settings while the body is a todo, or the body is Home's.
+    /// Owner: app
+    #[test]
+    fn the_screen_on_settings_draws_the_settings_page() {
+        let view = TestView::device();
+        let cx = view.ctx();
+        let (mut app, _) = <App as Feature>::start(&mut Carried::empty(), &cx);
+        let (settings, _) =
+            <faraday_settings::Settings as Feature>::start(&mut Carried::empty(), &cx);
+        let _ = app
+            .parts()
+            .1
+            .nav_mut()
+            .open(Page::Settings(faraday_settings::Page::Settings));
+        view.showing(|view, show| {
+            let model = screen(&app, &settings, view, show);
+            assert!(matches!(model.body, Body::Settings(_)));
+        });
+    }
+}

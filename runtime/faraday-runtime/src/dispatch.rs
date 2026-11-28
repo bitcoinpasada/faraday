@@ -337,6 +337,7 @@ impl<R: Root> Runtime<R> {
                     self.queue.push(Item::Msg(addr));
                 }
             }
+            Top::SettingsLeft => self.queue.push(Item::Notice(Part::Settings, Pending::Left)),
             Top::SelfTest => self.run_selftest(),
             Top::Open => {
                 if has_outside::<R>() && self.phase == Phase::Closed {

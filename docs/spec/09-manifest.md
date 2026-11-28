@@ -598,7 +598,7 @@ marked. Every row adds the feature base.
 | Crate | Child of | Inventory (its file) | Pages | Adds (normal) |
 |---|---|---|---|---|
 | `faraday-home` | device | `menu-pages.md` | Home | guide |
-| `faraday-power` | device | `lock.md` | the Lock, LockAsk, Locked, Power, IdleWarn sheets; `FailedModel` | none |
+| `faraday-power` | device | `lock.md` | the Lock, LockAsk, Locked, Power, IdleWarn sheets; `FailedModel` | text |
 | `faraday-devices` | device | `devices-inputs.md` | the Devices, NewInput sheets | none |
 | `faraday-scan` | device; the Starter | `scanner-qr.md` | the Scan, Qr sheets | scan-part, codec, qr |
 | `faraday-guide-sheet` | device | `guide.md` | the Guide sheet | guide |
@@ -939,7 +939,7 @@ All in `tools/`, `layer = "tool"`; nothing a root ships depends on one (T1, `lin
 
 | Crate | Directory | Metadata | Normal edges | Purpose |
 |---|---|---|---|---|
-| `faraday-app-test` | `tools/faraday-app-test/` | `checks = "app"` | kernel, port, session, settings, vaults, testkit, crypto, keys, bip, psbt | the application's test support (07 §2.2): `TestView`, `test_compute`, `Seen`, `seen`, `answer`, `done` |
+| `faraday-app-test` | `tools/faraday-app-test/` | `checks = "app"` | kernel, port, strings, session, settings, vaults, testkit, crypto, keys, bip, psbt | the application's test support (07 §2.2): `TestView`, `test_compute`, `Seen`, `seen`, `answer`, `done` |
 | `faraday-fixture-adapters` | `tools/faraday-fixture-adapters/` | `checks = "root"` | port, testkit, crypto, text, files, fat | the tour root's, the journeys' and the leak crate's adapters: fixture sticks, fixed randomness, scripted clock and input, recorded print |
 | `faraday-leaks` | `tools/faraday-leaks/` | `checks = "app"` | none | the leak flows (07 §6.2); dev: runtime, device-product, demo-product, starter-product, device, session, vaults, settings, fixture-adapters, leak-scan, keys |
 | `faraday-testkit` | `tools/faraday-testkit/` | `checks = "domain"` | bip, crypto, psbt, codec, qr, files, fat, vault, and the other domain crates its test data names | the test data (section 10 §6): the test wallets, seeds and words, the spends, the MuSig2 rounds, the test vaults, the test EFI image, over domain types; its edge to `faraday-core` cut, what it took from it rewritten over the domain; no application edge |

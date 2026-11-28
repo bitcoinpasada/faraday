@@ -83,7 +83,6 @@ mod scan;
 mod seed_pick;
 mod seedfile;
 mod seeds;
-mod settings;
 mod signer;
 mod silent;
 mod site_tour;
@@ -173,7 +172,6 @@ pub const TOURS: &[(&str, TourFn)] = &[
     ("bootplace", bootplace::run),
     ("passseeds", passseeds::run),
     ("power", power::run),
-    ("settings", settings::run),
     ("pills", pills::run),
     ("components", components::run),
     ("host", host::run),

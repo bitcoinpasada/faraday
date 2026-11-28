@@ -141,6 +141,9 @@ pub enum Top {
     /// That Lock sheet closed any other way than by its Lock: `Root::mode_cancel_asked`'s message
     /// gives the asked mode up.
     ModeCancel,
+    /// The app's navigation left the settings owner's page: the runtime gives the settings owner
+    /// `Notice::Left` (§2.3), so the frame and the owner's own page stay in step (06 §4.4).
+    SettingsLeft,
     /// Run the self-test again (Settings' Run again).
     SelfTest,
     /// The Starter only: build the lock scope, after `PrepareDemoSticks` answers `Ok` (§7.9).
@@ -154,8 +157,13 @@ A mode change is two of them because the settings owner stands beside the app, n
 cannot send the Lock sheet's feature a message, and a lock it began itself would skip the sheet
 (`main`'s `mode_act` into `lock_ask`). `Top::ModeLock` carries the mode asked; the power feature
 keeps it with the open Lock sheet (`State::mode_change`, public, `AtLock`), draws `main`'s "Change to
-X?", the kept and wiped lists and "Lock and use X" from it, offers "Lock without sealing" only
-where nothing can seal, and drops it when the sheet closes or the device locks. Reason: a lock must pass through the runtime's order (§7.2) and a broadcast must reach every top
+X?", the list of what the lock wipes (each key with its state, "copy checked" or "nowhere else", the
+latter in the warning tone and first; each wallet; the files for the stick; Make a new wallet
+under way) and "Lock and use X" from it, and drops it when the sheet closes or the device locks.
+**Open:** the Kept list (a line for each open vault), and, with sealing, `main`'s `seal_waits`
+case: while an open vault has changes and the seal cannot be made yet, "Lock without sealing"
+takes the place of the sealing Lock, with the "Waiting for randomness" or "No randomness" line. No
+vault can be open yet, so the sheet offers Not now and Lock and use X alone. Reason: a lock must pass through the runtime's order (§7.2) and a broadcast must reach every top
 state, and both are already an `Out` in section 03's routing. Turned down: new `Fx` variants for
 lock and broadcast, which would give every feature a way to skip its parents.
 
@@ -236,7 +244,9 @@ children (A21).
   broadcasts it, by its `Out`.
 - `Notice::Hide` follows `Top::Hide` and the start of a lock. After each top state's `notice`, the
   runtime calls its `AtLock::hide` (section 03 §2.4).
-- `Notice::Left` is the app's navigation's (A13), with one exception: when the runtime closes the
+- `Notice::Left` is the app's navigation's (A13); where the page left is the settings owner's
+  (a top state beside the app), the app sends `Top::SettingsLeft` and the runtime gives the
+  settings owner the notice. One exception: when the runtime closes the
   Starter's lock scope (§7.9), it sends `Notice::Left` to the Starter's own composite
   (`Root::Outside`), whose navigation then leaves the Demo's page.
 

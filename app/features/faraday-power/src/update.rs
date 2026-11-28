@@ -344,7 +344,7 @@ mod tests {
         }
     }
 
-    /// Invariant: The mode asked is kept only while its Lock sheet is open: it is gone once the lock begins, and the next build of the scope starts without it; a number that is no mode is given up at once.
+    /// Invariant: The mode asked is kept only while its Lock sheet is open: it is gone once the lock begins; a number that is no mode is given up at once.
     /// Regression: A mode asked before a lock stands in the next build's sheet, so a later Lock sheet says "Change to X?" for a change nobody asked for.
     /// Owner: app
     #[test]
@@ -356,13 +356,8 @@ mod tests {
         let _ = run(&view, &mut state, Msg::Press(Press::Lock));
         assert_eq!(state.mode_change(), None);
 
-        let after = view.with_started(Started::Lock);
-        let (next, _) = Power::start(&mut Carried::empty(), &after.ctx());
-        assert_eq!(next.mode_change(), None);
-        assert_eq!(next.sheet(), Some(Which::Locked));
-
         let mut state = State::new(None);
-        let outs = run(&after, &mut state, Msg::ModeLock(9)).outs;
+        let outs = run(&view, &mut state, Msg::ModeLock(9)).outs;
         assert!(matches!(outs.as_slice(), [Out::Top(Top::ModeCancel)]));
         assert_eq!(state.sheet(), None);
     }

@@ -87,6 +87,9 @@ pub enum Top {
     /// The Lock sheet that asked for a mode change closed without its Lock: the settings owner
     /// gives the asked mode up.
     ModeCancel,
+    /// The app's navigation left the settings owner's page (06 §4.4): the settings owner is given
+    /// `Notice::Left`, as a feature whose page was left is by the navigation (A13).
+    SettingsLeft,
     /// End the process, or close the Starter's scope.
     End(End),
     /// Run the self-test again (Settings' Run again).

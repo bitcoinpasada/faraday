@@ -32,7 +32,7 @@ pub use faraday_atoms::kind_probe;
 pub use faraday_molecules::address::AddressModel;
 pub use faraday_molecules::appearance::{AppearanceModel, Segments, TextSizeModel};
 pub use faraday_molecules::buttons::ButtonsModel;
-pub use faraday_molecules::caution::CautionModel;
+pub use faraday_molecules::caution::{CautionModel, Size as CautionSize};
 pub use faraday_molecules::chips::{ChipsModel, ThemeChip};
 pub use faraday_molecules::flow_text::FlowText;
 pub use faraday_molecules::options::{ChoiceModel, OptionRow};

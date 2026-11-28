@@ -16,6 +16,7 @@ faraday-templates = { path = "../../../kit/faraday-templates" }
 
 [dev-dependencies]
 faraday-app-test = { path = "../../../tools/faraday-app-test" }
+faraday-testkit = { path = "../../../tools/faraday-testkit" }
 
 [lints]
 workspace = true

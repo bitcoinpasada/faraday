@@ -77,8 +77,10 @@ impl Root for Device {
         let home_shown = app.frame().sheets().is_empty()
             && app.frame().nav().shown() == Page::Device(faraday_device::Page::Home);
         let home = |m| Addr::App(Msg::Device(faraday_device::Msg::Home(m)));
-        // Typing on Set the time goes to its fields (06 §4.3).
-        let set_time = matches!(app.frame().nav().shown(), Page::Settings(_))
+        // Typing on Set the time goes to its fields (06 §4.3), and Back to Settings: while no
+        // sheet is up, since Back goes first to the top sheet of the frame's stack.
+        let set_time = app.frame().sheets().is_empty()
+            && matches!(app.frame().nav().shown(), Page::Settings(_))
             && tops.settings().page() == faraday_settings::Page::SetTime;
         match input {
             Input::Key(Key::Char(c)) if set_time => {

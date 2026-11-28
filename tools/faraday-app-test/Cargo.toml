@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 faraday-kernel = { path = "../../app/kernel/faraday-kernel" }
 faraday-port = { path = "../../core/faraday-port" }
+faraday-strings = { path = "../../core/faraday-strings" }
 faraday-session = { path = "../../app/owners/faraday-session" }
 faraday-settings = { path = "../../app/owners/faraday-settings" }
 faraday-vaults = { path = "../../app/owners/faraday-vaults" }

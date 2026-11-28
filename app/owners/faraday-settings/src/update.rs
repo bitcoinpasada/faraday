@@ -122,9 +122,11 @@ impl Feature for Settings {
         state.refresh(cx.view.mode.index());
         match notice {
             Notice::Facts(FactsChanged::Sticks) => look(state, cx),
-            // A pick left on the mode sheet, by Back or a press elsewhere, is given up; one the
-            // Lock sheet is asking about waits for its answer.
+            // The page left by the bar or a menu: Set the time is given up (what was typed goes
+            // with it, the form opens afresh), and a pick left on the mode sheet is given up; one
+            // the Lock sheet is asking about waits for its answer.
             Notice::Left => {
+                state.show(settings::Page::Settings);
                 if !state.pending() {
                     state.ask_mode(None);
                 }

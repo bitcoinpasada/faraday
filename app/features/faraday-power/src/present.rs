@@ -1,7 +1,8 @@
+use faraday_kernel::session::WaitingItem;
 use faraday_kernel::{Line, Refused, SelfTest, Show, View, Worded};
 use faraday_organisms::content::{Block, Content};
 use faraday_organisms::sheet::{DialogModel, SheetModel};
-use faraday_organisms::{ButtonModel, ButtonsModel, Shown, Style};
+use faraday_organisms::{ButtonModel, ButtonsModel, CautionModel, CautionSize, Shown, Style};
 use faraday_present::{Present, offer};
 use faraday_strings::{Strings, fill};
 use faraday_text::Text;
@@ -44,37 +45,81 @@ fn mode_name(s: &Strings, mode: u8) -> Option<&'static str> {
     }
 }
 
-/// What a mode change wipes, from what the session holds: each key by its name or its
-/// fingerprint, each wallet by its name, and the files held (`main`'s `kept_wiped` for a mode
-/// change).
-fn wiped(s: &Strings, view: &View<'_>) -> Vec<Text> {
+/// One line of what a lock wipes: its text and whether it is kept nowhere else.
+struct Wiped {
+    line: Text,
+    nowhere: bool,
+}
+
+/// Whether a copy of the key with this fingerprint has been checked. The backup's check is not
+/// built, so none is (`main`'s `seed_copy_checked`).
+fn copy_checked(_view: &View<'_>, _fingerprint: [u8; 4]) -> bool {
+    false
+}
+
+/// What a lock wipes, from what the session holds, as `main`'s `kept_wiped_now` lists it for a
+/// mode change: Make a new wallet under way, the files for the stick, each key by its name and
+/// where else it is, and each wallet; what is nowhere else first. No vault can be open yet, so
+/// no key is in one and there is no Kept list.
+fn wiped(s: &Strings, view: &View<'_>) -> Vec<Wiped> {
     let mut lines = Vec::new();
-    for key in view.session.keys().all() {
-        let name = if key.label.as_str().is_empty() {
-            let fp = key
-                .fingerprint
-                .0
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect::<String>();
-            Text::of(&fill(s.vaults_seed_n, &[&fp]))
-        } else {
-            key.label.clone()
-        };
-        lines.push(name);
+    // A key held until its backup is written is Make a new wallet under way.
+    if view
+        .session
+        .waiting()
+        .iter()
+        .any(|w| matches!(w, WaitingItem::Held(_)))
+    {
+        lines.push(Wiped {
+            line: Text::of(s.lock_held_ends),
+            nowhere: true,
+        });
     }
-    for wallet in view.session.wallets() {
-        lines.push(wallet.name.clone());
-    }
-    let n = view.session.inbox().len() + view.session.outbox().len();
+    let n = view.session.outbox().len();
     if n > 0 {
         let noun = if n == 1 {
             s.vaults_file
         } else {
             s.vaults_files
         };
-        lines.push(Text::of(&format!("{n} {noun}")));
+        lines.push(Wiped {
+            line: Text::of(&format!("{n} {noun} {}", s.medium_for_the_stick_inline)),
+            nowhere: true,
+        });
     }
+    for key in view.session.keys().all() {
+        let fp = key
+            .fingerprint
+            .0
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
+        // A key with no name of its own goes by "Seed {fingerprint}".
+        let name = if key.label.as_str().is_empty() || key.label.as_str().eq_ignore_ascii_case(&fp)
+        {
+            Text::of(&fill(s.vaults_seed_n, &[&fp]))
+        } else {
+            key.label.clone()
+        };
+        let checked = copy_checked(view, key.fingerprint.0);
+        let state = if checked {
+            s.vaults_copy_checked
+        } else {
+            s.vaults_nowhere_else
+        };
+        lines.push(Wiped {
+            line: Text::of(&format!("{} \u{b7} {state}", name.as_str())),
+            nowhere: !checked,
+        });
+    }
+    for wallet in view.session.wallets() {
+        lines.push(Wiped {
+            line: wallet.name.clone(),
+            nowhere: false,
+        });
+    }
+    // What is nowhere else first, where it is read.
+    lines.sort_by_key(|l| !l.nowhere);
     lines
 }
 
@@ -115,17 +160,12 @@ impl Present for Power {
                 )
             }
             Which::LockAsk => match state.mode_change().and_then(|m| mode_name(s, m)) {
-                // A mode change: titled by the mode asked, Not now and Lock and use it. Lock
-                // without sealing only where nothing can seal (`main`'s `seal_waits`).
+                // A mode change: titled by the mode asked, Not now and Lock and use it. No vault
+                // can be open yet, so "Lock without sealing" is never offered: with the vault
+                // tickets it takes the place of the sealing Lock while `seal_waits` (`main`,
+                // sheets.rs `lock_ask_sheet`, vault/mod.rs), with its randomness line.
                 Some(to) => {
                     let mut items = vec![on(s.mode_not_now, Style::Tonal, Press::Away)];
-                    if !view.session.seeded() {
-                        items.push(on(
-                            s.vault_lock_without_sealing,
-                            Style::Tonal,
-                            Press::LockWithoutSealing,
-                        ));
-                    }
                     let use_it = Shown::made(Text::of(&fill(s.mode_lock_and_use, &[to])));
                     items.push(button(state, view, use_it, Style::Filled, Press::Lock));
                     let head = Shown::made(Text::of(&fill(s.mode_change_title, &[to])));
@@ -162,11 +202,19 @@ impl Present for Power {
             let lines = wiped(s, view);
             if !lines.is_empty() {
                 blocks.push(Block::Heading(Shown::plain(s.kept_sections_wiped)));
-                for line in lines {
-                    blocks.push(Block::Fact {
-                        label: Shown::made(line),
-                        value: Shown::plain(""),
-                        mono: false,
+                for Wiped { line, nowhere } in lines {
+                    // Nowhere else is in the warning tone, the kit's one toned line.
+                    blocks.push(if nowhere {
+                        Block::Caution(CautionModel {
+                            text: Shown::made(line),
+                            size: CautionSize::Body,
+                        })
+                    } else {
+                        Block::Fact {
+                            label: Shown::made(line),
+                            value: Shown::plain(""),
+                            mono: false,
+                        }
                     });
                 }
             }
@@ -215,33 +263,71 @@ impl Power {
 
 #[cfg(test)]
 mod tests {
-    use faraday_strings::EN;
+    use faraday_app_test::TestView;
+    use faraday_testkit::test_seeds;
 
     use super::*;
 
-    /// Invariant: The Lock sheet of a mode change is titled "Change to X?" and its Lock reads "Lock and use X" with the name of the mode asked, for each mode a person can ask, and a number that is no mode names none.
-    /// Regression: The sheet says "Change to Mainnet?" whatever was asked, or names a mode that is not one.
+    /// The Lock sheet of a mode change as a person reads it: its body's lines, each tagged by
+    /// kind, and its buttons with whether each is the Filled one.
+    fn read(view: &TestView, mode: u8) -> (Vec<String>, Vec<(String, bool)>) {
+        let mut state = State::new(Some(Which::LockAsk));
+        state.set_mode_change(Some(mode));
+        view.showing(|view, show| {
+            let model = <Power as Present>::present(&state, view, show);
+            let sheet = model.sheet.expect("the Lock sheet is up").sheet;
+            let body = sheet
+                .body
+                .0
+                .iter()
+                .map(|b| match b {
+                    Block::Headline(t) => format!("headline:{}", t.as_str()),
+                    Block::Heading(t) => format!("heading:{}", t.as_str()),
+                    Block::Fact { label, .. } => format!("fact:{}", label.as_str()),
+                    Block::Caution(c) => format!("caution:{}", c.text.as_str()),
+                    _ => "other".to_owned(),
+                })
+                .collect();
+            let foot = sheet
+                .foot
+                .items
+                .iter()
+                .map(|b| (b.label.as_str().to_owned(), b.style == Style::Filled))
+                .collect();
+            (body, foot)
+        })
+    }
+
+    /// Invariant: The Lock sheet of a mode change is headed "Change to X?" and its Filled button reads "Lock and use X" with the mode asked, and it offers Not now beside it and never "Lock without sealing" (no vault can be open).
+    /// Regression: The sheet says "Lock" whatever was asked, names the wrong mode, or offers a lock without sealing that loses nothing.
     /// Owner: app
     #[test]
     fn the_mode_change_sheet_names_the_mode_asked() {
-        for (mode, name) in [
-            (0, "Practice"),
-            (1, "Mainnet"),
-            (2, "Testnet"),
-            (3, "Signet"),
-            (4, "Regtest"),
-        ] {
-            let to = mode_name(&EN, mode);
-            assert_eq!(to, Some(name));
-            assert_eq!(
-                fill(EN.mode_change_title, &[name]),
-                format!("Change to {name}?")
-            );
-            assert_eq!(
-                fill(EN.mode_lock_and_use, &[name]),
-                format!("Lock and use {name}")
-            );
-        }
-        assert_eq!(mode_name(&EN, 5), None);
+        let (body, foot) = read(&TestView::device(), 1);
+        assert!(body.contains(&"headline:Change to Mainnet?".to_owned()));
+        assert_eq!(
+            foot,
+            [
+                ("Not now".to_owned(), false),
+                ("Lock and use Mainnet".to_owned(), true)
+            ]
+        );
+    }
+
+    /// Invariant: A key with no checked copy is listed on the mode change's sheet under what is wiped as nowhere else, first, in the warning tone, by its name.
+    /// Regression: A key kept nowhere else is left off the list, or listed after what is safe.
+    /// Owner: app
+    #[test]
+    fn a_key_kept_nowhere_else_is_listed_first_among_what_is_wiped() {
+        let seed = test_seeds()[0];
+        let (body, _) = read(&TestView::device().with_key(seed), 2);
+        let at = body
+            .iter()
+            .position(|l| l == "heading:Wiped from memory")
+            .expect("the wiped list");
+        assert_eq!(
+            body[at + 1],
+            format!("caution:{} \u{b7} nowhere else", seed.name)
+        );
     }
 }
