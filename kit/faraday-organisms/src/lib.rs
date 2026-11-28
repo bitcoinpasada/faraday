@@ -7,6 +7,7 @@ pub mod chart;
 pub mod content;
 pub mod demo_only;
 pub mod guide;
+pub mod how;
 pub mod keyboard;
 pub mod menu;
 pub mod nav;
