@@ -7,6 +7,7 @@
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
 
+mod clock;
 mod file;
 mod kept;
 mod model;
@@ -15,6 +16,7 @@ mod page;
 mod present;
 mod state;
 mod update;
+mod version;
 
 use faraday_kernel::{CarryName, JobKind};
 
@@ -26,6 +28,7 @@ pub use model::Model;
 pub use msg::{Msg, Out, Press};
 pub use state::State;
 pub use update::Refusal;
+pub use version::{BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line};
 
 /// The feature: `Feature`, `Present` and `faraday_present::Page`.
 pub struct Settings;
