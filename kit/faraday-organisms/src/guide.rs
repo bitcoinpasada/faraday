@@ -730,7 +730,11 @@ mod tests {
         let m = how_sheet(40, Some(30));
         let mut store = MotionStore::new();
         let place = |anchors: &[(Anchor, faraday_draw::Rect)]| {
-            anchors.iter().find(|(a, _)| *a == TARGET).expect("its place").1
+            anchors
+                .iter()
+                .find(|(a, _)| *a == TARGET)
+                .expect("its place")
+                .1
         };
         let (first, _) = frame_into(&mut store, &m, (480, 640));
         let (second, measured) = frame_into(&mut store, &m, (480, 640));
