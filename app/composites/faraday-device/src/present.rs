@@ -6,8 +6,10 @@ use faraday_present::Present;
 use crate::{Body, Over, Page, Refusal, State};
 
 impl Worded for Refusal {
-    fn words(&self, _show: &Show<'_>) -> Line {
-        match *self {}
+    fn words(&self, show: &Show<'_>) -> Line {
+        match self {
+            Refusal::Devices(r) => r.words(show),
+        }
     }
 }
 

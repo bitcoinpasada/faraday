@@ -1,13 +1,19 @@
+use faraday_devices::Devices;
 use faraday_guide_sheet::GuideSheet;
 use faraday_home::Home;
-use faraday_kernel::{Carried, Ctx, Effects, Feature, Notice, Public, Route, View, route};
+use faraday_kernel::{
+    Carried, Ctx, Effects, End, Feature, FrameSheet, Notice, Public, Route, Top, View, route,
+};
 use faraday_power::Power;
 
 use crate::{Device, Msg, Out, Page, State};
 
 /// Why a message is refused before `update` sees it.
 #[derive(Public)]
-pub enum Refusal {}
+pub enum Refusal {
+    /// The device check's: a virtual machine is never let through, and the sheet asks first.
+    Devices(faraday_devices::Refusal),
+}
 
 impl Feature for Device {
     type State = State;
@@ -26,11 +32,13 @@ impl Feature for Device {
             Msg::Guide(m) => {
                 route::<GuideSheet>(&mut state.guide, m, cx).lift(Msg::Guide, guide_out)
             }
+            Msg::Devices(m) => {
+                route::<Devices>(&mut state.devices, m, cx).lift(Msg::Devices, devices_out)
+            }
             Msg::Press(press) => Self::update(state, Msg::from(press), cx),
             // The features and areas below are not built: no page of theirs is shown and no
             // sheet of theirs comes up, so no message of theirs arrives.
-            Msg::Devices(_)
-            | Msg::Scan(_)
+            Msg::Scan(_)
             | Msg::Keys(_)
             | Msg::Wallets(_)
             | Msg::Signing(_)
@@ -50,6 +58,7 @@ impl Feature for Device {
             Msg::Home(m) => Home::refuses(&state.home, m, view).map(|r| match r {}),
             Msg::Power(m) => Power::refuses(&state.power, m, view).map(|r| match r {}),
             Msg::Guide(m) => GuideSheet::refuses(&state.guide, m, view).map(|r| match r {}),
+            Msg::Devices(m) => Devices::refuses(&state.devices, m, view).map(Refusal::Devices),
             _ => None,
         }
     }
@@ -114,5 +123,19 @@ pub(crate) fn power_out(out: faraday_power::Out) -> Route<Msg, Out> {
     match out {
         faraday_power::Out::Front(sheet) => Route::Up(Out::Front(sheet)),
         faraday_power::Out::Top(top) => Route::Up(Out::Top(top)),
+    }
+}
+
+/// What the device check asks of the composite: its sheets and the end go up, and secrets on
+/// show go off the screen when something that can capture it arrives (06 §7; `main`'s
+/// `concerns_changed`).
+pub(crate) fn devices_out(out: faraday_devices::Out) -> Route<Msg, Out> {
+    use faraday_devices::Out as D;
+    match out {
+        D::Front(sheet) => Route::Up(Out::Front(sheet)),
+        D::Hide => Route::Up(Out::Top(Top::Hide)),
+        D::PowerOff => Route::Up(Out::Top(Top::End(End::PowerOff))),
+        // The features that wait for the check are not built: no gate is open to answer.
+        D::Cleared(_) => Route::Drop,
     }
 }

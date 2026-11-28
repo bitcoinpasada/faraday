@@ -27,7 +27,7 @@ pub use faraday_atoms::{
 
 pub use faraday_atoms::button::ButtonModel;
 pub use faraday_atoms::field::FieldModel;
-pub use faraday_atoms::hold::HoldModel;
+pub use faraday_atoms::hold::{HoldModel, HoldTone};
 pub use faraday_atoms::kind_probe;
 pub use faraday_molecules::address::AddressModel;
 pub use faraday_molecules::appearance::{AppearanceModel, Segments, TextSizeModel};

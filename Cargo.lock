@@ -938,10 +938,12 @@ dependencies = [
  "faraday-app-test",
  "faraday-kernel",
  "faraday-organisms",
+ "faraday-paper",
  "faraday-port",
  "faraday-present",
  "faraday-strings",
  "faraday-templates",
+ "faraday-text",
 ]
 
 [[package]]

@@ -10,7 +10,7 @@ pub struct State {
     #[lock(kept)]
     pub(crate) power: faraday_power::State,
     #[lock(kept)]
-    devices: faraday_devices::State,
+    pub(crate) devices: faraday_devices::State,
     #[lock(kept)]
     scan: faraday_scan::State,
     #[lock(kept)]
@@ -35,10 +35,11 @@ impl State {
     pub(crate) fn start(carried: &mut Carried, cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
         let (home, home_fx) = <faraday_home::Home as Feature>::start(carried, cx);
         let (power, power_fx) = <faraday_power::Power as Feature>::start(carried, cx);
+        let (devices, devices_fx) = <faraday_devices::Devices as Feature>::start(carried, cx);
         let state = State {
             home,
             power,
-            devices: <faraday_devices::Devices as Feature>::start(carried, cx).0,
+            devices,
             scan: <faraday_scan::Scan as Feature>::start(carried, cx).0,
             guide: <faraday_guide_sheet::GuideSheet as Feature>::start(carried, cx).0,
             keys: <faraday_keys_area::Keys as Feature>::start(carried, cx).0,
@@ -50,7 +51,8 @@ impl State {
         };
         let effects = home_fx
             .lift(Msg::Home, crate::update::home_out)
-            .and(power_fx.lift(Msg::Power, crate::update::power_out));
+            .and(power_fx.lift(Msg::Power, crate::update::power_out))
+            .and(devices_fx.lift(Msg::Devices, crate::update::devices_out));
         (state, effects)
     }
 

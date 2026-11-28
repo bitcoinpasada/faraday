@@ -60,7 +60,23 @@ pub fn sheets<'s>(
                     ));
                 }
             }
-            // The device check's and the other kinds' sheets are not built.
+            FrameSheet::Devices => out.push((
+                faraday_devices::ANCHORS[0],
+                FrameSheetModel::Devices(faraday_devices::Devices::present_devices(
+                    &state.devices,
+                    view,
+                    show,
+                )),
+            )),
+            FrameSheet::NewInput => out.push((
+                faraday_devices::ANCHORS[1],
+                FrameSheetModel::Devices(faraday_devices::Devices::present_input(
+                    &state.devices,
+                    view,
+                    show,
+                )),
+            )),
+            // The other kinds' sheets are not built.
             _ => todo!(),
         }
     }

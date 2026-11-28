@@ -1,4 +1,8 @@
-use core::marker::PhantomData;
+use faraday_organisms::sheet::DialogModel;
 
-/// What `present` works out for the screen (04 §2).
-pub struct Model<'s>(PhantomData<&'s ()>);
+use crate::Press;
+
+/// What `present` works out for the screen (04 §2): the sheet on show, none when none is.
+pub struct Model<'s> {
+    pub(crate) sheet: Option<DialogModel<'s, Press>>,
+}

@@ -599,7 +599,7 @@ marked. Every row adds the feature base.
 |---|---|---|---|---|
 | `faraday-home` | device | `menu-pages.md` | Home | guide |
 | `faraday-power` | device | `lock.md` | the Lock, LockAsk, Locked, Power, IdleWarn sheets; `FailedModel` | text |
-| `faraday-devices` | device | `devices-inputs.md` | the Devices, NewInput sheets | none |
+| `faraday-devices` | device | `devices-inputs.md` | the Devices, NewInput sheets | paper (the screen's EDID rules: a TV or a KVM is held by its screen) |
 | `faraday-scan` | device; the Starter | `scanner-qr.md` | the Scan, Qr sheets | scan-part, codec, qr |
 | `faraday-guide-sheet` | device | `guide.md` | the Guide sheet | guide |
 | `faraday-keys-area` (composite) | device | none | none of its own | its nine children |

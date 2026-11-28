@@ -24,7 +24,7 @@ impl From<Press> for Msg {
         match press {
             Press::Home(p) => Msg::Home(p.into()),
             Press::Power(p) => Msg::Power(p.into()),
-            Press::Devices(p) => match p {},
+            Press::Devices(p) => Msg::Devices(p.into()),
             Press::Scan(p) => match p {},
             Press::Guide(p) => Msg::Guide(p.into()),
             Press::Keys(p) => Msg::Keys(p.into()),
