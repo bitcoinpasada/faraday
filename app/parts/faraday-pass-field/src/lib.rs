@@ -2,33 +2,27 @@
 //! (A3).
 //! Section 09 §4.3: `State` (fields private), `Msg`, `Press`, `update`, a `Read<'s>` view for its
 //! owner's `present`, and `AtLock` for `State`.
+//!
+//! One passphrase typed once, or a pair (the passphrase and the one typed again). The text is held
+//! in `SecretText` alone: never `Clone`, never printed, never copied into a `String`, wiped by a
+//! clear, a lock and a drop. The owner drives it with `Msg`: a key, a press, a fill, a clear.
 
-#![expect(dead_code, reason = "the fields are read once the bodies are written")]
 #![cfg_attr(
     not(test),
     deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
 
-use core::marker::PhantomData;
+mod eye;
+mod kind;
+mod pair;
+mod read;
+mod state;
+#[cfg(test)]
+mod tests;
+mod update;
 
-use faraday_kernel::{AtLock, Ctx, Effects, Message, Never};
-
-#[derive(AtLock)]
-pub struct State {
-    #[lock(public)]
-    skeleton: (),
-}
-
-#[derive(Message)]
-pub enum Msg {}
-
-/// What a press on this part sends; its owner's `Press` holds it.
-#[derive(Clone, PartialEq, Debug)]
-pub enum Press {}
-
-pub fn update(_state: &mut State, _msg: Msg, _cx: &Ctx<'_>) -> Effects<Msg, Never> {
-    todo!()
-}
-
-/// The read view the owner's `present` maps to a kit model.
-pub struct Read<'s>(PhantomData<&'s State>);
+pub use kind::{Kind, Refused};
+pub use pair::{differ, ready};
+pub use read::Read;
+pub use state::{Last, State, Which};
+pub use update::{By, Msg, Press, update};

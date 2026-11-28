@@ -7,11 +7,11 @@
 
 use faraday_atoms::PlainRef;
 use faraday_atoms::hits::{Shape, Unpressed};
-use faraday_atoms::{Icon, Pressed, Shown, Ui, W};
+use faraday_atoms::{Drawn, Icon, Offered, Pressed, Shown, Ui, W};
 use faraday_text::Text;
 use faraday_tokens::dims::{
     BODY_M, FIELD_RADIUS, GAP, GAP_SMALL, PASS_CODE_INSET, PASS_CODE_TEXT, RADIUS_SMALL, SHAPE_S,
-    STATE_PRESS, TYPED_INSET,
+    STATE_PRESS, TYPED_INSET, DISABLED_CONTENT,
 };
 use faraday_tokens::palette::Role;
 
@@ -54,8 +54,10 @@ impl<'s> PassView<'s> {
     }
 }
 
-/// The passphrase field. What a press on the box or on the eye sends is held by the model; it is
-/// always offered (a field that takes no typing is the part's own state, not drawn here).
+/// The passphrase field. What a press on the box or on the eye sends is held by the model as what
+/// is offered. A box that is not offered (`Offered::No`, or refused and dimmed) is a field that
+/// takes no typing: a disabled outline, its dots and its eye at the disabled ink, and no press on
+/// the eye.
 pub struct PassModel<'s, A> {
     pub view: PassView<'s>,
     /// Typing goes to the field.
@@ -70,9 +72,18 @@ pub struct PassModel<'s, A> {
     /// The eye's tooltip, Show or Hide by whether the text is on show.
     pub eye_tip: Shown<'s>,
     /// A press on the box.
-    pub press: A,
+    pub press: Offered<A>,
     /// A press on the eye.
-    pub eye: A,
+    pub eye: Offered<A>,
+}
+
+/// The press an offer takes, and whether the control is drawn as off.
+fn taken<A>(o: &Offered<A>) -> (Option<&A>, bool) {
+    match o {
+        Offered::Yes(a) | Offered::Refused(a, Drawn::AsUsual) => (Some(a), false),
+        Offered::Refused(a, Drawn::Dimmed) => (Some(a), true),
+        Offered::No => (None, true),
+    }
 }
 
 /// The eye's glyph in the field.
@@ -86,10 +97,16 @@ pub fn draw<A: Pressed>(
     (x, y, w): (f32, f32, f32),
 ) -> f32 {
     let h = ui.field_h();
+    let (press, off) = taken(&m.press);
     if let Held::Public(text) = &m.view.0 {
         code_field(ui, (x, y, w, h), text);
-        ui.press_box(x, y, w, h, m.press.clone());
+        if let Some(press) = press {
+            ui.press_box(x, y, w, h, press.clone());
+        }
         return h;
+    }
+    if off {
+        return disabled(m, ui, (x, y, w), h);
     }
     ui.fill(x, y, w, h, RADIUS_SMALL, Role::SurfaceContainerHighest);
     let edge = if m.focused {
@@ -98,7 +115,9 @@ pub fn draw<A: Pressed>(
         Role::OutlineVariant
     };
     ui.stroke(x, y, w, h, RADIUS_SMALL, edge);
-    ui.press_box(x, y, w - h, h, m.press.clone());
+    if let Some(press) = press {
+        ui.press_box(x, y, w - h, h, press.clone());
+    }
     let room = w - TYPED_INSET - h;
     let empty = m.view.is_empty();
     match (&m.hint, &m.none) {
@@ -125,6 +144,42 @@ pub fn draw<A: Pressed>(
     h
 }
 
+/// A field that takes no typing: a disabled outlined text field (Material 3 Text fields), its
+/// outline at on-surface 12%, its dots and its eye at on-surface 38%, no box behind the eye and
+/// no press on the eye. A box that is only dimmed still answers a press.
+fn disabled<A: Pressed>(
+    m: &PassModel<'_, A>,
+    ui: &mut Ui<'_, A>,
+    (x, y, w): (f32, f32, f32),
+    h: f32,
+) -> f32 {
+    let ink = Role::OnSurface.at(DISABLED_CONTENT);
+    ui.field_box_off((x, y, w));
+    let shown = matches!(m.view.0, Held::Revealed(_));
+    match &m.view.0 {
+        Held::Revealed(text) => ui.showing(text, |ui| {
+            ui.text_mid_as((x + TYPED_INSET, y, h), BODY_M.mono(), ink, text.as_str());
+        }),
+        Held::Dots(n) => {
+            let dots = Text::repeated("\u{2022}", *n);
+            ui.text_mid_as((x + TYPED_INSET, y, h), BODY_M.mono(), ink, dots.as_str());
+        }
+        Held::Public(_) => {}
+    }
+    ui.icon(
+        x + w - h,
+        y,
+        h,
+        if shown { Icon::EyeOff } else { Icon::Eye },
+        EYE_GLYPH,
+        ink,
+    );
+    if let (Some(press), _) = taken(&m.press) {
+        ui.hit_drawn(x, y, w, h, press.clone());
+    }
+    h
+}
+
 /// What is typed: the dots, or the revealed text drawn from its borrow.
 fn typed<A: Pressed>(
     m: &PassModel<'_, A>,
@@ -134,6 +189,9 @@ fn typed<A: Pressed>(
 ) {
     let ink = Role::OnSurface;
     let at = (x, y, h);
+    let Some(press) = taken(&m.press).0 else {
+        return;
+    };
     match &m.view.0 {
         Held::Revealed(text) => ui.showing(text, |ui| {
             let size = BODY_M.size;
@@ -147,7 +205,7 @@ fn typed<A: Pressed>(
                 text.as_str(),
                 room,
                 m.focused,
-                m.press.clone(),
+                press.clone(),
             );
         }),
         Held::Dots(n) => {
@@ -163,7 +221,7 @@ fn typed<A: Pressed>(
                 dots.as_str(),
                 room,
                 m.focused,
-                m.press.clone(),
+                press.clone(),
             );
         }
         Held::Public(_) => {}
@@ -199,25 +257,35 @@ fn eye<A: Pressed>(m: &PassModel<'_, A>, ui: &mut Ui<'_, A>, (x, y, w): (f32, f3
     let ex = x + w - h;
     let inset = Role::SurfaceContainerHighest;
     let (bx, by, side) = (ex + 8.0, y + 8.0, h - 16.0);
+    let (press, off) = taken(&m.eye);
     ui.fill(bx, by, side, side, 6.0, inset);
-    if ui.is_pressed(&m.eye) {
+    if let Some(press) = press
+        && !off
+        && ui.is_pressed(press)
+    {
         ui.wash(bx, by, side, side, 6.0, Role::OnSurface.at(STATE_PRESS));
     }
     let icon = if shown { Icon::EyeOff } else { Icon::Eye };
-    let tint = if shown || m.marked {
-        Role::Primary
+    let tint = if off {
+        Role::OnSurface.at(DISABLED_CONTENT)
+    } else if shown || m.marked {
+        Role::Primary.paint()
     } else {
-        Role::OnSurfaceVariant
+        Role::OnSurfaceVariant.paint()
     };
     ui.icon(ex, y, h, icon, EYE_GLYPH, tint);
     let rect = (ex, y, h, h);
-    ui.press_unpressed(
-        Shape::new(ex, y, h, h, SHAPE_S),
-        Role::OnSurface.paint(),
-        Unpressed::HeldSecret,
-        m.eye.clone(),
-    );
-    ui.tip_plain(rect, &m.eye, m.eye_tip.as_str());
+    if let Some(press) = press
+        && !off
+    {
+        ui.press_unpressed(
+            Shape::new(ex, y, h, h, SHAPE_S),
+            Role::OnSurface.paint(),
+            Unpressed::HeldSecret,
+            press.clone(),
+        );
+        ui.tip_plain(rect, press, m.eye_tip.as_str());
+    }
 }
 
 /// A public passphrase in its code box at the field's text inset, unmasked
@@ -270,8 +338,8 @@ mod tests {
             hint: None,
             none: None,
             eye_tip: Shown::plain("Show"),
-            press: P(1),
-            eye: P(2),
+            press: Offered::Yes(P(1)),
+            eye: Offered::Yes(P(2)),
         }
     }
 
@@ -339,5 +407,23 @@ mod tests {
             field.rect.right() <= eye.rect.x + 1,
             "the box runs under the eye"
         );
+    }
+
+    /// Invariant: A field that takes no typing draws its dots at the disabled ink and takes no press on its eye; a press on its box is taken only where the model offers one.
+    /// Regression: A field the part turns off still opens its eye or takes typing, so a passphrase shows or changes while a stick forbids it.
+    /// Owner: kit
+    #[test]
+    fn a_field_that_takes_no_typing_has_no_eye_press() {
+        let mut off = model(PassView::dots(3));
+        off.press = Offered::No;
+        off.eye = Offered::No;
+        let (out, _) = drawn(&off);
+        assert!(out.hits.is_empty(), "{:?}", out.hits.len());
+        let mut dim = model(PassView::dots(3));
+        dim.press = Offered::Refused(P(1), Drawn::Dimmed);
+        dim.eye = Offered::No;
+        let (out, _) = drawn(&dim);
+        assert!(out.hits.iter().all(|h| h.press == P(1)));
+        assert!(!out.hits.is_empty());
     }
 }

@@ -37,7 +37,7 @@ pub use faraday_molecules::chips::{ChipsModel, ThemeChip};
 pub use faraday_molecules::flow_text::FlowText;
 pub use faraday_molecules::options::{ChoiceModel, OptionRow};
 pub use faraday_molecules::pads::PadModel;
-pub use faraday_molecules::pass::PassModel;
+pub use faraday_molecules::pass::{PassModel, PassView};
 pub use faraday_molecules::qr::QrModel;
 pub use faraday_molecules::row::RowModel;
 pub use faraday_molecules::status::BusyModel;

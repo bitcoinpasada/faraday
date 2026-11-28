@@ -1474,10 +1474,13 @@ dependencies = [
 name = "faraday-pass-field"
 version = "0.0.0"
 dependencies = [
+ "faraday-app-test",
+ "faraday-bip",
  "faraday-kernel",
  "faraday-keys",
  "faraday-port",
  "faraday-text",
+ "subtle",
 ]
 
 [[package]]
