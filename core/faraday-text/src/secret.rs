@@ -135,6 +135,9 @@ impl Zeroize for SecretText {
 mod tests {
     use super::*;
 
+    /// Invariant: A secret text keeps every character typed into it, however long, and gives each back as edited.
+    /// Regression: The text is held in a fixed buffer that drops what passes its room.
+    /// Owner: domain
     #[test]
     fn typing_past_its_room_keeps_every_character() {
         let mut t = SecretText::new();
@@ -150,5 +153,22 @@ mod tests {
         assert_eq!(t, "zoo");
         t.clear();
         assert!(t.is_empty());
+    }
+
+    /// Invariant: Two secret texts compare alike only when every byte is the same, so a pair of passphrases that differ anywhere, or in length, is never taken as matching.
+    /// Regression: The constant-time comparison stops at the shorter text and calls a prefix a match.
+    /// Owner: domain
+    #[test]
+    fn a_secret_matches_only_the_same_bytes() {
+        let of = |s: &str| {
+            let mut t = SecretText::new();
+            t.set(s);
+            t
+        };
+        let a = of("correct horse");
+        assert!(a.ct_eq(&of("correct horse")));
+        assert!(!a.ct_eq(&of("correct horsf")));
+        assert!(!a.ct_eq(&of("correct hors")));
+        assert!(!a.ct_eq(&of("")));
     }
 }

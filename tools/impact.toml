@@ -311,7 +311,6 @@ when = [
   "core/faraday-psbt/tests/all/verify.rs",
   "core/faraday-psbt/tests/all/wallet_fixtures.rs",
   "core/faraday-selftest/src/lib.rs",
-  "core/faraday-text/src/secret.rs",
   "core/faraday-text/tests/text.rs",
   "tools/vectors/codex32-volvelle/volvelle/checksum_worksheet.rs",
   "tools/vectors/codex32-volvelle/volvelle/fe.rs",
