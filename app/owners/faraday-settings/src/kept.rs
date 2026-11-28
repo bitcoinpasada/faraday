@@ -26,6 +26,19 @@ pub enum ModeAsked {
     Regtest,
 }
 
+impl ModeAsked {
+    /// The mode of a `Mode::index` (the kernel's number for the mode a scope is built in).
+    pub(crate) fn of_index(i: u8) -> ModeAsked {
+        match i {
+            0 => ModeAsked::Practice,
+            1 => ModeAsked::Mainnet,
+            3 => ModeAsked::Signet,
+            4 => ModeAsked::Regtest,
+            _ => ModeAsked::Testnet,
+        }
+    }
+}
+
 impl CarryValue for ModeAsked {
     fn encode(&self) -> Bytes {
         Bytes::new(vec![match self {

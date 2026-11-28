@@ -162,6 +162,14 @@ impl TestView {
         self
     }
 
+    /// The sticks the adapter lists.
+    #[must_use]
+    pub fn with_sticks(mut self, sticks: Vec<port::storage::StickInfo>) -> Self {
+        self.facts.sticks.attached = !sticks.is_empty();
+        self.facts.sticks.listed = sticks;
+        self
+    }
+
     /// With the test `Compute`.
     #[must_use]
     pub fn ctx(&self) -> Ctx<'_> {

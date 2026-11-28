@@ -327,6 +327,11 @@ impl<R: Root> Runtime<R> {
                     self.fault("an End while one is under way");
                 }
             }
+            Top::ModeLock => {
+                if let Some(addr) = self.root.mode_lock_asked() {
+                    self.queue.push(Item::Msg(addr));
+                }
+            }
             Top::SelfTest => self.run_selftest(),
             Top::Open => {
                 if has_outside::<R>() && self.phase == Phase::Closed {

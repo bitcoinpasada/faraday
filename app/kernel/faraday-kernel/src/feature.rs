@@ -79,6 +79,9 @@ pub enum Top {
     Shared(shared::Changed),
     /// Begin a lock of the scope.
     Lock(Lock),
+    /// The settings owner asks for a mode change: the root shows the Lock sheet, which always
+    /// asks for it, and the lock it then begins seals.
+    ModeLock,
     /// End the process, or close the Starter's scope.
     End(End),
     /// Run the self-test again (Settings' Run again).

@@ -63,6 +63,10 @@ impl Feature for Power {
         match msg {
             Msg::Show(which) => show(state, which),
             Msg::Lock { asks_first: true } => show(state, Which::LockAsk),
+            Msg::ModeLock => {
+                state.set_mode_change(true);
+                show(state, Which::LockAsk)
+            }
             Msg::Lock { asks_first: false } | Msg::Press(Press::Lock) => lock(state, true),
             Msg::Press(Press::LockWithoutSealing) => lock(state, false),
             Msg::Press(Press::Away) => away(state),
@@ -208,5 +212,27 @@ mod tests {
         let (state, fx) = Power::start(&mut Carried::empty(), &view.ctx());
         assert_eq!(state.sheet(), None);
         assert!(seen(fx).outs.is_empty());
+    }
+
+    /// Invariant: A mode change shows the Lock sheet even where nothing would be lost, and the Lock it offers seals the open vaults.
+    /// Regression: A mode change locks at once, or its Lock leaves the vaults unsealed.
+    /// Owner: app
+    #[test]
+    fn a_mode_change_asks_first_and_its_lock_seals() {
+        let view = TestView::device();
+        let mut state = State::new(None);
+        let shown = run(&view, &mut state, Msg::ModeLock).outs;
+        assert!(matches!(shown.as_slice(), [Out::Front(Some(_))]));
+        assert_eq!(state.sheet(), Some(Which::LockAsk));
+        assert!(state.mode_change());
+        let locked = run(&view, &mut state, Msg::Press(Press::Lock)).outs;
+        assert!(matches!(
+            locked.as_slice(),
+            [Out::Top(Top::Lock(Lock {
+                seal: true,
+                idle: false
+            }))]
+        ));
+        assert!(!state.mode_change());
     }
 }

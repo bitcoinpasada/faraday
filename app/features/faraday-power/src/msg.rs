@@ -49,6 +49,9 @@ pub enum Msg {
     Lock {
         asks_first: bool,
     },
+    /// The settings owner asked for a mode change: the Lock sheet comes first whether or not
+    /// anything would be lost, and its Lock seals (`main`'s `mode_act` into `lock_ask`).
+    ModeLock,
 }
 
 impl From<Press> for Msg {

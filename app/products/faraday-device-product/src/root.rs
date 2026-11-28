@@ -81,6 +81,13 @@ impl Root for Device {
         None
     }
 
+    /// A mode change shows the Lock sheet, which asks first.
+    fn mode_lock_asked(&self) -> Option<Addr<Self>> {
+        Some(Addr::App(Msg::Device(faraday_device::Msg::Power(
+            faraday_power::Msg::ModeLock,
+        ))))
+    }
+
     /// The device has no window.
     fn close_asked(&self) -> Option<Addr<Self>> {
         None

@@ -37,6 +37,11 @@ pub trait Root: Sized + 'static {
     fn input(&self, tops: &Tops<'_, Self>, input: &port::event::Input) -> Option<Addr<Self>>;
     /// A stream fact (devices, camera frames and codes, a host's drop, a write's progress).
     fn fact(&self, tops: &Tops<'_, Self>, fact: Stream) -> Option<Addr<Self>>;
+    /// The settings owner asked for a mode change (`Top::ModeLock`): the message that shows the
+    /// Lock sheet, which asks first. A root with no mode change has none.
+    fn mode_lock_asked(&self) -> Option<Addr<Self>> {
+        None
+    }
     /// The window's close button, as a message (desktop roots).
     fn close_asked(&self) -> Option<Addr<Self>>;
     /// Present then draw (04 §1, V5): the app's frame and the page its navigation shows,

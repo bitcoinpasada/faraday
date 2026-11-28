@@ -1,17 +1,20 @@
 use faraday_kernel::settings::{self, Change, Set};
 use faraday_kernel::shared::{self, Changed};
-use faraday_kernel::{AnyChange, ChangeId, FactsChanged, Lock, Owner};
+use faraday_kernel::{AnyChange, ChangeId, FactsChanged, Owner};
 use faraday_kernel::{Carried, Ctx, Effects, Feature, Notice, Public, View};
 use faraday_port::storage::{Read, StickId};
 
 use crate::file;
-use crate::kept::{Kept, MODE, SETTINGS};
+use crate::kept::{Kept, MODE, ModeAsked, SETTINGS};
 use crate::state::Look;
 use crate::{Msg, Out, Press, Settings, State};
 
 /// Why a message is refused before `update` sees it.
 #[derive(Public)]
-pub enum Refusal {}
+pub enum Refusal {
+    /// The mode pressed is the one in use: the sheet closes and nothing else happens.
+    ModeInUse,
+}
 
 /// Asks for the settings file when the boot stick is listed and holds one: once per process, and
 /// only from the boot stick (what is on any other stick is not settings). A boot stick without
@@ -61,13 +64,21 @@ impl Feature for Settings {
     type Refusal = Refusal;
 
     fn start(carried: &mut Carried, cx: &Ctx<'_>) -> (State, Effects<Msg, Out>) {
+        let in_use = ModeAsked::of_index(cx.view.mode.index());
         // What the last build carried is what the person chose: the file is not read over it.
         let mut state = match carried.take::<Kept>(SETTINGS) {
             Some(kept) => {
                 let (settings, on_stick) = kept.settings();
-                State::new(settings, Look::Known, on_stick)
+                // What the boot stick held is carried only once known: a lock before that
+                // reads the file again and applies it over the kept choices, as `main` did.
+                let look = if on_stick.is_some() {
+                    Look::Known
+                } else {
+                    Look::Waiting
+                };
+                State::new(settings, look, on_stick, in_use)
             }
-            None => State::new(Default::default(), Look::Waiting, None),
+            None => State::new(Default::default(), Look::Waiting, None, in_use),
         };
         let fx = look(&mut state, cx);
         (state, fx)
@@ -82,13 +93,16 @@ impl Feature for Settings {
                 }
                 Press::ModeCancel => {
                     state.ask_mode(None);
+                    state.set_pending(false);
                     Effects::none()
                 }
                 Press::ModeLock => match state.mode_asked() {
-                    Some(_) => Effects::none().out(Out::Lock(Lock {
-                        seal: false,
-                        idle: false,
-                    })),
+                    // The Lock sheet asks first and its Lock seals: the power feature's, reached
+                    // through the root.
+                    Some(_) => {
+                        state.set_pending(true);
+                        Effects::none().out(Out::ModeLock)
+                    }
                     None => Effects::none(),
                 },
             },
@@ -115,19 +129,28 @@ impl Feature for Settings {
     fn notice(state: &mut State, notice: &Notice<'_>, cx: &Ctx<'_>) -> Effects<Msg, Out> {
         match notice {
             Notice::Facts(FactsChanged::Sticks) => look(state, cx),
+            // A pick left on the mode sheet, by Back or a press elsewhere, is given up; one the
+            // Lock sheet is asking about waits for its answer.
+            Notice::Left => {
+                if !state.pending() {
+                    state.ask_mode(None);
+                }
+                Effects::none()
+            }
             _ => Effects::none(),
         }
     }
 
-    fn refuses(_state: &State, _msg: &Msg, _view: &View<'_>) -> Option<Refusal> {
-        None
+    fn refuses(state: &State, msg: &Msg, _view: &View<'_>) -> Option<Refusal> {
+        match msg {
+            Msg::Press(Press::Mode(m)) if *m == state.in_use() => Some(Refusal::ModeInUse),
+            _ => None,
+        }
     }
 
     fn carry(state: &mut State, into: &mut Carried) {
         into.put(SETTINGS, &Kept::of(state.settings(), state.on_stick()));
-        if let Some(m) = state.mode_asked() {
-            into.put(MODE, &m);
-        }
+        into.put(MODE, &state.mode_after_lock());
     }
 }
 
@@ -159,9 +182,9 @@ mod tests {
     use faraday_app_test::{Seen, TestView, seen};
     use faraday_kernel::route;
     use faraday_kernel::settings::Choice;
+    use faraday_port::storage::StickId;
 
     use super::*;
-    use crate::ModeAsked;
     use crate::kept::MODE;
 
     fn started() -> State {
@@ -237,79 +260,182 @@ mod tests {
         assert_eq!(fresh.settings_mut().idle_lock_min, 30);
     }
 
-    /// Invariant: The mode a person asks for is carried through the lock that applies it, and asking for none carries none.
-    /// Regression: The asked mode is dropped at the lock, or an unasked mode is carried so a plain lock changes the mode.
+    fn stick(id: &str, boot: bool, files: &[&str]) -> faraday_port::storage::StickInfo {
+        faraday_port::storage::StickInfo {
+            id: StickId(faraday_text::Text::of(id)),
+            label: faraday_text::Text::of(id),
+            boot,
+            serial: None,
+            files: files
+                .iter()
+                .map(|f| (faraday_text::Text::of(f), 10))
+                .collect(),
+            vaults: Vec::new(),
+            make: Default::default(),
+        }
+    }
+
+    fn lock_carry(state: &mut State) -> Carried {
+        let mut carried = Carried::empty();
+        Settings::carry(state, &mut carried);
+        carried
+    }
+
+    /// Invariant: A lock with no mode change begun starts the next build in the mode in use, and only the Lock sheet's own mode change starts it in another.
+    /// Regression: A plain lock carries no mode and the root gives its own, or a mode picked and abandoned is applied at the next lock.
     /// Owner: app
     #[test]
-    fn the_mode_asked_is_carried_and_a_cancel_carries_none() {
+    fn a_lock_keeps_the_mode_in_use_unless_a_change_was_begun() {
         let view = TestView::device();
         let mut state = started();
-        let mut carried = Carried::empty();
-        Settings::carry(&mut state, &mut carried);
-        assert!(carried.take::<ModeAsked>(MODE).is_none());
+        let mut carried = lock_carry(&mut state);
+        assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Mainnet));
 
-        let picked = route::<Settings>(
+        // Picked, then left by Back or a press elsewhere: given up.
+        let _ = route::<Settings>(
             &mut state,
             Msg::Press(Press::Mode(ModeAsked::Signet)),
             &view.ctx(),
         );
-        assert!(seen(picked).outs.is_empty());
-        let lock = seen(route::<Settings>(
-            &mut state,
-            Msg::Press(Press::ModeLock),
-            &view.ctx(),
-        ));
-        assert!(matches!(
-            lock.outs.as_slice(),
-            [Out::Lock(Lock {
-                seal: false,
-                idle: false
-            })]
-        ));
-        let mut carried = Carried::empty();
-        Settings::carry(&mut state, &mut carried);
-        assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));
-
+        let _ = route::<Settings>(&mut state, Msg::Press(Press::ModeLock), &view.ctx());
         let _ = route::<Settings>(&mut state, Msg::Press(Press::ModeCancel), &view.ctx());
-        let none = seen(route::<Settings>(
+        let mut carried = lock_carry(&mut state);
+        assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Mainnet));
+        let _ = route::<Settings>(
+            &mut state,
+            Msg::Press(Press::Mode(ModeAsked::Signet)),
+            &view.ctx(),
+        );
+        let _ = route::<Settings>(
+            &mut state,
+            Msg::Press(Press::Mode(ModeAsked::Regtest)),
+            &view.ctx(),
+        );
+        let _ = Settings::notice(&mut state, &Notice::Left, &view.ctx());
+        let mut carried = lock_carry(&mut state);
+        assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Mainnet));
+
+        // The Lock sheet asked, and it is the lock that applies it.
+        let _ = route::<Settings>(
+            &mut state,
+            Msg::Press(Press::Mode(ModeAsked::Signet)),
+            &view.ctx(),
+        );
+        let asked = seen(route::<Settings>(
             &mut state,
             Msg::Press(Press::ModeLock),
             &view.ctx(),
         ));
-        assert!(none.outs.is_empty());
-        let mut carried = Carried::empty();
-        Settings::carry(&mut state, &mut carried);
-        assert!(carried.take::<ModeAsked>(MODE).is_none());
+        assert!(matches!(asked.outs.as_slice(), [Out::ModeLock]));
+        let _ = Settings::notice(&mut state, &Notice::Left, &view.ctx());
+        let mut carried = lock_carry(&mut state);
+        assert_eq!(carried.take::<ModeAsked>(MODE), Some(ModeAsked::Signet));
     }
 
-    /// Invariant: A file answer nobody asked for changes no setting, and a lock leaves the person's choices as they were.
-    /// Regression: A stray answer overwrites the choices the carry restored, or a lock wipes the settings.
+    /// Invariant: Picking the mode already in use does nothing, and no lock follows.
+    /// Regression: The mode in use is accepted and its Lock sheet locks the session for no change.
     /// Owner: app
     #[test]
-    fn a_stray_file_answer_and_a_lock_leave_the_choices() {
-        use faraday_kernel::AtLock;
+    fn the_mode_in_use_is_refused() {
+        let view = TestView::device();
+        let state = started();
+        let refused = Settings::refuses(
+            &state,
+            &Msg::Press(Press::Mode(ModeAsked::Mainnet)),
+            &view.ctx().view,
+        );
+        assert!(matches!(refused, Some(Refusal::ModeInUse)));
+        let other = Settings::refuses(
+            &state,
+            &Msg::Press(Press::Mode(ModeAsked::Testnet)),
+            &view.ctx().view,
+        );
+        assert!(other.is_none());
+    }
+
+    /// Invariant: A lock before the boot stick's file was read starts the next build looking for it again, and a carry that knows the stick does not.
+    /// Regression: A carried start marks the file read, so a stick's idle times and scale are never applied that power-on.
+    /// Owner: app
+    #[test]
+    fn a_carry_before_the_file_was_read_reads_it_again() {
         let view = TestView::device();
         let mut state = started();
-        let _ = given(&mut state, Choice::Scale(200));
-        let file = format!("{}\nscale=75\n", crate::HEADER).into_bytes();
-        let stick = view
-            .ctx()
-            .view
-            .facts
-            .sticks
-            .listed
-            .first()
-            .map(|s| s.id.clone());
-        if let Some(stick) = stick {
-            let fx = seen(route::<Settings>(
-                &mut state,
-                Msg::Read(stick, Some(file)),
-                &view.ctx(),
-            ));
-            assert!(fx.outs.is_empty());
-        }
-        assert_eq!(state.settings_mut().scale_pct, 200);
-        state.at_lock();
-        assert_eq!(state.settings_mut().scale_pct, 200);
+        assert_eq!(state.look(), Look::Waiting);
+        let mut carried = lock_carry(&mut state);
+        let next = Settings::start(&mut carried, &view.ctx()).0;
+        assert_eq!(next.look(), Look::Waiting);
+
+        let mut known = started();
+        known.on_stick_known();
+        let mut carried = lock_carry(&mut known);
+        let next = Settings::start(&mut carried, &view.ctx()).0;
+        assert_eq!(next.look(), Look::Known);
+    }
+
+    fn file_bytes(lines: &str) -> Vec<u8> {
+        format!("{}\n{lines}", crate::HEADER).into_bytes()
+    }
+
+    /// Invariant: The settings file is asked for once, from the boot stick alone, and what comes back is applied; a failed read leaves the settings and counts as known.
+    /// Regression: The file is read from a stick that is not the boot stick, read again at each listing, or a failed read leaves the owner asking.
+    /// Owner: app
+    #[test]
+    fn the_file_is_read_once_from_the_boot_stick_only() {
+        // A boot stick without the file and another stick with it: nothing is asked.
+        let view = TestView::device().with_sticks(vec![
+            stick("boot", true, &[]),
+            stick("other", false, &["faraday-settings.txt"]),
+        ]);
+        let (state, fx) = Settings::start(&mut Carried::empty(), &view.ctx());
+        assert!(seen(fx).asks.is_empty());
+        assert_eq!(state.look(), Look::Known);
+
+        // The boot stick holds it (any case): one ask, and a second listing asks nothing.
+        let view = TestView::device().with_sticks(vec![
+            stick("other", false, &["faraday-settings.txt"]),
+            stick("boot", true, &["Faraday-Settings.TXT"]),
+        ]);
+        let (mut state2, fx) = Settings::start(&mut Carried::empty(), &view.ctx());
+        let mut asks = seen(fx).asks;
+        assert_eq!(asks.len(), 1);
+        let (request, _reply) = faraday_app_test::asked(asks.remove(0));
+        assert!(matches!(
+            request,
+            faraday_port::Ask::Storage(faraday_port::storage::StorageAsk::Read { stick, .. })
+                if stick == StickId(faraday_text::Text::of("boot"))
+        ));
+        let again = Settings::notice(
+            &mut state2,
+            &Notice::Facts(FactsChanged::Sticks),
+            &view.ctx(),
+        );
+        assert!(seen(again).asks.is_empty());
+
+        // The answer applies the file and tells the others.
+        let boot = StickId(faraday_text::Text::of("boot"));
+        let read = route::<Settings>(
+            &mut state2,
+            Msg::Read(boot.clone(), Some(file_bytes("scale=150\n"))),
+            &view.ctx(),
+        );
+        assert_eq!(seen(read).outs.len(), 1);
+        assert_eq!(state2.settings().scale_pct, 150);
+        assert_eq!(state2.look(), Look::Known);
+
+        // A failed read leaves the settings and is known.
+        let (mut state3, fx) = Settings::start(&mut Carried::empty(), &view.ctx());
+        let _ = seen(fx);
+        let failed = route::<Settings>(&mut state3, Msg::Read(boot.clone(), None), &view.ctx());
+        assert!(seen(failed).outs.is_empty());
+        assert_eq!(state3.settings().scale_pct, 100);
+        assert_eq!(state3.look(), Look::Known);
+        // An answer nobody asked for changes nothing.
+        let stray = route::<Settings>(
+            &mut state3,
+            Msg::Read(boot, Some(file_bytes("scale=75\n"))),
+            &view.ctx(),
+        );
+        assert!(seen(stray).outs.is_empty());
+        assert_eq!(state3.settings().scale_pct, 100);
     }
 }

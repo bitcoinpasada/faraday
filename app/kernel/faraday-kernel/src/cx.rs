@@ -147,6 +147,23 @@ pub struct Mode {
     pub online: bool,
 }
 
+impl Mode {
+    /// The mode as a number the settings owner carries: 0 Practice, 1 Mainnet, 2 Testnet,
+    /// 3 Signet, 4 Regtest (`main`'s `modes::Mode`, whose Practice is Testnet's public set).
+    #[must_use]
+    pub fn index(&self) -> u8 {
+        if self.practice {
+            return 0;
+        }
+        match self.network {
+            Network::Mainnet => 1,
+            Network::Testnet => 2,
+            Network::Signet => 3,
+            Network::Regtest => 4,
+        }
+    }
+}
+
 /// What present has beside `View`. Built only by the runtime.
 pub struct Show<'a> {
     strings: &'static Strings,

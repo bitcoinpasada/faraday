@@ -34,16 +34,29 @@ pub struct State {
     /// The mode asked for, once chosen: `main`'s `ModesArea::next_mode`.
     #[lock(public)]
     asked: Option<ModeAsked>,
+    /// The mode this build of the scope runs in; a lock keeps it unless a change was begun.
+    #[lock(public)]
+    in_use: ModeAsked,
+    /// The Lock sheet has been asked for the mode in `asked`: the only lock that applies it.
+    #[lock(public)]
+    pending: bool,
 }
 
 impl State {
     /// A start: the defaults until the settings file is read, or what the last build carried.
-    pub(crate) fn new(settings: Settings, look: Look, on_stick: Option<String>) -> State {
+    pub(crate) fn new(
+        settings: Settings,
+        look: Look,
+        on_stick: Option<String>,
+        in_use: ModeAsked,
+    ) -> State {
         State {
             settings,
             look,
             on_stick,
             asked: None,
+            in_use,
+            pending: false,
         }
     }
 
@@ -76,6 +89,27 @@ impl State {
 
     pub(crate) fn ask_mode(&mut self, m: Option<ModeAsked>) {
         self.asked = m;
+    }
+
+    pub(crate) fn in_use(&self) -> ModeAsked {
+        self.in_use
+    }
+
+    pub(crate) fn set_pending(&mut self, on: bool) {
+        self.pending = on;
+    }
+
+    pub(crate) fn pending(&self) -> bool {
+        self.pending
+    }
+
+    /// The mode the next build starts in: the one asked for once the Lock sheet was asked for
+    /// it, else the one in use (`main`'s `next_mode.unwrap_or(in_use)`).
+    pub(crate) fn mode_after_lock(&self) -> ModeAsked {
+        match self.asked {
+            Some(m) if self.pending => m,
+            _ => self.in_use,
+        }
     }
 
     /// The mode asked for, if one is.
